@@ -1,0 +1,8 @@
+# Add one [[node]] table per custom node repository you want to manage.
+#
+# [[node]]
+# name = "ComfyUI-Manager"
+# repo = "https://github.com/ltdrdata/ComfyUI-Manager.git"
+# ref = "main"
+# path = "ComfyUI-Manager"
+# install_requirements = true

@@ -42,17 +42,19 @@ The default upstream pin is `v0.30.1`. The local checkout will stay on that rele
 Start ComfyUI first, then queue a simple txt2img job:
 
 ```bash
-./.venv/bin/python scripts/queue_prompt.py \
+uv run scripts/queue_prompt.py \
   --ckpt-name your-model.safetensors \
   --prompt "pixel art, 16-bit, game sprite, limited palette, crisp edges, simple shading"
 ```
+
+`./.venv/bin/python scripts/queue_prompt.py ...` works the same way if you prefer not to use uv.
 
 The API workflow shape used by that script is also tracked at `workflows/templates/minimal-txt2img-api.json`.
 
 For img2img with a file already placed under `.local/ComfyUI/input`:
 
 ```bash
-./.venv/bin/python scripts/queue_img2img.py \
+uv run scripts/queue_img2img.py \
   --ckpt-name your-model.safetensors \
   --image your-base-image.png \
   --prompt "retro jrpg pixel art sprite"
@@ -64,6 +66,15 @@ Tracked API workflow templates:
 - `workflows/templates/dq3sage.json`
 
 You can import either JSON into ComfyUI and then edit the checkpoint name, prompt text, and input image filename in the UI.
+
+## Python Environment
+
+`.venv` is populated from the pinned upstream checkout's `requirements.txt` by
+`./scripts/update-comfyui.sh`, so those packages are deliberately not declared in
+`pyproject.toml`. To keep uv from treating them as extraneous and uninstalling them,
+the project is marked `[tool.uv] managed = false`. As a result `uv run` uses `.venv`
+without syncing, and `uv sync` / `uv lock` refuse to run. Change dependencies through
+`config/upstream.env` and the update script, not by editing `pyproject.toml`.
 
 ## Tracked Files You Should Edit
 

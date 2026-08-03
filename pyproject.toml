@@ -2,3 +2,10 @@
 name = "ai-comfyui-env"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
+
+# Runtime dependencies are NOT declared here on purpose: they come from the
+# pinned upstream ComfyUI checkout's requirements.txt, installed into .venv by
+# scripts/update-comfyui.sh. Leaving uv unmanaged stops `uv run` / `uv sync`
+# from treating those packages as extraneous and uninstalling them.
+[tool.uv]
+managed = false

@@ -60,9 +60,25 @@ uv run scripts/queue_img2img.py \
   --prompt "retro jrpg pixel art sprite"
 ```
 
+## Queue An Anima Prompt
+
+[Anima](https://huggingface.co/circlestone-labs/Anima) needs three files under
+`.local/assets`: `diffusion_models/anima-preview3-base.safetensors`,
+`text_encoders/qwen_3_06b_base.safetensors` and `vae/qwen_image_vae.safetensors`.
+
+```bash
+uv run scripts/queue_anima.py \
+  --prompt "masterpiece, best quality, 1girl, solo, retro artstyle, cel shading"
+```
+
+Anima preview3 is a base (non-distilled) model. The defaults — 30 steps, cfg 4.0,
+`er_sde`/`simple` — reflect that. Turbo-style settings such as 8 steps or cfg 1.0
+produce collapsed images, and cfg 1.0 also disables the negative prompt entirely.
+
 Tracked API workflow templates:
 
 - `workflows/templates/minimal-txt2img-api.json`
+- `workflows/templates/anima-txt2img-api.json`
 - `workflows/templates/dq3sage.json`
 
 You can import either JSON into ComfyUI and then edit the checkpoint name, prompt text, and input image filename in the UI.

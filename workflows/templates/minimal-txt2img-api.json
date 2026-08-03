@@ -1,0 +1,86 @@
+{
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "cfg": 7,
+      "denoise": 1,
+      "latent_image": [
+        "5",
+        0
+      ],
+      "model": [
+        "4",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "seed": 1,
+      "steps": 20
+    }
+  },
+  "4": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "put-your-checkpoint-name-here.safetensors"
+    }
+  },
+  "5": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "batch_size": 1,
+      "height": 512,
+      "width": 512
+    }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "4",
+        1
+      ],
+      "text": "pixel art, 16-bit, game sprite, limited palette, crisp edges, simple shading"
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "4",
+        1
+      ],
+      "text": "blurry, smooth shading, gradient, anti-aliased, photorealistic"
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "pixel-art",
+      "images": [
+        "8",
+        0
+      ]
+    }
+  }
+}

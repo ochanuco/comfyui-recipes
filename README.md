@@ -37,6 +37,34 @@ The bootstrap script will:
 
 The default upstream pin is `v0.16.4`. The local checkout will stay on that release tag until you change `config/upstream.env`.
 
+## Queue A Minimal Prompt
+
+Start ComfyUI first, then queue a simple txt2img job:
+
+```bash
+./.venv/bin/python scripts/queue_prompt.py \
+  --ckpt-name your-model.safetensors \
+  --prompt "pixel art, 16-bit, game sprite, limited palette, crisp edges, simple shading"
+```
+
+The API workflow shape used by that script is also tracked at `workflows/templates/minimal-txt2img-api.json`.
+
+For img2img with a file already placed under `.local/ComfyUI/input`:
+
+```bash
+./.venv/bin/python scripts/queue_img2img.py \
+  --ckpt-name your-model.safetensors \
+  --image your-base-image.png \
+  --prompt "retro jrpg pixel art sprite"
+```
+
+Tracked API workflow templates:
+
+- `workflows/templates/minimal-txt2img-api.json`
+- `workflows/templates/dq3sage.json`
+
+You can import either JSON into ComfyUI and then edit the checkpoint name, prompt text, and input image filename in the UI.
+
 ## Tracked Files You Should Edit
 
 - `config/upstream.env`: choose the upstream ref to follow

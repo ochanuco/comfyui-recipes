@@ -35,7 +35,7 @@ The bootstrap script will:
 ./scripts/install-custom-nodes.sh
 ```
 
-The default upstream pin is `v0.16.4`. The local checkout will stay on that release tag until you change `config/upstream.env`.
+The default upstream pin is `v0.30.1`. The local checkout will stay on that release tag until you change `config/upstream.env`.
 
 ## Queue A Minimal Prompt
 

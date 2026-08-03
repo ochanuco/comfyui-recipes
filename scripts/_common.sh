@@ -55,6 +55,7 @@ ensure_local_layout() {
     "${ASSET_ROOT}/embeddings" \
     "${ASSET_ROOT}/loras" \
     "${ASSET_ROOT}/style_models" \
+    "${ASSET_ROOT}/text_encoders" \
     "${ASSET_ROOT}/unet" \
     "${ASSET_ROOT}/upscale_models" \
     "${ASSET_ROOT}/vae" \

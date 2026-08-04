@@ -35,14 +35,17 @@ CLASSES = {
         "white dress, short dress, brown belt, (yellow elbow gloves:1.3), "
         "teal cape, teal scarf, (yellow boots:1.2), (holding staff:1.2), wooden staff"
     ),
+    # (mini robe:1.3) is load-bearing: at full length the robe drapes over the
+    # legs and the pantyhose comes out blotched with stray dark or light patches.
     "priest": (
         "priest (dq3), (light blue hair:1.2), (medium hair:1.3), red eyes, "
-        "blue robe, short robe, yellow cross, tall hat, yellow gloves, yellow boots, "
-        "(holding staff:1.2), wooden staff"
+        "blue robe, (mini robe:1.3), thigh length robe, yellow cross, tall hat, "
+        "yellow gloves, yellow boots, (holding staff:1.2), wooden staff"
     ),
     "mage": (
-        "mage (dq3), (medium hair:1.3), "
-        "wizard hat, short robe, cape, gloves, boots, (holding staff:1.2), wooden staff"
+        "mage (dq3), (purple hair:1.2), (medium hair:1.3), "
+        "(blue wizard hat:1.2), pointy hat, (yellow robe:1.2), short robe, blue cape, "
+        "white belt, orange gloves, orange boots, (holding staff:1.2), wooden staff"
     ),
 }
 
@@ -76,10 +79,11 @@ NEG_GEAR = (
     "armor, warrior, headgear, (headscarf:1.4), (hood:1.4), mitre, bishop hat"
 )
 NEG_FRAMING = "cropped, head out of frame, close-up, lower body, feet focus"
+NEG_ARTIFACT = "long robe, floor length robe, patterned legwear, polka dot, spots, mottled"
 NEG_MISC = "3d, cgi, render, photorealistic, realistic, loli, child, mature female, milf, old"
 
 DEFAULT_NEGATIVE = ", ".join(
-    [NEG_QUALITY, NEG_SHINE, NEG_LEGS, NEG_GEAR, NEG_FRAMING, NEG_MISC]
+    [NEG_QUALITY, NEG_SHINE, NEG_LEGS, NEG_GEAR, NEG_FRAMING, NEG_ARTIFACT, NEG_MISC]
 )
 
 

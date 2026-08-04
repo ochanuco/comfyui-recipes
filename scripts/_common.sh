@@ -69,8 +69,17 @@ ensure_venv() {
     return 0
   fi
 
-  python_cmd="$(find_python_cmd)"
-  "${python_cmd}" -m venv "${VENV_DIR}"
+  # Machines that manage Python through mise or uv often have no system 3.12 at
+  # all, so fall back to letting uv fetch one rather than failing the bootstrap.
+  if python_cmd="$(find_python_cmd 2>/dev/null)"; then
+    "${python_cmd}" -m venv "${VENV_DIR}"
+  elif command -v uv >/dev/null 2>&1; then
+    uv venv --python 3.12 "${VENV_DIR}"
+  else
+    printf 'Python 3.12 is required (install it, or install uv to fetch it)\n' >&2
+    return 1
+  fi
+
   "${VENV_DIR}/bin/python" -m ensurepip --upgrade >/dev/null 2>&1 || true
 }
 

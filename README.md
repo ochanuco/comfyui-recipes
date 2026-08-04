@@ -75,6 +75,25 @@ Anima preview3 is a base (non-distilled) model. The defaults — 30 steps, cfg 4
 `er_sde`/`simple` — reflect that. Turbo-style settings such as 8 steps or cfg 1.0
 produce collapsed images, and cfg 1.0 also disables the negative prompt entirely.
 
+## Queue A Dragon Quest III Portrait
+
+`scripts/queue_dq3.py` wraps a novaAnimeXL recipe tuned for DQ3 class portraits:
+
+```bash
+uv run scripts/queue_dq3.py --job sage --pose standing --count 3
+uv run scripts/queue_dq3.py --job priest --pose sitting --wait
+```
+
+`--job` picks the class (`sage`, `priest`, `mage`), `--pose` the framing
+(`standing`, `sitting`), `--extra` appends to the positive prompt and `--wait`
+polls until the images land in `.local/ComfyUI/output`.
+
+The prompt defaults encode a few findings that are easy to lose: the class tags
+alone drift toward sleeved robes and horned helmets, so the outfits are spelled
+out and the gear negatives carry weights. Shine has to be pinned to the legwear
+or the model renders skin and cloth as latex, and `muscular*` belongs in the
+negatives so thicker calves read as soft tissue.
+
 Tracked API workflow templates:
 
 - `workflows/templates/minimal-txt2img-api.json`

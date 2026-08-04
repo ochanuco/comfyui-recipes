@@ -94,6 +94,26 @@ out and the gear negatives carry weights. Shine has to be pinned to the legwear
 or the model renders skin and cloth as latex, and `muscular*` belongs in the
 negatives so thicker calves read as soft tissue.
 
+## Vary Scenes With A Local LLM
+
+`scripts/gen_variants.py` asks a local ollama model for scene tags and queues one
+image per variant, so batches vary without hand-writing `--extra` each time:
+
+```bash
+uv run scripts/gen_variants.py --job sage --count 5 --wait
+uv run scripts/gen_variants.py --job mage --theme "夕暮れの街道" --dry-run
+```
+
+`--dry-run` prints the variants without queueing, `--theme` accepts free text in
+any language, and `--model` selects the ollama model (default `qwen3:30b-instruct`).
+
+The model is handed a fixed `VOCABULARY` and told to recombine it rather than to
+write tags freely. Local models recall Danbooru vocabulary poorly but recombine a
+supplied list reliably, and the constraint also keeps them away from the outfit
+and legwear tags in `queue_dq3.py`. The vocabulary deliberately omits
+`from below`, `cowboy shot` and `close-up`, which fight that script's framing
+negatives.
+
 Tracked API workflow templates:
 
 - `workflows/templates/minimal-txt2img-api.json`

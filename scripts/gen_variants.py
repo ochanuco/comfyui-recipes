@@ -76,6 +76,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=8188)
     parser.add_argument("--job", choices=sorted(queue_dq3.CLASSES), default="sage")
     parser.add_argument("--pose", choices=sorted(queue_dq3.POSES), default="standing")
+    parser.add_argument("--face", choices=sorted(queue_dq3.FACES), default="default")
+    parser.add_argument("--style", choices=sorted(queue_dq3.STYLES), default="default")
+    parser.add_argument("--plain-quality", action="store_true")
     parser.add_argument("--count", type=int, default=5)
     parser.add_argument("--theme", default="", help="free-text hint, any language")
     parser.add_argument("--ollama-url", default="http://localhost:11434/api/chat")
@@ -166,6 +169,9 @@ def main() -> int:
             port=args.port,
             job=args.job,
             pose=args.pose,
+            face=args.face,
+            style=args.style,
+            plain_quality=args.plain_quality,
             extra=extra,
             negative=queue_dq3.DEFAULT_NEGATIVE,
             width=832,

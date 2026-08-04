@@ -6,3 +6,13 @@
 # ref = "main"
 # path = "ComfyUI-Manager"
 # install_requirements = true
+
+# Reference-image conditioning: transfers the look of an input image without
+# copying its composition. Needs a CLIP vision encoder in assets/clip_vision and
+# an adapter in assets/ipadapter.
+[[node]]
+name = "ComfyUI_IPAdapter_plus"
+repo = "https://github.com/cubiq/ComfyUI_IPAdapter_plus.git"
+ref = "main"
+path = "ComfyUI_IPAdapter_plus"
+install_requirements = true

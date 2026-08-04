@@ -94,6 +94,42 @@ out and the gear negatives carry weights. Shine has to be pinned to the legwear
 or the model renders skin and cloth as latex, and `muscular*` belongs in the
 negatives so thicker calves read as soft tissue.
 
+## Steer The Look With A Reference Image
+
+`--face` and `--style` pick from tag presets in `scripts/queue_dq3.py`; `--ref-image`
+routes the model through IPAdapter so a reference image drives the rendering:
+
+```bash
+./scripts/install-custom-nodes.sh      # installs ComfyUI_IPAdapter_plus
+uv run scripts/make_ref_masks.py       # writes mask-head.png / mask-legs.png
+
+uv run scripts/queue_dq3.py --job sage \
+  --ref-image ref-face.png --ref-mask mask-head.png \
+  --ref2-image ref-legs.png --ref2-mask mask-legs.png \
+  --ref-weight 0.9 --ref2-weight 0.9 --style painterly
+```
+
+Two adapter models are required and are not downloaded by the scripts:
+
+- `assets/clip_vision/CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors`
+  (`h94/IP-Adapter` → `models/image_encoder/model.safetensors`)
+- `assets/ipadapter/ip-adapter-plus_sdxl_vit-h.safetensors`
+  (`h94/IP-Adapter` → `sdxl_models/`)
+
+Four findings are baked into the defaults, each of which cost a batch to learn:
+
+- **Crop the reference to a square yourself.** IPAdapter centre-crops whatever it
+  is given, so a portrait-orientation reference feeds it the middle of the image
+  and never sees the face.
+- **Masks are not optional.** Unmasked, the reference repaints the dress, the
+  boots and the background in its own colours. `--ref-mask` confines it to the
+  head, `--ref2-mask` to the legs, and the torso keeps the class outfit.
+- **Bound masks horizontally too.** Full-width bands style the background inside
+  them; `make_ref_masks.py` keeps them near the figure and stops the leg band
+  above the boots.
+- **Weight above ~0.9 hardens every edge**, which reads as late-90s toon-rendered
+  CG. `NEG_TOON` and the `painterly` style counter it; `--ref-scaling` barely did.
+
 ## Vary Scenes With A Local LLM
 
 `scripts/gen_variants.py` asks a local ollama model for scene tags and queues one

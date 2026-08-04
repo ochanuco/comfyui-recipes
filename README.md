@@ -130,6 +130,24 @@ Four findings are baked into the defaults, each of which cost a batch to learn:
 - **Weight above ~0.9 hardens every edge**, which reads as late-90s toon-rendered
   CG. `NEG_TOON` and the `painterly` style counter it; `--ref-scaling` barely did.
 
+## Swap The Checkpoint
+
+Changing checkpoint moves the art style further than any tag or IPAdapter
+setting does, so it is worth trying before tuning either. Most Civitai
+checkpoints are mirrored to Hugging Face by `John6666` in **diffusers layout**,
+which `CheckpointLoaderSimple` cannot read — `--diffusers-path` routes the graph
+through `DiffusersLoader` instead, which returns the same MODEL/CLIP/VAE:
+
+```bash
+# fetch every non-.bin file of the repo into assets/diffusers/<name>/
+uv run scripts/queue_dq3.py --job sage --diffusers-path amanatsu-il-v11
+```
+
+Place the repo under `.local/assets/diffusers/<name>/` keeping its `unet/`,
+`vae/`, `text_encoder*/`, `tokenizer*/`, `scheduler/` and `model_index.json`,
+then restart ComfyUI so the path is registered. Everything else — presets,
+IPAdapter, masks — works unchanged.
+
 ## Vary Scenes With A Local LLM
 
 `scripts/gen_variants.py` asks a local ollama model for scene tags and queues one

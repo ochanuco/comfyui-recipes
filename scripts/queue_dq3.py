@@ -96,13 +96,15 @@ STYLES = {
         "depth of field, blurry background, bokeh, soft lighting, "
         "warm lighting, backlighting, rim light"
     ),
-    # Same gloss, but asking for thin lines and gradients instead of sharp
-    # lineart -- the combination that stops it reading as toon-rendered CG.
+    # Thin lines and gradients instead of sharp lineart. "subsurface scattering"
+    # and "ambient occlusion" used to be here: they are 3D-render vocabulary this
+    # model has no grounding for, and combined with a masked IPAdapter pass they
+    # filled the unconstrained area with a rendered-looking panel.
     "painterly": (
         "(thin lineart:1.2), delicate lines, fine linework, "
-        "(soft shading:1.2), smooth shading, gradient shading, subsurface scattering, "
+        "(soft shading:1.2), smooth shading, gradient shading, "
         "(shiny hair:1.15), detailed hair, detailed skin, "
-        "depth of field, blurry background, soft lighting, ambient occlusion"
+        "depth of field, blurry background, soft lighting"
     ),
 }
 
@@ -179,6 +181,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=-1)
     parser.add_argument("--prefix")
     parser.add_argument("--ckpt-name", default="novaAnimeXL_ilV170.safetensors")
+    # Many Civitai checkpoints are only mirrored in diffusers layout, which
+    # CheckpointLoaderSimple cannot read. DiffusersLoader returns the same
+    # MODEL/CLIP/VAE triple, so the rest of the graph is unchanged.
+    parser.add_argument(
+        "--diffusers-path",
+        help="subdirectory under assets/diffusers to load instead of --ckpt-name",
+    )
     parser.add_argument(
         "--ref-image",
         help="filename under .local/ComfyUI/input to steer the look through IPAdapter",
@@ -197,6 +206,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ref2-mask")
     parser.add_argument("--ref2-weight", type=float, default=1.0)
     parser.add_argument("--ref2-type", default="style transfer")
+    parser.add_argument("--ref2-start", type=float, default=0.0)
+    parser.add_argument("--ref2-end", type=float, default=1.0)
     # "V only" is the strongest and the quickest to harden edges. The C penalty
     # variants trade some of the reference's influence for a softer result.
     parser.add_argument(
@@ -204,6 +215,11 @@ def parse_args() -> argparse.Namespace:
         default="V only",
         choices=["V only", "K+V", "K+V w/ C penalty", "K+mean(V) w/ C penalty"],
     )
+    # Sampling window. Releasing the reference partway (--ref-end 0.4) lets it
+    # shape the rendering while the prompt's own colours reassert afterwards,
+    # which is the way to apply it unmasked without the palette going warm.
+    parser.add_argument("--ref-start", type=float, default=0.0)
+    parser.add_argument("--ref-end", type=float, default=1.0)
     parser.add_argument("--ipadapter-file", default="ip-adapter-plus_sdxl_vit-h.safetensors")
     parser.add_argument(
         "--clip-vision-name", default="CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
@@ -228,11 +244,15 @@ def build_positive(args: argparse.Namespace) -> str:
 
 
 def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, dict]:
+    diffusers_path = getattr(args, "diffusers_path", None)
+    loader = (
+        {"class_type": "DiffusersLoader", "inputs": {"model_path": diffusers_path}}
+        if diffusers_path
+        else {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": args.ckpt_name}}
+    )
+
     prompt = {
-        "4": {
-            "class_type": "CheckpointLoaderSimple",
-            "inputs": {"ckpt_name": args.ckpt_name},
-        },
+        "4": loader,
         "6": {
             "class_type": "CLIPTextEncode",
             "inputs": {"clip": ["4", 1], "text": build_positive(args)},
@@ -272,10 +292,17 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
 
     g = lambda name, default=None: getattr(args, name, default)
     passes = [
-        (g("ref_image"), g("ref_mask"), g("ref_weight", 1.0), g("ref_type", "style transfer")),
-        (g("ref2_image"), g("ref2_mask"), g("ref2_weight", 1.0), g("ref2_type", "style transfer")),
+        {
+            "image": g(f"{p}image"),
+            "mask": g(f"{p}mask"),
+            "weight": g(f"{p}weight", 1.0),
+            "weight_type": g(f"{p}type", "style transfer"),
+            "start_at": g(f"{p}start", 0.0),
+            "end_at": g(f"{p}end", 1.0),
+        }
+        for p in ("ref_", "ref2_")
     ]
-    passes = [p for p in passes if p[0]]
+    passes = [p for p in passes if p["image"]]
 
     if passes:
         prompt["31"] = {
@@ -290,23 +317,27 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
         # Passes chain model-to-model, so each one narrows what the next sees.
         model_ref = ["4", 0]
         node_id = 40
-        for image, mask, weight, weight_type in passes:
+        for spec in passes:
             image_id, node_id = str(node_id), node_id + 1
-            prompt[image_id] = {"class_type": "LoadImage", "inputs": {"image": image}}
+            prompt[image_id] = {
+                "class_type": "LoadImage",
+                "inputs": {"image": spec["image"]},
+            }
 
             inputs = {
                 "model": model_ref,
                 "ipadapter": ["31", 0],
                 "image": [image_id, 0],
                 "clip_vision": ["32", 0],
-                "weight": weight,
-                "weight_type": weight_type,
+                "weight": spec["weight"],
+                "weight_type": spec["weight_type"],
                 "combine_embeds": "concat",
-                "start_at": 0.0,
-                "end_at": 1.0,
+                "start_at": spec["start_at"],
+                "end_at": spec["end_at"],
                 "embeds_scaling": g("ref_scaling", "V only"),
             }
 
+            mask = spec["mask"]
             if mask:
                 mask_image_id, node_id = str(node_id), node_id + 1
                 mask_id, node_id = str(node_id), node_id + 1

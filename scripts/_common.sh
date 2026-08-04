@@ -51,6 +51,7 @@ ensure_local_layout() {
     "${ASSET_ROOT}/clip_vision" \
     "${ASSET_ROOT}/configs" \
     "${ASSET_ROOT}/controlnet" \
+    "${ASSET_ROOT}/diffusers" \
     "${ASSET_ROOT}/diffusion_models" \
     "${ASSET_ROOT}/embeddings" \
     "${ASSET_ROOT}/ipadapter" \

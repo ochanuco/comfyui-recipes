@@ -188,6 +188,21 @@ def parse_args() -> argparse.Namespace:
         "--diffusers-path",
         help="subdirectory under assets/diffusers to load instead of --ckpt-name",
     )
+    # Repeatable: --lora a.safetensors --lora b.safetensors chains them.
+    parser.add_argument(
+        "--lora",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="LoRA filename under assets/loras; repeat to stack several",
+    )
+    parser.add_argument(
+        "--lora-strength",
+        action="append",
+        type=float,
+        default=[],
+        help="strength for the matching --lora (default 0.8 each)",
+    )
     parser.add_argument(
         "--ref-image",
         help="filename under .local/ComfyUI/input to steer the look through IPAdapter",
@@ -251,15 +266,36 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
         else {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": args.ckpt_name}}
     )
 
+    # LoRAs sit between the loader and everything downstream, so the rest of the
+    # graph keeps pointing at one node id whether or not any are stacked.
+    model_src, clip_src = ["4", 0], ["4", 1]
+    lora_nodes: dict[str, dict] = {}
+    for index, lora_name in enumerate(getattr(args, "lora", []) or []):
+        strengths = getattr(args, "lora_strength", []) or []
+        strength = strengths[index] if index < len(strengths) else 0.8
+        node = str(60 + index)
+        lora_nodes[node] = {
+            "class_type": "LoraLoader",
+            "inputs": {
+                "model": model_src,
+                "clip": clip_src,
+                "lora_name": lora_name,
+                "strength_model": strength,
+                "strength_clip": strength,
+            },
+        }
+        model_src, clip_src = [node, 0], [node, 1]
+
     prompt = {
         "4": loader,
+        **lora_nodes,
         "6": {
             "class_type": "CLIPTextEncode",
-            "inputs": {"clip": ["4", 1], "text": build_positive(args)},
+            "inputs": {"clip": clip_src, "text": build_positive(args)},
         },
         "7": {
             "class_type": "CLIPTextEncode",
-            "inputs": {"clip": ["4", 1], "text": args.negative},
+            "inputs": {"clip": clip_src, "text": args.negative},
         },
         "5": {
             "class_type": "EmptyLatentImage",
@@ -268,7 +304,7 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
         "3": {
             "class_type": "KSampler",
             "inputs": {
-                "model": ["4", 0],
+                "model": model_src,
                 "positive": ["6", 0],
                 "negative": ["7", 0],
                 "latent_image": ["5", 0],
@@ -315,7 +351,7 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
         }
 
         # Passes chain model-to-model, so each one narrows what the next sees.
-        model_ref = ["4", 0]
+        model_ref = model_src
         node_id = 40
         for spec in passes:
             image_id, node_id = str(node_id), node_id + 1

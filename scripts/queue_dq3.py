@@ -54,6 +54,16 @@ FACES = {
     # model smile drags the face straight back to its default. Both weights are
     # deliberately mild -- at 1.3 the eyes shut completely and the bangs cover
     # the visible eye, which loses the iris the look depends on.
+    # Taken off ref-style3: large round gradient eyes, a closed-mouth smile and
+    # heavy blush. The opposite end from "sharp" and "halflid" -- here the eyes
+    # want to be as open and as tall as the model will draw them.
+    "moe": (
+        "(large eyes:1.35), round eyes, (sparkling eyes:1.25), "
+        "(detailed eyes:1.4), shiny eyes, highlights in eyes, reflective eyes, "
+        "(thick eyelashes:1.15), long eyelashes, thin eyebrows, eyebrows behind hair, "
+        "(light smile:1.2), closed mouth, small mouth, "
+        "soft expression, looking at viewer"
+    ),
     "halflid": (
         "(half-closed eyes:1.15), hooded eyes, tareme, eyeliner, thin eyebrows, "
         "swept bangs, side locks, "
@@ -106,10 +116,32 @@ STYLES = {
         "(shiny hair:1.15), detailed hair, detailed skin, "
         "depth of field, blurry background, soft lighting"
     ),
+    # Bishoujo-game CG: bloom, particles and jewel eyes. Pair it with
+    # --negative-preset light, since the tuned negatives suppress exactly the
+    # glow and contrast this look is made of.
+    # "pastel colors" and a bare "gradient" used to be here and turned the
+    # rendering chalky, like crayon. The light effects are weighted down too:
+    # at 1.2 they spent themselves on the background instead of the figure.
+    "rich": (
+        "(detailed shading:1.2), volumetric lighting, rim light, "
+        "(gradient shading:1.15), soft shadows, ambient light, "
+        "(detailed skin:1.15), skin shading, (shiny hair:1.2), detailed hair, "
+        "colorful, vivid colors, clean lineart, depth of field"
+    ),
+    "galge": (
+        "(game cg:1.15), official art, visual novel cg, "
+        "(detailed eyes:1.3), sparkling eyes, shiny eyes, "
+        "(smooth shading:1.15), soft shading, cel shading, clean lineart, "
+        "shiny hair, detailed skin, soft lighting, depth of field"
+    ),
 }
 
 POSES = {
-    "standing": "standing, full body, looking at viewer, simple background",
+    "standing": (
+        "standing, full body, looking at viewer, "
+        "(simple background:1.3), (beige background:1.3), cream background, "
+        "warm background, plain background"
+    ),
     "sitting": (
         "sitting, knees up, one knee raised, from side, three quarter view, "
         "looking at viewer, full body, indoors, stone floor"
@@ -137,24 +169,48 @@ NEG_GEAR = (
     "(horns:1.5), (helmet:1.4), viking helmet, horned helmet, demon horns, antlers, "
     "armor, warrior, headgear, (headscarf:1.4), (hood:1.4), mitre, bishop hat"
 )
-NEG_FRAMING = "cropped, head out of frame, close-up, lower body, feet focus"
+# zoom layer / multiple views: detail LoRAs are trained on showcase images that
+# park a huge close-up behind the figure, and they bring that layout with them.
+NEG_FRAMING = (
+    "cropped, head out of frame, close-up, lower body, feet focus, "
+    "(zoom layer:1.4), (multiple views:1.3), inset, split screen, "
+    "picture frame, eye focus, reference sheet"
+)
 NEG_ARTIFACT = "long robe, floor length robe, patterned legwear, polka dot, spots, mottled"
 # IPAdapter at high weight hardens edges and bands the shading, which together
 # read as late-90s toon-rendered CG. These pull back on both.
 NEG_TOON = (
     "(thick outlines:1.3), bold outline, heavy lineart, thick lineart, "
-    "cel shading, toon shading, flat shading, posterization, vector art, "
-    "hard shadows, high contrast"
+    "flat shading, posterization, vector art, monochrome, sketch"
+)
+# The galge vocabulary tends to spend itself decorating the background with
+# particles instead of changing how the figure is drawn.
+NEG_BLUSH = "blush, nose blush, blush stickers, embarrassed, flustered"
+NEG_EYECOLOR = "(rainbow eyes:1.3), multicolored eyes, heterochromia, colored sclera"
+NEG_CROWD = (
+    "(multiple girls:1.4), (2girls:1.4), (multiple views:1.3), background character, "
+    "crowd, silhouette, another person, extra person, doll, statue, poster, painting"
+)
+NEG_SPARKLE = (
+    "sparkle, light particles, glitter, confetti, bokeh, star (symbol), "
+    "lens flare, glowing, floating particles, magic circle"
 )
 NEG_MISC = "3d, cgi, render, photorealistic, realistic, loli, child, mature female, milf, old"
 
 DEFAULT_NEGATIVE = ", ".join(
     [NEG_QUALITY, NEG_SHINE, NEG_LEGS, NEG_GEAR, NEG_FRAMING, NEG_ARTIFACT,
-     NEG_TOON, NEG_MISC]
+     NEG_TOON, NEG_SPARKLE, NEG_BLUSH, NEG_CROWD, NEG_EYECOLOR, NEG_MISC]
 )
+# Drops NEG_SHINE and NEG_TOON: between them they suppress glossy skin, bloom
+# and contrast, which is most of what makes a rendering read as game CG. Keeps
+# the blocks that guard anatomy, the outfit and the framing.
+LIGHT_NEGATIVE = ", ".join(
+    [NEG_QUALITY, NEG_LEGS, NEG_GEAR, NEG_FRAMING, NEG_ARTIFACT, NEG_SPARKLE, NEG_BLUSH, NEG_CROWD, NEG_EYECOLOR, NEG_MISC]
+)
+NEGATIVE_PRESETS = {"full": DEFAULT_NEGATIVE, "light": LIGHT_NEGATIVE}
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Queue a Dragon Quest III class portrait through the local ComfyUI API."
     )
@@ -170,7 +226,10 @@ def parse_args() -> argparse.Namespace:
         help="drop the aesthetic-score tags that flatten faces toward one look",
     )
     parser.add_argument("--extra", default="", help="appended to the positive prompt")
-    parser.add_argument("--negative", default=DEFAULT_NEGATIVE)
+    parser.add_argument("--negative")
+    parser.add_argument(
+        "--negative-preset", choices=sorted(NEGATIVE_PRESETS), default="full"
+    )
     parser.add_argument("--count", type=int, default=1)
     parser.add_argument("--width", type=int, default=832)
     parser.add_argument("--height", type=int, default=1216)
@@ -240,7 +299,12 @@ def parse_args() -> argparse.Namespace:
         "--clip-vision-name", default="CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
     )
     parser.add_argument("--wait", action="store_true", help="poll until the images are written")
-    return parser.parse_args()
+    return parser.parse_args(argv)
+
+
+def parse_args_from(argv: list[str]) -> argparse.Namespace:
+    """Same parser, for wrappers that forward a subset of flags."""
+    return parse_args(argv)
 
 
 def build_positive(args: argparse.Namespace) -> str:
@@ -426,6 +490,8 @@ def wait_for(args: argparse.Namespace, prompt_ids: list[str]) -> None:
 
 def main() -> int:
     args = parse_args()
+    if args.negative is None:
+        args.negative = NEGATIVE_PRESETS[args.negative_preset]
     prefix = args.prefix or f"dq3-{args.job}-{args.pose}"
     prompt_ids = []
 

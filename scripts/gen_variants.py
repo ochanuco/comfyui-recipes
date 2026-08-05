@@ -88,7 +88,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefix")
     parser.add_argument("--dry-run", action="store_true", help="print variants, queue nothing")
     parser.add_argument("--wait", action="store_true")
-    return parser.parse_args()
+    # Anything else is handed straight to queue_dq3, so --diffusers-path, --lora,
+    # --sampler and friends keep working here without being restated.
+    return parser.parse_known_args()
 
 
 def format_vocabulary() -> str:
@@ -141,8 +143,19 @@ def ask_ollama(args: argparse.Namespace) -> list[str]:
     return [v.strip() for v in variants if isinstance(v, str) and v.strip()]
 
 
+def resolve_defaults(passthrough: list[str]) -> dict:
+    """queue_dq3's parsed args, so this wrapper inherits its defaults."""
+    parsed = queue_dq3.parse_args_from(passthrough)
+    if parsed.negative is None:
+        parsed.negative = queue_dq3.NEGATIVE_PRESETS[parsed.negative_preset]
+    return vars(parsed)
+
+
 def main() -> int:
-    args = parse_args()
+    args, passthrough = parse_args()
+    base_defaults = resolve_defaults(passthrough)
+    for key in ("job", "pose", "face", "style", "plain_quality", "host", "port"):
+        base_defaults[key] = getattr(args, key)
     variants = ask_ollama(args)
 
     if len(variants) < args.count:
@@ -164,24 +177,11 @@ def main() -> int:
 
         # queue_dq3's builders read a flat namespace, so mirror its defaults here
         # rather than duplicating the prompt assembly.
-        job_args = argparse.Namespace(
-            host=args.host,
-            port=args.port,
-            job=args.job,
-            pose=args.pose,
-            face=args.face,
-            style=args.style,
-            plain_quality=args.plain_quality,
-            extra=extra,
-            negative=queue_dq3.DEFAULT_NEGATIVE,
-            width=832,
-            height=1216,
-            steps=30,
-            cfg=5.0,
-            sampler="euler_ancestral",
-            scheduler="normal",
-            ckpt_name="novaAnimeXL_ilV170.safetensors",
-        )
+        # Start from queue_dq3's own defaults rather than restating them: this
+        # file used to pin the checkpoint and sampler by hand and silently went
+        # stale every time those moved.
+        job_args = argparse.Namespace(**base_defaults)
+        job_args.extra = extra
         prompt = queue_dq3.build_prompt(job_args, seed, prefix)
         try:
             response = queue_dq3.queue_prompt(job_args, prompt)

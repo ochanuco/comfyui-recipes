@@ -146,8 +146,7 @@ def ask_ollama(args: argparse.Namespace) -> list[str]:
 def resolve_defaults(passthrough: list[str]) -> dict:
     """queue_dq3's parsed args, so this wrapper inherits its defaults."""
     parsed = queue_dq3.parse_args_from(passthrough)
-    if parsed.negative is None:
-        parsed.negative = queue_dq3.NEGATIVE_PRESETS[parsed.negative_preset]
+    queue_dq3.apply_defaults(parsed)
     return vars(parsed)
 
 

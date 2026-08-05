@@ -77,58 +77,52 @@ produce collapsed images, and cfg 1.0 also disables the negative prompt entirely
 
 ## Queue A Dragon Quest III Portrait
 
-`scripts/queue_dq3.py` wraps a novaAnimeXL recipe tuned for DQ3 class portraits:
+`scripts/queue_dq3.py` carries a settled recipe as its defaults, so the bare
+command reproduces the look it was tuned to:
 
 ```bash
-uv run scripts/queue_dq3.py --job sage --pose standing --count 3
-uv run scripts/queue_dq3.py --job priest --pose sitting --wait
+uv run scripts/queue_dq3.py --job sage --count 3
+uv run scripts/queue_dq3.py --job priest --pose sitting
 ```
 
-`--job` picks the class (`sage`, `priest`, `mage`), `--pose` the framing
-(`standing`, `sitting`), `--extra` appends to the positive prompt and `--wait`
-polls until the images land in `.local/ComfyUI/output`.
+The defaults are Amanatsu in diffusers layout, `dpmpp_2m`/`karras`, 1280x1920,
+the `moe` face, the `cel` style, and a two-LoRA stack (`perfect-eyes` 0.4 and
+`detailed-perfection` 0.5) whose trigger words are appended automatically. Pass
+`--lora` yourself to replace the stack entirely; anything else is a normal
+override. `--diffusers-path ''` falls back to `--ckpt-name`.
 
-The prompt defaults encode a few findings that are easy to lose: the class tags
-alone drift toward sleeved robes and horned helmets, so the outfits are spelled
-out and the gear negatives carry weights. Shine has to be pinned to the legwear
-or the model renders skin and cloth as latex, and `muscular*` belongs in the
-negatives so thicker calves read as soft tissue.
+`--job` picks the class, `--pose` the framing, `--face` and `--style` select tag
+presets, `--extra` appends to the positive prompt and `--negative-preset light`
+drops the shine and toon blocks.
 
-## Steer The Look With A Reference Image
+1280x1920 costs roughly four minutes an image on an M1 Max. For iteration,
+`--width 1024 --height 1536 --steps 22` is visually close and about four times
+faster -- `dpmpp_2m` has converged well before 30 steps.
 
-`--face` and `--style` pick from tag presets in `scripts/queue_dq3.py`; `--ref-image`
-routes the model through IPAdapter so a reference image drives the rendering:
+### What the presets encode
 
-```bash
-./scripts/install-custom-nodes.sh      # installs ComfyUI_IPAdapter_plus
-uv run scripts/make_ref_masks.py       # writes mask-head.png / mask-legs.png
+Each of these cost a batch to find, and most are not obvious:
 
-uv run scripts/queue_dq3.py --job sage \
-  --ref-image ref-face.png --ref-mask mask-head.png \
-  --ref2-image ref-legs.png --ref2-mask mask-legs.png \
-  --ref-weight 0.9 --ref2-weight 0.9 --style painterly
-```
-
-Two adapter models are required and are not downloaded by the scripts:
-
-- `assets/clip_vision/CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors`
-  (`h94/IP-Adapter` → `models/image_encoder/model.safetensors`)
-- `assets/ipadapter/ip-adapter-plus_sdxl_vit-h.safetensors`
-  (`h94/IP-Adapter` → `sdxl_models/`)
-
-Four findings are baked into the defaults, each of which cost a batch to learn:
-
-- **Crop the reference to a square yourself.** IPAdapter centre-crops whatever it
-  is given, so a portrait-orientation reference feeds it the middle of the image
-  and never sees the face.
-- **Masks are not optional.** Unmasked, the reference repaints the dress, the
-  boots and the background in its own colours. `--ref-mask` confines it to the
-  head, `--ref2-mask` to the legs, and the torso keeps the class outfit.
-- **Bound masks horizontally too.** Full-width bands style the background inside
-  them; `make_ref_masks.py` keeps them near the figure and stops the leg band
-  above the boots.
-- **Weight above ~0.9 hardens every edge**, which reads as late-90s toon-rendered
-  CG. `NEG_TOON` and the `painterly` style counter it; `--ref-scaling` barely did.
+- **The class tag alone drifts.** `sage (dq3)` pulls in warrior gear and sleeved
+  robes, so the outfit is spelled out and the gear negatives carry weights.
+- **Shine has to be pinned to the legwear** or skin and cloth render as latex,
+  and `muscular*` belongs in the negatives so thicker calves read as soft.
+- **Black linework and gradient shading cancel out.** They describe the same
+  surface two different ways. `cel` commits to flat colour with hard shadow
+  edges; `rich` commits to gradients. Mixing them looked wrong both times.
+- **Illustrious tints outlines to match the fill**, which is a large part of what
+  reads as machine-made, so `colored lineart` is negated at weight.
+- **Resolution is the reliable way to thin lines.** Line width is roughly
+  constant in pixels, so a bigger frame thins them without the negatives that
+  also drain the black out.
+- **The prompt is saturated.** Adding weighted tags visibly costs the existing
+  ones: two thigh tags flattened the shading, and seven sleeve tags rewrote the
+  outfit. Prefer replacing a tag over adding one.
+- **Negatives must not describe a legitimate shape.** `ragged`/`tattered` shrank
+  the cape, because the sage's cape genuinely has a pointed hem.
+- **`dragon quest` anchors the palette.** Removing it to escape the anime's look
+  made the drift worse, not better; the anime association comes from the
+  saturation tags instead.
 
 ## Swap The Checkpoint
 

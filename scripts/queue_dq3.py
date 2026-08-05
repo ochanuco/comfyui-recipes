@@ -84,8 +84,8 @@ FACES = {
 # elbow-length gloves, not the sleeved robe the bare class tag tends to produce.
 CLASSES = {
     "sage": (
-        "sage (dq3), (light blue hair:1.2), (medium hair:1.3), straight hair, red eyes, "
-        "(gold headband:1.3), blue gem, (bare shoulders:1.2), sleeveless, "
+        "sage (dq3), (light blue hair:1.2), (medium hair:1.3), straight hair, (red eyes:1.3), "
+        "(gold headband:1.3), blue gem, (cap sleeves:1.2), "
         "white dress, short dress, brown belt, (yellow elbow gloves:1.3), "
         "teal cape, teal scarf, (yellow boots:1.2), (holding staff:1.2), wooden staff"
     ),
@@ -102,6 +102,13 @@ CLASSES = {
         "white belt, orange gloves, orange boots, (holding staff:1.2), wooden staff"
     ),
 }
+
+# Applied when --lora is not passed at all. Each entry carries the trigger word
+# its LoRA expects, so callers do not have to remember them.
+DEFAULT_LORAS = [
+    ("perfect-eyes-ill.safetensors", 0.4, "perfect eyes"),
+    ("detailed-perfection-ill.safetensors", 0.5, "detailed"),
+]
 
 # Rendering, as opposed to FACES (features) and POSES (framing). Illustrious
 # carries style mostly on artist tags, so these only approximate a look -- they
@@ -144,12 +151,13 @@ STYLES = {
     # interior lines and cel shading reinforce each other; gradients fight them,
     # which is why mixing the two never looked right.
     "cel": (
-        "(cel shading:1.4), (anime coloring:1.3), (flat color:1.25), "
+        "(cel shading:1.25), (flat color:1.2), "
         "(sharp shadow edges:1.35), two-tone shading, (shaded:1.15), "
         "(thin lineart:1.5), (black lineart:1.35), (detailed lineart:1.3), "
         "(cloth folds:1.45), (fabric folds:1.3), drapery, wrinkled clothes, taut clothes, (detailed clothes:1.2), "
         "(defined hair strands:1.35), separated hair strands, "
-        "clean lineart, crisp lines, high contrast, simple shading"
+        "clean lineart, crisp lines, simple shading, soft colors, "
+        "(white outline:1.6), outline, sticker"
     ),
     "galge": (
         "(game cg:1.15), official art, visual novel cg, "
@@ -190,7 +198,8 @@ NEG_LEGS = (
 NEG_GEAR = (
     "(sword:1.5), (katana:1.4), knife, dagger, axe, spear, bow, shield, "
     "(horns:1.5), (helmet:1.4), viking helmet, horned helmet, demon horns, antlers, "
-    "armor, warrior, headgear, (headscarf:1.4), (hood:1.4), mitre, bishop hat"
+    "armor, warrior, headgear, (headscarf:1.4), (hood:1.4), mitre, bishop hat, "
+    "(bent staff:1.4), curved staff, broken staff, warped staff, bending"
 )
 # zoom layer / multiple views: detail LoRAs are trained on showcase images that
 # park a huge close-up behind the figure, and they bring that layout with them.
@@ -200,12 +209,13 @@ NEG_FRAMING = (
     "picture frame, eye focus, reference sheet"
 )
 NEG_ARTIFACT = ("long robe, floor length robe, patterned legwear, polka dot, spots, mottled, "
+                "bare shoulders, off-shoulder, "
                 "(torn clothes:1.2), damaged clothes, holes in clothes")
 # IPAdapter at high weight hardens edges and bands the shading, which together
 # read as late-90s toon-rendered CG. These pull back on both.
 NEG_TOON = (
     "(thick outlines:1.5), (bold outline:1.4), (heavy lineart:1.4), thick lineart, "
-    "(colored lineart:1.4), brown lineart, (light lineart:1.3), grey lineart, white outline, pale lineart, soft lineart, blurry lines, lineless, "
+    "(colored lineart:1.4), brown lineart, (light lineart:1.3), grey lineart, pale lineart, soft lineart, blurry lines, lineless, "
     "vector art, monochrome, sketch"
 )
 # The galge vocabulary tends to spend itself decorating the background with
@@ -222,7 +232,8 @@ NEG_SPARKLE = (
     "(sparkle:1.25), (star (symbol):1.25), light particles, glitter, "
     "confetti, lens flare, floating particles, magic circle, starburst, twinkle"
 )
-NEG_MISC = "3d, cgi, render, photorealistic, realistic, loli, child, mature female, milf, old"
+NEG_MISC = ("3d, cgi, render, photorealistic, realistic, loli, child, mature female, milf, old, "
+            "shounen (style), 1990s (style)")
 
 DEFAULT_NEGATIVE = ", ".join(
     [NEG_QUALITY, NEG_SHINE, NEG_LEGS, NEG_GEAR, NEG_FRAMING, NEG_ARTIFACT,
@@ -245,8 +256,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=8188)
     parser.add_argument("--job", choices=sorted(CLASSES), default="sage")
     parser.add_argument("--pose", choices=sorted(POSES), default="standing")
-    parser.add_argument("--face", choices=sorted(FACES), default="default")
-    parser.add_argument("--style", choices=sorted(STYLES), default="default")
+    parser.add_argument("--face", choices=sorted(FACES), default="moe")
+    parser.add_argument("--style", choices=sorted(STYLES), default="cel")
     parser.add_argument(
         "--plain-quality",
         action="store_true",
@@ -258,12 +269,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--negative-preset", choices=sorted(NEGATIVE_PRESETS), default="full"
     )
     parser.add_argument("--count", type=int, default=1)
-    parser.add_argument("--width", type=int, default=832)
-    parser.add_argument("--height", type=int, default=1216)
+    parser.add_argument("--width", type=int, default=1280)
+    parser.add_argument("--height", type=int, default=1920)
     parser.add_argument("--steps", type=int, default=30)
     parser.add_argument("--cfg", type=float, default=5.0)
-    parser.add_argument("--sampler", default="euler_ancestral")
-    parser.add_argument("--scheduler", default="normal")
+    parser.add_argument("--sampler", default="dpmpp_2m")
+    parser.add_argument("--scheduler", default="karras")
     parser.add_argument("--seed", type=int, default=-1)
     parser.add_argument("--prefix")
     parser.add_argument("--ckpt-name", default="novaAnimeXL_ilV170.safetensors")
@@ -272,7 +283,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # MODEL/CLIP/VAE triple, so the rest of the graph is unchanged.
     parser.add_argument(
         "--diffusers-path",
-        help="subdirectory under assets/diffusers to load instead of --ckpt-name",
+        default="amanatsu-il-v11",
+        help="subdirectory under assets/diffusers; pass '' to fall back to --ckpt-name",
     )
     # Repeatable: --lora a.safetensors --lora b.safetensors chains them.
     parser.add_argument(
@@ -515,8 +527,20 @@ def wait_for(args: argparse.Namespace, prompt_ids: list[str]) -> None:
                         print(f"done {pid} -> {image['filename']}")
 
 
+def apply_defaults(args: argparse.Namespace) -> None:
+    """Fill in the settled recipe for anything the caller left alone."""
+    if not args.lora:
+        args.lora = [name for name, _, _ in DEFAULT_LORAS]
+        args.lora_strength = [strength for _, strength, _ in DEFAULT_LORAS]
+        triggers = ", ".join(t for _, _, t in DEFAULT_LORAS if t)
+        args.extra = ", ".join(p for p in (triggers, args.extra) if p)
+    if args.negative is None:
+        args.negative = NEGATIVE_PRESETS[args.negative_preset]
+
+
 def main() -> int:
     args = parse_args()
+    apply_defaults(args)
     if args.negative is None:
         args.negative = NEGATIVE_PRESETS[args.negative_preset]
     prefix = args.prefix or f"dq3-{args.job}-{args.pose}"

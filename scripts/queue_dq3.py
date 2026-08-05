@@ -58,7 +58,7 @@ FACES = {
     # heavy blush. The opposite end from "sharp" and "halflid" -- here the eyes
     # want to be as open and as tall as the model will draw them.
     "moe": (
-        "(large eyes:1.35), round eyes, (sparkling eyes:1.25), "
+        "(large eyes:1.35), round eyes, "
         "(detailed eyes:1.4), shiny eyes, highlights in eyes, reflective eyes, "
         "(thick eyelashes:1.15), long eyelashes, thin eyebrows, eyebrows behind hair, "
         "(light smile:1.2), closed mouth, small mouth, "
@@ -130,7 +130,7 @@ STYLES = {
     ),
     "galge": (
         "(game cg:1.15), official art, visual novel cg, "
-        "(detailed eyes:1.3), sparkling eyes, shiny eyes, "
+        "(detailed eyes:1.3), shiny eyes, "
         "(smooth shading:1.15), soft shading, cel shading, clean lineart, "
         "shiny hair, detailed skin, soft lighting, depth of field"
     ),
@@ -192,8 +192,8 @@ NEG_CROWD = (
     "crowd, silhouette, another person, extra person, doll, statue, poster, painting"
 )
 NEG_SPARKLE = (
-    "sparkle, light particles, glitter, confetti, bokeh, star (symbol), "
-    "lens flare, glowing, floating particles, magic circle"
+    "(sparkle:1.25), (star (symbol):1.25), light particles, glitter, "
+    "confetti, lens flare, floating particles, magic circle, starburst, twinkle"
 )
 NEG_MISC = "3d, cgi, render, photorealistic, realistic, loli, child, mature female, milf, old"
 

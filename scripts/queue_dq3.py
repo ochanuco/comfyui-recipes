@@ -19,7 +19,7 @@ import urllib.request
 # muscular* in the negatives is what stops calves from turning sinewy, and the
 # hip/ass negatives keep the extra volume in the legs instead of the pelvis.
 LEGS = (
-    "young woman, long legs, (thick thighs:1.15), (thick calves:1.4), "
+    "young woman, long legs, (thick thighs:1.5), (thick calves:1.4), "
     "soft calves, soft legs, smooth legs, "
     "(black pantyhose:1.4), sheer legwear, shiny legwear"
 )
@@ -57,10 +57,18 @@ FACES = {
     # Taken off ref-style3: large round gradient eyes, a closed-mouth smile and
     # heavy blush. The opposite end from "sharp" and "halflid" -- here the eyes
     # want to be as open and as tall as the model will draw them.
+    # Steered onto a reference whose eyes carry a heavy dark upper lash line, a
+    # vertical iris gradient and a large iris with a small pupil. gradient eyes
+    # is back but mild -- at 1.4 alongside an eye LoRA it went rainbow.
+    # Older-style eyes: tall and round, taking up a lot of the face, with the
+    # outer corner clearly dropped. tareme and large eyes both needed weights --
+    # unweighted they lost to the eye LoRA's modern shape.
     "moe": (
-        "(large eyes:1.35), round eyes, "
-        "(detailed eyes:1.4), shiny eyes, highlights in eyes, reflective eyes, "
-        "(thick eyelashes:1.15), long eyelashes, thin eyebrows, eyebrows behind hair, "
+        "(tareme:1.6), drooping eyes, (large eyes:1.55), round eyes, wide eyes, "
+        "2000s (style), (thick eyelashes:1.4), (dark eyelashes:1.3), long eyelashes, "
+        "(gradient eyes:1.15), (detailed eyes:1.35), shiny eyes, "
+        "highlights in eyes, reflective eyes, large pupils, "
+        "thin eyebrows, light brown eyebrows, "
         "(light smile:1.2), closed mouth, small mouth, "
         "soft expression, looking at viewer"
     ),
@@ -123,10 +131,14 @@ STYLES = {
     # rendering chalky, like crayon. The light effects are weighted down too:
     # at 1.2 they spent themselves on the background instead of the figure.
     "rich": (
-        "(detailed shading:1.2), volumetric lighting, rim light, "
+        "(detailed shading:1.35), volumetric lighting, rim light, "
         "(gradient shading:1.15), soft shadows, ambient light, "
         "(detailed skin:1.15), skin shading, (shiny hair:1.2), detailed hair, "
-        "colorful, vivid colors, clean lineart, depth of field"
+        "colorful, vivid colors, depth of field, "
+        # Illustrious tints outlines to match the fill, which reads as soft and
+        # machine-made; asking for thin black ink is what brings the drawn look.
+        "(thin lineart:1.55), (fine linework:1.3), delicate lines, thin outlines, "
+        "(black outline:1.4), (black lineart:1.3), (dark lineart:1.2), crisp lines, clean lineart, (defined hair strands:1.2), hair strand outline"
     ),
     "galge": (
         "(game cg:1.15), official art, visual novel cg, "
@@ -180,13 +192,15 @@ NEG_ARTIFACT = "long robe, floor length robe, patterned legwear, polka dot, spot
 # IPAdapter at high weight hardens edges and bands the shading, which together
 # read as late-90s toon-rendered CG. These pull back on both.
 NEG_TOON = (
-    "(thick outlines:1.3), bold outline, heavy lineart, thick lineart, "
+    "(thick outlines:1.5), (bold outline:1.4), (heavy lineart:1.4), thick lineart, "
+    "(colored lineart:1.4), brown lineart, (light lineart:1.3), grey lineart, white outline, pale lineart, soft lineart, blurry lines, lineless, "
     "flat shading, posterization, vector art, monochrome, sketch"
 )
 # The galge vocabulary tends to spend itself decorating the background with
 # particles instead of changing how the figure is drawn.
 NEG_BLUSH = "blush, nose blush, blush stickers, embarrassed, flustered"
-NEG_EYECOLOR = "(rainbow eyes:1.3), multicolored eyes, heterochromia, colored sclera"
+NEG_EYECOLOR = ("(rainbow eyes:1.3), multicolored eyes, heterochromia, colored sclera, "
+                "(tsurime:1.3), narrow eyes, small eyes, squinting")
 NEG_CROWD = (
     "(multiple girls:1.4), (2girls:1.4), (multiple views:1.3), background character, "
     "crowd, silhouette, another person, extra person, doll, statue, poster, painting"

@@ -140,6 +140,17 @@ STYLES = {
         "(thin lineart:1.55), (fine linework:1.3), delicate lines, thin outlines, "
         "(black outline:1.4), (black lineart:1.3), (dark lineart:1.2), crisp lines, clean lineart, (defined hair strands:1.2), hair strand outline"
     ),
+    # Flat colour with hard-edged shadow shapes, the opposite of "rich". Black
+    # interior lines and cel shading reinforce each other; gradients fight them,
+    # which is why mixing the two never looked right.
+    "cel": (
+        "(cel shading:1.4), (anime coloring:1.3), (flat color:1.25), "
+        "(sharp shadow edges:1.35), two-tone shading, (shaded:1.15), "
+        "(thin lineart:1.5), (black lineart:1.35), (detailed lineart:1.3), "
+        "(cloth folds:1.45), (fabric folds:1.3), drapery, wrinkled clothes, taut clothes, (detailed clothes:1.2), "
+        "(defined hair strands:1.35), separated hair strands, "
+        "clean lineart, crisp lines, high contrast, simple shading"
+    ),
     "galge": (
         "(game cg:1.15), official art, visual novel cg, "
         "(detailed eyes:1.3), shiny eyes, "
@@ -188,19 +199,21 @@ NEG_FRAMING = (
     "(zoom layer:1.4), (multiple views:1.3), inset, split screen, "
     "picture frame, eye focus, reference sheet"
 )
-NEG_ARTIFACT = "long robe, floor length robe, patterned legwear, polka dot, spots, mottled"
+NEG_ARTIFACT = ("long robe, floor length robe, patterned legwear, polka dot, spots, mottled, "
+                "(torn clothes:1.2), damaged clothes, holes in clothes")
 # IPAdapter at high weight hardens edges and bands the shading, which together
 # read as late-90s toon-rendered CG. These pull back on both.
 NEG_TOON = (
     "(thick outlines:1.5), (bold outline:1.4), (heavy lineart:1.4), thick lineart, "
     "(colored lineart:1.4), brown lineart, (light lineart:1.3), grey lineart, white outline, pale lineart, soft lineart, blurry lines, lineless, "
-    "flat shading, posterization, vector art, monochrome, sketch"
+    "vector art, monochrome, sketch"
 )
 # The galge vocabulary tends to spend itself decorating the background with
 # particles instead of changing how the figure is drawn.
 NEG_BLUSH = "blush, nose blush, blush stickers, embarrassed, flustered"
 NEG_EYECOLOR = ("(rainbow eyes:1.3), multicolored eyes, heterochromia, colored sclera, "
                 "(tsurime:1.3), narrow eyes, small eyes, squinting")
+NEG_SHADOW = "blurry shadow, soft shadow, gradient shadow"
 NEG_CROWD = (
     "(multiple girls:1.4), (2girls:1.4), (multiple views:1.3), background character, "
     "crowd, silhouette, another person, extra person, doll, statue, poster, painting"
@@ -213,13 +226,13 @@ NEG_MISC = "3d, cgi, render, photorealistic, realistic, loli, child, mature fema
 
 DEFAULT_NEGATIVE = ", ".join(
     [NEG_QUALITY, NEG_SHINE, NEG_LEGS, NEG_GEAR, NEG_FRAMING, NEG_ARTIFACT,
-     NEG_TOON, NEG_SPARKLE, NEG_BLUSH, NEG_CROWD, NEG_EYECOLOR, NEG_MISC]
+     NEG_TOON, NEG_SPARKLE, NEG_BLUSH, NEG_CROWD, NEG_EYECOLOR, NEG_SHADOW, NEG_MISC]
 )
 # Drops NEG_SHINE and NEG_TOON: between them they suppress glossy skin, bloom
 # and contrast, which is most of what makes a rendering read as game CG. Keeps
 # the blocks that guard anatomy, the outfit and the framing.
 LIGHT_NEGATIVE = ", ".join(
-    [NEG_QUALITY, NEG_LEGS, NEG_GEAR, NEG_FRAMING, NEG_ARTIFACT, NEG_SPARKLE, NEG_BLUSH, NEG_CROWD, NEG_EYECOLOR, NEG_MISC]
+    [NEG_QUALITY, NEG_LEGS, NEG_GEAR, NEG_FRAMING, NEG_ARTIFACT, NEG_SPARKLE, NEG_BLUSH, NEG_CROWD, NEG_EYECOLOR, NEG_SHADOW, NEG_MISC]
 )
 NEGATIVE_PRESETS = {"full": DEFAULT_NEGATIVE, "light": LIGHT_NEGATIVE}
 

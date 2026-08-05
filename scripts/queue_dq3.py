@@ -19,10 +19,20 @@ import urllib.request
 # muscular* in the negatives is what stops calves from turning sinewy, and the
 # hip/ass negatives keep the extra volume in the legs instead of the pelvis.
 LEGS = (
-    "young woman, long legs, (thick thighs:1.5), (thick calves:1.4), "
+    "young woman, long legs, (thick thighs:1.7), (thick calves:1.45), (thick legs:1.2), "
     "soft calves, soft legs, smooth legs, "
-    "(black pantyhose:1.4), sheer legwear, shiny legwear"
+    "(black pantyhose:1.6), (opaque legwear:1.25), nylon legwear, (taut clothes:1.35), (stretched fabric:1.25), (shiny legwear:1.4), (specular highlights:1.25), light streaks, sheer legwear"
 )
+
+# Per class, because the weighted thighs above are a Dragon Quest choice and the
+# legs negatives that support them rule out thighhighs entirely.
+LEGS_BY_JOB = {
+    "yukari": (
+        "young woman, long legs, slender legs, "
+        "(purple thighhighs:1.3), (zettai ryouiki:1.2), thighhighs"
+    ),
+}
+
 
 QUALITY = "masterpiece, best quality, amazing quality, very aesthetic, absurdres"
 # masterpiece and very aesthetic are Illustrious aesthetic-score tags: they buy
@@ -50,23 +60,16 @@ FACES = {
         "(freckles:1.3), round face, (thick eyebrows:1.2), small eyes, "
         "wide nose, light smile, (mole under mouth:1.1)"
     ),
-    # Half-lidded eyes plus a closed mouth are what carry this one: letting the
-    # model smile drags the face straight back to its default. Both weights are
-    # deliberately mild -- at 1.3 the eyes shut completely and the bangs cover
-    # the visible eye, which loses the iris the look depends on.
-    # Taken off ref-style3: large round gradient eyes, a closed-mouth smile and
-    # heavy blush. The opposite end from "sharp" and "halflid" -- here the eyes
-    # want to be as open and as tall as the model will draw them.
-    # Steered onto a reference whose eyes carry a heavy dark upper lash line, a
-    # vertical iris gradient and a large iris with a small pupil. gradient eyes
-    # is back but mild -- at 1.4 alongside an eye LoRA it went rainbow.
-    # Older-style eyes: tall and round, taking up a lot of the face, with the
-    # outer corner clearly dropped. tareme and large eyes both needed weights --
-    # unweighted they lost to the eye LoRA's modern shape.
+    # Rebuilt against ref-eye1 and ref-face2: tall round eyes with the outer
+    # corner dropped, a deep blue iris, and lashes kept to a plain dark upper
+    # line. The long/thick lash tags that used to be here drew fans of separate
+    # hairs, which is busier than either reference. tareme and large eyes both
+    # need weights -- unweighted they lose to the eye LoRA's own shape.
     "moe": (
         "(tareme:1.6), drooping eyes, (large eyes:1.55), round eyes, wide eyes, "
         "2000s (style), (thick eyelashes:1.4), (dark eyelashes:1.3), long eyelashes, "
-        "(gradient eyes:1.15), (detailed eyes:1.35), shiny eyes, "
+        "(dark blue eyes:1.3), (gradient eyes:1.15), "
+        "(detailed eyes:1.35), shiny eyes, "
         "highlights in eyes, reflective eyes, large pupils, "
         "thin eyebrows, light brown eyebrows, "
         "(light smile:1.2), closed mouth, small mouth, "
@@ -84,9 +87,10 @@ FACES = {
 # elbow-length gloves, not the sleeved robe the bare class tag tends to produce.
 CLASSES = {
     "sage": (
-        "sage (dq3), (light blue hair:1.2), (medium hair:1.3), straight hair, (red eyes:1.3), "
+        # Eye colour is left to the face preset now, so the two cannot argue.
+        "sage (dq3), (light blue hair:1.2), (medium hair:1.3), straight hair, "
         "(gold headband:1.3), blue gem, (cap sleeves:1.2), "
-        "white dress, short dress, brown belt, (yellow elbow gloves:1.3), "
+        "(plain white dress:1.35), white dress, short dress, (no pattern:1.2), brown belt, (yellow elbow gloves:1.3), "
         "teal cape, teal scarf, (yellow boots:1.2), (holding staff:1.2), wooden staff"
     ),
     # (mini robe:1.3) is load-bearing: at full length the robe drapes over the
@@ -95,6 +99,15 @@ CLASSES = {
         "priest (dq3), (light blue hair:1.2), (medium hair:1.3), red eyes, "
         "blue robe, (mini robe:1.3), thigh length robe, yellow cross, tall hat, "
         "yellow gloves, yellow boots, (holding staff:1.2), wooden staff"
+    ),
+    # Yukari's own tag carries her colouring; what needs spelling out is the
+    # hooded outfit, since the tag alone returns her default costume.
+    "yukari": (
+        "yuzuki yukari, (light purple hair:1.25), (short hair with long locks:1.45), (very long sidelocks:1.3), sidelocks, "
+        "(purple eyes:1.25), hair between eyes, hair ornament, "
+        "(black hoodie:1.35), open hoodie, (rabbit hood:1.4), animal hood, "
+        "(pink rabbit ears:1.3), fake animal ears, rabbit print, "
+        "long sleeves, drawstring, (purple dress:1.2), short dress, frills"
     ),
     "mage": (
         "mage (dq3), (purple hair:1.2), (medium hair:1.3), "
@@ -154,8 +167,8 @@ STYLES = {
         "(cel shading:1.25), (flat color:1.2), "
         "(sharp shadow edges:1.35), two-tone shading, (shaded:1.15), "
         "(thin lineart:1.5), (black lineart:1.35), (detailed lineart:1.3), "
-        "(cloth folds:1.45), (fabric folds:1.3), drapery, wrinkled clothes, taut clothes, (detailed clothes:1.2), "
-        "(defined hair strands:1.35), separated hair strands, "
+        "(cloth folds:1.15), simple clothes, "
+        "(defined hair strands:1.25), separated hair strands, "
         "clean lineart, crisp lines, simple shading, soft colors, "
         "(white outline:1.6), outline, sticker"
     ),
@@ -167,15 +180,79 @@ STYLES = {
     ),
 }
 
+# Kept beside CLASSES rather than hardcoded into the prompt: it anchors the
+# palette for the Dragon Quest classes, and would poison anything else.
+# The moe face carries weights pushed to their limit for the sage; stacked on
+# another character's tag the prompt stops resolving and the render turns to
+# noise. Classes can name a face that suits them instead.
+FACE_BY_JOB = {"yukari": "default"}
+
+FRANCHISE = {
+    "sage": "dragon quest iii, dragon quest",
+    "priest": "dragon quest iii, dragon quest",
+    "mage": "dragon quest iii, dragon quest",
+    "yukari": "vocaloid, voiceroid",
+}
+
+# Individual terms a class has to remove from the assembled negative. Dropping a
+# whole block was tried first and wrecked the render: the blocks carry more than
+# their name suggests, and losing the rest of NEG_GEAR made the image melt.
+NEG_DROP = {
+    "yukari": ["(hood:1.4)", "headgear", "(headscarf:1.4)",
+               "thighhighs", "skinny legs", "thin legs", "thin calves"],
+}
+
+# Same idea for poses. bootoff puts the feet toward the camera on purpose, which
+# the default framing negatives rule out; the upskirt terms stay in place.
+POSE_NEG_DROP = {
+    "bootoff": ["feet focus", "lower body"],
+    "kneesup": ["feet focus", "lower body"],
+}
+
+# Appended to every pose. A scene gives the eye tags somewhere to put an extra
+# eye -- a balcony backdrop grew a shadow creature with a fully drawn iris -- and
+# a flat field leaves them nothing to latch onto.
+BACKGROUND = (
+    "(simple background:1.4), (grey background:1.35), plain background, "
+    "flat background, no scenery"
+)
+
 POSES = {
-    "standing": (
-        "standing, full body, looking at viewer, "
-        "(simple background:1.3), (beige background:1.3), cream background, "
-        "warm background, plain background"
-    ),
+    "standing": "standing, full body, looking at viewer",
     "sitting": (
         "sitting, knees up, one knee raised, from side, three quarter view, "
-        "looking at viewer, full body, indoors, stone floor"
+        "looking at viewer, full body"
+    ),
+    # Arms thrown out towards the camera, leaning in. The reference this came
+    # from frames it from low enough to look up the skirt; the framing tags keep
+    # the shot on the upper body instead.
+    "reaching": (
+        "(outstretched arms:1.4), reaching towards viewer, (leaning forward:1.25), "
+        "open hands, spread fingers, looking at viewer, open mouth, smile, "
+        "(upper body:1.2), (medium breasts:1.2), dutch angle"
+    ),
+    # Knees drawn up together with the feet toward the camera and a hand at the
+    # legwear. Taken off ref-pose-kneesup.
+    "kneesup": (
+        "sitting, (knees up:1.4), knees together, legs together, legs raised, "
+        "feet up, (soles:1.25), (foreshortening:1.3), perspective, (large feet:1.2), (adjusting legwear:1.3), hand on own leg, "
+        "head tilt, looking at viewer, full body"
+    ),
+    # Sitting back with the knees up, one boot off and held. The reference this
+    # came from shoots from low enough to put the crotch in frame; that half is
+    # left out, and the framing negatives keep it out.
+    "bootoff": (
+        "sitting, leaning back, (knees up:1.3), legs raised, "
+        "(holding boot:1.4), single boot removed, undressing, "
+        "(soles:1.2), feet up, looking at viewer, "
+        "(black pantyhose:1.35), full body"
+    ),
+    # Side-sitting with the torso turned away and the head looking back. The
+    # balcony it came from is dropped along with every other backdrop.
+    "lookback": (
+        "(yokozuwari:1.35), sitting on floor, legs to the side, "
+        "(looking back:1.4), looking at viewer, from behind, from side, "
+        "full body, head tilt, (medium breasts:1.2)"
     ),
 }
 
@@ -185,9 +262,8 @@ NEG_QUALITY = (
     "extra fingers, extra limbs, watermark, signature, text"
 )
 # The model renders skin and cloth as latex unless shine is pinned to the legwear.
-NEG_SHINE = (
-    "shiny skin, glossy skin, oily skin, sweat, shiny clothes, glossy clothes, latex, wet"
-)
+NEG_SHINE = ("shiny skin, glossy skin, oily skin, sweat, wet skin, "
+             "(latex:1.4), (rubber:1.4), pvc, vinyl, bodysuit, wet clothes")
 NEG_LEGS = (
     "bare legs, barefoot, thighhighs, skinny legs, thin legs, thin calves, "
     "muscular, muscular legs, muscular calves, veins, bony knees, defined knees, "
@@ -198,17 +274,25 @@ NEG_LEGS = (
 NEG_GEAR = (
     "(sword:1.5), (katana:1.4), knife, dagger, axe, spear, bow, shield, "
     "(horns:1.5), (helmet:1.4), viking helmet, horned helmet, demon horns, antlers, "
-    "armor, warrior, headgear, (headscarf:1.4), (hood:1.4), mitre, bishop hat, "
-    "(bent staff:1.4), curved staff, broken staff, warped staff, bending"
+    "armor, warrior, headgear, (headscarf:1.4), (hood:1.4), mitre, bishop hat"
+)
+# Never skipped. These lived inside NEG_GEAR, so dropping that block for a hooded
+# character also dropped them and the render melted.
+NEG_DISTORT = (
+    "(warped:1.3), bending, melting, dripping, smeared, distorted, deformed, "
+    "(bent staff:1.3), curved staff, broken staff"
 )
 # zoom layer / multiple views: detail LoRAs are trained on showcase images that
 # park a huge close-up behind the figure, and they bring that layout with them.
 NEG_FRAMING = (
     "cropped, head out of frame, close-up, lower body, feet focus, "
+    "(upskirt:1.4), panties, underwear, (from below:1.2), crotch, "
     "(zoom layer:1.4), (multiple views:1.3), inset, split screen, "
     "picture frame, eye focus, reference sheet"
 )
 NEG_ARTIFACT = ("long robe, floor length robe, patterned legwear, polka dot, spots, mottled, "
+                "(wrinkled clothes:1.3), excessive folds, busy details, cluttered, "
+                "(emblem:1.4), (logo:1.4), crest, insignia, symbol on chest, chest print, badge, "
                 "bare shoulders, off-shoulder, "
                 "(torn clothes:1.2), damaged clothes, holes in clothes")
 # IPAdapter at high weight hardens edges and bands the shading, which together
@@ -221,8 +305,24 @@ NEG_TOON = (
 # The galge vocabulary tends to spend itself decorating the background with
 # particles instead of changing how the figure is drawn.
 NEG_BLUSH = "blush, nose blush, blush stickers, embarrassed, flustered"
+NEG_BREASTS = "(huge breasts:1.4), (large breasts:1.25), gigantic breasts, cleavage"
 NEG_EYECOLOR = ("(rainbow eyes:1.3), multicolored eyes, heterochromia, colored sclera, "
                 "(tsurime:1.3), narrow eyes, small eyes, squinting")
+# Blue eyes next to the outfit's yellow leaves the palette free to settle in the
+# middle: the pale blue hair went mint and the gold went lime. Naming the drift
+# is what holds it, since both source colours have to stay.
+NEG_GREEN = (
+    "(green hair:1.5), aqua hair, mint hair, (green eyes:1.3), "
+    "(yellow-green:1.4), lime, chartreuse, olive, green theme, "
+    "(yellow background:1.4), beige background, cream background, sepia"
+)
+# The eye emphasis will draw an iris on anything dark enough to read as a face,
+# so the shapes it reaches for are named here.
+NEG_STRAY_EYE = (
+    "(extra eyes:1.5), (disembodied eye:1.4), floating eye, eyes in background, "
+    "(monster:1.4), creature, shadow creature, dark figure, looming shadow, "
+    "face in background, mask"
+)
 NEG_SHADOW = "blurry shadow, soft shadow, gradient shadow"
 NEG_CROWD = (
     "(multiple girls:1.4), (2girls:1.4), (multiple views:1.3), background character, "
@@ -234,6 +334,28 @@ NEG_SPARKLE = (
 )
 NEG_MISC = ("3d, cgi, render, photorealistic, realistic, loli, child, mature female, milf, old, "
             "shounen (style), 1990s (style)")
+
+NEG_BLOCKS = {
+    "quality": NEG_QUALITY, "shine": NEG_SHINE, "legs": NEG_LEGS, "gear": NEG_GEAR,
+    "framing": NEG_FRAMING, "artifact": NEG_ARTIFACT, "toon": NEG_TOON,
+    "distort": NEG_DISTORT,
+    "sparkle": NEG_SPARKLE, "blush": NEG_BLUSH, "crowd": NEG_CROWD,
+    "eyecolor": NEG_EYECOLOR, "strayeye": NEG_STRAY_EYE, "green": NEG_GREEN,
+    "shadow": NEG_SHADOW, "breasts": NEG_BREASTS,
+    "misc": NEG_MISC,
+}
+FULL_ORDER = ["quality", "shine", "legs", "gear", "distort", "framing", "artifact",
+              "toon", "sparkle", "blush", "crowd", "eyecolor", "strayeye", "green",
+              "shadow", "breasts", "misc"]
+LIGHT_ORDER = [b for b in FULL_ORDER if b not in ("shine", "toon")]
+
+
+def build_negative(preset: str, job: str, pose: str = "") -> str:
+    order = FULL_ORDER if preset == "full" else LIGHT_ORDER
+    terms = [t.strip() for b in order for t in NEG_BLOCKS[b].split(",")]
+    drop = set(NEG_DROP.get(job, [])) | set(POSE_NEG_DROP.get(pose, []))
+    return ", ".join(t for t in terms if t and t not in drop)
+
 
 DEFAULT_NEGATIVE = ", ".join(
     [NEG_QUALITY, NEG_SHINE, NEG_LEGS, NEG_GEAR, NEG_FRAMING, NEG_ARTIFACT,
@@ -348,8 +470,11 @@ def parse_args_from(argv: list[str]) -> argparse.Namespace:
 
 def build_positive(args: argparse.Namespace) -> str:
     quality = QUALITY_PLAIN if getattr(args, "plain_quality", False) else QUALITY
-    parts = [quality, "1girl, solo", CLASSES[args.job], "dragon quest iii, dragon quest",
-             LEGS, POSES[args.pose]]
+    parts = [quality, "1girl, solo", CLASSES[args.job]]
+    franchise = FRANCHISE.get(args.job)
+    if franchise:
+        parts.append(franchise)
+    parts += [LEGS_BY_JOB.get(args.job, LEGS), POSES[args.pose], BACKGROUND]
     face = FACES[getattr(args, "face", "default")]
     if face:
         parts.append(face)
@@ -529,20 +654,22 @@ def wait_for(args: argparse.Namespace, prompt_ids: list[str]) -> None:
 
 def apply_defaults(args: argparse.Namespace) -> None:
     """Fill in the settled recipe for anything the caller left alone."""
+    if args.face == "moe" and args.job in FACE_BY_JOB:
+        args.face = FACE_BY_JOB[args.job]
     if not args.lora:
         args.lora = [name for name, _, _ in DEFAULT_LORAS]
         args.lora_strength = [strength for _, strength, _ in DEFAULT_LORAS]
         triggers = ", ".join(t for _, _, t in DEFAULT_LORAS if t)
         args.extra = ", ".join(p for p in (triggers, args.extra) if p)
     if args.negative is None:
-        args.negative = NEGATIVE_PRESETS[args.negative_preset]
+        args.negative = build_negative(args.negative_preset, args.job, args.pose)
 
 
 def main() -> int:
     args = parse_args()
     apply_defaults(args)
     if args.negative is None:
-        args.negative = NEGATIVE_PRESETS[args.negative_preset]
+        args.negative = build_negative(args.negative_preset, args.job, args.pose)
     prefix = args.prefix or f"dq3-{args.job}-{args.pose}"
     prompt_ids = []
 

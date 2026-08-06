@@ -19,7 +19,7 @@ import urllib.request
 # muscular* in the negatives is what stops calves from turning sinewy, and the
 # hip/ass negatives keep the extra volume in the legs instead of the pelvis.
 LEGS = (
-    "young woman, long legs, (thick thighs:1.7), (thick calves:1.45), (thick legs:1.2), "
+    "young woman, long legs, (thick thighs:1.6), (thick calves:1.4), (thick legs:1.15), "
     "soft calves, soft legs, smooth legs, "
     "(black pantyhose:1.75), (opaque legwear:1.45), (black legwear:1.3), nylon legwear, (taut clothes:1.35), (stretched fabric:1.25), (shiny legwear:1.4), (specular highlights:1.25), light streaks"
 )
@@ -84,10 +84,10 @@ FACES = {
 CLASSES = {
     "sage": (
         # Eye colour is left to the face preset now, so the two cannot argue.
-        "sage (dq3), (black hair:1.5), (dark blue hair:1.2), blue tinted shadows, (medium hair:1.3), straight hair, "
+        "sage (dq3), (dark blue hair:1.5), (black hair:1.2), black tinted shadows, (medium hair:1.3), straight hair, "
         "(gold headband:1.3), blue gem, (tube top:1.35), strapless, bare shoulders, "
         "(plain white dress:1.35), white dress, (thigh length dress:1.3), (no pattern:1.2), brown belt, (yellow elbow gloves:1.3), "
-        "teal cape, teal scarf, (yellow boots:1.2), holding staff, (thin staff:1.2), slender wooden staff"
+        "teal cape, teal scarf, (yellow boots:1.2), (quarterstaff:1.35), plain wooden pole, holding pole"
     ),
     # (mini robe:1.3) is load-bearing: at full length the robe drapes over the
     # legs and the pantyhose comes out blotched with stray dark or light patches.
@@ -160,9 +160,9 @@ STYLES = {
     # interior lines and cel shading reinforce each other; gradients fight them,
     # which is why mixing the two never looked right.
     "cel": (
-        "(cel shading:1.5), (flat color:1.45), (limited palette:1.35), few colors, (anime screencap:1.15), "
-        "(sharp shadow edges:1.45), (two-tone shading:1.35), (hard shadow edge:1.2), (dark shadows:1.3), deep shadow tone, (saturated colors:1.15), (shaded:1.25), "
-        "(thin lineart:1.5), (black lineart:1.35), (simple lineart:1.2), "
+        "(cel shading:1.25), (flat color:1.2), (anime screencap:1.15), "
+        "(sharp shadow edges:1.35), two-tone shading, (shaded:1.15), "
+        "(thin lineart:1.5), (black lineart:1.35), (detailed lineart:1.3), "
         "simple clothes, "
         "(simple hair:1.2), hair as masses, "
         "clean lineart, crisp lines, simple shading, soft colors, "
@@ -201,7 +201,7 @@ NEG_DROP = {
 # Same idea for poses. bootoff puts the feet toward the camera on purpose, which
 # the default framing negatives rule out; the upskirt terms stay in place.
 # Class tags a pose has to give up. reaching wants both hands open and empty.
-POSE_TAG_DROP = {"reaching": ["holding staff", "(thin staff:1.2)", "slender wooden staff"]}
+POSE_TAG_DROP = {"reaching": ["(quarterstaff:1.35)", "plain wooden pole", "holding pole"]}
 
 POSE_NEG_DROP = {
     "bootoff": ["feet focus", "lower body"],
@@ -272,7 +272,8 @@ NEG_GEAR = (
     "armor, warrior, headgear, (hood:1.4), mitre"
 )
 NEG_DISTORT = ("(warped:1.3), melting, distorted, deformed, (bent staff:1.3), "
-               "(thick staff:1.4), oversized staff, club, mace")
+               "(thick staff:1.4), oversized staff, club, mace, "
+               "(ornate staff:1.4), decorated staff")
 NEG_FRAMING = (
     "cropped, head out of frame, close-up, lower body, feet focus, "
     "(upskirt:1.4), panties, (from below:1.2), (zoom layer:1.4), multiple views"
@@ -283,8 +284,9 @@ NEG_ARTIFACT = (
     "(wrinkled clothes:1.2), busy details"
 )
 NEG_TOON = (
-    "(thick outlines:1.4), heavy lineart, (colored lineart:1.4), (light lineart:1.3), "
-    "pale lineart, lineless, monochrome, sketch, (intricate:1.3), (highly detailed:1.3)"
+    "(thick outlines:1.5), (bold outline:1.4), (heavy lineart:1.4), thick lineart, "
+    "(colored lineart:1.4), brown lineart, grey lineart, (light lineart:1.3), "
+    "pale lineart, soft lineart, blurry lines, lineless, monochrome, sketch"
 )
 NEG_SPARKLE = "(sparkle:1.25), (star (symbol):1.25), light particles, lens flare, glitter"
 NEG_BLUSH = "blush, nose blush, embarrassed"

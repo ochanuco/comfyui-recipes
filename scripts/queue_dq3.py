@@ -384,6 +384,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="amanatsu-il-v11",
         help="subdirectory under assets/diffusers; pass '' to fall back to --ckpt-name",
     )
+    parser.add_argument(
+        "--v-pred",
+        action="store_true",
+        help="checkpoint is v-prediction (NoobAI vpred and similar)",
+    )
     # Repeatable: --lora a.safetensors --lora b.safetensors chains them.
     parser.add_argument(
         "--lora",
@@ -476,6 +481,18 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
     # LoRAs sit between the loader and everything downstream, so the rest of the
     # graph keeps pointing at one node id whether or not any are stacked.
     model_src, clip_src = ["4", 0], ["4", 1]
+
+    # v-prediction checkpoints need saying so. DiffusersLoader does not read the
+    # scheduler config, so without this the image comes out as noise or a flat
+    # field -- which is at least an unmistakable failure.
+    sampling_nodes: dict[str, dict] = {}
+    if getattr(args, "v_pred", False):
+        sampling_nodes["59"] = {
+            "class_type": "ModelSamplingDiscrete",
+            "inputs": {"model": model_src, "sampling": "v_prediction", "zsnr": True},
+        }
+        model_src = ["59", 0]
+
     lora_nodes: dict[str, dict] = {}
     for index, lora_name in enumerate(getattr(args, "lora", []) or []):
         strengths = getattr(args, "lora_strength", []) or []
@@ -495,6 +512,7 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
 
     prompt = {
         "4": loader,
+        **sampling_nodes,
         **lora_nodes,
         "6": {
             "class_type": "CLIPTextEncode",

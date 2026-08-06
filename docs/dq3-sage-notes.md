@@ -102,6 +102,36 @@ with it and let the eye tags come back down:
 Downloading them needs the Civitai token; `op://Personal/jv36itf5rqh5sneynlgpbk47k4/credential`
 stopped resolving at the end of the session.
 
+## Checkpoint swap solved the eye ratio (overnight run)
+
+`moe is all you need` (NoobAI/Illustrious v-pred v2) reaches the proportion that
+tags and LoRAs could not:
+
+| | eye height / face height |
+|---|---|
+| Amanatsu | ~20% |
+| **moe-vpred-v2** | **~31%** |
+| target | 25% |
+| reference | 31% |
+
+Same seed, same prompt — only the checkpoint differs. This is the third time in
+the session that changing checkpoint moved the art style further than any amount
+of prompt work, and the first two were novaAnimeXL → Amanatsu and the NoobAI
+rejection.
+
+**It is v-prediction and must be told so.** `DiffusersLoader` does not read the
+scheduler config, so without `--v-pred` the image comes out as coloured noise --
+an unmistakable failure, at least. The flag inserts `ModelSamplingDiscrete`
+(`v_prediction`, zsnr) between the loader and the LoRA stack.
+
+```bash
+uv run scripts/queue_dq3.py --job sage --pose sitting \
+  --width 1024 --height 1536 --diffusers-path moe-vpred-v2 --v-pred
+```
+
+The eye tags can probably come back down now that the checkpoint supplies the
+proportion; `(large eyes:1.65)` was fighting for something it no longer has to.
+
 ## Open, for next time
 
 - `standing` doubles the figure; `bootoff` goes dark.

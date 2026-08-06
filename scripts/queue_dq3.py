@@ -68,7 +68,8 @@ FACES = {
     "moe": (
         "(tareme:1.5), (large eyes:1.65), round eyes, "
         "2000s (style), eyelashes, (dark blue eyes:1.3), (large iris:1.6), "
-        "thin eyebrows, (light smile:1.2), closed mouth, small mouth, "
+        "thin eyebrows, (round face:1.2), soft jawline, small chin, "
+        "(light smile:1.2), closed mouth, small mouth, "
         "soft expression, looking at viewer"
     ),
     "halflid": (
@@ -162,11 +163,11 @@ STYLES = {
     "cel": (
         "(cel shading:1.25), (flat color:1.2), (anime screencap:1.15), "
         "(sharp shadow edges:1.35), two-tone shading, (shaded:1.15), "
-        "(thin lineart:1.5), (black lineart:1.35), (detailed lineart:1.3), "
+        "(bold lineart:1.3), (thick black outline:1.25), (black lineart:1.35), (detailed lineart:1.3), "
         "simple clothes, "
         "(simple hair:1.2), hair as masses, "
         "clean lineart, crisp lines, simple shading, soft colors, "
-        "(white outline:1.6), outline, sticker"
+        "(white outline:1.8), thick white outline, outline, sticker"
     ),
     "galge": (
         "(game cg:1.15), official art, visual novel cg, "
@@ -284,7 +285,6 @@ NEG_ARTIFACT = (
     "(wrinkled clothes:1.2), busy details"
 )
 NEG_TOON = (
-    "(thick outlines:1.5), (bold outline:1.4), (heavy lineart:1.4), thick lineart, "
     "(colored lineart:1.4), brown lineart, grey lineart, (light lineart:1.3), "
     "pale lineart, soft lineart, blurry lines, lineless, monochrome, sketch"
 )

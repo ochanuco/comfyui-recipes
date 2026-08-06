@@ -21,7 +21,7 @@ import urllib.request
 LEGS = (
     "young woman, long legs, (thick thighs:1.7), (thick calves:1.45), (thick legs:1.2), "
     "soft calves, soft legs, smooth legs, "
-    "(black pantyhose:1.6), (opaque legwear:1.25), nylon legwear, (taut clothes:1.35), (stretched fabric:1.25), (shiny legwear:1.4), (specular highlights:1.25), light streaks, sheer legwear"
+    "(black pantyhose:1.75), (opaque legwear:1.45), (black legwear:1.3), nylon legwear, (taut clothes:1.35), (stretched fabric:1.25), (shiny legwear:1.4), (specular highlights:1.25), light streaks"
 )
 
 # Per class, because the weighted thighs above are a Dragon Quest choice and the
@@ -66,13 +66,9 @@ FACES = {
     # hairs, which is busier than either reference. tareme and large eyes both
     # need weights -- unweighted they lose to the eye LoRA's own shape.
     "moe": (
-        "(tareme:1.6), drooping eyes, (large eyes:1.55), round eyes, wide eyes, "
-        "2000s (style), (thick eyelashes:1.4), (dark eyelashes:1.3), long eyelashes, "
-        "(dark blue eyes:1.3), (gradient eyes:1.15), "
-        "(detailed eyes:1.35), shiny eyes, "
-        "highlights in eyes, reflective eyes, large pupils, "
-        "thin eyebrows, light brown eyebrows, "
-        "(light smile:1.2), closed mouth, small mouth, "
+        "(tareme:1.5), (large eyes:1.65), round eyes, "
+        "2000s (style), eyelashes, (dark blue eyes:1.3), (large iris:1.6), "
+        "thin eyebrows, (light smile:1.2), closed mouth, small mouth, "
         "soft expression, looking at viewer"
     ),
     "halflid": (
@@ -89,8 +85,8 @@ CLASSES = {
     "sage": (
         # Eye colour is left to the face preset now, so the two cannot argue.
         "sage (dq3), (light blue hair:1.2), (medium hair:1.3), straight hair, "
-        "(gold headband:1.3), blue gem, (cap sleeves:1.2), "
-        "(plain white dress:1.35), white dress, short dress, (no pattern:1.2), brown belt, (yellow elbow gloves:1.3), "
+        "(gold headband:1.3), blue gem, (tube top:1.35), strapless, bare shoulders, "
+        "(plain white dress:1.35), white dress, (thigh length dress:1.3), (no pattern:1.2), brown belt, (yellow elbow gloves:1.3), "
         "teal cape, teal scarf, (yellow boots:1.2), (holding staff:1.2), wooden staff"
     ),
     # (mini robe:1.3) is load-bearing: at full length the robe drapes over the
@@ -119,7 +115,7 @@ CLASSES = {
 # Applied when --lora is not passed at all. Each entry carries the trigger word
 # its LoRA expects, so callers do not have to remember them.
 DEFAULT_LORAS = [
-    ("perfect-eyes-ill.safetensors", 0.4, "perfect eyes"),
+    ("perfect-eyes-ill.safetensors", 0.7, "perfect eyes"),
     ("detailed-perfection-ill.safetensors", 0.5, "detailed"),
 ]
 
@@ -164,11 +160,11 @@ STYLES = {
     # interior lines and cel shading reinforce each other; gradients fight them,
     # which is why mixing the two never looked right.
     "cel": (
-        "(cel shading:1.25), (flat color:1.2), "
-        "(sharp shadow edges:1.35), two-tone shading, (shaded:1.15), "
-        "(thin lineart:1.5), (black lineart:1.35), (detailed lineart:1.3), "
-        "(cloth folds:1.15), simple clothes, "
-        "(defined hair strands:1.25), separated hair strands, "
+        "(cel shading:1.5), (flat color:1.45), (limited palette:1.35), few colors, (anime screencap:1.15), "
+        "(sharp shadow edges:1.45), (two-tone shading:1.35), (hard shadow edge:1.2), (dark shadows:1.3), deep shadow tone, (saturated colors:1.15), (shaded:1.25), "
+        "(thin lineart:1.5), (black lineart:1.35), (simple lineart:1.2), "
+        "simple clothes, "
+        "(simple hair:1.2), hair as masses, "
         "clean lineart, crisp lines, simple shading, soft colors, "
         "(white outline:1.6), outline, sticker"
     ),
@@ -204,6 +200,9 @@ NEG_DROP = {
 
 # Same idea for poses. bootoff puts the feet toward the camera on purpose, which
 # the default framing negatives rule out; the upskirt terms stay in place.
+# Class tags a pose has to give up. reaching wants both hands open and empty.
+POSE_TAG_DROP = {"reaching": ["(holding staff:1.2)", "wooden staff"]}
+
 POSE_NEG_DROP = {
     "bootoff": ["feet focus", "lower body"],
     "kneesup": ["feet focus", "lower body"],
@@ -259,93 +258,62 @@ POSES = {
 # Grouped so each block's purpose stays readable when tweaking one of them.
 NEG_QUALITY = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
-    "extra fingers, extra limbs, watermark, signature, text"
+    "extra fingers, extra limbs, watermark, signature, text, "
+    "(washed out:1.3), (overexposed:1.3), (pale skin:1.3)"
 )
-# The model renders skin and cloth as latex unless shine is pinned to the legwear.
-NEG_SHINE = ("shiny skin, glossy skin, oily skin, sweat, wet skin, "
-             "(latex:1.4), (rubber:1.4), pvc, vinyl, bodysuit, wet clothes")
+NEG_SHINE = "shiny skin, oily skin, sweat, (latex:1.3), (rubber:1.3)"
 NEG_LEGS = (
-    "bare legs, barefoot, thighhighs, skinny legs, thin legs, thin calves, "
-    "muscular, muscular legs, muscular calves, veins, bony knees, defined knees, "
-    "fat, obese, bbw, overweight, wide hips, huge ass, large ass, big butt, "
-    "thick waist, short legs"
+    "bare legs, barefoot, thighhighs, thin legs, muscular legs, bony knees, "
+    "(grey legwear:1.4), (sheer legwear:1.3), see-through legwear, pale legwear, "
+    "obese, wide hips, huge ass, short legs"
 )
-# Weighted: at plain strength the class tag still pulls in warrior gear.
 NEG_GEAR = (
-    "(sword:1.5), (katana:1.4), knife, dagger, axe, spear, bow, shield, "
-    "(horns:1.5), (helmet:1.4), viking helmet, horned helmet, demon horns, antlers, "
-    "armor, warrior, headgear, (headscarf:1.4), (hood:1.4), mitre, bishop hat"
+    "(sword:1.4), knife, axe, spear, shield, (horns:1.4), (helmet:1.4), "
+    "armor, warrior, headgear, (hood:1.4), mitre"
 )
-# Never skipped. These lived inside NEG_GEAR, so dropping that block for a hooded
-# character also dropped them and the render melted.
-NEG_DISTORT = (
-    "(warped:1.3), bending, melting, dripping, smeared, distorted, deformed, "
-    "(bent staff:1.3), curved staff, broken staff"
-)
-# zoom layer / multiple views: detail LoRAs are trained on showcase images that
-# park a huge close-up behind the figure, and they bring that layout with them.
+NEG_DISTORT = "(warped:1.3), melting, distorted, deformed, (bent staff:1.3)"
 NEG_FRAMING = (
     "cropped, head out of frame, close-up, lower body, feet focus, "
-    "(upskirt:1.4), panties, underwear, (from below:1.2), crotch, "
-    "(zoom layer:1.4), (multiple views:1.3), inset, split screen, "
-    "picture frame, eye focus, reference sheet"
+    "(upskirt:1.4), panties, (from below:1.2), (zoom layer:1.4), multiple views"
 )
-NEG_ARTIFACT = ("long robe, floor length robe, patterned legwear, polka dot, spots, mottled, "
-                "(wrinkled clothes:1.3), excessive folds, busy details, cluttered, "
-                "(emblem:1.4), (logo:1.4), crest, insignia, symbol on chest, chest print, badge, "
-                "bare shoulders, off-shoulder, "
-                "(torn clothes:1.2), damaged clothes, holes in clothes")
-# IPAdapter at high weight hardens edges and bands the shading, which together
-# read as late-90s toon-rendered CG. These pull back on both.
+NEG_ARTIFACT = (
+    "long robe, patterned legwear, spots, mottled, (torn clothes:1.2), "
+    "(microskirt:1.4), exposed buttocks, (emblem:1.4), (logo:1.4), chest print, "
+    "(wrinkled clothes:1.2), busy details"
+)
 NEG_TOON = (
-    "(thick outlines:1.5), (bold outline:1.4), (heavy lineart:1.4), thick lineart, "
-    "(colored lineart:1.4), brown lineart, (light lineart:1.3), grey lineart, pale lineart, soft lineart, blurry lines, lineless, "
-    "vector art, monochrome, sketch"
+    "(thick outlines:1.4), heavy lineart, (colored lineart:1.4), (light lineart:1.3), "
+    "pale lineart, lineless, monochrome, sketch, (intricate:1.3), (highly detailed:1.3)"
 )
-# The galge vocabulary tends to spend itself decorating the background with
-# particles instead of changing how the figure is drawn.
-NEG_BLUSH = "blush, nose blush, blush stickers, embarrassed, flustered"
-NEG_BREASTS = "(huge breasts:1.4), (large breasts:1.25), gigantic breasts, cleavage"
-NEG_EYECOLOR = ("(rainbow eyes:1.3), multicolored eyes, heterochromia, colored sclera, "
-                "(tsurime:1.3), narrow eyes, small eyes, squinting")
-# Blue eyes next to the outfit's yellow leaves the palette free to settle in the
-# middle: the pale blue hair went mint and the gold went lime. Naming the drift
-# is what holds it, since both source colours have to stay.
-NEG_GREEN = (
-    "(green hair:1.5), aqua hair, mint hair, (green eyes:1.3), "
-    "(yellow-green:1.4), lime, chartreuse, olive, green theme, "
-    "(yellow background:1.4), beige background, cream background, sepia"
-)
-# The eye emphasis will draw an iris on anything dark enough to read as a face,
-# so the shapes it reaches for are named here.
-NEG_STRAY_EYE = (
-    "(extra eyes:1.5), (disembodied eye:1.4), floating eye, eyes in background, "
-    "(monster:1.4), creature, shadow creature, dark figure, looming shadow, "
-    "face in background, mask"
-)
-NEG_SHADOW = "blurry shadow, soft shadow, gradient shadow"
+NEG_SPARKLE = "(sparkle:1.25), (star (symbol):1.25), light particles, lens flare, glitter"
+NEG_BLUSH = "blush, nose blush, embarrassed"
+NEG_BREASTS = "(huge breasts:1.4), (large breasts:1.25), cleavage"
 NEG_CROWD = (
-    "(multiple girls:1.4), (2girls:1.4), (multiple views:1.3), background character, "
-    "crowd, silhouette, another person, extra person, doll, statue, poster, painting"
+    "(multiple girls:1.4), background character, crowd, (dark figure:1.3), "
+    "(dark shape:1.3), stray object, (disembodied eye:1.4), (monster:1.4)"
 )
-NEG_SPARKLE = (
-    "(sparkle:1.25), (star (symbol):1.25), light particles, glitter, "
-    "confetti, lens flare, floating particles, magic circle, starburst, twinkle"
+NEG_EYECOLOR = (
+    "(rainbow eyes:1.3), heterochromia, (tsurime:1.3), (small eyes:1.4), "
+    "(sanpaku:1.5), (constricted pupils:1.4), (visible sclera:1.4)"
 )
-NEG_MISC = ("3d, cgi, render, photorealistic, realistic, loli, child, mature female, milf, old, "
-            "shounen (style), 1990s (style)")
+NEG_GREEN = "(green hair:1.5), mint hair, (yellow-green:1.4), lime, (yellow background:1.4)"
+NEG_SHADOW = "(cast shadow:1.5), (shadow on ground:1.45), soft shadow, gradient shadow"
+NEG_MISC = (
+    "3d, cgi, render, photorealistic, loli, child, mature female, old, "
+    "(gradient shading:1.4), airbrush, smooth shading, (many colors:1.3)"
+)
 
 NEG_BLOCKS = {
     "quality": NEG_QUALITY, "shine": NEG_SHINE, "legs": NEG_LEGS, "gear": NEG_GEAR,
     "framing": NEG_FRAMING, "artifact": NEG_ARTIFACT, "toon": NEG_TOON,
     "distort": NEG_DISTORT,
     "sparkle": NEG_SPARKLE, "blush": NEG_BLUSH, "crowd": NEG_CROWD,
-    "eyecolor": NEG_EYECOLOR, "strayeye": NEG_STRAY_EYE, "green": NEG_GREEN,
+    "eyecolor": NEG_EYECOLOR, "green": NEG_GREEN,
     "shadow": NEG_SHADOW, "breasts": NEG_BREASTS,
     "misc": NEG_MISC,
 }
 FULL_ORDER = ["quality", "shine", "legs", "gear", "distort", "framing", "artifact",
-              "toon", "sparkle", "blush", "crowd", "eyecolor", "strayeye", "green",
+              "toon", "sparkle", "blush", "crowd", "eyecolor", "green",
               "shadow", "breasts", "misc"]
 LIGHT_ORDER = [b for b in FULL_ORDER if b not in ("shine", "toon")]
 
@@ -470,7 +438,10 @@ def parse_args_from(argv: list[str]) -> argparse.Namespace:
 
 def build_positive(args: argparse.Namespace) -> str:
     quality = QUALITY_PLAIN if getattr(args, "plain_quality", False) else QUALITY
-    parts = [quality, "1girl, solo", CLASSES[args.job]]
+    class_tags = CLASSES[args.job]
+    for tag in POSE_TAG_DROP.get(args.pose, []):
+        class_tags = class_tags.replace(tag + ", ", "").replace(", " + tag, "")
+    parts = [quality, "1girl, solo", class_tags]
     franchise = FRANCHISE.get(args.job)
     if franchise:
         parts.append(franchise)

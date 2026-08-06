@@ -124,13 +124,38 @@ scheduler config, so without `--v-pred` the image comes out as coloured noise --
 an unmistakable failure, at least. The flag inserts `ModelSamplingDiscrete`
 (`v_prediction`, zsnr) between the loader and the LoRA stack.
 
+It is now the default, and `--v-pred` is set automatically from `V_PRED_MODELS`
+rather than by hand — the checkpoint knows, the caller should not have to.
+
 ```bash
-uv run scripts/queue_dq3.py --job sage --pose sitting \
-  --width 1024 --height 1536 --diffusers-path moe-vpred-v2 --v-pred
+uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536
 ```
 
-The eye tags can probably come back down now that the checkpoint supplies the
-proportion; `(large eyes:1.65)` was fighting for something it no longer has to.
+Verified across sitting / reaching / kneesup and on Yukari: eyes large in all
+four, black legwear, thigh volume, straight quarterstaff, flat backdrop, and no
+sign of the melting that the old face preset caused on Yukari.
+
+**The same tag needs a different weight on a different checkpoint.** Retuned for
+moe, with the Amanatsu values in brackets:
+
+| tag | moe | (Amanatsu) |
+|-----|-----|-----------|
+| `white outline` | 2.4 | 1.6 |
+| `thick white outline` | 1.5 | unweighted |
+| `grey background` | 1.7 | 1.35 |
+| `flat background` | 1.5 | absent |
+| `outstretched arms` | 1.6 | 1.4 |
+
+At the Amanatsu values the border did not draw at all and the backdrop picked up
+a green or blue cast; `reaching` came out as a sitting pose. Switching back to
+`--diffusers-path amanatsu-il-v11` will need those weights lowered again.
+
+`sweet-mix-v14` was downloaded and rejected: its eye proportion matches
+Amanatsu's, so it buys nothing here. It is still on disk.
+
+The eye tags can probably come down now that the checkpoint supplies the
+proportion; `(large eyes:1.65)` is fighting for something it no longer has to.
+That is the first thing to try trimming.
 
 ## Open, for next time
 

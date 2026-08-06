@@ -117,6 +117,11 @@ CLASSES = {
 
 # Applied when --lora is not passed at all. Each entry carries the trigger word
 # its LoRA expects, so callers do not have to remember them.
+# Checkpoints that need ModelSamplingDiscrete. DiffusersLoader does not read the
+# scheduler config, so this has to be stated somewhere, and the checkpoint knows
+# it better than the caller does.
+V_PRED_MODELS = {"moe-vpred-v2"}
+
 DEFAULT_LORAS = [
     ("perfect-eyes-ill.safetensors", 0.7, "perfect eyes"),
     ("detailed-perfection-ill.safetensors", 0.5, "detailed"),
@@ -171,7 +176,7 @@ STYLES = {
         "(thin lineart:1.5), (black lineart:1.35), (simple lineart:1.2), "
         "simple clothes, (simple hair:1.2), hair as masses, "
         "clean lineart, crisp lines, simple shading, soft colors, "
-        "(white outline:1.6), outline, sticker"
+        "(white outline:2.4), (thick white outline:1.5), outline, sticker"
     ),
     "galge": (
         "(game cg:1.15), official art, visual novel cg, "
@@ -216,9 +221,11 @@ POSE_NEG_DROP = {
 # Appended to every pose. A scene gives the eye tags somewhere to put an extra
 # eye -- a balcony backdrop grew a shadow creature with a fully drawn iris -- and
 # a flat field leaves them nothing to latch onto.
+# Weights are pitched for moe-vpred-v2, which needs more push than Amanatsu did
+# before the backdrop goes properly flat.
 BACKGROUND = (
-    "(simple background:1.4), (grey background:1.35), plain background, "
-    "flat background, no scenery"
+    "(simple background:1.5), (grey background:1.7), (flat background:1.5), "
+    "plain background, (no scenery:1.3)"
 )
 
 POSES = {
@@ -231,7 +238,7 @@ POSES = {
     # from frames it from low enough to look up the skirt; the framing tags keep
     # the shot on the upper body instead.
     "reaching": (
-        "(outstretched arms:1.4), reaching towards viewer, (leaning forward:1.25), "
+        "(outstretched arms:1.6), (reaching towards viewer:1.4), (leaning forward:1.25), "
         "open hands, spread fingers, looking at viewer, open mouth, smile, "
         "(upper body:1.2), (medium breasts:1.2), dutch angle"
     ),
@@ -381,7 +388,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # MODEL/CLIP/VAE triple, so the rest of the graph is unchanged.
     parser.add_argument(
         "--diffusers-path",
-        default="amanatsu-il-v11",
+        default="moe-vpred-v2",
         help="subdirectory under assets/diffusers; pass '' to fall back to --ckpt-name",
     )
     parser.add_argument(
@@ -651,6 +658,8 @@ def wait_for(args: argparse.Namespace, prompt_ids: list[str]) -> None:
 
 def apply_defaults(args: argparse.Namespace) -> None:
     """Fill in the settled recipe for anything the caller left alone."""
+    if getattr(args, "diffusers_path", None) in V_PRED_MODELS:
+        args.v_pred = True
     if args.face == "moe" and args.job in FACE_BY_JOB:
         args.face = FACE_BY_JOB[args.job]
     if not args.lora:

@@ -73,6 +73,35 @@ tags and negative terms (`POSE_TAG_DROP`, `POSE_NEG_DROP`).
 Never drop a whole negative block by name: doing that for a hooded character took
 the distortion terms with it and the render melted.
 
+## Eye size — measured, and why tags cannot get there
+
+Measured off `ref-eye4`/`ref-pose-headrest` against a grid:
+
+| | reference | what we produce |
+|---|---|---|
+| eye height / face height | **31%** | 15-18% |
+| iris / eye opening | **90%+** | 60-70% |
+
+Tags cap out well below this. `(large eyes:1.75)` loses the scarf, `1.9` draws a
+spare eye in the background, and even `1.85` plus `(huge eyes:1.3)` lands at
+about half the reference ratio. The eye LoRA does not help either -- ramping it
+0.7 / 1.0 / 1.4 / 2.1 changes the iris *quality* (brightness, highlights) and
+leaves the *size* untouched; 2.1 breaks the image outright. 1.0 is prettier than
+the 0.7 default and costs nothing.
+
+A ratio is a property of the art style, not something a prompt can state. The
+next thing to try is a 2000s moe style LoRA, which should bring the proportion
+with it and let the eye tags come back down:
+
+| model | id | trigger |
+|-------|----|---------|
+| moe style | 2297509 | `2000s_moe_style` |
+| moe style 2000s | 2299478 | `2000s anime, 2000s artstyle` |
+| Mozudoll-style | 2784868 | `moe (mozudoll)` |
+
+Downloading them needs the Civitai token; `op://Personal/jv36itf5rqh5sneynlgpbk47k4/credential`
+stopped resolving at the end of the session.
+
 ## Open, for next time
 
 - `standing` doubles the figure; `bootoff` goes dark.

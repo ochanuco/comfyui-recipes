@@ -66,10 +66,12 @@ FACES = {
     # hairs, which is busier than either reference. tareme and large eyes both
     # need weights -- unweighted they lose to the eye LoRA's own shape.
     "moe": (
+        # The state that produced the preferred result. Later passes rebuilt it
+        # against newer references -- round face, 2010s era, a reworked iris --
+        # and every one of them drifted away from it; reverted wholesale.
         "(tareme:1.5), (large eyes:1.65), round eyes, "
         "2000s (style), eyelashes, (dark blue eyes:1.3), (large iris:1.6), "
-        "thin eyebrows, (round face:1.2), soft jawline, small chin, "
-        "(light smile:1.2), closed mouth, small mouth, "
+        "thin eyebrows, (light smile:1.2), closed mouth, small mouth, "
         "soft expression, looking at viewer"
     ),
     "halflid": (
@@ -161,13 +163,15 @@ STYLES = {
     # interior lines and cel shading reinforce each other; gradients fight them,
     # which is why mixing the two never looked right.
     "cel": (
-        "(cel shading:1.25), (flat color:1.2), (anime screencap:1.15), "
-        "(sharp shadow edges:1.35), two-tone shading, (shaded:1.15), "
-        "(bold lineart:1.3), (thick black outline:1.25), (black lineart:1.35), (detailed lineart:1.3), "
-        "simple clothes, "
-        "(simple hair:1.2), hair as masses, "
+        "(cel shading:1.5), (flat color:1.45), (limited palette:1.35), "
+        "few colors, (anime screencap:1.15), "
+        "(sharp shadow edges:1.45), (two-tone shading:1.35), "
+        "(hard shadow edge:1.2), (dark shadows:1.3), deep shadow tone, "
+        "(saturated colors:1.15), (shaded:1.25), "
+        "(thin lineart:1.5), (black lineart:1.35), (simple lineart:1.2), "
+        "simple clothes, (simple hair:1.2), hair as masses, "
         "clean lineart, crisp lines, simple shading, soft colors, "
-        "(white outline:1.8), thick white outline, outline, sticker"
+        "(white outline:1.6), outline, sticker"
     ),
     "galge": (
         "(game cg:1.15), official art, visual novel cg, "
@@ -285,8 +289,8 @@ NEG_ARTIFACT = (
     "(wrinkled clothes:1.2), busy details"
 )
 NEG_TOON = (
-    "(colored lineart:1.4), brown lineart, grey lineart, (light lineart:1.3), "
-    "pale lineart, soft lineart, blurry lines, lineless, monochrome, sketch"
+    "(thick outlines:1.4), heavy lineart, (colored lineart:1.4), (light lineart:1.3), "
+    "pale lineart, lineless, monochrome, sketch, (intricate:1.3), (highly detailed:1.3)"
 )
 NEG_SPARKLE = "(sparkle:1.25), (star (symbol):1.25), light particles, lens flare, glitter"
 NEG_BLUSH = "blush, nose blush, embarrassed"

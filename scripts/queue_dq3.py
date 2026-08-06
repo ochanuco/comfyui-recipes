@@ -84,10 +84,10 @@ FACES = {
 CLASSES = {
     "sage": (
         # Eye colour is left to the face preset now, so the two cannot argue.
-        "sage (dq3), (light blue hair:1.2), (medium hair:1.3), straight hair, "
+        "sage (dq3), (black hair:1.5), (dark blue hair:1.2), blue tinted shadows, (medium hair:1.3), straight hair, "
         "(gold headband:1.3), blue gem, (tube top:1.35), strapless, bare shoulders, "
         "(plain white dress:1.35), white dress, (thigh length dress:1.3), (no pattern:1.2), brown belt, (yellow elbow gloves:1.3), "
-        "teal cape, teal scarf, (yellow boots:1.2), (holding staff:1.2), wooden staff"
+        "teal cape, teal scarf, (yellow boots:1.2), holding staff, (thin staff:1.2), slender wooden staff"
     ),
     # (mini robe:1.3) is load-bearing: at full length the robe drapes over the
     # legs and the pantyhose comes out blotched with stray dark or light patches.
@@ -201,7 +201,7 @@ NEG_DROP = {
 # Same idea for poses. bootoff puts the feet toward the camera on purpose, which
 # the default framing negatives rule out; the upskirt terms stay in place.
 # Class tags a pose has to give up. reaching wants both hands open and empty.
-POSE_TAG_DROP = {"reaching": ["(holding staff:1.2)", "wooden staff"]}
+POSE_TAG_DROP = {"reaching": ["holding staff", "(thin staff:1.2)", "slender wooden staff"]}
 
 POSE_NEG_DROP = {
     "bootoff": ["feet focus", "lower body"],
@@ -271,7 +271,8 @@ NEG_GEAR = (
     "(sword:1.4), knife, axe, spear, shield, (horns:1.4), (helmet:1.4), "
     "armor, warrior, headgear, (hood:1.4), mitre"
 )
-NEG_DISTORT = "(warped:1.3), melting, distorted, deformed, (bent staff:1.3)"
+NEG_DISTORT = ("(warped:1.3), melting, distorted, deformed, (bent staff:1.3), "
+               "(thick staff:1.4), oversized staff, club, mace")
 NEG_FRAMING = (
     "cropped, head out of frame, close-up, lower body, feet focus, "
     "(upskirt:1.4), panties, (from below:1.2), (zoom layer:1.4), multiple views"
@@ -296,7 +297,8 @@ NEG_EYECOLOR = (
     "(rainbow eyes:1.3), heterochromia, (tsurime:1.3), (small eyes:1.4), "
     "(sanpaku:1.5), (constricted pupils:1.4), (visible sclera:1.4)"
 )
-NEG_GREEN = "(green hair:1.5), mint hair, (yellow-green:1.4), lime, (yellow background:1.4)"
+NEG_GREEN = ("(green hair:1.5), mint hair, (yellow-green:1.4), lime, (yellow background:1.4), "
+             "(light blue hair:1.4), (purple hair:1.4), silver hair, white hair")
 NEG_SHADOW = "(cast shadow:1.5), (shadow on ground:1.45), soft shadow, gradient shadow"
 NEG_MISC = (
     "3d, cgi, render, photorealistic, loli, child, mature female, old, "

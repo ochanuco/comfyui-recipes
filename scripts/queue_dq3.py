@@ -74,6 +74,16 @@ FACES = {
         "thin eyebrows, (light smile:1.2), closed mouth, small mouth, "
         "soft expression, looking at viewer"
     ),
+    # moe's weights assume the face fills a good part of the frame. In a
+    # full-body standing shot it does not, and demanding a huge iris on a small
+    # face has no solution -- the render comes back as coloured blocks. This is
+    # the same intent at weights the distance can carry.
+    "moe-far": (
+        "(tareme:1.3), (large eyes:1.3), round eyes, "
+        "2000s (style), eyelashes, (dark blue eyes:1.2), (large iris:1.25), "
+        "thin eyebrows, light smile, closed mouth, small mouth, "
+        "soft expression, looking at viewer"
+    ),
     "halflid": (
         "(half-closed eyes:1.15), hooded eyes, tareme, eyeliner, thin eyebrows, "
         "swept bangs, side locks, "
@@ -192,6 +202,9 @@ STYLES = {
 # another character's tag the prompt stops resolving and the render turns to
 # noise. Classes can name a face that suits them instead.
 FACE_BY_JOB = {"yukari": "default"}
+
+# Framings where the face is too small to carry moe's weights.
+FACE_BY_POSE = {"standing": "moe-far", "bootoff": "moe-far"}
 
 FRANCHISE = {
     "sage": "dragon quest iii, dragon quest",
@@ -709,6 +722,8 @@ def apply_defaults(args: argparse.Namespace) -> None:
         args.v_pred = True
     if args.face == "moe" and args.job in FACE_BY_JOB:
         args.face = FACE_BY_JOB[args.job]
+    elif args.face == "moe" and args.pose in FACE_BY_POSE:
+        args.face = FACE_BY_POSE[args.pose]
     if not args.lora:
         args.lora = [name for name, _, _ in DEFAULT_LORAS]
         args.lora_strength = [strength for _, strength, _ in DEFAULT_LORAS]

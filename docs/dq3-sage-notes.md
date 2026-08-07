@@ -18,10 +18,9 @@ uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536
 | `53c5e9f6` | `sel-reaching_00002_` | 3062102535 | white border |
 | `79168c71` | `sel-sitting_00002_` | 3992482423 | pose |
 
-Poses worth using: **sitting, kneesup, reaching**. `standing` doubles the figure
-and `bootoff` sinks into darkness — neither has been revisited since the
-negative prompt was halved, and that is the first thing to check when fixing
-them.
+All six poses work: **sitting, kneesup, reaching, lookback, standing, bootoff**.
+standing and bootoff were broken for a long time and the cause was the face
+preset, not the poses — see below.
 
 ## Settings that took a while to find
 
@@ -180,6 +179,24 @@ by the reference's bust framing, and at 0.4-0.6 the two structures simply fought
 and cancelled. It is worth using when the framing already agrees with the
 reference, and is the wrong tool for borrowing a face while keeping a full-body
 pose — which the checkpoint change already solved anyway.
+
+## A weight is only right for one framing
+
+`standing` and `bootoff` came back as coloured blocks while the seated poses were
+fine on identical settings. Dropping the face preset fixed it outright; dropping
+the style did not, and Amanatsu broke differently.
+
+`moe` asks for `(large eyes:1.65)`, `(large iris:1.85)`, `(large pupils:1.7)`.
+Those are satisfiable when the head fills a good part of the canvas. In a
+full-body standing shot the head is small, and a huge iris on a small face has no
+solution — the sampler gives up and returns blocks. `moe-far` states the same
+intent at roughly half the weight, and `FACE_BY_POSE` hands it to the framings
+that need it.
+
+This is the third axis on which a weight turns out not to transfer. The others
+were the prompt being saturated (adding a tag costs an existing one) and the
+checkpoint changing what a given weight is worth. Now: **the framing changes it
+too.** A tag tuned on a close-up will overreach at full-body distance.
 
 ## Open, for next time
 

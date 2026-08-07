@@ -95,6 +95,11 @@ override. `--diffusers-path ''` falls back to `--ckpt-name`.
 presets, `--extra` appends to the positive prompt and `--negative-preset light`
 drops the shine and toon blocks.
 
+`--style cel-plain` is `cel` without the sticker border. Dropping those three
+tags changes more than the outline: the cape spreads wider, the legwear gloss
+comes up, and the result reads as an illustration rather than a die-cut
+sticker.
+
 1280x1920 costs roughly four minutes an image on an M1 Max. For iteration,
 `--width 1024 --height 1536 --steps 22` is visually close and about four times
 faster -- `dpmpp_2m` has converged well before 30 steps.

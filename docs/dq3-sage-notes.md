@@ -274,10 +274,33 @@ not tried again:
 
 It is not a shadow. Enlarged, its eyes are drawn in the sage's own eye style,
 highlights and all -- the model is filling the empty left half with another
-character. `scripts/erase_intruder.py` removes it afterwards instead; see the
-README. Repainting the backdrop cannot: the sticker outline encloses subject and
-intruder together, so a border flood stops at the intruder and a connected-
-component pass returns one blob covering 75% of the frame.
+character.
+
+**Removing it afterwards was tried and reverted.** Repainting the backdrop
+cannot reach it: the sticker outline encloses subject and intruder together, so
+a border flood stops at the intruder and a connected-component pass returns one
+blob covering 75% of the frame. Masking it by chroma and inpainting does work --
+the intruder is flat black and white where the staff, cape and gloves are
+coloured -- but the result reads as retouched, and building the mask is
+delicate: an automatic second pass put the mask over the sage's own hair and the
+left tip of her headband, which are as black as the intruder. Choosing a seed
+that does not produce it is the cheaper answer.
+
+## The sticker border is optional, and Hassaku is better without it
+
+`--style cel-plain` is `cel` with `(white outline:1.6), outline, sticker`
+removed. It was found by accident, as the ablation testing whether the border
+block was summoning the intruder -- it was not, and the image was preferred
+anyway.
+
+Dropping the border changes more than the outline: the cape spreads wider, the
+legwear gloss comes up, and the result reads as an illustration rather than a
+die-cut sticker.
+
+```bash
+uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536 \
+  --diffusers-path hassaku-il-v22 --style cel-plain --seed 4051776310
+```
 
 ## A weight is only right for one framing
 

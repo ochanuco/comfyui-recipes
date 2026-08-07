@@ -199,6 +199,15 @@ STYLES = {
     ),
 }
 
+# cel without the sticker border. Derived rather than copied so the two cannot
+# drift apart -- everything else about the look is meant to stay identical.
+#
+# Dropping the border does more than remove an outline: the cape spreads wider,
+# the legwear gloss comes up, and the whole thing reads as an illustration
+# rather than a die-cut sticker. On Hassaku that is the preferred result.
+STYLES["cel-plain"] = STYLES["cel"].replace(", (white outline:1.6), outline, sticker", "")
+assert STYLES["cel-plain"] != STYLES["cel"], "the border tags moved; fix this replacement"
+
 # Kept beside CLASSES rather than hardcoded into the prompt: it anchors the
 # palette for the Dragon Quest classes, and would poison anything else.
 # The moe face carries weights pushed to their limit for the sage; stacked on

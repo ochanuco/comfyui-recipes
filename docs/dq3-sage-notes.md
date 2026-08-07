@@ -238,6 +238,47 @@ Verified tag-for-tag against the prompts ComfyUI recorded for the two liked
 images, and the Amanatsu prompt is byte-identical across all six poses and both
 characters.
 
+## Hassaku, and the figure it draws in the backdrop
+
+`hassaku-il-v22` (Hassaku XL Illustrious v2.2, John6666's diffusers mirror)
+reaches a larger eye than either Amanatsu or moe and keeps the white border and
+the straight quarterstaff. Two things needed tuning and one could not be tuned
+at all.
+
+- **The scarf disappears under the cape.** `(teal scarf:1.35)` brings it back in
+  every frame.
+- **`black tinted shadows` is load-bearing.** It was dropped along with the other
+  shadow tags, and on its own that one removal washes the entire image out: mean
+  luminance 115 -> 220 at a stddev of 13, a nearly uniform white field. Trimming
+  `(dark shadows:1.3), deep shadow tone` down to `dark shadows` is harmless.
+- **A second figure appears in empty backdrop** -- a flat black silhouette with
+  eyes drawn into it, beside the sage. Seed-dependent: 2903118455 never shows it,
+  4051776310 and 1730948821 always do.
+
+**Nine prompt-side attempts failed to remove that figure.** Recorded so they are
+not tried again:
+
+| attempt | result |
+|---------|--------|
+| raise `cast shadow` / `shadow on ground` | worse |
+| raise `dark figure` / `dark shape` / `disembodied eye` / `monster` | worse -- the eye grew |
+| cut the positive shadow tags | no effect |
+| drop `sticker` | no effect |
+| drop `outline, sticker` | no effect |
+| drop the whole white-border block | worse -- the figure grew |
+| add `silhouette` / `shadow person` to the negative | no effect |
+| raise the background weights | no effect |
+| add `2girls` / `duplicate` to the negative | worse |
+| add `(solo focus:1.35)` | no effect |
+| all three of the last kind together | smaller, still there, composition changed |
+
+It is not a shadow. Enlarged, its eyes are drawn in the sage's own eye style,
+highlights and all -- the model is filling the empty left half with another
+character. `scripts/erase_intruder.py` removes it afterwards instead; see the
+README. Repainting the backdrop cannot: the sticker outline encloses subject and
+intruder together, so a border flood stops at the intruder and a connected-
+component pass returns one blob covering 75% of the frame.
+
 ## A weight is only right for one framing
 
 `standing` and `bootoff` came back as coloured blocks while the seated poses were

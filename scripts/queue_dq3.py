@@ -332,18 +332,6 @@ POSES = {
         "(looking back:1.4), looking at viewer, from behind, from side, "
         "full body, head tilt, (medium breasts:1.2)"
     ),
-    # Lying on one side with the knees drawn up and the legs toward the camera.
-    # The reference shoots it from below with the skirt fallen open; this takes
-    # the pose and not the framing -- "from above" and the covered-hem tags put
-    # the camera on the other side of her, which is also what keeps the dress
-    # where it belongs. "legs together" matters as much: apart, the pose has
-    # nowhere to go but the framing the negatives are holding back.
-    "lying": (
-        "(lying:1.4), on side, (knees up:1.35), (legs together:1.4), "
-        "knees together, (from above:1.3), looking at viewer, "
-        "(covered thighs:1.2), (skirt over legs:1.25), long skirt, "
-        "hand near face, head tilt, full body"
-    ),
 }
 
 # Grouped so each block's purpose stays readable when tweaking one of them.
@@ -367,8 +355,7 @@ NEG_DISTORT = ("(warped:1.3), melting, distorted, deformed, (bent staff:1.3), "
                "(ornate staff:1.4), decorated staff")
 NEG_FRAMING = (
     "cropped, head out of frame, close-up, lower body, feet focus, "
-    "(upskirt:1.4), panties, underwear, (crotch:1.3), (spread legs:1.3), "
-    "(from below:1.2), (zoom layer:1.4), multiple views"
+    "(upskirt:1.4), panties, (from below:1.2), (zoom layer:1.4), multiple views"
 )
 NEG_ARTIFACT = (
     "long robe, patterned legwear, spots, mottled, (torn clothes:1.2), "

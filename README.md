@@ -99,6 +99,22 @@ drops the shine and toon blocks.
 `--width 1024 --height 1536 --steps 22` is visually close and about four times
 faster -- `dpmpp_2m` has converged well before 30 steps.
 
+Every queued job now also submits a UI-format ("litegraph") copy of the graph
+alongside the API graph, built from `/object_info` by `scripts/workflow_ui.py`.
+That copy shows up under `extra_data.extra_pnginfo.workflow` in
+`/history/<prompt_id>`, and ComfyUI writes it into the PNG as a `workflow`
+text chunk, so dropping a generated image onto the ComfyUI canvas reopens the
+graph that made it. `--export-workflow PATH` writes that same UI-format JSON
+to a file for the first image in the run, without changing anything else
+about the queue behaviour:
+
+```bash
+uv run scripts/queue_dq3.py --job sage --export-workflow workflows/templates/dq3sage.json
+```
+
+If `/object_info` cannot be reached, the script warns on stderr and queues
+the image without a workflow attached rather than failing the run.
+
 ### What the presets encode
 
 Each of these cost a batch to find, and most are not obvious:
@@ -162,13 +178,18 @@ and legwear tags in `queue_dq3.py`. The vocabulary deliberately omits
 `from below`, `cowboy shot` and `close-up`, which fight that script's framing
 negatives.
 
-Tracked API workflow templates:
+Tracked workflow templates:
 
-- `workflows/templates/minimal-txt2img-api.json`
-- `workflows/templates/anima-txt2img-api.json`
-- `workflows/templates/dq3sage.json`
+- `workflows/templates/minimal-txt2img-api.json` (API format)
+- `workflows/templates/anima-txt2img-api.json` (API format)
+- `workflows/templates/dq3sage.json` (UI format)
 
-You can import either JSON into ComfyUI and then edit the checkpoint name, prompt text, and input image filename in the UI.
+`minimal-txt2img-api.json` and `anima-txt2img-api.json` are in the API format
+`/prompt` takes; they do not load as a graph in the ComfyUI web UI, only serve
+as a reference for the shape those scripts POST. `dq3sage.json` is a UI
+("litegraph") workflow instead -- drag it onto the ComfyUI canvas, or load it
+through the Workflow menu, and edit the checkpoint, prompt text, or anything
+else from there. It is regenerated with `--export-workflow`, documented above.
 
 ## Python Environment
 

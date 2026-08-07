@@ -286,19 +286,6 @@ delicate: an automatic second pass put the mask over the sage's own hair and the
 left tip of her headband, which are as black as the intruder. Choosing a seed
 that does not produce it is the cheaper answer.
 
-### The intruder scales with how much backdrop is empty
-
-`lying` leaves roughly twice the bare backdrop that `sitting` does, and on the
-same seed Hassaku went from one intruder to six floating eyes. Amanatsu drew one
-small one. **moe drew none.** So the amount of empty space is the variable, and
-picking the checkpoint per pose is more effective than any tag:
-
-| checkpoint | intruders on `lying`, seed 1730948821 |
-|---|---|
-| hassaku-il-v22 | 6+ |
-| amanatsu-il-v11 | 1, small |
-| **moe-vpred-v2** | **none** |
-
 ## The sticker border is optional, and Hassaku is better without it
 
 `--style cel-plain` is `cel` with `(white outline:1.6), outline, sticker`

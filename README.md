@@ -95,13 +95,6 @@ override. `--diffusers-path ''` falls back to `--ckpt-name`.
 presets, `--extra` appends to the positive prompt and `--negative-preset light`
 drops the shine and toon blocks.
 
-`--pose lying` puts her on one side with the knees drawn up, taken from a
-reference that shoots the same pose from below with the skirt fallen open. The
-pose is kept and the framing is not: `from above` and the covered-hem tags put
-the camera on the other side, and `legs together` carries as much weight as
-anything else, since apart the pose has nowhere to go but the framing the
-negatives hold back.
-
 `--style cel-plain` is `cel` without the sticker border. Dropping those three
 tags changes more than the outline: the cape spreads wider, the legwear gloss
 comes up, and the result reads as an illustration rather than a die-cut

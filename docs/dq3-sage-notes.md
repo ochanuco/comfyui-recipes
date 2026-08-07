@@ -207,6 +207,37 @@ Two methodology faults produced this:
 
 Fresh random seeds, and looking at the whole image, are the fix for both.
 
+## Second correction: the checkpoint was not the problem, the face weight was
+
+Two more moe images were then rated good — `standing` and `bootoff`, the two
+poses recorded above as broken. Both used the halved `moe-far` face. Lining every
+rating up:
+
+| rating | checkpoint | face | pose |
+|--------|-----------|------|------|
+| ◎ | sweet-mix-v14 | `moe` (1.65) | sitting |
+| ◎ | amanatsu-il-v11 | `moe` (1.65) | sitting |
+| ◯ ×2 | moe-vpred-v2 | `moe-far` (1.3) | — |
+| good ×2 | moe-vpred-v2 | `moe-far` (1.3) | standing, bootoff |
+| △ | moe-vpred-v2 | `moe-far` / none | — |
+
+Every acceptable moe result carries `moe-far`. The full-weight face is what
+produced the coloured blocks, not the checkpoint — so the fix was never to
+abandon moe, only to stop asking it for an eye it cannot draw.
+
+**Tuning now belongs to the checkpoint.** `CHECKPOINT_TUNING` maps a checkpoint
+to its face preset and to weight substitutions applied to the finished positive
+prompt. Amanatsu's numbers stay inline as the defaults; moe's overrides live in
+the table, so one flag switches everything at once:
+
+```bash
+uv run scripts/queue_dq3.py --job sage --pose standing --diffusers-path moe-vpred-v2
+```
+
+Verified tag-for-tag against the prompts ComfyUI recorded for the two liked
+images, and the Amanatsu prompt is byte-identical across all six poses and both
+characters.
+
 ## A weight is only right for one framing
 
 `standing` and `bootoff` came back as coloured blocks while the seated poses were

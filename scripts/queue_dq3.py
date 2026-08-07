@@ -206,6 +206,28 @@ FACE_BY_JOB = {"yukari": "default"}
 # Framings where the face is too small to carry moe's weights.
 FACE_BY_POSE: dict[str, str] = {}
 
+# A tag weight is only worth what the checkpoint makes of it, so the tuned
+# numbers below belong to the checkpoint rather than to the recipe. The defaults
+# throughout this file are Amanatsu's; anything listed here is substituted into
+# the finished positive prompt when that checkpoint is selected.
+#
+# moe-vpred-v2 draws no white border and tints the backdrop at Amanatsu's
+# weights, and it wants the halved face preset at every framing -- at full weight
+# its eye and iris tags have no solution and the sampler returns coloured blocks.
+CHECKPOINT_TUNING = {
+    "moe-vpred-v2": {
+        "face": "moe-far",
+        "retune": {
+            "(white outline:1.6)": "(white outline:2.4), (thick white outline:1.5)",
+            "(simple background:1.4)": "(simple background:1.5)",
+            "(grey background:1.35)": "(grey background:1.7)",
+            "flat background": "(flat background:1.5)",
+            "no scenery": "(no scenery:1.3)",
+            "(outstretched arms:1.4)": "(outstretched arms:1.6)",
+        },
+    },
+}
+
 FRANCHISE = {
     "sage": "dragon quest iii, dragon quest",
     "priest": "dragon quest iii, dragon quest",
@@ -501,7 +523,11 @@ def build_positive(args: argparse.Namespace) -> str:
         parts.append(style)
     if args.extra:
         parts.append(args.extra)
-    return ", ".join(parts)
+    positive = ", ".join(parts)
+    tuning = CHECKPOINT_TUNING.get(getattr(args, "diffusers_path", None) or "", {})
+    for old, new in tuning.get("retune", {}).items():
+        positive = positive.replace(old, new)
+    return positive
 
 
 def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, dict]:
@@ -719,10 +745,13 @@ def apply_defaults(args: argparse.Namespace) -> None:
     """Fill in the settled recipe for anything the caller left alone."""
     if getattr(args, "diffusers_path", None) in V_PRED_MODELS:
         args.v_pred = True
+    tuning = CHECKPOINT_TUNING.get(getattr(args, "diffusers_path", None) or "", {})
     if args.face == "moe" and args.job in FACE_BY_JOB:
         args.face = FACE_BY_JOB[args.job]
     elif args.face == "moe" and args.pose in FACE_BY_POSE:
         args.face = FACE_BY_POSE[args.pose]
+    elif args.face == "moe" and "face" in tuning:
+        args.face = tuning["face"]
     if not args.lora:
         args.lora = [name for name, _, _ in DEFAULT_LORAS]
         args.lora_strength = [strength for _, strength, _ in DEFAULT_LORAS]

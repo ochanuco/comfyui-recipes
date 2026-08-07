@@ -11,9 +11,12 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import sys
 import time
 import urllib.error
 import urllib.request
+
+import workflow_ui
 
 # Body and legwear. Tuned so "thick" reads as soft tissue rather than muscle:
 # muscular* in the negatives is what stops calves from turning sinewy, and the
@@ -517,6 +520,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--clip-vision-name", default="CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
     )
     parser.add_argument("--wait", action="store_true", help="poll until the images are written")
+    parser.add_argument(
+        "--export-workflow",
+        help="write the UI-format workflow for the first queued image to this path",
+    )
     return parser.parse_args(argv)
 
 
@@ -733,11 +740,48 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
     return prompt
 
 
+# /object_info is fetched once per process (it does not change while ComfyUI
+# is running) and cached here rather than threaded through every call --
+# --count can queue many images and each one would otherwise refetch it.
+_OBJECT_INFO_FETCHED = False
+_OBJECT_INFO: dict | None = None
+
+
+def get_object_info(args: argparse.Namespace) -> dict | None:
+    global _OBJECT_INFO_FETCHED, _OBJECT_INFO
+    if not _OBJECT_INFO_FETCHED:
+        _OBJECT_INFO_FETCHED = True
+        try:
+            _OBJECT_INFO = workflow_ui.fetch_object_info(args.host, args.port)
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
+            print(f"warning: could not fetch /object_info, queuing without a UI workflow: {exc}", file=sys.stderr)
+            _OBJECT_INFO = None
+    return _OBJECT_INFO
+
+
+def build_ui_workflow(args: argparse.Namespace, prompt: dict[str, dict]) -> dict | None:
+    """Build the same graph queue_prompt is about to submit, so the two can
+    never disagree. Returns None (rather than raising) on any failure --
+    queuing the image is the primary job, the workflow is a convenience."""
+    object_info = get_object_info(args)
+    if object_info is None:
+        return None
+    try:
+        return workflow_ui.api_to_ui(prompt, object_info)
+    except Exception as exc:
+        print(f"warning: could not build UI workflow: {exc}", file=sys.stderr)
+        return None
+
+
 def queue_prompt(args: argparse.Namespace, prompt: dict[str, dict]) -> dict:
-    payload = json.dumps({"prompt": prompt}).encode("utf-8")
+    payload = {"prompt": prompt}
+    ui_workflow = build_ui_workflow(args, prompt)
+    if ui_workflow is not None:
+        payload["extra_data"] = {"extra_pnginfo": {"workflow": ui_workflow}}
+    data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         f"http://{args.host}:{args.port}/prompt",
-        data=payload,
+        data=data,
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req) as response:
@@ -795,6 +839,14 @@ def main() -> int:
         if args.seed >= 0 and args.count > 1:
             seed += index
         prompt = build_prompt(args, seed, prefix)
+        if index == 0 and args.export_workflow:
+            # Reuses the object_info cache queue_prompt is about to populate,
+            # so this costs a conversion, not a second network round trip.
+            ui_workflow = build_ui_workflow(args, prompt)
+            if ui_workflow is None:
+                raise SystemExit("--export-workflow requires /object_info; ComfyUI must be reachable")
+            with open(args.export_workflow, "w") as f:
+                json.dump(ui_workflow, f, indent=2)
         try:
             response = queue_prompt(args, prompt)
         except urllib.error.HTTPError as exc:

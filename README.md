@@ -140,6 +140,30 @@ Each of these cost a batch to find, and most are not obvious:
   made the drift worse, not better; the anime association comes from the
   saturation tags instead.
 
+## Erase A Stray Figure From The Backdrop
+
+Some checkpoints fill empty backdrop with a second character: a flat black
+silhouette carrying eyes, standing beside the subject. On Hassaku it is
+seed-dependent and no prompt change removes it -- ten were tried and are listed
+in `docs/dq3-sage-notes.md`. `scripts/erase_intruder.py` inpaints over it:
+
+```bash
+uv run scripts/erase_intruder.py .local/ComfyUI/output/hf-4051776310_00001_.png \
+  --zone 90 0 590 530 --dry-run     # writes a mask overlay, queues nothing
+uv run scripts/erase_intruder.py .local/ComfyUI/output/hf-4051776310_00001_.png \
+  --zone 90 0 590 530
+```
+
+`--zone` is the corner the intruder occupies; keep its right edge clear of the
+subject's own hair, which is as black as the intruder and would be masked with
+it. The mask is built from achromatic extremes, so a tan staff, a teal cape and
+yellow gloves inside the zone are protected. Checkpoint, LoRAs and VAE come from
+the source PNG's own graph, so nothing has to be restated. Run it again on its
+own output, with a narrower zone, to clear thin remnants.
+
+Repainting with `recolor_bg.py` does not work here: the sticker outline encloses
+subject and intruder together, so the border flood stops at the intruder.
+
 ## Swap The Checkpoint
 
 Changing checkpoint moves the art style further than any tag or IPAdapter

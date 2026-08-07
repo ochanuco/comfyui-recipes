@@ -70,7 +70,7 @@ FACES = {
         # against newer references -- round face, 2010s era, a reworked iris --
         # and every one of them drifted away from it; reverted wholesale.
         "(tareme:1.5), (large eyes:1.65), round eyes, "
-        "2000s (style), eyelashes, (dark blue eyes:1.3), (large iris:1.85), (large pupils:1.7), "
+        "2000s (style), eyelashes, (dark blue eyes:1.3), (large iris:1.6), "
         "thin eyebrows, (light smile:1.2), closed mouth, small mouth, "
         "soft expression, looking at viewer"
     ),
@@ -186,7 +186,7 @@ STYLES = {
         "(thin lineart:1.5), (black lineart:1.35), (simple lineart:1.2), "
         "simple clothes, (simple hair:1.2), hair as masses, "
         "clean lineart, crisp lines, simple shading, soft colors, "
-        "(white outline:2.4), (thick white outline:1.5), outline, sticker"
+        "(white outline:1.6), outline, sticker"
     ),
     "galge": (
         "(game cg:1.15), official art, visual novel cg, "
@@ -204,7 +204,7 @@ STYLES = {
 FACE_BY_JOB = {"yukari": "default"}
 
 # Framings where the face is too small to carry moe's weights.
-FACE_BY_POSE = {"standing": "moe-far", "bootoff": "moe-far"}
+FACE_BY_POSE: dict[str, str] = {}
 
 FRANCHISE = {
     "sage": "dragon quest iii, dragon quest",
@@ -237,8 +237,8 @@ POSE_NEG_DROP = {
 # Weights are pitched for moe-vpred-v2, which needs more push than Amanatsu did
 # before the backdrop goes properly flat.
 BACKGROUND = (
-    "(simple background:1.5), (grey background:1.7), (flat background:1.5), "
-    "plain background, (no scenery:1.3)"
+    "(simple background:1.4), (grey background:1.35), plain background, "
+    "flat background, no scenery"
 )
 
 POSES = {
@@ -251,7 +251,7 @@ POSES = {
     # from frames it from low enough to look up the skirt; the framing tags keep
     # the shot on the upper body instead.
     "reaching": (
-        "(outstretched arms:1.6), (reaching towards viewer:1.4), (leaning forward:1.25), "
+        "(outstretched arms:1.4), reaching towards viewer, (leaning forward:1.25), "
         "open hands, spread fingers, looking at viewer, open mouth, smile, "
         "(upper body:1.2), (medium breasts:1.2), dutch angle"
     ),
@@ -321,8 +321,7 @@ NEG_CROWD = (
 )
 NEG_EYECOLOR = (
     "(rainbow eyes:1.3), heterochromia, (tsurime:1.3), (small eyes:1.4), "
-    "(sanpaku:1.7), (constricted pupils:1.6), (visible sclera:1.7), "
-    "white sclera, (small iris:1.5), (small pupils:1.4)"
+    "(sanpaku:1.5), (constricted pupils:1.4), (visible sclera:1.4)"
 )
 NEG_GREEN = ("(green hair:1.5), mint hair, (yellow-green:1.4), lime, (yellow background:1.4), "
              "(light blue hair:1.4), (purple hair:1.4), silver hair, white hair")
@@ -402,7 +401,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # MODEL/CLIP/VAE triple, so the rest of the graph is unchanged.
     parser.add_argument(
         "--diffusers-path",
-        default="moe-vpred-v2",
+        default="amanatsu-il-v11",
         help="subdirectory under assets/diffusers; pass '' to fall back to --ckpt-name",
     )
     # Structure, as opposed to IPAdapter's --ref-image, which carries style.

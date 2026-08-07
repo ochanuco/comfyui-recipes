@@ -101,7 +101,13 @@ with it and let the eye tags come back down:
 Downloading them needs the Civitai token; `op://Personal/jv36itf5rqh5sneynlgpbk47k4/credential`
 stopped resolving at the end of the session.
 
-## Checkpoint swap solved the eye ratio (overnight run)
+## Checkpoint swap: reverted (see the correction below)
+
+**The default is amanatsu-il-v11 again.** What follows describes the moe
+experiment, kept because the measurements are real, but the conclusion it
+reached was wrong.
+
+### The measurement that led there
 
 `moe is all you need` (NoobAI/Illustrious v-pred v2) reaches the proportion that
 tags and LoRAs could not:
@@ -179,6 +185,27 @@ by the reference's bust framing, and at 0.4-0.6 the two structures simply fought
 and cancelled. It is worth using when the framing already agrees with the
 reference, and is the wrong tool for borrowing a face while keeping a full-body
 pose — which the checkpoint change already solved anyway.
+
+## Correction: eye ratio was the wrong thing to optimise
+
+Rated side by side, the two best results came from **sweet-mix-v14** and
+**amanatsu-il-v11** — not from moe, whose eye ratio was the reason it became the
+default. moe was picked on a single measured number while the rest of the image
+went unassessed, and on fresh seeds it drifts: green hair and red eyes where the
+prompt says dark blue, missing forearms, stray colour on the feet.
+
+sweet-mix was rejected for "buying nothing", which was also judged on the eye
+ratio alone. It rates as well as Amanatsu and deserves a proper comparison.
+
+Two methodology faults produced this:
+
+- **Seeds were reused.** 2557902837 and 3992482423 got used over and over, and
+  they were chosen in the first place because they had produced good results.
+  Verifying on seeds already known to work says nothing about stability.
+- **One metric stood in for quality.** Eye-to-face ratio was measurable, so it
+  became the criterion. Everything that was not measured drifted unnoticed.
+
+Fresh random seeds, and looking at the whole image, are the fix for both.
 
 ## A weight is only right for one framing
 

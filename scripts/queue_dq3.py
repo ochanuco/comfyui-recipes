@@ -226,6 +226,26 @@ CHECKPOINT_TUNING = {
             "(outstretched arms:1.4)": "(outstretched arms:1.6)",
         },
     },
+    # Hassaku draws the border and the eyes well at Amanatsu's weights, but it
+    # loses the scarf under the cape, and it resolves the prompt's demand for
+    # heavy shadow as a second figure -- a dark silhouette beside the sage, with
+    # eyes drawn into it.
+    #
+    # Raising the anti-shadow and anti-monster negatives made that worse, the
+    # same way naming a staff's parts produced a more ornate staff: at 1.7 the
+    # disembodied eye grew instead of going away. The cause is on the positive
+    # side, so that is where this cuts.
+    "hassaku-il-v22": {
+        "retune": {
+            "teal scarf": "(teal scarf:1.35)",
+            "(dark shadows:1.3), deep shadow tone": "dark shadows",
+            # "black tinted shadows" was dropped here too, and on its own that
+            # one removal washes the whole image out -- mean luminance 115 -> 220
+            # at a stddev of 13, i.e. a nearly uniform white field. Bisected
+            # against the graph recovered from a working run's PNG. Whatever it
+            # anchors, Hassaku needs it.
+        },
+    },
 }
 
 FRANCHISE = {
@@ -758,14 +778,15 @@ def apply_defaults(args: argparse.Namespace) -> None:
         triggers = ", ".join(t for _, _, t in DEFAULT_LORAS if t)
         args.extra = ", ".join(p for p in (triggers, args.extra) if p)
     if args.negative is None:
-        args.negative = build_negative(args.negative_preset, args.job, args.pose)
+        negative = build_negative(args.negative_preset, args.job, args.pose)
+        for old, new in tuning.get("neg_retune", {}).items():
+            negative = negative.replace(old, new)
+        args.negative = negative
 
 
 def main() -> int:
     args = parse_args()
     apply_defaults(args)
-    if args.negative is None:
-        args.negative = build_negative(args.negative_preset, args.job, args.pose)
     prefix = args.prefix or f"dq3-{args.job}-{args.pose}"
     prompt_ids = []
 

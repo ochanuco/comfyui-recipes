@@ -70,7 +70,7 @@ FACES = {
         # against newer references -- round face, 2010s era, a reworked iris --
         # and every one of them drifted away from it; reverted wholesale.
         "(tareme:1.5), (large eyes:1.65), round eyes, "
-        "2000s (style), eyelashes, (dark blue eyes:1.3), (large iris:1.6), "
+        "2000s (style), eyelashes, (dark blue eyes:1.3), (large iris:1.85), (large pupils:1.7), "
         "thin eyebrows, (light smile:1.2), closed mouth, small mouth, "
         "soft expression, looking at viewer"
     ),
@@ -308,7 +308,8 @@ NEG_CROWD = (
 )
 NEG_EYECOLOR = (
     "(rainbow eyes:1.3), heterochromia, (tsurime:1.3), (small eyes:1.4), "
-    "(sanpaku:1.5), (constricted pupils:1.4), (visible sclera:1.4)"
+    "(sanpaku:1.7), (constricted pupils:1.6), (visible sclera:1.7), "
+    "white sclera, (small iris:1.5), (small pupils:1.4)"
 )
 NEG_GREEN = ("(green hair:1.5), mint hair, (yellow-green:1.4), lime, (yellow background:1.4), "
              "(light blue hair:1.4), (purple hair:1.4), silver hair, white hair")
@@ -391,6 +392,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="moe-vpred-v2",
         help="subdirectory under assets/diffusers; pass '' to fall back to --ckpt-name",
     )
+    # Structure, as opposed to IPAdapter's --ref-image, which carries style.
+    # Canny is the only preprocessor ComfyUI ships, so the trace goes through it.
+    parser.add_argument(
+        "--trace-image",
+        help="filename under input/ whose outlines constrain the composition",
+    )
+    parser.add_argument("--trace-strength", type=float, default=0.6)
+    parser.add_argument("--trace-start", type=float, default=0.0)
+    # Releasing it partway lets the trace set the structure and leaves the detail
+    # to the prompt; held to the end it reproduces the reference outright.
+    parser.add_argument("--trace-end", type=float, default=0.5)
+    parser.add_argument("--trace-low", type=float, default=0.2)
+    parser.add_argument("--trace-high", type=float, default=0.6)
+    parser.add_argument("--controlnet-name", default="noob-canny-fp16.safetensors")
     parser.add_argument(
         "--v-pred",
         action="store_true",
@@ -517,8 +532,40 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
         }
         model_src, clip_src = [node, 0], [node, 1]
 
+    positive_src, negative_src = ["6", 0], ["7", 0]
+    trace_nodes: dict[str, dict] = {}
+    trace_image = getattr(args, "trace_image", None)
+    if trace_image:
+        trace_nodes["70"] = {"class_type": "LoadImage", "inputs": {"image": trace_image}}
+        trace_nodes["71"] = {
+            "class_type": "Canny",
+            "inputs": {
+                "image": ["70", 0],
+                "low_threshold": args.trace_low,
+                "high_threshold": args.trace_high,
+            },
+        }
+        trace_nodes["72"] = {
+            "class_type": "ControlNetLoader",
+            "inputs": {"control_net_name": args.controlnet_name},
+        }
+        trace_nodes["73"] = {
+            "class_type": "ControlNetApplyAdvanced",
+            "inputs": {
+                "positive": ["6", 0],
+                "negative": ["7", 0],
+                "control_net": ["72", 0],
+                "image": ["71", 0],
+                "strength": args.trace_strength,
+                "start_percent": args.trace_start,
+                "end_percent": args.trace_end,
+            },
+        }
+        positive_src, negative_src = ["73", 0], ["73", 1]
+
     prompt = {
         "4": loader,
+        **trace_nodes,
         **sampling_nodes,
         **lora_nodes,
         "6": {
@@ -537,8 +584,8 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
             "class_type": "KSampler",
             "inputs": {
                 "model": model_src,
-                "positive": ["6", 0],
-                "negative": ["7", 0],
+                "positive": positive_src,
+                "negative": negative_src,
                 "latent_image": ["5", 0],
                 "seed": seed,
                 "steps": args.steps,

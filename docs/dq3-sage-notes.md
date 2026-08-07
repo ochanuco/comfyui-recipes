@@ -157,6 +157,30 @@ The eye tags can probably come down now that the checkpoint supplies the
 proportion; `(large eyes:1.65)` is fighting for something it no longer has to.
 That is the first thing to try trimming.
 
+## The iris has to scale with the eye
+
+Switching to moe enlarged the eye but left the iris where Amanatsu wanted it, so
+white showed on all four sides — the iris floating in the opening. Same class of
+problem as the white border and the backdrop: a weight tuned for one checkpoint
+does not carry to another.
+
+`(large iris:1.85)` with `(large pupils:1.7)` fixes it and leaves sclera only in
+the corners. `2.0` plus `huge iris` destroys the image outright — it comes back
+as coloured blocks, so that is the ceiling.
+
+## Tracing a reference with ControlNet
+
+`--trace-image` runs a reference through Canny and applies it as structure
+(`noob-canny-fp16`, chosen because the checkpoint is NoobAI-based; Canny is the
+only preprocessor ComfyUI ships, so no custom node is needed).
+
+**ControlNet moves the whole composition, not a feature.** Tracing a face
+close-up produces a face close-up: at strength 1.0 the sitting pose was replaced
+by the reference's bust framing, and at 0.4-0.6 the two structures simply fought
+and cancelled. It is worth using when the framing already agrees with the
+reference, and is the wrong tool for borrowing a face while keeping a full-body
+pose — which the checkpoint change already solved anyway.
+
 ## Open, for next time
 
 - `standing` doubles the figure; `bootoff` goes dark.

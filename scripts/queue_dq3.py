@@ -765,31 +765,22 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
         # reference of a different shape squashes the proportions it carries.
         # Centre-cropping to the render's aspect ratio here means a reference
         # can be dropped in at whatever size it happens to be.
-        scale_src = ["70", 0]
-        if args.trace_margin > 0:
-            # Feathering is off: this pads the *reference*, and a soft edge
-            # there is something for the detector to find a limb in.
-            pad_w = int(args.width * args.trace_margin / 2) // 8 * 8
-            pad_h = int(args.height * args.trace_margin / 2) // 8 * 8
-            trace_nodes["77"] = {
-                "class_type": "ImagePadForOutpaint",
-                "inputs": {
-                    "image": ["70", 0],
-                    "left": pad_w,
-                    "right": pad_w,
-                    "top": pad_h,
-                    "bottom": pad_h,
-                    "feathering": 0,
-                },
-            }
-            scale_src = ["77", 0]
+        #
+        # The margin is added to the *trace*, not the reference. Padding the
+        # reference put a hard grey edge in front of the detector, HED kept
+        # all four lines, and the sampler rendered them as a picture frame.
+        # A preprocessor's output is white-on-black, so compositing it onto a
+        # black canvas adds the same margin without creating any edge.
+        pad_w = int(args.width * args.trace_margin / 2) // 8 * 8
+        pad_h = int(args.height * args.trace_margin / 2) // 8 * 8
+        inner_w, inner_h = args.width - 2 * pad_w, args.height - 2 * pad_h
         trace_nodes["74"] = {
             "class_type": "ImageScale",
             "inputs": {
-                "image": scale_src,
+                "image": ["70", 0],
                 "upscale_method": "lanczos",
-                "width": args.width,
-                "height": args.height,
+                "width": inner_w,
+                "height": inner_h,
                 "crop": "center",
             },
         }
@@ -844,6 +835,37 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
                 },
             }
             hint_src = ["76", 0]
+        if pad_w or pad_h:
+            trace_nodes["77"] = {
+                "class_type": "EmptyImage",
+                "inputs": {
+                    "width": args.width,
+                    "height": args.height,
+                    "batch_size": 1,
+                    "color": 0,
+                },
+            }
+            trace_nodes["78"] = {
+                "class_type": "ImageScale",
+                "inputs": {
+                    "image": hint_src,
+                    "upscale_method": "lanczos",
+                    "width": inner_w,
+                    "height": inner_h,
+                    "crop": "disabled",
+                },
+            }
+            trace_nodes["79"] = {
+                "class_type": "ImageCompositeMasked",
+                "inputs": {
+                    "destination": ["77", 0],
+                    "source": ["78", 0],
+                    "x": pad_w,
+                    "y": pad_h,
+                    "resize_source": False,
+                },
+            }
+            hint_src = ["79", 0]
         if args.save_trace:
             trace_nodes["75"] = {
                 "class_type": "SaveImage",

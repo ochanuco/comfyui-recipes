@@ -520,10 +520,14 @@ Two things the attempt established on the way:
   keep-rules for staff/glove/cape with everything else flattened to the backdrop
   grey, and any nick it leaves (a swallowed hair strand) is repainted by the
   model rather than shipped.
-- **Set `--trace-margin 0` when self-tracing.** The output already contains its
-  own framing, so the usual padding is pure surplus — and its edge survives HED
-  as four straight lines, which the sampler obligingly renders as a picture
-  frame (`abc-C`).
+- **Set `--trace-margin 0` when self-tracing.** The output already contains
+  its own framing, so the usual padding is pure surplus. (It used to be worse
+  than surplus: the pad's edge survived HED as four straight lines and got
+  rendered as a picture frame, `abc-C`. The margin has since been moved to
+  the other side of the preprocessor — the trace is composited onto a black
+  canvas, which adds no edge — so the frame is gone at any margin, and
+  `ImagePadForOutpaint` is out of the graph. Its `feathering` was tried
+  first and does nothing here: it feathers the mask output, not the image.)
 
 Shadow negatives alone, without a trace (`abc-A`), still fail exactly as the
 failure table predicts: the backdrop stays open and the shadow keeps its seat.

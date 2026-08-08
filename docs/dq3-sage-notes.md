@@ -637,6 +637,19 @@ well gives a distinctly slimmer silhouette at the cost of the series' soft
 legs (`tall-A` / `tall-B`, seed 1210136864). Not baked into POSES because
 `tall` would leak into every job's standing — Yukari is small on purpose.
 
+How the same dial landed on the other jobs:
+
+- **Takao**: height alone was not enough — the sage block's 1.6 thigh weight
+  compounds with her own build. Her `LEGS_BY_JOB` entry states the height
+  (canon for her, in the class tags) and thighs at 1.2; baked in.
+- **Yukari**: `tall` on her surfaced Hassaku's second-figure habit — two of
+  three standing renders duplicated her outright, the third grew a
+  rabbit-eared silhouette on the backdrop. Appending
+  `(cast shadow:1.6), (shadow on ground:1.5), (silhouette:1.4),
+  (dark figure:1.4), (2girls:1.5), (duplicate:1.3), (clone:1.3)` to the
+  negative cleared it 3/3 (`yukari-tall2`). Not baked in: whether Yukari is
+  tall at all is a taste call, and her petiteness is the default identity.
+
 The overflow also explains the *shape* of the collapse: the over-weighted eye
 tokens claim pixels wherever they can — as spare eyes on the backdrop, or as a
 second, larger-faced figure that can carry them.

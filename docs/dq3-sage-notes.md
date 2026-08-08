@@ -402,12 +402,32 @@ not tried again:
 | add `(solo focus:1.35)` | no effect |
 | all three of the last kind together | smaller, still there, composition changed |
 
-It is not a shadow. Enlarged, its eyes are drawn in the sage's own eye style,
-highlights and all -- the model is filling the empty left half with another
-character.
+### Correction: it is a shadow, and that is how to remove it
 
-A tenth attempt did work, and it is not a prompt: an OpenPose trace removes it.
-See `--trace-mode openpose` below.
+The claim above that it is not a shadow was wrong. A softedge render put the two
+side by side unmistakably: a cast shadow of the sage, offset to the empty right
+half, keeping her hair and body outline — with two eyes drawn into its head. The
+eyes really are in her own eye style, which is what the earlier reading was
+based on, but they sit *on* a shadow rather than replacing one.
+
+The order is **empty space → a shadow is placed there → eyes get drawn into
+it**. That also explains the trace results below: a hint that occupies the frame
+leaves nowhere to put the shadow, and margin added back for framing hands the
+space over again.
+
+**With a trace attached, the shadow negatives work.** Adding
+`(cast shadow:1.6), (shadow on ground:1.5), (silhouette:1.4), (dark figure:1.4)`
+to the negative removed both the shadow and the intruder on 4051776310, leaving
+a small contact shadow at the boots and no damage anywhere else.
+
+This is the same move the table above records as *worse* and *no effect*. It
+failed then because there was no trace: the backdrop was open, so pushing the
+shadow out of one place left it others. Every entry in that table was measured
+without a hint occupying the frame, and none of them transfers.
+
+**`black tinted shadows` still cannot be dropped.** Removing it under these
+settings does not wash the image out as recorded — it destroys it outright,
+returning a field of pink noise. Negate the shadow; do not stop asking for it.
 
 **Removing it afterwards was tried and reverted.** Repainting the backdrop
 cannot reach it: the sticker outline encloses subject and intruder together, so
@@ -514,9 +534,11 @@ same reference, hair still long in each. Hair is silhouette, and silhouette is
 what softedge hands over, so the prompt is not in the argument at all. Pick a
 short-haired reference if the length matters.
 
-Worth noting against the intruder section above: none of the three carries one,
-on the seed that produces it reliably. Untested whether that is the trace or the
-`--drop`.
+**Add the shadow negatives.** The intruder is a shadow with eyes drawn into it,
+and with a trace occupying the frame it can finally be negated away -- see the
+correction in the Hassaku section. Append to the negative:
+
+    (cast shadow:1.6), (shadow on ground:1.5), (silhouette:1.4), (dark figure:1.4)
 
 ## Open, for next time
 

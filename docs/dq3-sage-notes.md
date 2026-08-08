@@ -453,6 +453,67 @@ were the prompt being saturated (adding a tag costs an existing one) and the
 checkpoint changing what a given weight is worth. Now: **the framing changes it
 too.** A tag tuned on a close-up will overreach at full-body distance.
 
+## The goal this is aimed at
+
+`ab-C_00001_` is the current high-water mark. It predates any trace and any
+commit — it came out of the ablation that later became `cel-plain`, 34 minutes
+before that was committed — but the prompt it used is reproduced byte-for-byte
+by the current code:
+
+```bash
+uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536 \
+  --diffusers-path hassaku-il-v22 --style cel-plain --seed 4051776310
+```
+
+It carries a backdrop intruder, which is the one thing to fix in it.
+
+**The goal: change the pose by swapping the reference image, with ab-C's
+quality as the floor.** The staff can go (`--drop`) — the reference's hands are
+always doing something else, and the grip is the tag most likely to fight.
+
+`--trace-mode openpose` cannot deliver this. It needs a body detector that finds
+almost nothing in illustrations: six references were tried and one worked, and
+neither background contrast nor resolution rescued the others.
+
+**`--trace-mode softedge` does deliver it.** An edge filter has nothing to fail
+at, so every reference produces a hint. Three references, everything else
+identical, three different poses:
+
+| reference | pose that came out |
+|---|---|
+| Alice bending | bent forward, holding the skirt, looking back |
+| `ref-pose-bootoff` | seated, legs forward, one hand raised |
+| `ref-pose-abovestand` | high angle, hand raised to the head |
+
+The sage stays the sage in all three — headband, white dress, yellow gloves,
+teal cape, black legwear, yellow boots. This is the working command:
+
+```bash
+uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536 \
+  --diffusers-path hassaku-il-v22 --style cel-plain --seed 4051776310 \
+  --trace-image <ref>.png --trace-mode softedge \
+  --trace-strength 0.6 --trace-end 0.4 --trace-resolution 1024 \
+  --drop '(quarterstaff:1.35)' --drop 'plain wooden pole' --drop 'holding pole'
+```
+
+**0.6 / 0.4 is enough, and more is worse.** Swept against 0.8/0.5 and 1.0/0.7:
+the pose transferred at all three, and the only thing the higher settings added
+was the reference's own decoration — a ribbon at 0.8, the reference's black
+ribbon verbatim at 1.0.
+
+**Whatever else is in the reference arrives as outline too.** The flowerbed at
+Alice's feet came out as a creature with eyes standing next to the sage; it went
+away when the flowerbed was painted out of the reference. The bedsheet behind
+`bootoff` came through as a blue backdrop. Clear the reference of anything that
+is not the figure.
+
+**Hair length does not survive.** `(medium hair:1.3)` loses to a long-haired
+reference's silhouette every time. It is the one costume tag the trace overrules.
+
+Worth noting against the intruder section above: none of the three carries one,
+on the seed that produces it reliably. Untested whether that is the trace or the
+`--drop`.
+
 ## Open, for next time
 
 - `standing` no longer shreds the costume: `--pose-text "full body"` did that,

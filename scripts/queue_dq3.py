@@ -147,7 +147,16 @@ V_PRED_MODELS = {"moe-vpred-v2"}
 TRACE_MODES = {
     "canny": "noob-canny-fp16.safetensors",
     "openpose": "noob-openpose-fp16.safetensors",
+    "softedge": "ill-softedge-fp16.safetensors",
 }
+
+# openpose is the mode that borrows a pose without borrowing anything else, and
+# it only works when a body is detected -- which, on illustrations, it usually
+# is not. Six references were tried and one traced. softedge does not detect
+# anything: it is an edge filter, so it always produces a hint. The cost is that
+# the reference's silhouette comes with the pose, so the costume has to be
+# pushed back by releasing the hint early (--trace-end).
+SOFT_MODES = {"softedge"}
 
 DEFAULT_LORAS = [
     ("perfect-eyes-ill.safetensors", 0.7, "perfect eyes"),
@@ -536,6 +545,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # 0.35 one seed filled it with six spare eyes. 0.15 held on every seed
     # tried and still pulled the camera back.
     parser.add_argument("--trace-margin", type=float, default=0.15)
+    # The staff is the tag most likely to fight a borrowed pose: the reference's
+    # hands are doing something else, and the prompt insists on a grip.
+    parser.add_argument(
+        "--drop",
+        action="append",
+        default=[],
+        metavar="TAG",
+        help="remove a tag from the class block; repeat for several",
+    )
     parser.add_argument(
         "--controlnet-name",
         help="override the ControlNet that --trace-mode would select",
@@ -651,7 +669,7 @@ def parse_args_from(argv: list[str]) -> argparse.Namespace:
 def build_positive(args: argparse.Namespace) -> str:
     quality = QUALITY_PLAIN if getattr(args, "plain_quality", False) else QUALITY
     class_tags = CLASSES[args.job]
-    for tag in POSE_TAG_DROP.get(args.pose, []):
+    for tag in POSE_TAG_DROP.get(args.pose, []) + list(getattr(args, "drop", []) or []):
         class_tags = class_tags.replace(tag + ", ", "").replace(", " + tag, "")
     parts = [quality, "1girl, solo", class_tags]
     franchise = FRANCHISE.get(args.job)
@@ -776,6 +794,15 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
                     else "OpenposePreprocessor"
                 ),
                 "inputs": pose_inputs,
+            }
+        elif args.trace_mode == "softedge":
+            trace_nodes["71"] = {
+                "class_type": "HEDPreprocessor",
+                "inputs": {
+                    "image": ["74", 0],
+                    "safe": "enable",
+                    "resolution": args.trace_resolution,
+                },
             }
         else:
             trace_nodes["71"] = {

@@ -470,6 +470,31 @@ uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536
 `ref-abC.png` is `ab-C_00001_` copied into `input/`. The reproduced negative is
 byte-identical to the one `abc-F` embeds (checked against its PNG metadata).
 
+### A traced shadow the style refuses to draw becomes an object
+
+Restyling the rescue exposed a failure mode. The trace carries the drop
+shadow's outline, and the sampler must put *something* inside it. cel-plain
+draws the shadow back (`abc-H`). galge — which has no appetite for hard
+shadows, with the shadow negatives pushing the same way — resolved the exact
+same outline as a boulder, and on the next try as a wooden chair. Releasing
+the trace at 0.4 did not help: the shape is laid down in the first steps.
+
+The fix is the same principle one level deeper: **the drop shadow is also not
+the figure, so it leaves the reference too.** It cannot be colour-keyed — at
+(59, 59, 87) it is nearly the hair colour — but it has no lineart, so a flood
+fill from the corners walks through its soft edge and stops at the figure's
+drawn outline (`clean_ref_abc.py` writes this as `ref-abC-clean2.png`). This
+is the inverse of the old finding that a border flood *stops* at the intruder:
+hard outlines block the flood, soft ones feed it.
+
+- `--negative-preset light` (the galge pairing the style comment suggests) is
+  not safe here: it drops the monster/intruder protections and the backdrop
+  grew a boulder. Keep `full`; the glow it costs is the lesser loss.
+- Restyled renders from the shadow-free reference: `abc-G4` (galge, softer
+  contrast throughout) and `abc-H` (cel-plain with `(dark shadows:1.3)` and
+  `deep shadow tone` dropped, `(anime coloring:1.2)` added) — the anime one
+  keeps the inherited shadow, the galge one has a bare backdrop.
+
 Two things the attempt established on the way:
 
 - **Cleaning the copy is not optional.** Self-tracing ab-C as-is (`abc-B`)

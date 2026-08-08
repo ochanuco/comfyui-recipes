@@ -65,6 +65,96 @@ def main() -> None:
                 px[x, y] = row_bg
 
     im.save(INPUT_DIR / "ref-abC-clean.png")
+    remove_shadow(im)
+    im.save(INPUT_DIR / "ref-abC-clean2.png")
+
+
+def remove_shadow(im) -> None:
+    """Also flatten the sage's own drop shadow, in place.
+
+    A trace that carries the shadow's outline forces every style to put
+    *something* there. cel-plain draws the shadow back; galge, which does not
+    want one, resolved the same outline as a boulder and then a chair. The
+    shadow-free reference is what the galge render needs; for cel-plain the
+    shadow-carrying one is fine and keeps the shape that was liked.
+
+    The shadow cannot be colour-keyed: at (59, 59, 87) it is nearly the hair
+    colour. What separates it is that it has no lineart — so a flood fill from
+    the corners walks through its soft edge and stops at the figure's drawn
+    outline. An erosion pass then eats the grainy boundary the flood leaves.
+    """
+    from collections import deque
+
+    px = im.load()
+    W, H = im.size
+
+    def lum(c):
+        return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+
+    row_bg = []
+    last = px[15, 5]
+    for y in range(H):
+        c = px[15, y]
+        if abs(c[0] - c[1]) < 14 and abs(c[1] - c[2]) < 14 and lum(c) > 150:
+            last = c
+        row_bg.append(last)
+
+    def guard(c):
+        r, g, b = c
+        return abs(r - g) <= 22 and (b - r) >= -6 and lum(c) >= 55
+
+    visited = bytearray(W * H)
+    q = deque()
+    for sx, sy in [(2, 2), (W - 3, 2), (2, H - 3), (W - 3, H - 3),
+                   (W // 2, 2), (W - 3, H // 2), (2, H // 2), (W // 2, H - 3)]:
+        if guard(px[sx, sy]):
+            q.append((sx, sy))
+            visited[sy * W + sx] = 1
+    while q:
+        x, y = q.popleft()
+        c = px[x, y]
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= nx < W and 0 <= ny < H and not visited[ny * W + nx]:
+                nc = px[nx, ny]
+                if guard(nc) and max(abs(nc[0] - c[0]), abs(nc[1] - c[1]),
+                                     abs(nc[2] - c[2])) <= 12:
+                    visited[ny * W + nx] = 1
+                    q.append((nx, ny))
+    for y in range(H):
+        for x in range(W):
+            if visited[y * W + x]:
+                px[x, y] = row_bg[y]
+
+    def loose(c):
+        r, g, b = c
+        return abs(r - g) <= 26 and (b - r) >= -8 and 55 <= lum(c) <= 205
+
+    flat = bytearray(W * H)
+    for y in range(H):
+        for x in range(W):
+            if px[x, y] == row_bg[y]:
+                flat[y * W + x] = 1
+    for _ in range(6):
+        changed = []
+        for y in range(1, H - 1):
+            for x in range(1, W - 1):
+                if flat[y * W + x] or not loose(px[x, y]):
+                    continue
+                nb = sum(flat[(y + dy) * W + (x + dx)]
+                         for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dx or dy)
+                if nb >= 5:
+                    changed.append((x, y))
+        if not changed:
+            break
+        for x, y in changed:
+            px[x, y] = row_bg[y]
+            flat[y * W + x] = 1
+
+    # A teal wisp of the intruder's tuft rides the very top edge, above the
+    # main sweep's keep-rules; nothing of the figure is up there.
+    for y in range(0, 45):
+        for x in range(495, 615):
+            px[x, y] = row_bg[y]
 
 
 if __name__ == "__main__":

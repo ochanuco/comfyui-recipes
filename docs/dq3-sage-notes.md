@@ -507,8 +507,12 @@ away when the flowerbed was painted out of the reference. The bedsheet behind
 `bootoff` came through as a blue backdrop. Clear the reference of anything that
 is not the figure.
 
-**Hair length does not survive.** `(medium hair:1.3)` loses to a long-haired
-reference's silhouette every time. It is the one costume tag the trace overrules.
+**Hair length does not survive, and cannot be argued back.** `(medium hair:1.3)`
+loses to a long-haired reference every time. Adding `(short hair:1.3)` to the
+positive and `(long hair:1.4)` to the negative both changed nothing — same seed,
+same reference, hair still long in each. Hair is silhouette, and silhouette is
+what softedge hands over, so the prompt is not in the argument at all. Pick a
+short-haired reference if the length matters.
 
 Worth noting against the intruder section above: none of the three carries one,
 on the seed that produces it reliably. Untested whether that is the trace or the

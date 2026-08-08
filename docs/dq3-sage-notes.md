@@ -17,6 +17,7 @@ uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536
 | `9d6f4d27` | `sel-sitting_00003_` | 3931122703 | thigh volume |
 | `53c5e9f6` | `sel-reaching_00002_` | 3062102535 | white border |
 | `79168c71` | `sel-sitting_00002_` | 3992482423 | pose |
+| `f066dccc` | `abc-F-softline_00001_` | 4051776310 | ab-C rescued by self-trace: same composition, no intruder (tag `pick/abc-F`) |
 
 All six poses work: **sitting, kneesup, reaching, lookback, standing, bootoff**.
 standing and bootoff were broken for a long time and the cause was the face
@@ -446,9 +447,28 @@ itself. Copy the output into `input/`, paint the intruder out of the *copy*, and
 rerun the original prompt with the cleaned copy as a softedge reference plus the
 shadow negatives. The trace pins the composition the seed is loved for, the
 cleaned reference no longer asks for the intruder, and the negatives keep the
-regenerated backdrop from growing a new one. `abc-D-nomargin_00001_` is ab-C
-rescued this way — same crouch, staff, cape and framing, backdrop holding only
-her own drop shadow.
+regenerated backdrop from growing a new one. The release point sets how much
+of the original survives: `abc-D` (end 0.4) keeps the composition and lets the
+model redraw the rest, `abc-F` (end 0.8) is the accepted balance, `abc-E`
+(strength 0.75, end 1.0) is a faithful recolouring of the line art. Held past
+~0.8 the trace also carries the reference's *own drop shadow outline*, so the
+shadow shape is inherited rather than reinvented — a feature for a rescue,
+where the shadow was part of what was liked.
+
+`abc-F-softline_00001_` (tag `pick/abc-F`) is ab-C rescued this way — same
+crouch, staff, cape and framing, backdrop holding only her own drop shadow:
+
+```bash
+.venv/bin/python scripts/clean_ref_abc.py   # ref-abC.png -> ref-abC-clean.png
+uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536 \
+  --diffusers-path hassaku-il-v22 --style cel-plain --seed 4051776310 \
+  --trace-image ref-abC-clean.png --trace-mode softedge \
+  --trace-strength 0.6 --trace-end 0.8 --trace-resolution 1024 --trace-margin 0 \
+  --negative-extra "(cast shadow:1.6), (shadow on ground:1.5), (silhouette:1.4), (dark figure:1.4)"
+```
+
+`ref-abC.png` is `ab-C_00001_` copied into `input/`. The reproduced negative is
+byte-identical to the one `abc-F` embeds (checked against its PNG metadata).
 
 Two things the attempt established on the way:
 

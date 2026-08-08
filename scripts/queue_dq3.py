@@ -469,6 +469,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--negative-preset", choices=sorted(NEGATIVE_PRESETS), default="full"
     )
+    # The shadow negatives only work with a trace occupying the frame, so they
+    # are appended per-run rather than added to the presets, which are also
+    # used trace-less.
+    parser.add_argument(
+        "--negative-extra",
+        action="append",
+        default=[],
+        help="appended to the negative prompt; repeatable",
+    )
     parser.add_argument("--count", type=int, default=1)
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=1920)
@@ -669,7 +678,7 @@ def parse_args_from(argv: list[str]) -> argparse.Namespace:
 def build_positive(args: argparse.Namespace) -> str:
     quality = QUALITY_PLAIN if getattr(args, "plain_quality", False) else QUALITY
     class_tags = CLASSES[args.job]
-    for tag in POSE_TAG_DROP.get(args.pose, []) + list(getattr(args, "drop", []) or []):
+    for tag in POSE_TAG_DROP.get(args.pose, []):
         class_tags = class_tags.replace(tag + ", ", "").replace(", " + tag, "")
     parts = [quality, "1girl, solo", class_tags]
     franchise = FRANCHISE.get(args.job)
@@ -691,6 +700,10 @@ def build_positive(args: argparse.Namespace) -> str:
     if args.extra:
         parts.append(args.extra)
     positive = ", ".join(parts)
+    # User drops act on the whole assembled prompt, so style and face tags can
+    # be removed as well as class tags.
+    for tag in list(getattr(args, "drop", []) or []):
+        positive = positive.replace(tag + ", ", "").replace(", " + tag, "")
     tuning = CHECKPOINT_TUNING.get(getattr(args, "diffusers_path", None) or "", {})
     for old, new in tuning.get("retune", {}).items():
         positive = positive.replace(old, new)
@@ -1049,6 +1062,8 @@ def apply_defaults(args: argparse.Namespace) -> None:
         for old, new in tuning.get("neg_retune", {}).items():
             negative = negative.replace(old, new)
         args.negative = negative
+    for extra in args.negative_extra:
+        args.negative = f"{args.negative}, {extra}"
 
 
 def main() -> int:

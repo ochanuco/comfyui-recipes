@@ -184,9 +184,15 @@ STYLES = {
         "(shiny hair:1.15), detailed hair, detailed skin, "
         "depth of field, blurry background, soft lighting"
     ),
-    # Bishoujo-game CG: bloom, particles and jewel eyes. Pair it with
-    # --negative-preset light, since the tuned negatives suppress exactly the
-    # glow and contrast this look is made of.
+    # Bishoujo-game CG: bloom, particles and jewel eyes. The old advice to pair
+    # it with --negative-preset light does not survive a trace: light drops the
+    # monster/intruder protections and the backdrop grew a boulder. Keep full,
+    # and flatten the paint with anti-impasto negatives instead:
+    #   --negative-extra "(impasto:1.4), (painterly:1.4), (oil painting
+    #   (medium):1.3), (heavy shading:1.3), (detailed shading:1.3),
+    #   (realistic:1.2)"
+    # (abc-I1; flattening the positive on top of that went further than the
+    # galge look wants.)
     # "pastel colors" and a bare "gradient" used to be here and turned the
     # rendering chalky, like crayon. The light effects are weighted down too:
     # at 1.2 they spent themselves on the background instead of the figure.

@@ -490,10 +490,25 @@ hard outlines block the flood, soft ones feed it.
 - `--negative-preset light` (the galge pairing the style comment suggests) is
   not safe here: it drops the monster/intruder protections and the backdrop
   grew a boulder. Keep `full`; the glow it costs is the lesser loss.
-- Restyled renders from the shadow-free reference: `abc-G4` (galge, softer
-  contrast throughout) and `abc-H` (cel-plain with `(dark shadows:1.3)` and
+- Restyled renders from the shadow-free reference: the galge pick is `abc-I1`
+  and the anime one is `abc-H` (cel-plain with `(dark shadows:1.3)` and
   `deep shadow tone` dropped, `(anime coloring:1.2)` added) — the anime one
   keeps the inherited shadow, the galge one has a bare backdrop.
+- galge came out 厚塗り (`abc-G4`) until the paint itself was negated. The
+  anti-impasto bundle `(impasto:1.4), (painterly:1.4), (oil painting
+  (medium):1.3), (heavy shading:1.3), (detailed shading:1.3), (realistic:1.2)`
+  flattened it to the preferred `abc-I1`. Flattening the positive as well
+  (drop `detailed skin`/`smooth shading`, add `flat color`/`anime coloring`)
+  overshot into plainer fields than the galge look wants (`abc-I2`).
+
+```bash
+uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536 \
+  --diffusers-path hassaku-il-v22 --style galge --seed 4051776310 \
+  --trace-image ref-abC-clean2.png --trace-mode softedge \
+  --trace-strength 0.6 --trace-end 0.8 --trace-resolution 1024 --trace-margin 0 \
+  --negative-extra "(cast shadow:1.6), (shadow on ground:1.5), (silhouette:1.4), (dark figure:1.4)" \
+  --negative-extra "(impasto:1.4), (painterly:1.4), (oil painting (medium):1.3), (heavy shading:1.3), (detailed shading:1.3), (realistic:1.2)"
+```
 
 Two things the attempt established on the way:
 

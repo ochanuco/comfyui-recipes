@@ -608,6 +608,25 @@ solution — the sampler gives up and returns blocks. `moe-far` states the same
 intent at roughly half the weight, and `FACE_BY_POSE` hands it to the framings
 that need it.
 
+Controlled on one collapsing seed (4268811745, Hassaku, prompt-only standing —
+the collapse there is duplicated figures, giant eyes drawn straight onto the
+backdrop, and machinery noise, not blocks):
+
+- face `default`: clean, but the eye colour drifts (it lives in the preset).
+- face `moe-far`: clean, eye colour kept. Dose–response confirmed.
+- face `moe` with `cowboy shot` instead of `full body`: **still collapses.**
+  The face itself resolves — the surplus moves to the backdrop.
+
+That last one corrects the small-face story: giving the face more canvas does
+not absorb the weights. Seated framings tolerate full `moe`; everything else
+overflows regardless of crop, so the dose is what has to move — which is what
+`FACE_BY_POSE` now does (it was described here before it was actually wired
+into the code; as of today it is).
+
+The overflow also explains the *shape* of the collapse: the over-weighted eye
+tokens claim pixels wherever they can — as spare eyes on the backdrop, or as a
+second, larger-faced figure that can carry them.
+
 This is the third axis on which a weight turns out not to transfer. The others
 were the prompt being saturated (adding a tag costs an existing one) and the
 checkpoint changing what a given weight is worth. Now: **the framing changes it

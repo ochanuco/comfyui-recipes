@@ -252,8 +252,12 @@ assert STYLES["cel-plain"] != STYLES["cel"], "the border tags moved; fix this re
 # noise. Classes can name a face that suits them instead.
 FACE_BY_JOB = {"yukari": "default", "takao": "default"}
 
-# Framings where the face is too small to carry moe's weights.
-FACE_BY_POSE: dict[str, str] = {}
+# Framings where the face is too small to carry moe's weights. Verified on
+# one seed both ways: full moe at standing collapses (duplicates, background
+# eyes), moe-far at the same seed is clean and keeps the eye colour that
+# face=default loses. A closer crop does not rescue full moe — the weights,
+# not the face area, are the binding constraint outside seated framings.
+FACE_BY_POSE: dict[str, str] = {"standing": "moe-far"}
 
 # A tag weight is only worth what the checkpoint makes of it, so the tuned
 # numbers below belong to the checkpoint rather than to the recipe. The defaults

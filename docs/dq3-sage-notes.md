@@ -630,6 +630,13 @@ than `moe-far`'s is — so `FACE_BY_POSE` hands standing to `moe-mid`. Raising
 the eye LoRA (0.7 → 0.95) is a further identity dial that costs no prompt
 attention and composes with either preset.
 
+Standing also shows the whole leg, so `(thick thighs:1.6)` reads heavier than
+it does seated. `--extra 'tall, (long legs:1.3)'` rebalances it by height
+alone and keeps the tuned leg weights; dropping the thigh weight to 1.2 as
+well gives a distinctly slimmer silhouette at the cost of the series' soft
+legs (`tall-A` / `tall-B`, seed 1210136864). Not baked into POSES because
+`tall` would leak into every job's standing — Yukari is small on purpose.
+
 The overflow also explains the *shape* of the collapse: the over-weighted eye
 tokens claim pixels wherever they can — as spare eyes on the backdrop, or as a
 second, larger-faced figure that can carry them.

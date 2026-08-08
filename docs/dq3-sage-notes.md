@@ -439,6 +439,35 @@ delicate: an automatic second pass put the mask over the sage's own hair and the
 left tip of her headband, which are as black as the intruder. Choosing a seed
 that does not produce it is the cheaper answer.
 
+### Self-trace: regenerating an accepted image without its intruder
+
+The inpainting dead end above has a working replacement: feed the image back to
+itself. Copy the output into `input/`, paint the intruder out of the *copy*, and
+rerun the original prompt with the cleaned copy as a softedge reference plus the
+shadow negatives. The trace pins the composition the seed is loved for, the
+cleaned reference no longer asks for the intruder, and the negatives keep the
+regenerated backdrop from growing a new one. `abc-D-nomargin_00001_` is ab-C
+rescued this way — same crouch, staff, cape and framing, backdrop holding only
+her own drop shadow.
+
+Two things the attempt established on the way:
+
+- **Cleaning the copy is not optional.** Self-tracing ab-C as-is (`abc-B`)
+  reproduced the intruder faithfully — softedge hands over every outline in the
+  reference, including the one being exorcised. Same lesson as the flowerbed,
+  applied to a defect instead of scenery. The paint-out is easy where the manual
+  inpaint mask was delicate, because it happens in the *reference*: colour-keyed
+  keep-rules for staff/glove/cape with everything else flattened to the backdrop
+  grey, and any nick it leaves (a swallowed hair strand) is repainted by the
+  model rather than shipped.
+- **Set `--trace-margin 0` when self-tracing.** The output already contains its
+  own framing, so the usual padding is pure surplus — and its edge survives HED
+  as four straight lines, which the sampler obligingly renders as a picture
+  frame (`abc-C`).
+
+Shadow negatives alone, without a trace (`abc-A`), still fail exactly as the
+failure table predicts: the backdrop stays open and the shadow keeps its seat.
+
 ## The sticker border is optional, and Hassaku is better without it
 
 `--style cel-plain` is `cel` with `(white outline:1.6), outline, sticker`

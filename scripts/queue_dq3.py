@@ -560,6 +560,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # 0.35 one seed filled it with six spare eyes. 0.15 held on every seed
     # tried and still pulled the camera back.
     parser.add_argument("--trace-margin", type=float, default=0.15)
+    # Optional second net over the same reference, applied after the first.
+    # Meant for skeleton-first work: --trace-mode openpose carries the pose,
+    # and a low-strength softedge here adds a whisper of costume and hair.
+    parser.add_argument("--trace2-mode", choices=["softedge", "canny"])
+    parser.add_argument("--trace2-strength", type=float, default=0.25)
+    parser.add_argument("--trace2-start", type=float, default=0.0)
+    parser.add_argument("--trace2-end", type=float, default=0.3)
     # The staff is the tag most likely to fight a borrowed pose: the reference's
     # hands are doing something else, and the prompt insists on a grip.
     parser.add_argument(
@@ -891,6 +898,69 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
             },
         }
         positive_src, negative_src = ["73", 0], ["73", 1]
+
+        # A second, weaker net over the same reference: the skeleton owns the
+        # pose, and a faint outline pass whispers costume and hair without the
+        # silhouette takeover a full-strength softedge causes.
+        if args.trace2_mode:
+            if args.trace2_mode == "softedge":
+                trace_nodes["81"] = {
+                    "class_type": "HEDPreprocessor",
+                    "inputs": {
+                        "image": ["74", 0],
+                        "safe": "enable",
+                        "resolution": args.trace_resolution,
+                    },
+                }
+            else:
+                trace_nodes["81"] = {
+                    "class_type": "Canny",
+                    "inputs": {
+                        "image": ["74", 0],
+                        "low_threshold": args.trace_low,
+                        "high_threshold": args.trace_high,
+                    },
+                }
+            hint2_src = ["81", 0]
+            if pad_w or pad_h:
+                trace_nodes["84"] = {
+                    "class_type": "ImageScale",
+                    "inputs": {
+                        "image": hint2_src,
+                        "upscale_method": "lanczos",
+                        "width": inner_w,
+                        "height": inner_h,
+                        "crop": "disabled",
+                    },
+                }
+                trace_nodes["85"] = {
+                    "class_type": "ImageCompositeMasked",
+                    "inputs": {
+                        "destination": ["77", 0],
+                        "source": ["84", 0],
+                        "x": pad_w,
+                        "y": pad_h,
+                        "resize_source": False,
+                    },
+                }
+                hint2_src = ["85", 0]
+            trace_nodes["82"] = {
+                "class_type": "ControlNetLoader",
+                "inputs": {"control_net_name": TRACE_MODES[args.trace2_mode]},
+            }
+            trace_nodes["83"] = {
+                "class_type": "ControlNetApplyAdvanced",
+                "inputs": {
+                    "positive": ["73", 0],
+                    "negative": ["73", 1],
+                    "control_net": ["82", 0],
+                    "image": hint2_src,
+                    "strength": args.trace2_strength,
+                    "start_percent": args.trace2_start,
+                    "end_percent": args.trace2_end,
+                },
+            }
+            positive_src, negative_src = ["83", 0], ["83", 1]
 
     prompt = {
         "4": loader,

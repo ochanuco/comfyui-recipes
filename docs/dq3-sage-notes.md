@@ -497,6 +497,26 @@ Paths that respect this, if pose-from-reference is still wanted:
 - **Loosen the grip.** Lower strength / earlier end is a dial between pose
   fidelity and native proportions, but both ends give up something.
 
+### Skeleton first, outline as a whisper
+
+Tested on `bootoff` (the one reference legacy openpose detects): openpose at
+1.0/0.85 owns the pose, plus a second softedge net over the same reference at
+low strength (`--trace2-mode softedge`). The native cuteness comes back in
+all three, and the whisper earns its keep:
+
+- skeleton only (`wf-op-only`): pose lands, but joints carry no *props* — the
+  boot she should be holding rendered as an unreadable dark object.
+- `--trace2-strength 0.25 --trace2-end 0.3` (`wf-mix25`): **the sweet spot.**
+  The boot in her hand, the belt, the boots by her feet all resolve; face and
+  proportions stay fully native. The outline clarifies gesture and props
+  without taking the silhouette.
+- 0.4/0.4 (`wf-mix40`): proportions still hold, but it starts picking up the
+  reference's cast shadow — the takeover begins with the backdrop, not the
+  body.
+
+Division of labour: the skeleton protects pose and cuteness, the faint
+outline contributes context. The dial's answer is ~0.25/0.3.
+
 ### A traced shadow the style refuses to draw becomes an object
 
 Restyling the rescue exposed a failure mode. The trace carries the drop

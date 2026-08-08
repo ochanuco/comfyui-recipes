@@ -175,9 +175,9 @@ as coloured blocks, so that is the ceiling.
 
 ## Tracing a reference with ControlNet
 
-`--trace-image` runs a reference through Canny and applies it as structure
-(`noob-canny-fp16`, chosen because the checkpoint is NoobAI-based; Canny is the
-only preprocessor ComfyUI ships, so no custom node is needed).
+`--trace-image` applies a reference as structure. `--trace-mode` picks what gets
+extracted from it, and each mode needs a ControlNet trained on that signal —
+`TRACE_MODES` holds the pairing, so `--controlnet-name` is now only an override.
 
 **ControlNet moves the whole composition, not a feature.** Tracing a face
 close-up produces a face close-up: at strength 1.0 the sitting pose was replaced
@@ -185,6 +185,136 @@ by the reference's bust framing, and at 0.4-0.6 the two structures simply fought
 and cancelled. It is worth using when the framing already agrees with the
 reference, and is the wrong tool for borrowing a face while keeping a full-body
 pose — which the checkpoint change already solved anyway.
+
+**That was Canny's property, not ControlNet's.** Canny reproduces every outline,
+so the reference's costume, proportions and framing come along with its pose. It
+was the only mode because it is the only preprocessor ComfyUI ships, not because
+it was the right signal.
+
+### `--trace-mode openpose`
+
+The weights are `noob-openpose-fp16`, the same r3gm fp16 mirror the Canny model
+came from; ComfyUI reads the bare diffusers `diffusion_pytorch_model.fp16.safetensors`
+once it is renamed, and the two files differ by 32 bytes in size, which is how
+the mirror was identified.
+
+**Everything here depends on the skeleton actually being found, and mostly it is
+not.** Pass `--save-trace` and look at it before believing any result. An empty
+skeleton is a black frame, and a ControlNet conditioned on a black frame fails
+silently -- the render still comes out, still varies with the seed, and looks
+like an ordinary result. A whole session was spent comparing images that had no
+skeleton behind them at all.
+
+**DWPose finds nothing in this material.** Its yolox person detector returned
+zero boxes on every reference tried, under both its torchscript and its onnx
+weights. The log gives it away: `DWPose: Bbox NNNms` appears, and no `Pose` line
+ever follows. `--trace-backend openpose` (the default) uses the older estimator,
+which does not go through yolox and does find bodies here. `dwpose` is kept only
+to retest it.
+
+**Coverage varies enormously by reference, and it is the thing that decides the
+render.** Non-black fraction of the skeleton image, measured on the same five
+references:
+
+| reference | skeleton | render |
+|---|---|---|
+| `ref-pose-bootoff` | 1.887% | clean, 7-8 heads tall |
+| `ref-pose-kneesup` | 0.517% | **two figures, 3 heads tall** |
+| `ref-pose-abovestand` | 0.291% | — |
+| `ref-eye3-purple-gradient` | 0.000% | — |
+| `ref-yukari-rabbit-hoodie` | 0.000% | — |
+
+**A partial skeleton is worse than none.** The 0.5% one produced a doubled
+figure; the empty ones never did. Half a body is a contradictory instruction and
+the sampler resolves it by drawing another person. Treat anything under roughly
+1.5% as unusable rather than weak.
+
+**A complete skeleton fixes the proportions.** The 1.887% render came out 7-8
+heads tall where every previous `standing` attempt had squashed to 2-4.
+
+**And it suppresses the backdrop intruder, without eliminating it.** Five seeds,
+`ref-pose-bootoff` as the reference, the trace the only difference:
+
+| seed | trace off | trace on |
+|---|---|---|
+| 3584446990 | **intruder** | clean |
+| 812365471 | clean | clean |
+| 1947558203 | **intruder** | clean |
+| 4051776310 | **intruder** | silhouette only, no face |
+| 1730948821 | **intruder** | **intruder**, smaller |
+
+Four of five produce it untraced; three of those five come back clean with the
+trace, one keeps a faceless shadow, and 1730948821 keeps the intruder outright.
+So this is the first thing that has moved it at all — the nine prompt-side
+attempts recorded above moved it none — but it is not a fix. It fits the reading
+there: the model fills empty backdrop with another character, and a skeleton
+occupies some of that space. Where the skeleton does not reach, the intruder
+still fits.
+
+Do not conclude from three seeds. At three this looked like a clean two-for-two
+removal; the counterexample was in the next two.
+
+**The skeleton takes the framing with it.** On two of three seeds the trace
+pulled the camera in to knee height despite `full body` in the prompt — the
+skeleton's bounding box wins.
+
+**Camera distance is the skeleton's share of the frame, and it trades directly
+against the intruder.** Padding the reference (`sips --padToHeightWidth`) shrinks
+the skeleton inside the canvas and pulls the camera back:
+
+| padding | skeleton | 812365471 | 1947558203 |
+|---|---|---|---|
+| none | 1.887% | knees up, clean | knees up, clean |
+| 35% | 1.250% | **full body, intruder swarm** | **full body, clean** |
+
+Both seeds gained the full body. One of them gained six extra eyes with it —
+and that seed had been clean untraced.
+
+These are one mechanism seen from two sides. The skeleton suppresses the
+intruder by occupying the space it would be drawn in, so any empty margin
+deliberately created for framing is margin handed back. Framing and a clean
+backdrop are bought from the same budget; there may be no setting that gets
+both on every seed.
+
+Detection fails on strong perspective, on hair that covers the silhouette, and
+on anything cropped above the legs. Both detectors are trained on photographs.
+
+- **Hands and face are off by default** (`--trace-hands`, `--trace-face`). Both
+  pin something the prompt already owns: hand keypoints hand the sage a grip
+  copied from whatever the reference was holding, which fights the quarterstaff,
+  and face keypoints override the face preset and the `CHECKPOINT_TUNING` behind
+  it.
+- **`--trace-strength 0.6` / `--trace-end 0.5` are Canny's numbers.** They let go
+  of the structure halfway, which is right for outlines and too weak for a pose.
+  1.0 / 0.85 is what the working render used.
+- The reference is centre-cropped to the render's aspect ratio by an `ImageScale`
+  node, so it can be dropped into `input/` at any size. The skeleton is stretched
+  to the canvas rather than letterboxed, so without that the proportions arrive
+  squashed.
+
+### `--pose-text`, which is independent of all the above
+
+**Let the prompt frame and the skeleton pose.** Dropping `standing` and keeping
+`full body` is what stopped `standing` shredding the costume into ruffles:
+
+```bash
+uv run scripts/queue_dq3.py --job sage --pose standing --width 1024 --height 1536 \
+  --diffusers-path hassaku-il-v22 --style cel-plain --pose-text "full body"
+```
+
+This was found with a trace attached but the skeleton empty, so it is a
+prompt-side result and owes nothing to ControlNet. Whether the pose word is
+harmful on its own, or only when a real skeleton disagrees with it, is untested.
+
+**Do not drop the pose text entirely.** `--pose-text ""` removes `full body`
+along with `standing`, and the render collapses into mosaic tiles under both the
+full and light negatives. The prompt has to keep saying how far away the camera
+is; the skeleton never states that.
+
+On macOS, `comfyui_controlnet_aux` is registered with `install_requirements`
+off: its pinned `onnxruntime-gpu` has no macOS wheel and would abort
+`install-custom-nodes.sh` under `set -e`. See README for the manual dependency
+list.
 
 ## Correction: eye ratio was the wrong thing to optimise
 
@@ -276,6 +406,9 @@ It is not a shadow. Enlarged, its eyes are drawn in the sage's own eye style,
 highlights and all -- the model is filling the empty left half with another
 character.
 
+A tenth attempt did work, and it is not a prompt: an OpenPose trace removes it.
+See `--trace-mode openpose` below.
+
 **Removing it afterwards was tried and reverted.** Repainting the backdrop
 cannot reach it: the sticker outline encloses subject and intruder together, so
 a border flood stops at the intruder and a connected-component pass returns one
@@ -322,7 +455,22 @@ too.** A tag tuned on a close-up will overreach at full-body distance.
 
 ## Open, for next time
 
-- `standing` doubles the figure; `bootoff` goes dark.
+- `standing` no longer shreds the costume: `--pose-text "full body"` did that,
+  with no working trace involved. Whether it also survives a real skeleton is
+  untested — every `--pose-text` result so far had an empty one.
+- **Redo the duplicate-figure comparison.** The one in the openpose section was
+  measured against black frames and proves nothing. It needs the same seed with
+  `ref-pose-bootoff` (the only reference that traces properly) against no trace.
+- **Find references that actually trace.** Four of five candidates came back
+  under 0.3% skeleton coverage. Without a supply of usable references, swapping
+  the reference to change the pose does not work in practice, whatever the
+  mechanism can do. An OpenPose editor node, or depth instead of a skeleton, are
+  the two ways around the detector.
+- `bootoff` goes dark.
+- `ref-pose-headrest` and `ref-eye3-purple-gradient` cannot drive a trace at all
+  — they are cropped above the legs. `ref-pose-bootoff` traces best but is shot
+  from below, which runs into `(from below:1.2)` and `(upskirt:1.4)` in the
+  negative.
 - Face contour candidates (`cf-A`..`cf-D`) were generated but never reviewed —
   the current default carries `(round face:1.2), soft jawline, small chin`.
 - Yukari's `reaching` pose is implemented and unverified.

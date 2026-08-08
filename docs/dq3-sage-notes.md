@@ -470,6 +470,33 @@ uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536
 `ref-abC.png` is `ab-C_00001_` copied into `input/`. The reproduced negative is
 byte-identical to the one `abc-F` embeds (checked against its PNG metadata).
 
+### The cute ones never came from a reference
+
+Looking back across everything accepted so far: the results worth keeping came
+from the prompt alone — a pose named in words, the checkpoint free to solve it
+with its own proportions, framing and face. The trace pipeline works as
+machinery (reference → line art → render, verified on four references), but
+its output has not been *cute*. Softedge imports the reference's silhouette
+wholesale: body ratios, hairstyle, costume outlines. The tuned look lives in
+an equilibrium of checkpoint + prompt weights, and a foreign silhouette drags
+the render off it.
+
+The exception proves the rule: `abc-F` is a trace result and it is the
+high-water mark — but it is a *self*-trace, so the silhouette it pins is the
+checkpoint's own. Tracing works when the outline is already native; it costs
+cuteness in proportion to how foreign the reference's proportions are.
+
+Paths that respect this, if pose-from-reference is still wanted:
+- **Skeleton, not outline.** Openpose carries joints and nothing else — the
+  silhouette stays the model's. Its blocker is detection on illustrations
+  (yolox finds nothing), not the concept; `--trace-render-kps` plus edited
+  keypoints is the surviving route.
+- **Reference as vocabulary.** Use the reference to *name* the pose, then
+  drop the image and generate prompt-only — the division that produced every
+  accepted result.
+- **Loosen the grip.** Lower strength / earlier end is a dial between pose
+  fidelity and native proportions, but both ends give up something.
+
 ### A traced shadow the style refuses to draw becomes an object
 
 Restyling the rescue exposed a failure mode. The trace carries the drop

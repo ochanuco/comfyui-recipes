@@ -11,12 +11,16 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 import workflow_ui
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Body and legwear. Tuned so "thick" reads as soft tissue rather than muscle:
 # muscular* in the negatives is what stops calves from turning sinewy, and the
@@ -134,6 +138,16 @@ CLASSES = {
 # scheduler config, so this has to be stated somewhere, and the checkpoint knows
 # it better than the caller does.
 V_PRED_MODELS = {"moe-vpred-v2"}
+
+# Each trace mode pairs a preprocessor with a ControlNet trained on that signal;
+# the two cannot be swapped independently. Canny reproduces every outline, so it
+# carries the reference's costume, proportions and framing along with its pose.
+# OpenPose carries joint positions and nothing else, which is what borrowing a
+# pose actually means -- the reference's art style never reaches the output.
+TRACE_MODES = {
+    "canny": "noob-canny-fp16.safetensors",
+    "openpose": "noob-openpose-fp16.safetensors",
+}
 
 DEFAULT_LORAS = [
     ("perfect-eyes-ill.safetensors", 0.7, "perfect eyes"),
@@ -436,6 +450,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="drop the aesthetic-score tags that flatten faces toward one look",
     )
     parser.add_argument("--extra", default="", help="appended to the positive prompt")
+    # A trace already states the pose, and POSES restates it in words the
+    # skeleton may contradict. Pass "" to hand the pose entirely to the trace.
+    parser.add_argument(
+        "--pose-text",
+        help="replace the POSES entry for --pose; empty string drops it",
+    )
     parser.add_argument("--negative")
     parser.add_argument(
         "--negative-preset", choices=sorted(NEGATIVE_PRESETS), default="full"
@@ -459,19 +479,67 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="subdirectory under assets/diffusers; pass '' to fall back to --ckpt-name",
     )
     # Structure, as opposed to IPAdapter's --ref-image, which carries style.
-    # Canny is the only preprocessor ComfyUI ships, so the trace goes through it.
     parser.add_argument(
         "--trace-image",
-        help="filename under input/ whose outlines constrain the composition",
+        help="filename under input/ whose structure constrains the composition",
+    )
+    parser.add_argument(
+        "--trace-mode",
+        choices=sorted(TRACE_MODES),
+        default="canny",
+        help="what to extract from the reference; see TRACE_MODES",
     )
     parser.add_argument("--trace-strength", type=float, default=0.6)
     parser.add_argument("--trace-start", type=float, default=0.0)
     # Releasing it partway lets the trace set the structure and leaves the detail
     # to the prompt; held to the end it reproduces the reference outright.
     parser.add_argument("--trace-end", type=float, default=0.5)
+    # canny only.
     parser.add_argument("--trace-low", type=float, default=0.2)
     parser.add_argument("--trace-high", type=float, default=0.6)
-    parser.add_argument("--controlnet-name", default="noob-canny-fp16.safetensors")
+    # openpose only. Both detectors are off by default because each one pins a
+    # feature the prompt is already tuned to produce: the hand keypoints hand the
+    # sage a grip copied from whatever the reference was holding, and the face
+    # keypoints override the face preset and CHECKPOINT_TUNING behind it.
+    parser.add_argument("--trace-resolution", type=int, default=512)
+    parser.add_argument("--trace-hands", action="store_true")
+    parser.add_argument("--trace-face", action="store_true")
+    # Without this the skeleton is invisible, and a pose that fails to transfer
+    # looks identical to one the preprocessor never found.
+    parser.add_argument(
+        "--save-trace",
+        action="store_true",
+        help="also write the preprocessor's output as trace-<prefix>",
+    )
+    # DWPose finds nothing in this material. Its yolox person detector returns
+    # zero boxes on every reference tried, under both its torchscript and its
+    # onnx weights, so the skeleton comes out an empty black frame and the
+    # ControlNet silently conditions on nothing. The older OpenPose estimator
+    # does not go through yolox and does find bodies here.
+    parser.add_argument(
+        "--trace-backend", choices=["openpose", "dwpose"], default="openpose"
+    )
+    # The preprocessor emits IMAGE and POSE_KEYPOINT as separate outputs, and
+    # the ControlNet reads the IMAGE. Editing the keypoints therefore changes
+    # nothing on its own. Routing them back through RenderPeopleKps makes the
+    # keypoints the thing that is actually drawn, so a hand-edited skeleton
+    # reaches the sampler.
+    parser.add_argument(
+        "--trace-render-kps",
+        action="store_true",
+        help="draw the ControlNet hint from POSE_KEYPOINT so it can be edited",
+    )
+    # The skeleton's share of the frame is what sets the camera distance, so a
+    # reference that fills its own frame renders as a close shot however loudly
+    # the prompt says `full body`. Padding buys the distance back. It is not
+    # free: the margin is also where the backdrop intruder gets drawn, and at
+    # 0.35 one seed filled it with six spare eyes. 0.15 held on every seed
+    # tried and still pulled the camera back.
+    parser.add_argument("--trace-margin", type=float, default=0.15)
+    parser.add_argument(
+        "--controlnet-name",
+        help="override the ControlNet that --trace-mode would select",
+    )
     parser.add_argument(
         "--v-pred",
         action="store_true",
@@ -531,9 +599,48 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--wait", action="store_true", help="poll until the images are written")
     parser.add_argument(
         "--export-workflow",
-        help="write the UI-format workflow for the first queued image to this path",
+        help="write the first queued image's UI workflow here instead of the "
+        "default path under .local/workflows",
+    )
+    parser.add_argument(
+        "--no-export-workflow",
+        action="store_true",
+        help="skip the workflow export entirely",
     )
     return parser.parse_args(argv)
+
+
+def repo_revision() -> str:
+    """Stamp exports with the code that built them. --short=8 rather than git's
+    default: plain --short grows when a prefix collides, so the name would not
+    keep a stable length. A dirty tree is called out, because the hash on its
+    own names a commit that never held these settings."""
+    try:
+        rev = subprocess.run(
+            ["git", "rev-parse", "--short=8", "HEAD"],
+            cwd=REPO_ROOT, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=REPO_ROOT, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "nogit"
+    return f"{rev}-dirty" if dirty else rev
+
+
+def export_workflow_path(args: argparse.Namespace, prefix: str) -> str | None:
+    if args.no_export_workflow:
+        return None
+    if args.export_workflow:
+        return args.export_workflow
+    # This exact directory, because it is the only one the GUI's workflow
+    # browser reads -- anywhere else and the export exists but cannot be opened.
+    # It also sits under the gitignored .local, so exporting on every run does
+    # not dirty the working tree, which is what keeps the revision stamp honest.
+    directory = REPO_ROOT / ".local" / "ComfyUI" / "user" / "default" / "workflows"
+    directory.mkdir(parents=True, exist_ok=True)
+    return str(directory / f"{prefix}-{repo_revision()}.json")
 
 
 def parse_args_from(argv: list[str]) -> argparse.Namespace:
@@ -550,7 +657,13 @@ def build_positive(args: argparse.Namespace) -> str:
     franchise = FRANCHISE.get(args.job)
     if franchise:
         parts.append(franchise)
-    parts += [LEGS_BY_JOB.get(args.job, LEGS), POSES[args.pose], BACKGROUND]
+    pose_text = getattr(args, "pose_text", None)
+    if pose_text is None:
+        pose_text = POSES[args.pose]
+    parts += [LEGS_BY_JOB.get(args.job, LEGS)]
+    if pose_text:
+        parts.append(pose_text)
+    parts.append(BACKGROUND)
     face = FACES[getattr(args, "face", "default")]
     if face:
         parts.append(face)
@@ -611,17 +724,91 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
     trace_image = getattr(args, "trace_image", None)
     if trace_image:
         trace_nodes["70"] = {"class_type": "LoadImage", "inputs": {"image": trace_image}}
-        trace_nodes["71"] = {
-            "class_type": "Canny",
+        # The skeleton is stretched to the canvas, not letterboxed, so a
+        # reference of a different shape squashes the proportions it carries.
+        # Centre-cropping to the render's aspect ratio here means a reference
+        # can be dropped in at whatever size it happens to be.
+        scale_src = ["70", 0]
+        if args.trace_margin > 0:
+            # Feathering is off: this pads the *reference*, and a soft edge
+            # there is something for the detector to find a limb in.
+            pad_w = int(args.width * args.trace_margin / 2) // 8 * 8
+            pad_h = int(args.height * args.trace_margin / 2) // 8 * 8
+            trace_nodes["77"] = {
+                "class_type": "ImagePadForOutpaint",
+                "inputs": {
+                    "image": ["70", 0],
+                    "left": pad_w,
+                    "right": pad_w,
+                    "top": pad_h,
+                    "bottom": pad_h,
+                    "feathering": 0,
+                },
+            }
+            scale_src = ["77", 0]
+        trace_nodes["74"] = {
+            "class_type": "ImageScale",
             "inputs": {
-                "image": ["70", 0],
-                "low_threshold": args.trace_low,
-                "high_threshold": args.trace_high,
+                "image": scale_src,
+                "upscale_method": "lanczos",
+                "width": args.width,
+                "height": args.height,
+                "crop": "center",
             },
         }
+        if args.trace_mode == "openpose":
+            pose_inputs = {
+                "image": ["74", 0],
+                "detect_body": "enable",
+                "detect_hand": "enable" if args.trace_hands else "disable",
+                "detect_face": "enable" if args.trace_face else "disable",
+                "resolution": args.trace_resolution,
+            }
+            if args.trace_backend == "dwpose":
+                pose_inputs |= {
+                    "bbox_detector": "yolox_l.onnx",
+                    "pose_estimator": "dw-ll_ucoco_384.onnx",
+                }
+            trace_nodes["71"] = {
+                "class_type": (
+                    "DWPreprocessor"
+                    if args.trace_backend == "dwpose"
+                    else "OpenposePreprocessor"
+                ),
+                "inputs": pose_inputs,
+            }
+        else:
+            trace_nodes["71"] = {
+                "class_type": "Canny",
+                "inputs": {
+                    "image": ["74", 0],
+                    "low_threshold": args.trace_low,
+                    "high_threshold": args.trace_high,
+                },
+            }
+        hint_src = ["71", 0]
+        if args.trace_render_kps and args.trace_mode == "openpose":
+            trace_nodes["76"] = {
+                "class_type": "RenderPeopleKps",
+                "inputs": {
+                    "kps": ["71", 1],
+                    "render_body": True,
+                    "render_hand": bool(args.trace_hands),
+                    "render_face": bool(args.trace_face),
+                },
+            }
+            hint_src = ["76", 0]
+        if args.save_trace:
+            trace_nodes["75"] = {
+                "class_type": "SaveImage",
+                "inputs": {"images": hint_src, "filename_prefix": f"trace-{prefix}"},
+            }
         trace_nodes["72"] = {
             "class_type": "ControlNetLoader",
-            "inputs": {"control_net_name": args.controlnet_name},
+            "inputs": {
+                "control_net_name": args.controlnet_name
+                or TRACE_MODES[args.trace_mode]
+            },
         }
         trace_nodes["73"] = {
             "class_type": "ControlNetApplyAdvanced",
@@ -629,7 +816,7 @@ def build_prompt(args: argparse.Namespace, seed: int, prefix: str) -> dict[str, 
                 "positive": ["6", 0],
                 "negative": ["7", 0],
                 "control_net": ["72", 0],
-                "image": ["71", 0],
+                "image": hint_src,
                 "strength": args.trace_strength,
                 "start_percent": args.trace_start,
                 "end_percent": args.trace_end,
@@ -848,14 +1035,16 @@ def main() -> int:
         if args.seed >= 0 and args.count > 1:
             seed += index
         prompt = build_prompt(args, seed, prefix)
-        if index == 0 and args.export_workflow:
+        export_path = export_workflow_path(args, prefix) if index == 0 else None
+        if export_path:
             # Reuses the object_info cache queue_prompt is about to populate,
             # so this costs a conversion, not a second network round trip.
             ui_workflow = build_ui_workflow(args, prompt)
             if ui_workflow is None:
                 raise SystemExit("--export-workflow requires /object_info; ComfyUI must be reachable")
-            with open(args.export_workflow, "w") as f:
+            with open(export_path, "w") as f:
                 json.dump(ui_workflow, f, indent=2)
+            print(json.dumps({"workflow": export_path}))
         try:
             response = queue_prompt(args, prompt)
         except urllib.error.HTTPError as exc:

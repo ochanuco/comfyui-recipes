@@ -37,6 +37,24 @@ The bootstrap script will:
 
 The default upstream pin is `v0.30.1`. The local checkout will stay on that release tag until you change `config/upstream.env`.
 
+`install-custom-nodes.sh` does not install requirements for
+`comfyui_controlnet_aux`: its `requirements.txt` pins `onnxruntime-gpu`, which
+publishes no macOS wheel, and the script runs under `set -e`. Install what
+DWPose needs by hand instead —
+
+```bash
+./.venv/bin/python -m pip install opencv-python scikit-image matplotlib onnxruntime
+```
+
+Plain `onnxruntime` carries `CoreMLExecutionProvider` on this machine. The other
+preprocessors in that repo want `mediapipe`, `fvcore` and friends; without them
+those node modules fail their import and drop out with a warning, which is the
+intended behaviour and leaves DWPose working.
+
+Restart ComfyUI after installing a custom node — the node list is built at
+startup, and `/object_info/<name>` returns `200` with an empty body for a node
+that is not registered, so it is not a usable readiness check on its own.
+
 ## Queue A Minimal Prompt
 
 Start ComfyUI first, then queue a simple txt2img job:

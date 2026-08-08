@@ -16,3 +16,18 @@ repo = "https://github.com/cubiq/ComfyUI_IPAdapter_plus.git"
 ref = "main"
 path = "ComfyUI_IPAdapter_plus"
 install_requirements = true
+
+# Preprocessors for --trace-mode. ComfyUI ships Canny and nothing else, so the
+# skeleton and depth traces come from here.
+#
+# install_requirements is off on purpose: the pinned requirements.txt asks for
+# onnxruntime-gpu, which has no macOS wheel at all, and this script runs under
+# `set -e`. The deps DWPose actually needs are listed in README.md instead.
+# Every node_wrapper is imported inside a try/except, so the ones whose deps are
+# missing (mediapipe, fvcore, ...) drop out with a warning and leave DWPose up.
+[[node]]
+name = "comfyui_controlnet_aux"
+repo = "https://github.com/Fannovel16/comfyui_controlnet_aux.git"
+ref = "main"
+path = "comfyui_controlnet_aux"
+install_requirements = false

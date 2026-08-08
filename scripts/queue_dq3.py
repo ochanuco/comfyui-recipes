@@ -130,6 +130,14 @@ CLASSES = {
         "(blue wizard hat:1.2), pointy hat, (yellow robe:1.2), short robe, blue cape, "
         "white belt, orange gloves, orange boots, (holding staff:1.2), wooden staff"
     ),
+    # Like Yukari, the character tag carries her colouring. The uniform is
+    # spelled out because the default negatives lean against military dress;
+    # no rigging — the ship equipment stays out unless asked for.
+    "takao": (
+        "takao (kancolle), (short hair:1.15), brown hair, black tinted shadows, "
+        "(military uniform:1.25), (red jacket:1.2), miniskirt, pencil skirt, "
+        "(black pantyhose:1.3), (white gloves:1.2), boots"
+    ),
 }
 
 # Applied when --lora is not passed at all. Each entry carries the trigger word
@@ -242,7 +250,7 @@ assert STYLES["cel-plain"] != STYLES["cel"], "the border tags moved; fix this re
 # The moe face carries weights pushed to their limit for the sage; stacked on
 # another character's tag the prompt stops resolving and the render turns to
 # noise. Classes can name a face that suits them instead.
-FACE_BY_JOB = {"yukari": "default"}
+FACE_BY_JOB = {"yukari": "default", "takao": "default"}
 
 # Framings where the face is too small to carry moe's weights.
 FACE_BY_POSE: dict[str, str] = {}
@@ -294,6 +302,7 @@ FRANCHISE = {
     "priest": "dragon quest iii, dragon quest",
     "mage": "dragon quest iii, dragon quest",
     "yukari": "vocaloid, voiceroid",
+    "takao": "kantai collection",
 }
 
 # Individual terms a class has to remove from the assembled negative. Dropping a
@@ -302,6 +311,8 @@ FRANCHISE = {
 NEG_DROP = {
     "yukari": ["(hood:1.4)", "headgear", "(headscarf:1.4)",
                "thighhighs", "skinny legs", "thin legs", "thin calves"],
+    # Her uniform is military dress, not armour, but the two share vocabulary.
+    "takao": ["armor", "warrior"],
 }
 
 # Same idea for poses. bootoff puts the feet toward the camera on purpose, which

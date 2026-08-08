@@ -38,6 +38,14 @@ LEGS_BY_JOB = {
         "young woman, long legs, slender legs, "
         "(purple thighhighs:1.3), (zettai ryouiki:1.2), thighhighs"
     ),
+    # The sage block's (thick thighs:1.6) compounds with Takao's own build
+    # into far more thigh than intended at standing; 1.2 with the height
+    # stated is the tested balance (takao-tall2).
+    "takao": (
+        "young woman, (long legs:1.3), (thick thighs:1.2), (thick calves:1.2), "
+        "soft calves, soft legs, smooth legs, "
+        "(black pantyhose:1.75), (opaque legwear:1.45), (black legwear:1.3), nylon legwear, (taut clothes:1.35), (stretched fabric:1.25), (shiny legwear:1.4), (specular highlights:1.25), light streaks"
+    ),
 }
 
 
@@ -140,9 +148,10 @@ CLASSES = {
     ),
     # Like Yukari, the character tag carries her colouring. The uniform is
     # spelled out because the default negatives lean against military dress;
-    # no rigging — the ship equipment stays out unless asked for.
+    # no rigging — the ship equipment stays out unless asked for. tall is
+    # canon for her, and it is also what balances the leg volume at standing.
     "takao": (
-        "takao (kancolle), (short hair:1.15), brown hair, black tinted shadows, "
+        "takao (kancolle), (short hair:1.15), brown hair, black tinted shadows, tall, "
         "(military uniform:1.25), (red jacket:1.2), miniskirt, pencil skirt, "
         "(black pantyhose:1.3), (white gloves:1.2), boots"
     ),

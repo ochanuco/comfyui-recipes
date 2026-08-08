@@ -91,6 +91,14 @@ FACES = {
         "thin eyebrows, light smile, closed mouth, small mouth, "
         "soft expression, looking at viewer"
     ),
+    # Probe for the collapse threshold between moe-far (clean at standing)
+    # and moe (collapses there).
+    "moe-mid": (
+        "(tareme:1.4), (large eyes:1.45), round eyes, "
+        "2000s (style), eyelashes, (dark blue eyes:1.25), (large iris:1.4), "
+        "thin eyebrows, (light smile:1.1), closed mouth, small mouth, "
+        "soft expression, looking at viewer"
+    ),
     "halflid": (
         "(half-closed eyes:1.15), hooded eyes, tareme, eyeliner, thin eyebrows, "
         "swept bangs, side locks, "
@@ -257,7 +265,9 @@ FACE_BY_JOB = {"yukari": "default", "takao": "default"}
 # eyes), moe-far at the same seed is clean and keeps the eye colour that
 # face=default loses. A closer crop does not rescue full moe — the weights,
 # not the face area, are the binding constraint outside seated framings.
-FACE_BY_POSE: dict[str, str] = {"standing": "moe-far"}
+# The cliff sits between 1.45 and 1.65: moe-mid held on the collapsing seed
+# and on three random seeds, and keeps most of the look moe-far gives up.
+FACE_BY_POSE: dict[str, str] = {"standing": "moe-mid"}
 
 # A tag weight is only worth what the checkpoint makes of it, so the tuned
 # numbers below belong to the checkpoint rather than to the recipe. The defaults

@@ -623,6 +623,13 @@ overflows regardless of crop, so the dose is what has to move — which is what
 `FACE_BY_POSE` now does (it was described here before it was actually wired
 into the code; as of today it is).
 
+The dose does not have to drop all the way to `moe-far`. The cliff sits
+between 1.45 and 1.65: `moe-mid` (eyes 1.45, iris 1.4) held on the collapsing
+seed and on three random seeds, and its face is visibly closer to `moe`'s
+than `moe-far`'s is — so `FACE_BY_POSE` hands standing to `moe-mid`. Raising
+the eye LoRA (0.7 → 0.95) is a further identity dial that costs no prompt
+attention and composes with either preset.
+
 The overflow also explains the *shape* of the collapse: the over-weighted eye
 tokens claim pixels wherever they can — as spare eyes on the backdrop, or as a
 second, larger-faced figure that can carry them.

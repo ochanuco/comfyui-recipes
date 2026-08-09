@@ -294,6 +294,15 @@ EXTRA_BY_JOB = {
     "takao": "(thick thighs:1.45), (curvy:1.25), (plump:1.2), soft body",
 }
 
+# The base decides the face far more than the face preset does. Six bases were
+# rendered on one seed with a byte-identical prompt: the same moe-mid-noeye tags
+# — (large eyes:1.45), (tareme:1.4), (large iris:1.4) — come out as a long face
+# with narrow eyes on hassaku, amanatsu, novaAnime and NoobAI, and as a small
+# round face with large round irises on moe-vpred-v2. Held on four further
+# seeds, so it is the base's reading of the tags, not seed luck. Chasing the
+# face through tag weights has a low ceiling; swapping the base clears it.
+BASE_BY_JOB = {"takao": "moe-vpred-v2"}
+
 # Framings where the face is too small to carry moe's weights. Verified on
 # one seed both ways: full moe at standing collapses (duplicates, background
 # eyes), moe-far at the same seed is clean and keeps the eye colour that
@@ -1223,6 +1232,10 @@ def wait_for(args: argparse.Namespace, prompt_ids: list[str]) -> None:
 
 def apply_defaults(args: argparse.Namespace) -> None:
     """Fill in the settled recipe for anything the caller left alone."""
+    # The parser default doubles as "the caller did not choose a base", so a job
+    # with a settled base can claim it while --diffusers-path still overrides.
+    if args.diffusers_path == "amanatsu-il-v11" and args.job in BASE_BY_JOB:
+        args.diffusers_path = BASE_BY_JOB[args.job]
     if getattr(args, "diffusers_path", None) in V_PRED_MODELS:
         args.v_pred = True
     tuning = CHECKPOINT_TUNING.get(getattr(args, "diffusers_path", None) or "", {})

@@ -18,6 +18,7 @@ uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536
 | `53c5e9f6` | `sel-reaching_00002_` | 3062102535 | white border |
 | `79168c71` | `sel-sitting_00002_` | 3992482423 | pose |
 | `f066dccc` | `abc-F-softline_00001_` | 4051776310 | ab-C rescued by self-trace: same composition, no intruder (tag `pick/abc-F`) |
+| `cac2cf43` | `bm-moevpred_00001_` | 1117511306 | the face. `moe-vpred-v2` draws the small round face with large round irises that the identical tags do not produce on any other base — see the base sweep below. Reproduced by bare `--job takao --pose lookback --width 1024 --height 1536 --style cel-plain --flat-paint mild` |
 | `1126385e` | `takao-canon_00001_` | 618823993 | Takao in the sage's art style, canon colours, her shadow on the wall (tag `pick/takao-canon`). Reproduced by bare `--job takao --pose standing --width 1024 --height 1536 --diffusers-path hassaku-il-v22 --style cel-plain` — prompt verified byte-identical against the PNG |
 
 All six poses work: **sitting, kneesup, reaching, lookback, standing, bootoff**.
@@ -750,6 +751,47 @@ and with a trace occupying the frame it can finally be negated away -- see the
 correction in the Hassaku section. Append to the negative:
 
     (cast shadow:1.6), (shadow on ground:1.5), (silhouette:1.4), (dark figure:1.4)
+
+## The base draws the face; the face preset only nudges it
+
+Six bases, one seed (1117511306), a byte-identical Takao `lookback` prompt — so
+the checkpoint was the only variable:
+
+| base | face | rest |
+|------|------|------|
+| `hassaku-il-v22` | long face, narrow eyes | thick lines, brown hair, shadow as one flat slab |
+| `amanatsu-il-v11` | between the two, slightly tsurime | backdrop tints navy, skin gloss high |
+| **`moe-vpred-v2`** | **small round face, large round irises, tareme** | cleanest palette, uniform blue correct, no breakage |
+| `novaAnimeXL_ilV170` | long contour, medium eyes | shadow edge frays, boots break up |
+| `NoobAI-XL-v1.1` | long face | uniform shifts teal, black spikes across the legs |
+| `miaomiaoPixel_vPred11` | — | pixel art; it is a pixel model |
+
+Every one of those received the same `moe-mid-noeye` tags —
+`(large eyes:1.45), (tareme:1.4), (large iris:1.4)` — and drew a different face
+from them. **The eye tags do not set the face; they scale whatever face the base
+already draws.** That is why the eye-ratio work earlier in this file kept hitting
+a ceiling, and why the standing collapse was a weight problem rather than a
+drawing problem: on those bases the weights were the only lever, and it was the
+wrong lever. Changing the base is the lever.
+
+Confirmed as a property of the base, not seed luck: four further random seeds on
+`moe-vpred-v2` (`mv-face1`..`4`) all came back with the same round small face.
+
+So `BASE_BY_JOB` now gives `takao` `moe-vpred-v2` — bare
+`--job takao --pose lookback --width 1024 --height 1536 --style cel-plain
+--flat-paint mild` rebuilds `cac2cf43`'s graph byte-identically.
+`--diffusers-path` still overrides.
+
+Two things this does not fix, and both are the same cause — the weights in this
+file are pitched for Amanatsu:
+
+- The flesh dose (`EXTRA_BY_JOB`, the fl3 rung) reads weaker on `moe-vpred-v2`
+  than it did on Hassaku. It wants a retune, not a different tag.
+- `CHECKPOINT_TUNING["moe-vpred-v2"]` still claims the base "wants the halved
+  face preset at every framing". That was measured with full `moe`;
+  `moe-mid-noeye` holds on it at four seeds in `lookback`, and `FACE_BY_JOB`
+  takes precedence anyway, so the `face: moe-far` entry there is now only
+  reached by jobs with no face of their own.
 
 ## Open, for next time
 

@@ -18,6 +18,7 @@ uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536
 | `53c5e9f6` | `sel-reaching_00002_` | 3062102535 | white border |
 | `79168c71` | `sel-sitting_00002_` | 3992482423 | pose |
 | `f066dccc` | `abc-F-softline_00001_` | 4051776310 | ab-C rescued by self-trace: same composition, no intruder (tag `pick/abc-F`) |
+| `1126385e` | `takao-canon_00001_` | 618823993 | Takao in the sage's art style, canon colours, her shadow on the wall (tag `pick/takao-canon`). Reproduced by bare `--job takao --pose standing --width 1024 --height 1536 --diffusers-path hassaku-il-v22 --style cel-plain` — prompt verified byte-identical against the PNG |
 
 All six poses work: **sitting, kneesup, reaching, lookback, standing, bootoff**.
 standing and bootoff were broken for a long time and the cause was the face

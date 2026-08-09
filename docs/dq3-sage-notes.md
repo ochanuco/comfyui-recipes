@@ -809,6 +809,33 @@ Three things fell out of it:
   not the missing anchor — my first reading of this was wrong. It does not happen
   under `--style pastel`, and the cause is still unknown.
 
+## Legwear: three problems that all live in the negative
+
+`--minimal` carries no legs block, so legwear had to be added back —
+`LEGWEAR_BY_JOB`, one short line per character. Saying the garment was the easy
+part; the three things that went wrong all needed the negative instead:
+
+- **Black came out brown.** `(black thighhighs:1.3)` renders as dark brown on
+  Hassaku. Raising the weight does not fix it. `(brown legwear:1.5)` and the two
+  garment-specific brown tags in the negative do.
+- **Legwear left alone comes back knitted.** Banning `(fishnet:1.4)`,
+  `(ribbed legwear:1.3)`, `knit`, `fabric texture`, `thread` is what keeps it a
+  flat shape carrying a highlight, which is what "gloss without fibre" means.
+- **Gloss asked for plainly turns to vinyl.** `(latex:1.35), (rubber:1.35),
+  wet look` in the negative is the whole difference between a sheen and a shine;
+  the positive side only needs `(glossy legwear:1.2), shiny legwear`.
+
+A fourth thing fell out for free. Before the guard existed, adding
+`(black pantyhose:1.3), pantyhose` to the sage's minimal prompt returned **pure
+noise on both seeds** — the prompt stopped resolving, the same failure as `pa6`.
+With `LEGWEAR_GUARD` in place the same seeds render cleanly. Naming what the
+garment must not be gave the garment tag somewhere to land.
+
+`--border` puts the full recipe's `(white outline:1.6), outline, sticker` on the
+minimal path, opt-in. It draws cleanly on Hassaku for all three characters —
+which contradicts the older entry below claiming Hassaku is better without the
+border. That was measured under the full `cel` recipe, not this one.
+
 ## The backdrop creature is an eye, and only the eye tag removes it
 
 `--minimal` cut the negative to ten words, which threw away every guard the full

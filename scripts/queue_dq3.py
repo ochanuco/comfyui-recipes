@@ -321,6 +321,34 @@ EXTRA_BY_JOB = {
 # face through tag weights has a low ceiling; swapping the base clears it.
 BASE_BY_JOB = {"takao": "moe-vpred-v2"}
 
+# --minimal carries no legs block, so legwear is whatever the base felt like on
+# the day -- bare on most seeds. These are the standing choices. Kept to the
+# fewest words that name the garment, because on the minimal path every added
+# tag is a thing the sampler now has to draw; the elaborate legs blocks in
+# LEGS_BY_JOB belong to the full path and are not reused here.
+LEGWEAR_BY_JOB = {
+    "sage": "(black pantyhose:1.3), pantyhose, (glossy legwear:1.2), shiny legwear",
+    "takao": "(black thighhighs:1.35), thighhighs, (glossy legwear:1.2), shiny legwear",
+    # Yukari's own thighhighs are purple, so hers is the same garment in her own
+    # colour rather than the black the other two were asked for.
+    "yukari": "(purple thighhighs:1.35), thighhighs, (glossy legwear:1.2), shiny legwear",
+}
+
+# Three separate problems, all of which need the negative rather than the
+# positive:
+#   black   -- Hassaku renders (black thighhighs:1.3) as dark brown. Saying black
+#              louder does not fix it; naming brown in the negative does.
+#   fibre   -- a legwear tag left alone comes back knitted. These bans keep it a
+#              flat shape carrying a highlight.
+#   gloss   -- a gloss asked for without the last two terms turns to vinyl, which
+#              is the crude version of what was wanted. latex/rubber are the
+#              difference between a sheen and a shine.
+LEGWEAR_GUARD = (
+    "(brown legwear:1.5), brown thighhighs, brown pantyhose, (grey legwear:1.3), "
+    "(sheer legwear:1.3), see-through legwear, (fishnet:1.4), (ribbed legwear:1.3), "
+    "knit, fabric texture, thread, (latex:1.35), (rubber:1.35), wet look"
+)
+
 # Framings where the face is too small to carry moe's weights. Verified on
 # one seed both ways: full moe at standing collapses (duplicates, background
 # eyes), moe-far at the same seed is clean and keeps the eye colour that
@@ -625,6 +653,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="six-token-style prompt: character, pose, flat field, nothing else",
     )
     parser.add_argument(
+        "--border",
+        action="store_true",
+        help="draw the white sticker outline (--minimal only)",
+    )
+    parser.add_argument(
         "--bg-color",
         help="hue of the flat field, e.g. pink; replaces grey in place",
     )
@@ -867,6 +900,9 @@ def build_minimal_positive(args: argparse.Namespace) -> str:
         pose_text = POSES[args.pose]
     if pose_text:
         parts.append(pose_text)
+    legwear = LEGWEAR_BY_JOB.get(args.job)
+    if legwear:
+        parts.append(legwear)
     # The one block that comes back on request. Everything else about the look
     # is the base's to decide here, but the face and the eyes are the part that
     # is being chosen rather than accepted, so --face is honoured. Without it
@@ -877,6 +913,11 @@ def build_minimal_positive(args: argparse.Namespace) -> str:
             parts.append(face)
     bg = getattr(args, "bg_color", None) or "grey"
     parts.append(f"(flat color:1.3), (simple background:1.3), ({bg} background:1.2)")
+    # The sticker border, at the weight the full recipe uses. Opt-in: the
+    # accepted minimal renders were drawn without it, and it is a compositional
+    # choice rather than part of the look.
+    if getattr(args, "border", False):
+        parts.append("(white outline:1.6), outline, sticker")
     if args.extra:
         parts.append(args.extra)
     return ", ".join(parts)
@@ -1384,6 +1425,8 @@ def apply_defaults(args: argparse.Namespace) -> None:
         args.negative = NEG_QUALITY_PLAIN
         if args.face_given:
             args.negative = f"{args.negative}, {MINIMAL_FACE_GUARD}"
+        if args.job in LEGWEAR_BY_JOB:
+            args.negative = f"{args.negative}, {LEGWEAR_GUARD}"
     elif args.negative is None:
         negative = build_negative(args.negative_preset, args.job, args.pose)
         for old, new in tuning.get("neg_retune", {}).items():

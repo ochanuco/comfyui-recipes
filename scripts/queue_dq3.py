@@ -40,11 +40,13 @@ LEGS_BY_JOB = {
     ),
     # The sage block's (thick thighs:1.6) compounds with Takao's own build
     # into far more thigh than intended at standing; 1.2 with the height
-    # stated is the tested balance (takao-tall2).
+    # stated is the tested balance (takao-tall2). Canon legwear is
+    # thighhighs with garter straps, not the pantyhose block.
     "takao": (
-        "young woman, (long legs:1.3), (thick thighs:1.2), (thick calves:1.2), "
-        "soft calves, soft legs, smooth legs, "
-        "(black pantyhose:1.75), (opaque legwear:1.45), (black legwear:1.3), nylon legwear, (taut clothes:1.35), (stretched fabric:1.25), (shiny legwear:1.4), (specular highlights:1.25), light streaks"
+        "young woman, (long legs:1.3), (thick thighs:1.2), "
+        "soft legs, smooth legs, "
+        "(black thighhighs:1.4), thighhighs, (garter straps:1.3), "
+        "(opaque legwear:1.3), (shiny legwear:1.3)"
     ),
 }
 
@@ -107,6 +109,15 @@ FACES = {
         "thin eyebrows, (light smile:1.1), closed mouth, small mouth, "
         "soft expression, looking at viewer"
     ),
+    # moe-mid with the eye colour left out, for characters whose own tag
+    # carries it (Takao's red). Adding an eye colour on top of a character
+    # tag is spare eye pressure — it fed the backdrop intruder.
+    "moe-mid-noeye": (
+        "(tareme:1.4), (large eyes:1.45), round eyes, "
+        "2000s (style), eyelashes, (large iris:1.4), "
+        "thin eyebrows, (light smile:1.1), closed mouth, small mouth, "
+        "soft expression, looking at viewer"
+    ),
     "halflid": (
         "(half-closed eyes:1.15), hooded eyes, tareme, eyeliner, thin eyebrows, "
         "swept bangs, side locks, "
@@ -151,9 +162,15 @@ CLASSES = {
     # no rigging — the ship equipment stays out unless asked for. tall is
     # canon for her, and it is also what balances the leg volume at standing.
     "takao": (
-        "takao (kancolle), (short hair:1.15), brown hair, black tinted shadows, tall, "
-        "(military uniform:1.25), (red jacket:1.2), miniskirt, pencil skirt, "
-        "(black pantyhose:1.3), (white gloves:1.2), boots"
+        # Rewritten from the danbooru wiki after two wrong guesses (red
+        # jacket, then black; brown hair; pantyhose; white gloves — all
+        # invented). Canon: black bob, red eyes, blue beret, blue dress
+        # shirt with white ascot, blue miniskirt, black thighhighs with
+        # garter straps, black gloves.
+        "takao (kancolle), (short hair:1.15), black hair, black tinted shadows, tall, "
+        "(blue beret:1.3), beret, (blue shirt:1.25), dress shirt, (white ascot:1.2), "
+        "(blue miniskirt:1.25), miniskirt, "
+        "(black gloves:1.2), black footwear, boots"
     ),
 }
 
@@ -267,7 +284,7 @@ assert STYLES["cel-plain"] != STYLES["cel"], "the border tags moved; fix this re
 # The moe face carries weights pushed to their limit for the sage; stacked on
 # another character's tag the prompt stops resolving and the render turns to
 # noise. Classes can name a face that suits them instead.
-FACE_BY_JOB = {"yukari": "default", "takao": "default"}
+FACE_BY_JOB = {"yukari": "default", "takao": "moe-mid-noeye"}
 
 # Framings where the face is too small to carry moe's weights. Verified on
 # one seed both ways: full moe at standing collapses (duplicates, background
@@ -334,8 +351,11 @@ FRANCHISE = {
 NEG_DROP = {
     "yukari": ["(hood:1.4)", "headgear", "(headscarf:1.4)",
                "thighhighs", "skinny legs", "thin legs", "thin calves"],
-    # Her uniform is military dress, not armour, but the two share vocabulary.
-    "takao": ["armor", "warrior"],
+    # Her uniform is military dress, not armour, but the two share
+    # vocabulary. The beret needs headgear released, and the canon
+    # thighhighs need the sage's legwear guards released, like Yukari's.
+    "takao": ["armor", "warrior", "headgear", "thighhighs",
+              "skinny legs", "thin legs", "thin calves"],
 }
 
 # Same idea for poses. bootoff puts the feet toward the camera on purpose, which

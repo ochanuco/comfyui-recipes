@@ -809,6 +809,45 @@ Three things fell out of it:
   not the missing anchor — my first reading of this was wrong. It does not happen
   under `--style pastel`, and the cause is still unknown.
 
+## The backdrop creature is an eye, and only the eye tag removes it
+
+`--minimal` cut the negative to ten words, which threw away every guard the full
+preset carried, so the backdrop intruder came back — a Dragon Quest mascot beside
+the seated sage. Measured properly this time, on the one seed of four that grew
+it, one variable at a time:
+
+| change | result |
+|--------|--------|
+| drop `dragon quest iii, dragon quest` | **unchanged** |
+| add `(monster:1.4)` | **unchanged** |
+| add `(disembodied eye:1.4)` | **gone** |
+| drop `(dark blue eyes:1.25)` (`moe-mid` → `moe-mid-noeye`) | gone |
+| add the whole `NEG_CROWD` block | gone, but the palette turned lime |
+
+So it is not a monster and the model does not treat it as one — naming monsters
+does nothing. It is a cluster of disembodied eyes that happens to resolve into a
+recognisable mascot, and only the tag that names *that* removes it. Which also
+explains the older Takao case, where raising the anti-monster negatives made
+things worse: those tags were never touching the cause.
+
+Two things I got wrong on the way, both from reading one image:
+
+- **"The cause is the spelled eye colour."** It is not. Dropping
+  `(dark blue eyes:1.25)` did clear that render, but `moe-mid` *with* the colour
+  is clean on three other seeds. It perturbed the seed; it did not remove a
+  cause.
+- **"A Dragon Quest prompt with no monster negative invites a monster."** Tidy,
+  and false — dropping the franchise tags changed nothing.
+
+What replaces the creature is the staff's cast shadow. The empty area is still
+filled; the filling is just benign. That is the same shape as the older
+finding that a traced shadow the style refuses to draw becomes an object.
+
+`MINIMAL_FACE_GUARD` is therefore one tag, applied only when `--face` was asked
+for — the face block is what puts eye pressure into a prompt that has none
+otherwise, and the accepted colouring (`mn-h-grey`) carries no face, so its
+reproduction is unaffected.
+
 ## The base draws the face; the face preset only nudges it
 
 Six bases, one seed (1117511306), a byte-identical Takao `lookback` prompt — so

@@ -565,6 +565,19 @@ NEGATIVE_PRESETS = {
     "full": DEFAULT_NEGATIVE, "light": LIGHT_NEGATIVE, "pastel": PASTEL_NEGATIVE,
 }
 
+# The whole guard --minimal keeps, and only when a face was asked for: the face
+# block is what puts eye pressure into a prompt that otherwise has none, and the
+# accepted colouring (mn-h-grey) was rendered without one.
+#
+# One tag, because the other candidates were measured and missed. On the seed
+# that grew a backdrop creature, dropping the franchise tags left it exactly as
+# it was, and so did (monster:1.4) -- the model does not classify it as a
+# monster. It is a cluster of disembodied eyes that happens to resolve as a
+# Dragon Quest mascot, and only the tag that names that removes it. What takes
+# its place is the staff's cast shadow: the empty area still gets filled, the
+# filling is just benign now.
+MINIMAL_FACE_GUARD = "(disembodied eye:1.4)"
+
 # The anti-impasto bundle: negates the paint without touching the style.
 # Found for galge (abc-I1), transfers to cel-plain (pt1/pt6). "mild" keeps
 # a little gloss and depth — the level of the accepted sage renders; "full"
@@ -1369,6 +1382,8 @@ def apply_defaults(args: argparse.Namespace) -> None:
         args.extra = ", ".join(p for p in (args.extra, job_extra) if p)
     if args.negative is None and minimal:
         args.negative = NEG_QUALITY_PLAIN
+        if args.face_given:
+            args.negative = f"{args.negative}, {MINIMAL_FACE_GUARD}"
     elif args.negative is None:
         negative = build_negative(args.negative_preset, args.job, args.pose)
         for old, new in tuning.get("neg_retune", {}).items():

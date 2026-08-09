@@ -548,6 +548,11 @@ hard outlines block the flood, soft ones feed it.
   flattened it to the preferred `abc-I1`. Flattening the positive as well
   (drop `detailed skin`/`smooth shading`, add `flat color`/`anime coloring`)
   overshot into plainer fields than the galge look wants (`abc-I2`).
+- The backdrop's *brightness* is not pinned by the BACKGROUND block, so some
+  seeds come back dark — deep grey-navy field, deeper uniform blues. Both
+  sides of the fix work on the same seed; the negative one is preferred
+  since it costs no positive attention:
+  `--negative-extra "(dark background:1.4), (dark:1.2), dim lighting, underexposed"`.
 - The bundle transfers to cel-plain and is now the `--flat-paint` flag
   (`mild`/`full`, byte-verified against the pt6/pt1 runs). Explored on
   Takao's tagged seed: full kills the legwear gloss outright, mild lands at

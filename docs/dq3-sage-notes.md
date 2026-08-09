@@ -553,6 +553,16 @@ hard outlines block the flood, soft ones feed it.
   sides of the fix work on the same seed; the negative one is preferred
   since it costs no positive attention:
   `--negative-extra "(dark background:1.4), (dark:1.2), dim lighting, underexposed"`.
+  But use the narrow `(dark background:1.35)` alone if anything: the full
+  bundle's `dim lighting`/`underexposed` also erase the wall-shadow staging
+  that makes these read as illustrations rather than design roughs.
+- **Where a tag sits changes more than what it says.** Takao's flesh dose
+  baked into the middle of the LEGS block darkened the entire palette and
+  dropped the shadow staging; the identical tags at the tail of the prompt
+  left both alone (verified on one seed both ways, then 4/4 bright on
+  random seeds). Body-shape adjustments belong at the end — that is what
+  `EXTRA_BY_JOB` is for. This also retro-explains the darkening that was
+  first blamed on seed luck above.
 - The bundle transfers to cel-plain and is now the `--flat-paint` flag
   (`mild`/`full`, byte-verified against the pt6/pt1 runs). Explored on
   Takao's tagged seed: full kills the legwear gloss outright, mild lands at

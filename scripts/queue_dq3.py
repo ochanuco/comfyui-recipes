@@ -39,11 +39,13 @@ LEGS_BY_JOB = {
         "(purple thighhighs:1.3), (zettai ryouiki:1.2), thighhighs"
     ),
     # The sage block's (thick thighs:1.6) compounds with Takao's own build
-    # into far more thigh than intended at standing; 1.2 with the height
-    # stated is the tested balance (takao-tall2). Canon legwear is
-    # thighhighs with garter straps, not the pantyhose block.
+    # into far more thigh than intended at standing; 1.35 with curvy/plump
+    # at low weight is the dose picked from the fl1-fl3 ladder — fuller
+    # than the 1.2 floor without drifting heavy, the obese/wide-hips
+    # negatives holding the ceiling. Canon legwear is thighhighs with
+    # garter straps, not the pantyhose block.
     "takao": (
-        "young woman, (long legs:1.3), (thick thighs:1.2), "
+        "young woman, (long legs:1.3), (thick thighs:1.35), (curvy:1.15), (plump:1.1), soft body, "
         "soft legs, smooth legs, "
         "(black thighhighs:1.4), thighhighs, (garter straps:1.3), "
         "(opaque legwear:1.3), (shiny legwear:1.3)"

@@ -22,7 +22,15 @@ uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536
 | `a8e9bebb` | `gl-sg-1117511306_00001_` | 1117511306 | the sage in black glossy tights, no brown, no fibre, no vinyl (tag `pick/gl-sg`) |
 | `ab7a84cd` | `yk-3409564303_00001_` | 3409564303 | Yukari on the same recipe, single figure (tag `pick/yk-min`) |
 | `2f06db87` | `yk-bd-3409564303_00001_` | 3409564303 | the same with `--border`. The white sticker outline is clean; note it also encloses a backdrop eye at top left, which was accepted rather than fixed (tag `pick/yk-border`) |
-| `cac2cf43` | `bm-moevpred_00001_` | 1117511306 | the face. `moe-vpred-v2` draws the small round face with large round irises that the identical tags do not produce on any other base — see the base sweep below. Reproduced by bare `--job takao --pose lookback --width 1024 --height 1536 --style cel-plain --flat-paint mild` |
+
+The last three all rebuild from the same shape, with no base named — `BASE_BY_JOB`
+now points every character at Hassaku:
+
+```bash
+uv run scripts/queue_dq3.py --job <sage|takao|yukari> --pose <sitting|lookback> \
+  --width 1024 --height 1536 --minimal --face moe-mid-noeye [--border] --seed <N>
+```
+| `cac2cf43` | `bm-moevpred_00001_` | 1117511306 | the face. `moe-vpred-v2` draws the small round face with large round irises that the identical tags do not produce on any other base — see the base sweep below. Now needs the base named: `--job takao --pose lookback --width 1024 --height 1536 --style cel-plain --flat-paint mild --diffusers-path moe-vpred-v2` (verified byte-identical) |
 | `1126385e` | `takao-canon_00001_` | 618823993 | Takao in the sage's art style, canon colours, her shadow on the wall (tag `pick/takao-canon`). Reproduced by bare `--job takao --pose standing --width 1024 --height 1536 --diffusers-path hassaku-il-v22 --style cel-plain` — prompt verified byte-identical against the PNG |
 
 All six poses work: **sitting, kneesup, reaching, lookback, standing, bootoff**.
@@ -903,7 +911,16 @@ wrong lever. Changing the base is the lever.
 Confirmed as a property of the base, not seed luck: four further random seeds on
 `moe-vpred-v2` (`mv-face1`..`4`) all came back with the same round small face.
 
-So `BASE_BY_JOB` now gives `takao` `moe-vpred-v2` — bare
+**This was later overruled, and the overruling is the more useful finding.** The
+base with the best face is not the base with the palette, and the palette turned
+out to matter more: Hassaku and Amanatsu share the flat-colour family the whole
+recipe now aims at, and `moe-vpred-v2` is the one base that does not — white
+ground, heavy black line, and it refuses a coloured field outright. Every
+accepted render after the colouring work is Hassaku's, so `BASE_BY_JOB` points
+all three characters there and the face is bought back through the face preset
+instead. The face-vs-palette trade is real and is decided in one dict.
+
+The original entry, kept because the measurement stands: `takao` → `moe-vpred-v2`, bare
 `--job takao --pose lookback --width 1024 --height 1536 --style cel-plain
 --flat-paint mild` rebuilds `cac2cf43`'s graph byte-identically.
 `--diffusers-path` still overrides.

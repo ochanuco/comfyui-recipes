@@ -319,7 +319,20 @@ EXTRA_BY_JOB = {
 # round face with large round irises on moe-vpred-v2. Held on four further
 # seeds, so it is the base's reading of the tags, not seed luck. Chasing the
 # face through tag weights has a low ceiling; swapping the base clears it.
-BASE_BY_JOB = {"takao": "moe-vpred-v2"}
+#
+# That is still true, and moe-vpred-v2 is still the base with the best face. It
+# is not the base named here, because the face is not the only thing being
+# chosen. The colouring work that followed settled on Hassaku: it and Amanatsu
+# share the flat-colour palette the whole recipe is now aimed at, and
+# moe-vpred-v2 is the one base that does not -- it wants a white ground and a
+# heavy black line, and it refuses a coloured field outright. Every accepted
+# render from that point on is Hassaku's.
+#
+# So this entry is a compromise recorded on purpose: the colouring wins, and the
+# face is bought back through the face preset instead. If the face ever matters
+# more than the palette, the two are swapped here and nowhere else.
+BASE_BY_JOB = {"takao": "hassaku-il-v22", "sage": "hassaku-il-v22",
+               "yukari": "hassaku-il-v22"}
 
 # --minimal carries no legs block, so legwear is whatever the base felt like on
 # the day -- bare on most seeds. These are the standing choices. Kept to the

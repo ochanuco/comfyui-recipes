@@ -912,6 +912,25 @@ block is also the heaviest of the three (hood, rabbit ears, sidelocks, two
 garment colours), so an interaction is possible. `--face default` is the clean
 fallback for her meanwhile.
 
+One more hypothesis died here. `--border` adds the literal word `sticker`, and
+the seed that failed with the border did so by growing what looked like sticker-
+sheet items — a rabbit and two eyes. Tidy, and false: dropping `sticker` left
+that seed's eyes exactly where they were, and the control that kept `sticker`
+was clean on another seed. Her eleven renders at this rung:
+
+| seed | no border | border | border, `sticker` dropped |
+|------|-----------|--------|---------------------------|
+| 1117511306 | duplicate | clean | clean |
+| 2331520658 | clean | clean | clean |
+| 3409564303 | clean | **eyes** | **eyes** |
+| 3514242666 | clean | — | — |
+| 618823993 | clean | — | — |
+
+2 of 11, correlating with neither the border nor the word. It is the threshold
+behaviour the bisection already described: she sits nearer the edge than the
+other two, and any perturbation moves her across it. Do not read a mechanism
+into which side a given seed lands on.
+
 Two other things fell out:
 
 - **`--drop` silently did nothing on the minimal path** — `build_minimal_positive`

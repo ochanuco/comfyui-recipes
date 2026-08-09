@@ -262,6 +262,24 @@ STYLES = {
         "clean lineart, crisp lines, simple shading, soft colors, "
         "(white outline:1.6), outline, sticker"
     ),
+    # The flat-colour look those ~100-checkpoint comparison sheets render: what
+    # Amanatsu and Hassaku draw on six tokens with nothing forcing them. It is
+    # not "cel with the shadows turned down". cel wants black ink, hard shadow
+    # shapes and saturation; this wants a thin tinted line, no shadow shape at
+    # all, and the chroma pulled out of the skin. The two cannot be blended.
+    #
+    # Needs --negative-preset pastel. On the full preset three of the tags that
+    # make this look — (washed out), (pale skin) and the pale/coloured lineart
+    # run in NEG_TOON — sit in the negative, so no base can reach it.
+    "pastel": (
+        "(flat color:1.55), (pastel colors:1.4), (muted colors:1.3), "
+        "(limited palette:1.35), few colors, (low contrast:1.3), "
+        "(pale colors:1.25), soft colors, "
+        "(minimal shading:1.35), flat shading, no shadow, "
+        "(thin lineart:1.55), (colored lineart:1.4), (brown lineart:1.2), "
+        "delicate lines, fine linework, "
+        "simple clothes, (simple hair:1.2), hair as masses, soft lighting"
+    ),
     "galge": (
         "(game cg:1.15), official art, visual novel cg, "
         "(detailed eyes:1.3), shiny eyes, "
@@ -485,6 +503,20 @@ NEG_MISC = (
     "(gradient shading:1.4), airbrush, smooth shading, (many colors:1.3)"
 )
 
+# The two blocks the pastel style cannot live under. NEG_QUALITY ends on
+# (washed out), (overexposed), (pale skin) and NEG_TOON bans coloured, light and
+# pale lineart — between them that is the whole flat-colour look, banned by name.
+# What is worth keeping from each is the part that guards against a heavy or
+# absent line, so only the pale half is released.
+NEG_QUALITY_PLAIN = (
+    "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
+    "extra fingers, extra limbs, watermark, signature, text"
+)
+NEG_TOON_HEAVY = (
+    "(thick outlines:1.4), heavy lineart, lineless, monochrome, "
+    "(intricate:1.3), (highly detailed:1.3)"
+)
+
 NEG_BLOCKS = {
     "quality": NEG_QUALITY, "shine": NEG_SHINE, "legs": NEG_LEGS, "gear": NEG_GEAR,
     "framing": NEG_FRAMING, "artifact": NEG_ARTIFACT, "toon": NEG_TOON,
@@ -493,15 +525,22 @@ NEG_BLOCKS = {
     "eyecolor": NEG_EYECOLOR, "green": NEG_GREEN,
     "shadow": NEG_SHADOW, "breasts": NEG_BREASTS,
     "misc": NEG_MISC,
+    "quality-plain": NEG_QUALITY_PLAIN, "toon-heavy": NEG_TOON_HEAVY,
 }
 FULL_ORDER = ["quality", "shine", "legs", "gear", "distort", "framing", "artifact",
               "toon", "sparkle", "blush", "crowd", "eyecolor", "green",
               "shadow", "breasts", "misc"]
 LIGHT_ORDER = [b for b in FULL_ORDER if b not in ("shine", "toon")]
+# Same guards as full, with the two pale-hostile blocks swapped for their halves.
+# The anti-gloss and anti-shadow blocks stay: the flat-colour look has no gloss
+# and no cast shadow either, so they are pulling the same direction here.
+PASTEL_ORDER = ["quality-plain" if b == "quality" else "toon-heavy" if b == "toon" else b
+                for b in FULL_ORDER]
+ORDERS = {"full": FULL_ORDER, "light": LIGHT_ORDER, "pastel": PASTEL_ORDER}
 
 
 def build_negative(preset: str, job: str, pose: str = "") -> str:
-    order = FULL_ORDER if preset == "full" else LIGHT_ORDER
+    order = ORDERS.get(preset, FULL_ORDER)
     terms = [t.strip() for b in order for t in NEG_BLOCKS[b].split(",")]
     drop = set(NEG_DROP.get(job, [])) | set(POSE_NEG_DROP.get(pose, []))
     return ", ".join(t for t in terms if t and t not in drop)
@@ -517,7 +556,14 @@ DEFAULT_NEGATIVE = ", ".join(
 LIGHT_NEGATIVE = ", ".join(
     [NEG_QUALITY, NEG_LEGS, NEG_GEAR, NEG_FRAMING, NEG_ARTIFACT, NEG_SPARKLE, NEG_BLUSH, NEG_CROWD, NEG_EYECOLOR, NEG_SHADOW, NEG_MISC]
 )
-NEGATIVE_PRESETS = {"full": DEFAULT_NEGATIVE, "light": LIGHT_NEGATIVE}
+PASTEL_NEGATIVE = ", ".join(
+    [NEG_QUALITY_PLAIN, NEG_SHINE, NEG_LEGS, NEG_GEAR, NEG_FRAMING, NEG_ARTIFACT,
+     NEG_TOON_HEAVY, NEG_SPARKLE, NEG_BLUSH, NEG_CROWD, NEG_EYECOLOR, NEG_SHADOW,
+     NEG_MISC]
+)
+NEGATIVE_PRESETS = {
+    "full": DEFAULT_NEGATIVE, "light": LIGHT_NEGATIVE, "pastel": PASTEL_NEGATIVE,
+}
 
 # The anti-impasto bundle: negates the paint without touching the style.
 # Found for galge (abc-I1), transfers to cel-plain (pt1/pt6). "mild" keeps
@@ -543,7 +589,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=8188)
     parser.add_argument("--job", choices=sorted(CLASSES), default="sage")
     parser.add_argument("--pose", choices=sorted(POSES), default="standing")
-    parser.add_argument("--face", choices=sorted(FACES), default="moe")
+    # None rather than "moe" so that "the caller asked for this face" is
+    # distinguishable from "nobody chose"; --minimal needs to tell them apart,
+    # since a face is the one block it will accept being added back.
+    parser.add_argument("--face", choices=sorted(FACES), default=None)
     parser.add_argument("--style", choices=sorted(STYLES), default="cel")
     parser.add_argument(
         "--plain-quality",
@@ -556,6 +605,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--pose-text",
         help="replace the POSES entry for --pose; empty string drops it",
+    )
+    parser.add_argument(
+        "--minimal",
+        action="store_true",
+        help="six-token-style prompt: character, pose, flat field, nothing else",
+    )
+    parser.add_argument(
+        "--bg-color",
+        help="hue of the flat field, e.g. pink; replaces grey in place",
     )
     parser.add_argument("--negative")
     parser.add_argument(
@@ -779,7 +837,41 @@ def parse_args_from(argv: list[str]) -> argparse.Namespace:
     return parse_args(argv)
 
 
+# The comparison sheets this look is being judged against run on six tokens.
+# Their simplicity is not a style, it is the absence of specification: every tag
+# in the full recipe is one more thing the sampler is obliged to draw, so a style
+# block can only ever subtract from a prompt built to add — and subtracting far
+# enough stops it resolving at all (pa6 came back as noise). This path starts
+# from nothing instead. No face preset, no legs block, no style block, no LoRA,
+# and the short negative.
+def build_minimal_positive(args: argparse.Namespace) -> str:
+    parts = [QUALITY_PLAIN, "1girl, solo", CLASSES[args.job]]
+    franchise = FRANCHISE.get(args.job)
+    if franchise:
+        parts.append(franchise)
+    pose_text = getattr(args, "pose_text", None)
+    if pose_text is None:
+        pose_text = POSES[args.pose]
+    if pose_text:
+        parts.append(pose_text)
+    # The one block that comes back on request. Everything else about the look
+    # is the base's to decide here, but the face and the eyes are the part that
+    # is being chosen rather than accepted, so --face is honoured. Without it
+    # the base draws its own face, which is what the accepted render did.
+    if getattr(args, "face_given", False):
+        face = FACES[args.face]
+        if face:
+            parts.append(face)
+    bg = getattr(args, "bg_color", None) or "grey"
+    parts.append(f"(flat color:1.3), (simple background:1.3), ({bg} background:1.2)")
+    if args.extra:
+        parts.append(args.extra)
+    return ", ".join(parts)
+
+
 def build_positive(args: argparse.Namespace) -> str:
+    if getattr(args, "minimal", False):
+        return build_minimal_positive(args)
     quality = QUALITY_PLAIN if getattr(args, "plain_quality", False) else QUALITY
     class_tags = CLASSES[args.job]
     for tag in POSE_TAG_DROP.get(args.pose, []):
@@ -794,7 +886,17 @@ def build_positive(args: argparse.Namespace) -> str:
     parts += [LEGS_BY_JOB.get(args.job, LEGS)]
     if pose_text:
         parts.append(pose_text)
-    parts.append(BACKGROUND)
+    background = BACKGROUND
+    bg_color = getattr(args, "bg_color", None)
+    if bg_color:
+        # Substituted in place rather than dropped-and-appended. The grey tag is
+        # load-bearing twice over: it carries the flat-field weight that keeps a
+        # second figure out of the frame, and its position in the block matters
+        # as much as its weight (see the flesh-tag ordering finding). Removing it
+        # and adding a colour at the tail duplicated the figure on both hassaku
+        # runs; swapping the word keeps the anchor and only changes the hue.
+        background = background.replace("grey background", f"{bg_color} background")
+    parts.append(background)
     face = FACES[getattr(args, "face", "default")]
     if face:
         parts.append(face)
@@ -810,6 +912,11 @@ def build_positive(args: argparse.Namespace) -> str:
         positive = positive.replace(tag + ", ", "").replace(", " + tag, "")
     tuning = CHECKPOINT_TUNING.get(getattr(args, "diffusers_path", None) or "", {})
     for old, new in tuning.get("retune", {}).items():
+        # A retune keyed on the grey tag has to follow --bg-color's substitution,
+        # since it is the weight that is being retuned, not the colour.
+        if bg_color:
+            old = old.replace("grey background", f"{bg_color} background")
+            new = new.replace("grey background", f"{bg_color} background")
         positive = positive.replace(old, new)
     return positive
 
@@ -1239,21 +1346,30 @@ def apply_defaults(args: argparse.Namespace) -> None:
     if getattr(args, "diffusers_path", None) in V_PRED_MODELS:
         args.v_pred = True
     tuning = CHECKPOINT_TUNING.get(getattr(args, "diffusers_path", None) or "", {})
-    if args.face == "moe" and args.job in FACE_BY_JOB:
-        args.face = FACE_BY_JOB[args.job]
-    elif args.face == "moe" and args.pose in FACE_BY_POSE:
-        args.face = FACE_BY_POSE[args.pose]
-    elif args.face == "moe" and "face" in tuning:
-        args.face = tuning["face"]
-    if not args.lora:
+    args.face_given = args.face is not None
+    if args.face is None:
+        if args.job in FACE_BY_JOB:
+            args.face = FACE_BY_JOB[args.job]
+        elif args.pose in FACE_BY_POSE:
+            args.face = FACE_BY_POSE[args.pose]
+        elif "face" in tuning:
+            args.face = tuning["face"]
+        else:
+            args.face = "moe"
+    minimal = getattr(args, "minimal", False)
+    # The default LoRAs bring "detailed" with them, and the job extra is a flesh
+    # dose -- both are additions, which is the one thing --minimal is refusing.
+    if not args.lora and not minimal:
         args.lora = [name for name, _, _ in DEFAULT_LORAS]
         args.lora_strength = [strength for _, strength, _ in DEFAULT_LORAS]
         triggers = ", ".join(t for _, _, t in DEFAULT_LORAS if t)
         args.extra = ", ".join(p for p in (triggers, args.extra) if p)
     job_extra = EXTRA_BY_JOB.get(args.job)
-    if job_extra:
+    if job_extra and not minimal:
         args.extra = ", ".join(p for p in (args.extra, job_extra) if p)
-    if args.negative is None:
+    if args.negative is None and minimal:
+        args.negative = NEG_QUALITY_PLAIN
+    elif args.negative is None:
         negative = build_negative(args.negative_preset, args.job, args.pose)
         for old, new in tuning.get("neg_retune", {}).items():
             negative = negative.replace(old, new)

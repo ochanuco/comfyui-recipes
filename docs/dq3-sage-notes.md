@@ -18,6 +18,7 @@ uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536
 | `53c5e9f6` | `sel-reaching_00002_` | 3062102535 | white border |
 | `79168c71` | `sel-sitting_00002_` | 3992482423 | pose |
 | `f066dccc` | `abc-F-softline_00001_` | 4051776310 | ab-C rescued by self-trace: same composition, no intruder (tag `pick/abc-F`) |
+| `23e7f00f` | `mn-h-grey_00001_` | 1117511306 | the colouring. `--minimal` on Hassaku: flat field, thin tinted line, no cast shadow, no gloss (tag `pick/mn-h-grey`). Reproduced by bare `--job takao --pose lookback --width 1024 --height 1536 --minimal --diffusers-path hassaku-il-v22` — prompt verified byte-identical |
 | `cac2cf43` | `bm-moevpred_00001_` | 1117511306 | the face. `moe-vpred-v2` draws the small round face with large round irises that the identical tags do not produce on any other base — see the base sweep below. Reproduced by bare `--job takao --pose lookback --width 1024 --height 1536 --style cel-plain --flat-paint mild` |
 | `1126385e` | `takao-canon_00001_` | 618823993 | Takao in the sage's art style, canon colours, her shadow on the wall (tag `pick/takao-canon`). Reproduced by bare `--job takao --pose standing --width 1024 --height 1536 --diffusers-path hassaku-il-v22 --style cel-plain` — prompt verified byte-identical against the PNG |
 
@@ -751,6 +752,62 @@ and with a trace occupying the frame it can finally be negated away -- see the
 correction in the Hassaku section. Append to the negative:
 
     (cast shadow:1.6), (shadow on ground:1.5), (silhouette:1.4), (dark figure:1.4)
+
+## Simplicity is not a style block — it is the absence of one
+
+The look this recipe was eventually judged against comes from the ~100-checkpoint
+comparison sheets, which render every model on six tokens:
+
+    masterpiece, best quality, 1girl, flat color, cowboy shot
+
+Rendered bare on two seeds, Amanatsu and Hassaku land in the same place: a flat
+single-hue field, low-chroma cream skin, a thin *tinted* line, no cast shadow.
+Corner colour and mean saturation, 256px:
+
+| base | field | sat |
+|------|-------|-----|
+| amanatsu | `(244,201,201)` / `(109,190,219)` | 0.50 / 0.56 |
+| hassaku | `(222,137,144)` / `(137,192,196)` | 0.43 / 0.48 |
+| moe-vpred | `(242,242,242)` both | 0.17 / 0.29 |
+
+So the palette everyone credits to Amanatsu is Hassaku's too — they are the same
+family, and `moe-vpred-v2` is the outlier that wants a white ground and a heavy
+black line. Which sets up the standing conflict: **the base with the face is not
+the base with the colours.**
+
+**The full recipe bans that look by name.** `NEG_QUALITY` ends on
+`(washed out:1.3), (overexposed:1.3), (pale skin:1.3)`, and `NEG_TOON` bans
+`(colored lineart:1.4), (light lineart:1.3), pale lineart` — between them, the
+entire flat-colour aesthetic, in the negative prompt. No base can reach it from
+there. `--style pastel --negative-preset pastel` exists to release exactly those
+two blocks while keeping the guards that point the same way (anti-gloss,
+anti-cast-shadow).
+
+**But the style block was not the answer either.** The real difference is size:
+the sheets run 6 tags and this recipe runs 91. Every tag is one more thing the
+sampler is obliged to draw, so a "simple" style block is subtraction applied to
+a prompt built by addition — and subtracting far enough stops it resolving at
+all (`pa6`, with the canon colour weights dropped too, came back as pure noise).
+
+`--minimal` starts from nothing instead: quality header, `1girl, solo`, the class
+block, the pose, a flat field. No face preset, no legs block, no style block, no
+LoRA, and a ten-word negative. 91 tags → 33, 2 LoRAs → 0. That is `mn-h-grey`,
+the accepted colouring.
+
+Three things fell out of it:
+
+- **Not specifying beats specifying, again.** `--bg-color pink` on the same seed
+  is worse than leaving the field grey. The accepted render names no colour it
+  does not have to.
+- **`--face` is the one block `--minimal` will take back**, because the face and
+  eyes are the part being chosen rather than accepted. Passing `--face` is now
+  distinguishable from letting the job default fill it in, which is why the
+  parser default for `--face` is `None` rather than `"moe"`.
+- **A non-grey field duplicates the figure on Hassaku.** Three tries at this
+  seed, all twins: dropping the grey tag and appending a colour, and swapping the
+  word in place with `--bg-color` at both `pink` and `cream`. So it is the hue,
+  not the missing anchor — my first reading of this was wrong. It does not happen
+  under `--style pastel`, and the cause is still unknown.
 
 ## The base draws the face; the face preset only nudges it
 

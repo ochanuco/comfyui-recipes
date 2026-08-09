@@ -38,14 +38,12 @@ LEGS_BY_JOB = {
         "young woman, long legs, slender legs, "
         "(purple thighhighs:1.3), (zettai ryouiki:1.2), thighhighs"
     ),
-    # The sage block's (thick thighs:1.6) compounds with Takao's own build
-    # into far more thigh than intended at standing. The dose is the top
-    # rung of the fl1-fl3 ladder — the fullest direction was preferred —
-    # with the obese/wide-hips negatives holding the ceiling short of BBW.
-    # Canon legwear is thighhighs with garter straps, not the pantyhose
-    # block.
+    # Takao's flesh dose lives in EXTRA_BY_JOB, not here: the same four tags
+    # baked into this block darkened the whole palette and flattened the
+    # staging — at the end of the prompt they do neither. Canon legwear is
+    # thighhighs with garter straps, not the pantyhose block.
     "takao": (
-        "young woman, (long legs:1.3), (thick thighs:1.45), (curvy:1.25), (plump:1.2), soft body, "
+        "young woman, (long legs:1.3), "
         "soft legs, smooth legs, "
         "(black thighhighs:1.4), thighhighs, (garter straps:1.3), "
         "(opaque legwear:1.3), (shiny legwear:1.3)"
@@ -287,6 +285,14 @@ assert STYLES["cel-plain"] != STYLES["cel"], "the border tags moved; fix this re
 # another character's tag the prompt stops resolving and the render turns to
 # noise. Classes can name a face that suits them instead.
 FACE_BY_JOB = {"yukari": "default", "takao": "moe-mid-noeye"}
+
+# Appended to the end of the positive, after the LoRA triggers. Position is
+# the point: Takao's flesh dose (the fl3 rung) carried baked into the LEGS
+# block darkened the palette and dropped the wall-shadow staging on the same
+# seed; at the tail of the prompt it does neither (order-fl3).
+EXTRA_BY_JOB = {
+    "takao": "(thick thighs:1.45), (curvy:1.25), (plump:1.2), soft body",
+}
 
 # Framings where the face is too small to carry moe's weights. Verified on
 # one seed both ways: full moe at standing collapses (duplicates, background
@@ -1231,6 +1237,9 @@ def apply_defaults(args: argparse.Namespace) -> None:
         args.lora_strength = [strength for _, strength, _ in DEFAULT_LORAS]
         triggers = ", ".join(t for _, _, t in DEFAULT_LORAS if t)
         args.extra = ", ".join(p for p in (triggers, args.extra) if p)
+    job_extra = EXTRA_BY_JOB.get(args.job)
+    if job_extra:
+        args.extra = ", ".join(p for p in (args.extra, job_extra) if p)
     if args.negative is None:
         negative = build_negative(args.negative_preset, args.job, args.pose)
         for old, new in tuning.get("neg_retune", {}).items():

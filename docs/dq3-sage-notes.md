@@ -548,6 +548,15 @@ hard outlines block the flood, soft ones feed it.
   flattened it to the preferred `abc-I1`. Flattening the positive as well
   (drop `detailed skin`/`smooth shading`, add `flat color`/`anime coloring`)
   overshot into plainer fields than the galge look wants (`abc-I2`).
+- The bundle transfers to cel-plain and is now the `--flat-paint` flag
+  (`mild`/`full`, byte-verified against the pt6/pt1 runs). Explored on
+  Takao's tagged seed: full kills the legwear gloss outright, mild lands at
+  the accepted sage level, which keeps some shine — the sage LEGS block
+  asks for it. Positive-side flattening (`anime coloring`) again came third.
+  Composition quirks (the wall silhouette, the sporadic duplicate) are
+  seed-bound and move with neither bundle. A luminance-variance metric was
+  tried as an objective 厚塗り gauge and does not discriminate — palette
+  contrast dominates it; the eye stays the judge.
 
 ```bash
 uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536 \

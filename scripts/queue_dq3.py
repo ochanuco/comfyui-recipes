@@ -502,6 +502,21 @@ LIGHT_NEGATIVE = ", ".join(
 )
 NEGATIVE_PRESETS = {"full": DEFAULT_NEGATIVE, "light": LIGHT_NEGATIVE}
 
+# The anti-impasto bundle: negates the paint without touching the style.
+# Found for galge (abc-I1), transfers to cel-plain (pt1/pt6). "mild" keeps
+# a little gloss and depth — the level of the accepted sage renders; "full"
+# flattens further and kills the legwear shine.
+FLAT_PAINT = {
+    "mild": (
+        "(impasto:1.25), (painterly:1.25), (oil painting (medium):1.2), "
+        "(heavy shading:1.2), (detailed shading:1.2), (realistic:1.1)"
+    ),
+    "full": (
+        "(impasto:1.4), (painterly:1.4), (oil painting (medium):1.3), "
+        "(heavy shading:1.3), (detailed shading:1.3), (realistic:1.2)"
+    ),
+}
+
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -537,6 +552,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="append",
         default=[],
         help="appended to the negative prompt; repeatable",
+    )
+    parser.add_argument(
+        "--flat-paint",
+        choices=sorted(FLAT_PAINT),
+        help="append the anti-impasto bundle; mild matches the accepted sage level",
     )
     parser.add_argument("--count", type=int, default=1)
     parser.add_argument("--width", type=int, default=1280)
@@ -1214,6 +1234,8 @@ def apply_defaults(args: argparse.Namespace) -> None:
         for old, new in tuning.get("neg_retune", {}).items():
             negative = negative.replace(old, new)
         args.negative = negative
+    if args.flat_paint:
+        args.negative_extra = list(args.negative_extra) + [FLAT_PAINT[args.flat_paint]]
     for extra in args.negative_extra:
         args.negative = f"{args.negative}, {extra}"
 

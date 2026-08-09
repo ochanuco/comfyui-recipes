@@ -101,6 +101,24 @@ FACES = {
         "thin eyebrows, light smile, closed mouth, small mouth, "
         "soft expression, looking at viewer"
     ),
+    # moe-far without the spelled colour, for the minimal path, where the colour
+    # comes from EYES_BY_JOB instead.
+    #
+    # This rung is what the backdrop eye actually responds to. Bisected one tag
+    # at a time against moe-mid-noeye on the two seeds that reliably grew it:
+    # dropping (large iris:1.4) alone made it WORSE both times (eyes drawn onto
+    # her thigh), dropping (large eyes:1.45) alone cleared both. So the driver is
+    # eye AREA, not iris size, and the defect is that demand overflowing onto
+    # empty canvas -- the floating eye, the chibi clone and the eyed grey object
+    # are the same overflow landing differently, and the same seed slides between
+    # the three as the prompt is perturbed. At this rung: 2/2 of the dirty seeds
+    # clean, 4/4 previously-clean seeds still clean, and the face still reads.
+    "moe-far-noeye": (
+        "(tareme:1.3), (large eyes:1.3), round eyes, "
+        "2000s (style), eyelashes, (large iris:1.25), "
+        "thin eyebrows, light smile, closed mouth, small mouth, "
+        "soft expression, looking at viewer"
+    ),
     # Probe for the collapse threshold between moe-far (clean at standing)
     # and moe (collapses there).
     "moe-mid": (
@@ -951,7 +969,13 @@ def build_minimal_positive(args: argparse.Namespace) -> str:
         eyes = EYES_BY_JOB.get(args.job)
         if eyes:
             parts.append(eyes)
-    return ", ".join(parts)
+    positive = ", ".join(parts)
+    # This path used to return before build_positive's drop loop, so --drop was
+    # accepted and silently did nothing here -- which is worse than rejecting it,
+    # because an ablation run with --drop looked like it had been performed.
+    for tag in list(getattr(args, "drop", []) or []):
+        positive = positive.replace(tag + ", ", "").replace(", " + tag, "")
+    return positive
 
 
 def build_positive(args: argparse.Namespace) -> str:

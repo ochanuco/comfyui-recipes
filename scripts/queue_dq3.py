@@ -343,6 +343,20 @@ LEGWEAR_BY_JOB = {
 #   gloss   -- a gloss asked for without the last two terms turns to vinyl, which
 #              is the crude version of what was wanted. latex/rubber are the
 #              difference between a sheen and a shine.
+# Named only when a face is asked for, and only on the minimal path. The face
+# block demands large eyes and a large iris without ever saying what colour they
+# are, and an instruction with no resolution gets resolved somewhere else on the
+# canvas -- on the seeds that grew a backdrop eye, adding the colour here cleared
+# it (3 of 4 for Takao) without touching the negative. It also fixes plain drift:
+# Takao came out blue-eyed on one seed before this.
+#
+# Sits at the very tail, after --extra, because that is where it was measured.
+EYES_BY_JOB = {
+    "sage": "(blue eyes:1.2)",
+    "takao": "(red eyes:1.2)",
+    "yukari": "(purple eyes:1.2)",
+}
+
 LEGWEAR_GUARD = (
     "(brown legwear:1.5), brown thighhighs, brown pantyhose, (grey legwear:1.3), "
     "(sheer legwear:1.3), see-through legwear, (fishnet:1.4), (ribbed legwear:1.3), "
@@ -920,6 +934,10 @@ def build_minimal_positive(args: argparse.Namespace) -> str:
         parts.append("(white outline:1.6), outline, sticker")
     if args.extra:
         parts.append(args.extra)
+    if getattr(args, "face_given", False):
+        eyes = EYES_BY_JOB.get(args.job)
+        if eyes:
+            parts.append(eyes)
     return ", ".join(parts)
 
 

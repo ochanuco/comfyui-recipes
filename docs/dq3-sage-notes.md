@@ -18,7 +18,10 @@ uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536
 | `53c5e9f6` | `sel-reaching_00002_` | 3062102535 | white border |
 | `79168c71` | `sel-sitting_00002_` | 3992482423 | pose |
 | `f066dccc` | `abc-F-softline_00001_` | 4051776310 | ab-C rescued by self-trace: same composition, no intruder (tag `pick/abc-F`) |
-| `23e7f00f` | `mn-h-grey_00001_` | 1117511306 | the colouring. `--minimal` on Hassaku: flat field, thin tinted line, no cast shadow, no gloss (tag `pick/mn-h-grey`). Reproduced by bare `--job takao --pose lookback --width 1024 --height 1536 --minimal --diffusers-path hassaku-il-v22` — prompt verified byte-identical |
+| `23e7f00f` | `mn-h-grey_00001_` | 1117511306 | the colouring. `--minimal` on Hassaku: flat field, thin tinted line, no cast shadow, no gloss (tag `pick/mn-h-grey`). Reproduced by bare `--job takao --pose lookback --width 1024 --height 1536 --minimal --diffusers-path hassaku-il-v22` **at commit `6312637`** — `LEGWEAR_BY_JOB` landed afterwards and puts thighhighs on her, so the bare command no longer rebuilds it. The graph is kept in `mn-h-grey-63126379.json` and in the PNG |
+| `a8e9bebb` | `gl-sg-1117511306_00001_` | 1117511306 | the sage in black glossy tights, no brown, no fibre, no vinyl (tag `pick/gl-sg`) |
+| `ab7a84cd` | `yk-3409564303_00001_` | 3409564303 | Yukari on the same recipe, single figure (tag `pick/yk-min`) |
+| `2f06db87` | `yk-bd-3409564303_00001_` | 3409564303 | the same with `--border`. The white sticker outline is clean; note it also encloses a backdrop eye at top left, which was accepted rather than fixed (tag `pick/yk-border`) |
 | `cac2cf43` | `bm-moevpred_00001_` | 1117511306 | the face. `moe-vpred-v2` draws the small round face with large round irises that the identical tags do not produce on any other base — see the base sweep below. Reproduced by bare `--job takao --pose lookback --width 1024 --height 1536 --style cel-plain --flat-paint mild` |
 | `1126385e` | `takao-canon_00001_` | 618823993 | Takao in the sage's art style, canon colours, her shadow on the wall (tag `pick/takao-canon`). Reproduced by bare `--job takao --pose standing --width 1024 --height 1536 --diffusers-path hassaku-il-v22 --style cel-plain` — prompt verified byte-identical against the PNG |
 

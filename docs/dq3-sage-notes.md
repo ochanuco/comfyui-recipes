@@ -847,7 +847,82 @@ minimal path, opt-in. It draws cleanly on Hassaku for all three characters —
 which contradicts the older entry below claiming Hassaku is better without the
 border. That was measured under the full `cel` recipe, not this one.
 
-## The backdrop creature is an eye, and only the eye tag removes it
+## The backdrop creature: found, by bisecting the face block
+
+The entry below was the first pass and it is superseded. `(disembodied eye:1.4)`
+suppressed the symptom on one seed and was not a cause; with it in place the
+defect still ran at 2/8 for Takao. The cause was found by bisecting the face
+block one tag at a time against the two seeds that reliably grew it:
+
+| variable | dirty seeds cleaned |
+|----------|--------------------|
+| drop `(large iris:1.4)` alone | **0/2 — worse both times** (eyes drawn onto her thigh) |
+| drop `(large eyes:1.45)` alone | **2/2** |
+| whole face block removed (`--face default`) | 5/5 |
+| all four face weights at the moe-far rung | 2/2, and 4/4 previously-clean seeds stayed clean |
+
+**It is eye AREA, not iris size.** The face block demands a large eye area; under
+the minimal path's ten-word negative that demand overflows onto empty canvas and
+resolves there. The floating eye, the chibi clone and the eyed grey object are
+one phenomenon landing differently — the same seed slides between all three as
+the prompt is perturbed, which is why every symptom-naming negative "worked"
+once and then failed. Each such tag clears only the form it names and amplifies
+the rest:
+
+| symptom-naming attempt | what happened |
+|---|---|
+| `(disembodied eye:1.4)` | cleared one seed; 2/8 still defective |
+| `(disembodied eye:1.8)` | no better than 1.4 |
+| `(monster:1.4)` | nothing — the model does not classify it as a monster |
+| `(chibi), (mascot), (doll)` | chibi clone became an eyed grey object |
+| `(extra eyes), (eyeball)` | floating eyes cleared; chibi became an eyeball plush |
+| `NEG_CROWD` whole block | cleared it; **sage palette turned lime** |
+| `(2girls), (duplicate), (clone)` | did not clear Yukari; **backdrop turned blue** on the other two seeds |
+
+The lime and the blue both come from the `multiple girls / background character /
+stray object` half, not the monster half. Naming the symptom is the wrong lever
+throughout.
+
+`FACES["moe-far-noeye"]` is the fix — the already-documented moe-far rung without
+a spelled colour, since `EYES_BY_JOB` supplies that. Validation at that rung,
+all on the minimal path:
+
+| set | clean | before |
+|-----|-------|--------|
+| Takao lookback, 5 seeds (2 previously dirty) | **5/5** | 2/8 defective |
+| Takao standing, 2 seeds | **2/2** | 1/2 defective at the moe-mid rung |
+| Sage sitting, 3 seeds | **3/3** | — |
+| Yukari sitting, 5 seeds | 4/5 | 1/2 defective |
+
+Standing was the open question — the pose fills the frame vertically and moves
+the empty space — and the rung holds there too.
+
+**Yukari has a residue, and it is not eye area.** One seed of five (1117511306)
+still duplicates her at this rung. Isolated on that seed:
+
+| variable | result |
+|---|---|
+| `--drop (large eyes:1.3)` — the eye-area tag gone entirely | **still duplicated** |
+| `--face default` — whole face block gone | **clean** |
+
+So for her the driver is the face block as a whole rather than the eye-area tag
+that explains Takao and the sage. Which tag inside it is untested — `round eyes`,
+`eyelashes` and `(large iris:1.25)` are the remaining candidates, and her class
+block is also the heaviest of the three (hood, rabbit ears, sidelocks, two
+garment colours), so an interaction is possible. `--face default` is the clean
+fallback for her meanwhile.
+
+Two other things fell out:
+
+- **`--drop` silently did nothing on the minimal path** — `build_minimal_positive`
+  returned before `build_positive`'s drop loop. Worse than rejecting the flag,
+  because an ablation run with `--drop` looked like it had been performed. Fixed.
+- Symptom-naming has now failed in five distinct ways here and once before (the
+  old entry about raising the anti-shadow negatives making things worse). When
+  something unwanted appears, the question to ask is what the prompt is demanding
+  that has nowhere to go — not what to call the thing that appeared.
+
+### Superseded: the first pass at this
 
 `--minimal` cut the negative to ten words, which threw away every guard the full
 preset carried, so the backdrop intruder came back — a Dragon Quest mascot beside

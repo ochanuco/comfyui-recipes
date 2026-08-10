@@ -166,8 +166,17 @@ CLASSES = {
     "yukari": (
         "yuzuki yukari, (light purple hair:1.25), (short hair with long locks:1.45), (very long sidelocks:1.3), sidelocks, "
         "(purple eyes:1.25), hair between eyes, hair ornament, "
-        "(black hoodie:1.35), open hoodie, (rabbit hood:1.4), animal hood, "
-        "(pink rabbit ears:1.3), fake animal ears, rabbit print, "
+        # No ear tag on purpose. (pink rabbit ears:1.3), fake animal ears used to
+        # sit here and she grew a real pair on her head on top of the hood's --
+        # "fake" does not stop the model drawing them for real. Deleting the ear
+        # tag is not enough either: on the seed this started from the extra pair
+        # survived both the deletion and a reword to (fake rabbit ears),
+        # (ears on hood), and taking "fake animal ears" with it brought
+        # duplicates and floating objects. Raising the hood instead gives the
+        # ear demand one place to land. 5 of 6 seeds clean; the sixth is
+        # 3409564303, which has been Yukari's bad seed since the backdrop eyes.
+        "(black hoodie:1.35), open hoodie, (rabbit hood:1.55), animal hood, "
+        "rabbit print, "
         "long sleeves, drawstring, (purple dress:1.2), short dress, frills"
     ),
     "mage": (
@@ -729,6 +738,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--legwear-text",
         help="replace the LEGWEAR_BY_JOB entry for --job; empty string drops it",
     )
+    # --drop can take a tag out of the class block but cannot reword one, and
+    # rewording is what an ownership problem needs: Yukari's ears belong to the
+    # hood, and deleting the ear tag only leaves the demand unresolved.
+    parser.add_argument(
+        "--class-text",
+        help="replace the CLASSES entry for --job",
+    )
     parser.add_argument(
         "--minimal",
         action="store_true",
@@ -973,7 +989,10 @@ def parse_args_from(argv: list[str]) -> argparse.Namespace:
 # from nothing instead. No face preset, no legs block, no style block, no LoRA,
 # and the short negative.
 def build_minimal_positive(args: argparse.Namespace) -> str:
-    parts = [QUALITY_PLAIN, "1girl, solo", CLASSES[args.job]]
+    class_text = getattr(args, "class_text", None)
+    if class_text is None:
+        class_text = CLASSES[args.job]
+    parts = [QUALITY_PLAIN, "1girl, solo", class_text]
     franchise = FRANCHISE.get(args.job)
     if franchise:
         parts.append(franchise)

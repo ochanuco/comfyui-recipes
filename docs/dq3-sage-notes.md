@@ -921,6 +921,32 @@ verbatim. Cropping the lower 55% of the frame and enlarging it (`legcrop.py`)
 makes the difference obvious at a glance; do that before claiming a legwear
 result.
 
+## New poses: six tried, three kept
+
+The table had three sitting variants plus standing, reaching and a
+lying-adjacent one, so the gaps were movement and a compact silhouette. Tried on
+Takao, one seed, then transferred.
+
+| pose | result |
+|------|--------|
+| `chair` — sitting on a chair, legs crossed | **keep.** Draws the chair too, and transfers to the sage cleanly |
+| `crouch` — squatting, arms on knees | **keep** on Takao and Yukari |
+| `wave` — standing, one arm up | **keep** on Takao |
+| `hugknees` | tangled arms and legs on the first pass; readable after naming the limbs |
+| `jump` | first pass came out kneeling in mid-air; second pass reads as a jump on one seed of two, broken anatomy on the other |
+| `walking` | **does not work.** Reads as standing on the first pass, and detached legs on both seeds of the second |
+
+The three that failed all named the *action* — walking, jumping, hugging — and
+not the shape the limbs make. Saying `(walking:1.5)` louder does not help; the
+second pass got a jump only once it said feet off the ground, one knee bent,
+arms raised. `walking` still fails that way and is not in the table.
+
+`crouch` and `wave` attract the backdrop intruder on the sage and Yukari — an
+eyed creature behind the sage's squat, chibi clones beside her wave, eyed
+rabbit stickers around Yukari's. Both poses leave a lot of empty canvas beside
+the figure. `chair` fills the frame and stays clean. Not enough seeds to call
+that a mechanism, only a place to look.
+
 ## Two pairs of rabbit ears: give the demand one owner
 
 Yukari's hoodie has rabbit ears, and the class block also asked for
@@ -960,7 +986,8 @@ keep going.
 | `(healthy body:1.2), (thick thighs:1.15), soft thighs` | yes | same drift |
 | `(thick thighs:1.15)` alone | some | still drifts |
 | `(thick thighs:1.2)` moved next to the garment | most | most exposed of all |
-| **`healthy body, (plump legs:1.2)`** | **yes** | **unchanged** |
+| `healthy body, (plump legs:1.2)` | yes | unchanged |
+| **`(toned legs:1.2)`** | **yes, without the chubbiness** | **unchanged** |
 
 `thighs` and `wide hips` are the carriers. They sit next to rear-focused
 compositions in the training data and bring the composition with them, and
@@ -973,6 +1000,19 @@ that has failed on this project every time it has been reached for.
 
 Verified: Takao 2/2, sage 2/2, Yukari 2/2 — volume up, framing intact, gloss
 intact, no backdrop intruder.
+
+`plump` then turned out to overshoot: healthy thighs were wanted, chubby ones
+were not, and `plump` carries the second. Lowering it to 1.1 barely moved the
+figure and adding `slim legs` alongside took the volume back off. `toned` keeps
+the shape and drops the softness without going muscular.
+
+**A trap in the ablation that ran this.** The variants dropped the old block
+with `--drop` and passed the new one through `--extra`. `--drop` runs over the
+joined string, so `--drop "healthy body"` also took `healthy body` out of the
+replacement — every variant actually rendered without it. The accepted images
+are therefore `(toned legs:1.2)` alone, and that is what the constant says.
+Check what the run actually contained against `/history` before adopting the
+string you *think* you tested.
 
 ## The backdrop creature: found, by bisecting the face block
 

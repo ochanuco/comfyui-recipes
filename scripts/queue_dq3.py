@@ -358,12 +358,23 @@ BASE_BY_JOB = {"takao": "hassaku-il-v22", "sage": "hassaku-il-v22",
 # tag is a thing the sampler now has to draw; the elaborate legs blocks in
 # LEGS_BY_JOB belong to the full path and are not reused here.
 LEGWEAR_BY_JOB = {
-    "sage": "(black pantyhose:1.3), pantyhose, (glossy legwear:1.2), shiny legwear",
-    "takao": "(black thighhighs:1.35), thighhighs, (glossy legwear:1.2), shiny legwear",
+    "sage": "(black pantyhose:1.3), pantyhose, (shiny legwear:1.45), glossy legwear",
+    "takao": "(black thighhighs:1.35), thighhighs, (shiny legwear:1.45), glossy legwear",
     # Yukari's own thighhighs are purple, so hers is the same garment in her own
     # colour rather than the black the other two were asked for.
-    "yukari": "(purple thighhighs:1.35), thighhighs, (glossy legwear:1.2), shiny legwear",
+    "yukari": "(purple thighhighs:1.35), thighhighs, (shiny legwear:1.45), glossy legwear",
 }
+
+# A highlight band is a shading feature, so a palette that forbids shading
+# forbids the gloss with it. Without this the only way to get any shine was to
+# push (shiny legwear) past 1.5, and there the model stops lighting the fabric
+# and starts replacing it -- latex on the tights, and the gloves and boots going
+# glossy along with them. At 1.45 plus these two the band appears on cloth and
+# nothing else in the frame turns shiny.
+#
+# Sits at the tail, immediately before --extra, because that is where it was
+# measured (gs-s1 / gs-s2).
+LEGWEAR_SHADING = "(soft shading:1.3), smooth shading"
 
 # Three separate problems, all of which need the negative rather than the
 # positive:
@@ -391,8 +402,13 @@ EYES_BY_JOB = {
 LEGWEAR_GUARD = (
     "(brown legwear:1.5), brown thighhighs, brown pantyhose, (grey legwear:1.3), "
     "(sheer legwear:1.3), see-through legwear, (fishnet:1.4), (ribbed legwear:1.3), "
-    "knit, fabric texture, thread, (latex:1.35), (rubber:1.35), wet look"
+    "knit, fabric texture, thread, (latex:1.45), (rubber:1.45), wet look, "
+    # Scoped to the legs on purpose: a bare "leather" also takes the sage's belt.
+    "(leather legwear:1.45), leather pants"
 )
+# Tried and rejected: (shiny skin:1.3), (shiny gloves:1.3), (shiny boots:1.3).
+# Meant to keep the shine on the legs only, they flattened the legs too -- a
+# negative "shiny X" pulls the whole shiny direction down, the positive with it.
 
 # Framings where the face is too small to carry moe's weights. Verified on
 # one seed both ways: full moe at standing collapses (duplicates, background
@@ -692,6 +708,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--pose-text",
         help="replace the POSES entry for --pose; empty string drops it",
     )
+    # The legwear block is the one part of the prompt that is being tuned
+    # against a stated spec (gloss, no fibre, black) rather than accepted from
+    # the base, so it needs to be swappable without editing the table.
+    parser.add_argument(
+        "--legwear-text",
+        help="replace the LEGWEAR_BY_JOB entry for --job; empty string drops it",
+    )
     parser.add_argument(
         "--minimal",
         action="store_true",
@@ -945,7 +968,9 @@ def build_minimal_positive(args: argparse.Namespace) -> str:
         pose_text = POSES[args.pose]
     if pose_text:
         parts.append(pose_text)
-    legwear = LEGWEAR_BY_JOB.get(args.job)
+    legwear = getattr(args, "legwear_text", None)
+    if legwear is None:
+        legwear = LEGWEAR_BY_JOB.get(args.job)
     if legwear:
         parts.append(legwear)
     # The one block that comes back on request. Everything else about the look
@@ -963,6 +988,8 @@ def build_minimal_positive(args: argparse.Namespace) -> str:
     # choice rather than part of the look.
     if getattr(args, "border", False):
         parts.append("(white outline:1.6), outline, sticker")
+    if legwear:
+        parts.append(LEGWEAR_SHADING)
     if args.extra:
         parts.append(args.extra)
     if getattr(args, "face_given", False):

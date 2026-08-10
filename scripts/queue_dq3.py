@@ -376,6 +376,20 @@ LEGWEAR_BY_JOB = {
 # measured (gs-s1 / gs-s2).
 LEGWEAR_SHADING = "(soft shading:1.3), smooth shading"
 
+# Healthy volume on the legs, asked for without naming a part.
+#
+# The obvious phrasings all work on the legs and then keep going: with
+# (thick thighs:1.2), thighs the camera drops to the hips, the skirt rides up
+# and the rear becomes the subject -- on both seeds, and worse with
+# (wide hips:1.15). Putting the same words next to the garment instead of at
+# the tail did not help. A body word plus "legs" gets the volume and leaves the
+# framing alone; "thighs" and "hips" sit next to rear-focused compositions in
+# the data and bring them along.
+#
+# Same tail slot as the shading, and gated on legwear for the same reason: that
+# is the configuration it was measured in.
+BODY_VOLUME = "healthy body, (plump legs:1.2)"
+
 # Three separate problems, all of which need the negative rather than the
 # positive:
 #   black   -- Hassaku renders (black thighhighs:1.3) as dark brown. Saying black
@@ -990,6 +1004,7 @@ def build_minimal_positive(args: argparse.Namespace) -> str:
         parts.append("(white outline:1.6), outline, sticker")
     if legwear:
         parts.append(LEGWEAR_SHADING)
+        parts.append(BODY_VOLUME)
     if args.extra:
         parts.append(args.extra)
     if getattr(args, "face_given", False):

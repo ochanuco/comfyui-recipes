@@ -702,6 +702,17 @@ NEGATIVE_PRESETS = {
 # filling is just benign now.
 MINIMAL_FACE_GUARD = "(disembodied eye:1.4)"
 
+# The minimal path carried no framing negatives at all, which was fine for the
+# poses it was built on and not fine the moment a new one arrived: the chair
+# pose put the camera under the skirt on its own. This is the smallest part of
+# NEG_FRAMING that stops that -- the crowd-adjacent half of it (multiple views,
+# zoom layer) is left out, since bundles of that shape have caused their own
+# trouble here before.
+#
+# Consequence: renders accepted before this no longer reproduce from bare flags.
+# The tags pin the commits they were made at.
+MINIMAL_FRAMING_GUARD = "(upskirt:1.4), panties, (from below:1.35)"
+
 # The anti-impasto bundle: negates the paint without touching the style.
 # Found for galge (abc-I1), transfers to cel-plain (pt1/pt6). "mild" keeps
 # a little gloss and depth — the level of the accepted sage renders; "full"
@@ -1555,6 +1566,7 @@ def apply_defaults(args: argparse.Namespace) -> None:
             args.negative = f"{args.negative}, {MINIMAL_FACE_GUARD}"
         if args.job in LEGWEAR_BY_JOB:
             args.negative = f"{args.negative}, {LEGWEAR_GUARD}"
+        args.negative = f"{args.negative}, {MINIMAL_FRAMING_GUARD}"
     elif args.negative is None:
         negative = build_negative(args.negative_preset, args.job, args.pose)
         for old, new in tuning.get("neg_retune", {}).items():

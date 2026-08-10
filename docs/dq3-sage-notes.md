@@ -921,6 +921,49 @@ verbatim. Cropping the lower 55% of the frame and enlarging it (`legcrop.py`)
 makes the difference obvious at a glance; do that before claiming a legwear
 result.
 
+## The chair pose, brushed up — and what would not brush out
+
+The chair render that was picked had the camera under the skirt. The cause was
+structural, not stylistic: **the minimal path carried no framing negatives at
+all.** The full recipe has `NEG_FRAMING`; `--minimal` never inherited it, and
+none of the poses it was built on happened to need it. `MINIMAL_FRAMING_GUARD`
+now adds the smallest part of it — `(upskirt:1.4), panties, (from below:1.35)`
+— and leaves out the crowd-adjacent half, which has caused its own trouble here.
+Confirmed not to disturb the sage's sitting or Takao's lookback.
+
+Two more fixes on the same pose:
+
+- **Three legs.** `(crossed legs:1.35)` at that weight makes the model draw the
+  crossing rather than the legs. 1.2 renders two legs. Raising
+  `(extra legs:1.6), (three legs:1.5)` in the negative on top of 1.35 did not
+  help — the weight was the problem, not the absence of a ban.
+- **The chair itself.** `(office chair:1.35), swivel chair, backrest,
+  feet on floor` gives a coherent chair; without it the seat and base come out
+  as separate objects.
+
+**Unresolved: the backdrop intruder owns this pose for Yukari.** Roughly a dozen
+renders across five seeds, and every lever failed:
+
+| lever | result |
+|-------|--------|
+| `--border` off entirely | rabbits gone, a large eyeball instead |
+| `sticker` dropped, border kept | unchanged |
+| `rabbit print` dropped | unchanged — and worse in later rounds |
+| `rabbit print` restored | milder on one seed (eyeless rabbit shapes), still there |
+| heavy framing/anatomy negatives | unchanged |
+| all negative extras removed | worse |
+| 1024x1280 instead of 1536 | unchanged |
+| four other seeds | 0 of 4 clean |
+| **`--face default`** | **clean, 2 of 2** |
+
+So the face block is still the only lever with anything behind it, exactly as
+the bisection found — and the cost is the same as it always was, the moe face.
+
+A methodology error worth keeping: `rabbit print` was dropped on a hypothesis,
+the hypothesis failed, and the drop was carried into every later variant anyway.
+Several rounds were then read against a baseline that had a known-useless change
+in it. **When a hypothesis dies, revert its change before running the next one.**
+
 ## New poses: six tried, three kept
 
 The table had three sitting variants plus standing, reaching and a

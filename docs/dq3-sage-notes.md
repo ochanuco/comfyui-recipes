@@ -835,6 +835,10 @@ part; the three things that went wrong all needed the negative instead:
 - **Gloss asked for plainly turns to vinyl.** `(latex:1.35), (rubber:1.35),
   wet look` in the negative is the whole difference between a sheen and a shine;
   the positive side only needs `(glossy legwear:1.2), shiny legwear`.
+  **This last bullet is wrong** — see the section below. `(glossy legwear:1.2)`
+  produces no gloss at all; the render is flat black. It was written from
+  contact-sheet-sized tiles, where flat black legwear and glossy black legwear
+  look the same. Crop the legs and enlarge them before judging this.
 
 A fourth thing fell out for free. Before the guard existed, adding
 `(black pantyhose:1.3), pantyhose` to the sage's minimal prompt returned **pure
@@ -846,6 +850,76 @@ garment must not be gave the garment tag somewhere to land.
 minimal path, opt-in. It draws cleanly on Hassaku for all three characters —
 which contradicts the older entry below claiming Hassaku is better without the
 border. That was measured under the full `cel` recipe, not this one.
+
+## Gloss is shading, and the palette forbade shading
+
+The spec was the same three words each time: gloss, no fibre, black not brown.
+The first two were met; the gloss was not, and it took five rounds to find out
+why. Twenty renders on the sage, two seeds each, one variable at a time.
+
+The wall: a highlight band is a **shading feature**, and `--minimal` carries
+`(flat color:1.3)`, which forbids shading. So every attempt to get shine out of
+the positive had to push the material word until the model stopped *lighting*
+the fabric and started *replacing* it.
+
+| round | change | result |
+|-------|--------|--------|
+| A | `(glossy legwear:1.2), shiny legwear` (the standing recipe) | flat black, no highlight |
+| B | `(shiny legwear:1.5)` + `(specular highlight:1.3)` | strong gloss, but **leather** — and the gloves and boots went glossy too |
+| C | B, with `latex`/`rubber`/`wet look` dropped from the negative | identical to B |
+| D | A, with those dropped | identical to A |
+| e/f | shine at 1.3 / 1.4, plus `shiny skin/gloves/boots` banned | flat, all of them |
+| h | `(shiny legwear:1.55)` alone | clean cel band on one seed, **wet latex on the other** |
+| k/m/n/p | 1.45, 1.5, garment at 1.5, `(highlights:1.5)` | 1.5 marginal; the rest flat |
+| **s** | **`(shiny legwear:1.45)` + `(soft shading:1.3), smooth shading`** | **band on cloth, nothing else in the frame shiny** |
+
+What the table is actually saying:
+
+- **D == A: the guard was innocent.** Banning `latex`/`rubber`/`wet look` was not
+  what suppressed the gloss, so removing them buys nothing.
+- **B == C: the guard is also powerless.** With the positive at 1.5 the fabric
+  turned to leather *with* `(latex:1.45)` in the negative. Same lesson as the
+  backdrop creature: naming the symptom does not remove it.
+- **h is not a setting, it is a threshold.** 1.4 does nothing, 1.55 is a coin
+  flip between a highlight and latex. Anything living on that edge is not a
+  recipe.
+- **Negative `shiny X` flattens `shiny Y`.** `(shiny skin:1.3), (shiny gloves:1.3),
+  (shiny boots:1.3)` were meant to keep the shine on the legs. They killed it
+  everywhere — a negative pulls the whole `shiny` direction down and takes the
+  positive with it. Do not try to fence a quality in by banning it elsewhere.
+- **`(specular highlight)` is a material word, not a lighting one.** It was in
+  the two rounds that produced leather, and it glossed the gloves and boots as
+  well. Tellingly, the `glossy` style block in the tool has always used
+  `soft shading, smooth shading, rim light` instead.
+
+So the answer was to stop asking for a shinier material and to let the shading
+back in. `(shiny legwear:1.45)` is below the material-conversion threshold on
+every seed tried; `(soft shading:1.3), smooth shading` supplies the gradient the
+highlight is made of. `(flat color:1.3)` did **not** have to come down — round s
+keeps the accepted palette weight untouched and still gets the band. Lowering it
+to 1.15 (rounds j and q) changed the legs very little and is not worth the risk
+to a colouring that was signed off.
+
+The shading tags sit at the tail, immediately before `--extra`, because that is
+the position they were measured in. Moving them next to the garment tag is
+untested.
+
+Verified after the change: sage 2/2, Takao 2/2, Yukari 2/2, all with the band,
+all fabric, no backdrop intruder. Accepted: `b9ee5041` (sage), `1a6b81cb`
+(Takao), `58ccdd81` (Yukari).
+
+`--legwear-text` was added for this, mirroring `--pose-text`: the legwear block
+is the one part of the prompt being tuned against a stated spec rather than
+accepted from the base, so it needs to be swappable without editing the table.
+
+### How this was nearly missed
+
+The first report said the gloss was delivered. It was not — it was judged from a
+three-tile contact sheet at 520px, where flat black and glossy black are the
+same shape. The whole five rounds only started because the spec was repeated
+verbatim. Cropping the lower 55% of the frame and enlarging it (`legcrop.py`)
+makes the difference obvious at a glance; do that before claiming a legwear
+result.
 
 ## The backdrop creature: found, by bisecting the face block
 

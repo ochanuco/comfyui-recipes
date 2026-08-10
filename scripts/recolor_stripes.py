@@ -48,13 +48,27 @@ def parse_args() -> argparse.Namespace:
         "pattern; must exceed a band's width or the mask comes out hollow",
     )
     parser.add_argument(
+        "--min-area",
+        type=int,
+        default=4000,
+        help="discard selected regions smaller than this many pixels. 4000 is "
+        "where the last of the hair goes without a band going with it; 8000 "
+        "starts eating the short bands around the ankle",
+    )
+    parser.add_argument(
         "--shrink",
         type=int,
-        help="how much of the dilation to take back off; defaults to --radius",
+        help="unused by the current mask; kept so old command lines still parse",
     )
     parser.add_argument("--hue-low", type=int, default=175)
     parser.add_argument("--hue-high", type=int, default=215)
     parser.add_argument("--sat-min", type=int, default=60)
+    parser.add_argument(
+        "--dark-val-min",
+        type=int,
+        default=150,
+        help="below this brightness a violet pixel is a shadow, not a stripe",
+    )
     parser.add_argument(
         "--light-sat-max",
         type=int,
@@ -62,6 +76,13 @@ def parse_args() -> argparse.Namespace:
         help="above this saturation a pale pixel is a colour, not the light band",
     )
     parser.add_argument("--light-val-min", type=int, default=185)
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=1.0,
+        help="how strongly the new colour replaces the old; below 1 it is "
+        "laid over instead, which is how a sheer band is faked",
+    )
     parser.add_argument("--dump-mask", type=Path)
     return parser.parse_args()
 
@@ -116,6 +137,21 @@ def near_right(mask: np.ndarray, reach: int) -> np.ndarray:
     return out
 
 
+def drop_small(mask: np.ndarray, min_area: int) -> np.ndarray:
+    """Keep only regions of at least `min_area` pixels."""
+    if min_area <= 0:
+        return mask
+    from scipy import ndimage
+
+    labels, count = ndimage.label(mask)
+    if count == 0:
+        return mask
+    areas = np.bincount(labels.ravel())
+    keep = np.zeros(areas.shape, dtype=bool)
+    keep[1:] = areas[1:] >= min_area
+    return keep[labels]
+
+
 def sandwiched(mask: np.ndarray, reach: int) -> np.ndarray:
     """True where `mask` lies on both sides -- vertically or horizontally.
 
@@ -135,7 +171,17 @@ def main() -> None:
     hsv = np.asarray(Image.open(args.image).convert("HSV")).astype(np.int16)
     hue, sat, val = hsv[..., 0], hsv[..., 1], hsv[..., 2]
 
-    dark = (hue > args.hue_low) & (hue < args.hue_high) & (sat > args.sat_min)
+    # The value floor is what keeps her hair out. Its shadows are violet at
+    # roughly the saturation of the stripes -- 95 against 108 on the render this
+    # was tuned against -- so saturation alone cannot tell them apart, and the
+    # hair blob is far too big for --min-area to catch. Brightness can: those
+    # shadows sit near 113 where the stripe purple sits near 194.
+    dark = (
+        (hue > args.hue_low)
+        & (hue < args.hue_high)
+        & (sat > args.sat_min)
+        & (val > args.dark_val_min)
+    )
     light = (sat < args.light_sat_max) & (val > args.light_val_min)
 
     # Proximity alone is not enough: the sticker border and the dress frill are
@@ -149,6 +195,12 @@ def main() -> None:
     other = dark if args.which == "light" else light
     target = light if args.which == "light" else dark
     target_mask = target & sandwiched(other, args.radius)
+    # Her hair is white with violet shadows in it, which is a stripe pattern as
+    # far as the test above is concerned, and it fires on a scatter of pixels
+    # there and along the frill. They are invisible in the repaint and then the
+    # refine pass turns them into streaks across the whole picture, so drop
+    # everything that is not part of a band-sized region.
+    target_mask = drop_small(target_mask, args.min_area)
 
     if args.dump_mask:
         Image.fromarray((target_mask * 255).astype(np.uint8)).save(args.dump_mask)
@@ -164,7 +216,15 @@ def main() -> None:
     band = rgb[target_mask]
     base = np.percentile(band.mean(axis=1), 60)
     ratio = (band.mean(axis=1) / base)[:, None]
-    rgb[target_mask] = np.clip(to[None, :] * ratio, 0, 255)
+    painted = np.clip(to[None, :] * ratio, 0, 255)
+    # Partial alpha is how sheer legwear gets faked. It cannot be asked for:
+    # the tights are drawn as solid white, so there is no skin underneath for
+    # the sampler to reveal, and a masked pass at any denoise keeps returning
+    # opaque bands. Laying skin tone over the light bands at less than full
+    # strength puts the missing colour there instead of hoping for it.
+    if args.alpha < 1.0:
+        painted = band * (1 - args.alpha) + painted * args.alpha
+    rgb[target_mask] = painted
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(rgb.astype(np.uint8)).save(args.out)

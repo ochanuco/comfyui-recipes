@@ -35,6 +35,23 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="prompt id whose graph supplies the prompt, model and sampler",
     )
+    parser.add_argument(
+        "--mask",
+        type=Path,
+        help="white where the sampler may work. Without one the denoise has to "
+        "stay low enough for the whole picture to survive it; with one the "
+        "legwear can be redrawn hard while every other pixel is left alone",
+    )
+    # With a mask the second pass only touches one garment, so it can be told
+    # something the first pass was not. The first pass's negative bans sheer
+    # legwear, among much else; reusing it verbatim asks for see-through tights
+    # while forbidding them.
+    parser.add_argument("--positive-extra", default="", help="appended to the positive")
+    # Appending is not enough when the second pass wants the opposite of the
+    # first. Asking for bare legs while the inherited positive still says
+    # (striped pantyhose:1.45) returns striped pantyhose, at any denoise.
+    parser.add_argument("--positive", help="replaces the positive entirely")
+    parser.add_argument("--negative", help="replaces the negative entirely")
     parser.add_argument("--denoise", type=float, default=0.3)
     parser.add_argument("--steps", type=int, default=28)
     parser.add_argument("--seed", type=int)
@@ -68,6 +85,12 @@ def main() -> None:
     negative_ref = sampler["inputs"]["negative"]
     positive = source[positive_ref[0]]["inputs"]["text"]
     negative = source[negative_ref[0]]["inputs"]["text"]
+    if args.positive is not None:
+        positive = args.positive
+    if args.positive_extra:
+        positive = f"{positive}, {args.positive_extra}"
+    if args.negative is not None:
+        negative = args.negative
     loader_id, loader = find(source, "DiffusersLoader")
 
     # ComfyUI's LoadImage only sees its own input directory.
@@ -75,8 +98,28 @@ def main() -> None:
     if args.image.resolve() != staged.resolve():
         shutil.copy(args.image, staged)
 
+    latent_ref = ["11", 0]
+    mask_nodes: dict[str, dict] = {}
+    if args.mask:
+        staged_mask = INPUT_DIR / args.mask.name
+        if args.mask.resolve() != staged_mask.resolve():
+            shutil.copy(args.mask, staged_mask)
+        mask_nodes = {
+            "12": {"class_type": "LoadImage", "inputs": {"image": staged_mask.name}},
+            "13": {
+                "class_type": "ImageToMask",
+                "inputs": {"image": ["12", 0], "channel": "red"},
+            },
+            "14": {
+                "class_type": "SetLatentNoiseMask",
+                "inputs": {"samples": ["11", 0], "mask": ["13", 0]},
+            },
+        }
+        latent_ref = ["14", 0]
+
     seed = args.seed if args.seed is not None else sampler["inputs"]["seed"]
     graph = {
+        **mask_nodes,
         "4": {"class_type": "DiffusersLoader", "inputs": dict(loader["inputs"])},
         "10": {"class_type": "LoadImage", "inputs": {"image": staged.name}},
         "11": {
@@ -93,7 +136,7 @@ def main() -> None:
                 "model": ["4", 0],
                 "positive": ["6", 0],
                 "negative": ["7", 0],
-                "latent_image": ["11", 0],
+                "latent_image": latent_ref,
                 "seed": seed,
                 "steps": args.steps,
                 "cfg": sampler["inputs"]["cfg"],

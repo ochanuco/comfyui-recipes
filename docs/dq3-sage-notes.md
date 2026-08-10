@@ -1016,6 +1016,64 @@ since the backdrop-eye work and fails under the baseline too.
 `--class-text` was added for this. `--drop` can remove a tag from the class
 block but cannot reword one, and an ownership problem needs rewording.
 
+## Where a colour change belongs: in the prompt, or after the sampler
+
+Three kinds of colour change, and they do not live in the same place.
+
+**Across a category — prompt.** White to black, thin to wide, vertical to
+horizontal, opaque to sheer. These land immediately.
+
+**Within a category — after the sampler.** White to cream, purple to a deeper
+purple. `off-white`, `skin colored` and `cream` all sit on the same point as
+`white` and change nothing; raising their weight only makes the white whiter.
+Yukari has white hair and white frills as well, so the image is anchored to the
+white the legwear inherits. `recolor_stripes.py` sets the value afterwards, the
+same conclusion `recolor_bg.py` reached for the backdrop.
+
+**A material property with nothing underneath — only at generation time.** Sheer
+legwear was the case that taught this. It cannot be added later: the tights are
+drawn as solid white, there is no skin under them, and a masked pass asking for
+see-through returned opaque bands at 0.55, 0.7, 0.85 and 0.95. Nor can the skin
+be borrowed from a bare-legs pass and composited, though that pass does work and
+is pixel-aligned. Asked for in the first render at `(sheer white stripes:1.6)`
+it appears at once. **It had simply never been asked for at generation time --
+every attempt had been downstream of an opaque render.**
+
+Two costs came with it, both the same shape as everything else here: at 1.6 the
+skin renders tanned, and pulling it back with `(pale skin:1.4)` plus a tan ban
+costs the purple bands entirely. One quality can be pushed or the other, not
+both.
+
+## Masked refine: the denoise ceiling is a whole-image problem
+
+`queue_refine.py --mask` restricts the sampler to one garment. Without a mask
+the denoise has to stay at 0.25-0.3 or the picture comes apart, and that is too
+weak to change what the legwear *is*. With one, 0.65-0.7 redraws the stripes as
+cloth and every other pixel is bit-identical.
+
+Two traps, both mine:
+
+- `--positive-extra` appends. Asking for bare legs while the inherited positive
+  still says `(striped pantyhose:1.45)` returns striped pantyhose at *any*
+  denoise, including 0.95. `--positive` replaces, and then it works.
+- The inherited negative bans sheer legwear, so reusing it verbatim asks for
+  see-through tights while forbidding them.
+
+## The geometric stripe layer: abandoned
+
+`stripe_paint.py` lays bands perpendicular to each leg's axis at a fixed period,
+with a drawn line at every boundary -- even by construction, which the prompt
+cannot deliver. It is kept because the idea recurs, and the reason it fails is
+not obvious until tried.
+
+The two legs are crossed, so they are **one** connected region, at every
+bridging width from 10 to 50 px. One region means one principal axis, so the
+bands ignore each leg's own direction, and a leg that bends at the knee has no
+single axis anyway. The result reads as paper laid over the figure, and the
+masked pass at 0.7 that would redraw it as cloth also redraws the evenness away.
+Separating the legs needs semantic segmentation or a local orientation field,
+not morphology.
+
 ## Volume on the legs: ask for a body, not a part
 
 "A bit more healthy volume on the legs" turned out to be a framing problem

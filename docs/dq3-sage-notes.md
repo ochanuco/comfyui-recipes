@@ -921,6 +921,33 @@ verbatim. Cropping the lower 55% of the frame and enlarging it (`legcrop.py`)
 makes the difference obvious at a glance; do that before claiming a legwear
 result.
 
+## Volume on the legs: ask for a body, not a part
+
+"A bit more healthy volume on the legs" turned out to be a framing problem
+rather than an anatomy one. The obvious phrasings deliver the volume and then
+keep going.
+
+| block | volume | framing |
+|-------|--------|---------|
+| `(thick thighs:1.2), thighs` | yes | camera drops to the hips, skirt rides up, rear becomes the subject — both seeds |
+| `(thick thighs:1.3), thighs, (wide hips:1.15)` | yes | worse |
+| `(healthy body:1.2), (thick thighs:1.15), soft thighs` | yes | same drift |
+| `(thick thighs:1.15)` alone | some | still drifts |
+| `(thick thighs:1.2)` moved next to the garment | most | most exposed of all |
+| **`healthy body, (plump legs:1.2)`** | **yes** | **unchanged** |
+
+`thighs` and `wide hips` are the carriers. They sit next to rear-focused
+compositions in the training data and bring the composition with them, and
+lowering the weight only makes the drift smaller, not absent. Moving them next
+to the garment — on the theory that adjacency would keep the effect local to
+the legs — made it worse, not better.
+
+Naming the framing in the negative was deliberately not tried. That is the move
+that has failed on this project every time it has been reached for.
+
+Verified: Takao 2/2, sage 2/2, Yukari 2/2 — volume up, framing intact, gloss
+intact, no backdrop intruder.
+
 ## The backdrop creature: found, by bisecting the face block
 
 The entry below was the first pass and it is superseded. `(disembodied eye:1.4)`

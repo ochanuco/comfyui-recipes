@@ -397,7 +397,19 @@ LEGWEAR_SHADING = "(soft shading:1.3), smooth shading"
 #
 # Same tail slot as the shading, and gated on legwear for the same reason: that
 # is the configuration it was measured in.
-BODY_VOLUME = "healthy body, (plump legs:1.2)"
+#
+# "plump" was the first word here and it overshot: healthy thighs are wanted,
+# chubby ones are not, and plump carries the second. Lowering it to 1.1 barely
+# moved; adding "slim legs" alongside took the volume back off. Swapping the
+# word for "toned" keeps the shape and drops the softness, without going
+# muscular.
+#
+# "healthy body" is gone with it, and not by choice: the ablation dropped the
+# old block with --drop and passed the new one through --extra, and --drop runs
+# over the joined string, so it took "healthy body" out of the replacement too.
+# The accepted renders therefore ran on (toned legs:1.2) alone, and that is what
+# this says. Adding "healthy body" back is untested.
+BODY_VOLUME = "(toned legs:1.2)"
 
 # Three separate problems, all of which need the negative rather than the
 # positive:

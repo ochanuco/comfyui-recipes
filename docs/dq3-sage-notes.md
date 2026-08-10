@@ -921,6 +921,32 @@ verbatim. Cropping the lower 55% of the frame and enlarging it (`legcrop.py`)
 makes the difference obvious at a glance; do that before claiming a legwear
 result.
 
+## Two pairs of rabbit ears: give the demand one owner
+
+Yukari's hoodie has rabbit ears, and the class block also asked for
+`(pink rabbit ears:1.3), fake animal ears`. She came out wearing both — the
+hood's, and a real white pair on her head above them. `fake animal ears` does
+not make the model draw fake ones.
+
+| change | seed 2331520658 (the one that started this) |
+|--------|---------------------------------------------|
+| baseline | two pairs |
+| drop `(pink rabbit ears:1.3)` | extra pair survives |
+| drop that and `fake animal ears` | survives, plus duplicates and floating objects on the other seeds |
+| reword to `(fake rabbit ears:1.35), (ears on hood:1.2)` | survives |
+| **drop the ear tag, raise `(rabbit hood:1.4)` to `1.55`** | **clean** |
+
+Subtraction does not work here for the same reason it did not work on the
+backdrop creature: a demand with nowhere to land gets resolved somewhere else
+on the canvas, which is why deleting both ear tags produced a second figure
+instead of a second pair of ears. Raising the hood gives the ears one owner.
+
+5 of 6 seeds clean. The sixth is 3409564303, which has been Yukari's bad seed
+since the backdrop-eye work and fails under the baseline too.
+
+`--class-text` was added for this. `--drop` can remove a tag from the class
+block but cannot reword one, and an ownership problem needs rewording.
+
 ## Volume on the legs: ask for a body, not a part
 
 "A bit more healthy volume on the legs" turned out to be a framing problem

@@ -1016,6 +1016,42 @@ since the backdrop-eye work and fails under the baseline too.
 `--class-text` was added for this. `--drop` can remove a tag from the class
 block but cannot reword one, and an ownership problem needs rewording.
 
+## Mashing two renders together: what the seed owns, and what the prompt owns
+
+The ask was one render's pose and one render's clothing. Splitting them showed
+which half of the picture each input controls.
+
+**The seed owns the pose, and it owns the hood.** Whether the hood is up or down
+came out of the seed, not the prompt -- 2331520658 wore it up in every render
+and 3514242666 wore it down, through completely different prompts. Asking for
+`(hood down:1.5)` on the up seed does move it, so it is not fixed, but nothing
+in the prompt had been touching it before.
+
+**The prompt owns the garment and the palette.** Moving one render's legwear
+block onto another's seed transferred exactly the legwear, and nothing else.
+
+**Symmetry does not respond to being asked for.** One leg kept coming out
+without its sock. `(both thighhighs:1.3), (matching thighhighs:1.35),
+symmetrical legwear` in the positive made it *worse* -- that render drew one
+sock where the run without those tags drew two. Only the negative guard
+(`(mismatched legwear:1.5), (single thighhigh:1.5)`) tracks with clean results.
+Sixth time this project has watched a symptom named in the positive get louder
+rather than quieter.
+
+**"Redundant" tags were not redundant.** Trimming five apparent duplicates --
+`(white thighhighs:1.2)` and `(lavender tint:1.3)` next to
+`(very pale purple thighhighs:1.5)`, `(charcoal pantyhose:1.35)` next to
+`(sheer black pantyhose:1.5)` -- halved the duplicate-figure rate and cost the
+colour: the thighhighs went mid-purple and the sheerness disappeared. The weaker
+tags were holding the pale end of the range. There is a real trade here between
+prompt weight and colour accuracy, and it was resolved in favour of colour,
+using seeds that come out clean.
+
+Duplicate figures ran 3 of 8 on the first sweep and 0 of 7 on the second, same
+prompt. It is a seed property, not a prompt property, at this weight.
+
+Twelve clean candidates are on `sheet-morning.png` with their prompt ids.
+
 ## Where a colour change belongs: in the prompt, or after the sampler
 
 Three kinds of colour change, and they do not live in the same place.

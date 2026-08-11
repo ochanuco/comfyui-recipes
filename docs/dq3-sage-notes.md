@@ -993,9 +993,23 @@ out of eight. Nothing in the log, at any level.
 
 Re-running them byte-identically was the wrong test and proved nothing: the seed
 fixes the whole computation, so an identical re-run reproduces whatever happened
-the first time regardless of cause. **The seed is the discriminator.** The
-five-tag gaming-chair block was run again on a different seed and came back as
-noise there too, so that block is dead on its own terms and not a bad pairing.
+the first time regardless of cause. **The seed is the discriminator.** Both were
+run again on a different seed and both came back as noise there too, so these
+are dead prompts and not bad pairings:
+
+- `(gaming chair:1.45), racing seat, (high backrest:1.3), headrest, armrest`
+- the 9-tag block plus `leaning back, hand on own knee`
+
+No warning at any log level, and the output is a full-frame texture rather than
+a bad picture. Nothing else in this project fails this way; worth recognising on
+sight instead of debugging the tags.
+
+**Cropped feet: raise `full body`, do not add a framing tag.** Every seed except
+`151515151` cut the feet off at the bottom edge. `full body` was already in the
+block, so it went to `(full body:1.4)` — a substitution, which the chair word
+had just shown to be free. Two of three seeds then held the whole figure. On the
+third the camera came down and in instead, which is the framing this project
+does not develop; that seed was dropped rather than tuned.
 
 The camera pair `(eye level:1.35), straight-on` correlates with the backdrop
 intruder returning — present in both 12-tag runs that carried it without the

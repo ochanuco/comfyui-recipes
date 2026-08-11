@@ -1463,6 +1463,38 @@ Left out on purpose and still out: nothing. Sword, shield and geta were all held
 back at the start on the assumption they would be expensive, and all three were
 free when finally tried.
 
+## Substitution is free, addition is not — measured
+
+The clearest measurement of this in the project, on Yukari stretching and
+yawning from above, with the layered legwear on.
+
+| change | how it was made | clean |
+|--------|-----------------|-------|
+| `(closed eyes:1.35)` | added to `--extra` | **0 of 4** |
+| `full body` → `cowboy shot` | substituted in the pose block | 3 of 4 |
+| `round eyes` → `(half-closed eyes:1.3)` | `--drop` plus `--extra`, net zero tags | 3 of 4 |
+
+Same four seeds across the first two rows, everything else byte-identical. One
+added tag tipped every seed into drawing a second figure; a swap of equal length
+cost nothing. The rule had been inferred from the chair block before this
+(`gaming chair` substituted for `office chair` was free, a five-tag gaming-chair
+block returned noise) — here it is isolated.
+
+`(half-closed eyes)` is also the tag that worked when `(squinting)` shut the
+irises during the expression round. Same intent, different shape, and now it is
+also the way to pay for a sleepy expression without adding to the count.
+
+Two other things this round settled:
+
+- **The chair brings the intruder back.** Both runs that added the gaming chair
+  to this pose grew the backdrop creature at the top left. That is the failure
+  already recorded against the chair for Yukari, and adding it to a different
+  pose does not escape it.
+- **The camera shows a thigh; a tag does not have to.** `(from above:1.4)` with
+  a short dress does it on its own. `(overhead shot)` is a step too far — it
+  puts the camera in the lap, which is the framing this project does not
+  develop, and it was dropped rather than tuned.
+
 ## Open, for next time
 
 - `standing` no longer shreds the costume: `--pose-text "full body"` did that,

@@ -964,6 +964,56 @@ the hypothesis failed, and the drop was carried into every later variant anyway.
 Several rounds were then read against a baseline that had a known-useless change
 in it. **When a hypothesis dies, revert its change before running the next one.**
 
+### The gaming chair, facing front — swap the word, do not add it
+
+Later, with the layered legwear on. The chair block turned out to have a budget,
+and everything follows from where the boundary sits.
+
+| chair block | chair drawn | legwear | intruder |
+|-------------|-------------|---------|----------|
+| 14 tags (the original, turned to front) | gaming chair | **one dark tights, layering gone** | none |
+| 12 tags (two different subsets) | gaming chair | gone | **present** |
+| 9 tags, `(office chair:1.35)` | grey mesh, or black high-back | **both layers** | none |
+| 9 tags, `(gaming chair:1.4)` | **racing seat, armrests, five-star base** | **both layers** | none |
+
+**The legwear is the first thing the pose block pushes out.** Between 9 and 12
+pose tags the pale thighhighs disappear and one dark tights is drawn instead —
+consistent with them being the weak end of the legwear block, the same tags that
+went mid-purple when they were trimmed as redundant.
+
+**Substituting a word costs nothing; adding tags costs the picture.** Asking for
+a gaming chair as a five-tag block — `(gaming chair:1.45), racing seat,
+(high backrest:1.3), headrest, armrest` — returned a full-frame noise field.
+Replacing `(office chair:1.35)` with `(gaming chair:1.4)` at the same tag count
+drew a proper gaming chair and kept everything else, and threw in a controller
+in her hands that nothing had asked for.
+
+**Two renders came back as pure noise**, this one and `TRIM` plus two body tags,
+out of eight. Nothing in the log, at any level.
+
+Re-running them byte-identically was the wrong test and proved nothing: the seed
+fixes the whole computation, so an identical re-run reproduces whatever happened
+the first time regardless of cause. **The seed is the discriminator.** The
+five-tag gaming-chair block was run again on a different seed and came back as
+noise there too, so that block is dead on its own terms and not a bad pairing.
+
+The camera pair `(eye level:1.35), straight-on` correlates with the backdrop
+intruder returning — present in both 12-tag runs that carried it without the
+body tags, absent from the 9-tag and 14-tag runs. Four renders, so it is a lead
+rather than a finding.
+
+Kept, one prompt and three seeds — `pick/yk-chair-151` (`3ee2b60f`),
+`pick/yk-chair-111` (`326942c1`), `pick/yk-chair-555` (`d69e1dee`). The full
+command is in the tags; it is the layered-legwear recipe above with the chair
+block substituted for the sitting pose:
+
+```
+--pose-text "(sitting on chair:1.4), (crossed legs:1.2), looking at viewer, full body, (front view:1.35), facing viewer, (gaming chair:1.4), swivel chair, backrest"
+```
+
+`(crossed legs:1.2)` and not 1.35: the three-legs failure recorded above is the
+same tag at the same weight, and it did not need re-learning here.
+
 ## New poses: six tried, three kept
 
 The table had three sitting variants plus standing, reaching and a

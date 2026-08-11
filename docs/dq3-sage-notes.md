@@ -1424,6 +1424,45 @@ file are pitched for Amanatsu:
   takes precedence anyway, so the `face: moe-far` entry there is now only
   reached by jobs with no face of their own.
 
+## Momiji: 32 renders, and a character that does not behave like the others
+
+Standing, black tights, a black inner layer under the sleeveless turtleneck.
+The class block came off the danbooru wiki rather than out of memory — guessing
+Takao's costume cost two rounds, and that was enough.
+
+Round by round, one change at a time:
+
+| round | change | result |
+|-------|--------|--------|
+| 1, 8 seeds | the block as written, tights, faint inner | 6 of 8 clean; no feet at all, inner reads as shoulder patches |
+| 2a, 4 seeds | `(black turtleneck:1.45), (black undershirt:1.4), (black long sleeves:1.35), (layered clothes:1.3)` | the inner becomes a collar, sleeves and a waist band |
+| 2b, 4 seeds | `(geta:1.3), sandals` | red tengu-geta, 4 of 4 |
+| 3, 8 seeds | both at once, six extra tags | **8 of 8 clean, nothing pushed out** |
+| 4, 8 seeds | sword and shield; two standing variants | armed 2 of 2 clean; the pose variants duplicated the figure on one seed and not the other |
+
+**Adding tags did not cost anything here, and that is the surprise.** Six extra
+tags on an already long block, then a sword and a shield on top, and the costume,
+the legwear and the palette all held. Everywhere else in this file, weight is the
+master variable and a new tag is paid for by an existing one.
+
+The distinction that survives the evidence is not "new object versus existing
+part" — the sword and the shield are new objects and they were free. It is the
+seed. `4051776310` drew two figures for both pose variants, `737373737` drew one
+for both, same tags. Duplicates on this character track the seed, not the length.
+
+Momiji is also the first character whose danbooru tag carries almost the whole
+costume: the maple-print skirt, the pom poms and the detached sleeves arrive
+without being weighted, where Yukari's tag needed the hoodie spelled out.
+
+Two recurring defects, both palette rather than structure: the maple leaves turn
+yellow on some seeds (`3992482423`, `3062102535`, and `555666777` in round 1),
+and the tights come out grey rather than black on others (`246813579`). Neither
+was chased.
+
+Left out on purpose and still out: nothing. Sword, shield and geta were all held
+back at the start on the assumption they would be expensive, and all three were
+free when finally tried.
+
 ## Open, for next time
 
 - `standing` no longer shreds the costume: `--pose-text "full body"` did that,

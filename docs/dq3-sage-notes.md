@@ -1050,7 +1050,33 @@ using seeds that come out clean.
 Duplicate figures ran 3 of 8 on the first sweep and 0 of 7 on the second, same
 prompt. It is a seed property, not a prompt property, at this weight.
 
-Twelve clean candidates are on `sheet-morning.png` with their prompt ids.
+**The recipe that was kept.** Sixteen clean candidates went up on
+`sheet-morning.png`; three were picked (tags `pick/yk-layered-737`,
+`pick/yk-layered-151`, `pick/yk-layered-626`). None of this is in
+`queue_dq3.py` — the negative is passed whole, which is deliberate: an explicit
+`--negative` bypasses `LEGWEAR_GUARD` and `MINIMAL_FRAMING_GUARD`, so the string
+below is the entire negative and the command reproduces byte-identically.
+
+```bash
+uv run scripts/queue_dq3.py --job yukari --pose sitting \
+  --width 1024 --height 1536 --minimal --face moe-far-noeye --border \
+  --seed <737373737|151515151|626262626> --flat-paint mild \
+  --legwear-text "(sheer black pantyhose:1.5), (see-through pantyhose:1.45), (skin visible through pantyhose:1.4), (charcoal pantyhose:1.35), (glossy pantyhose:1.3), (very pale purple thighhighs:1.5), (white thighhighs:1.2), (lavender tint:1.3), (soft shading:1.25), smooth fabric, (thighhighs over pantyhose:1.55)" \
+  --extra "(pale skin:1.25), (thick thighs:1.3), (wide hips:1.2), (hood down:1.5), (hood behind head:1.3), (visible hair:1.2)" \
+  --negative "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, extra fingers, extra limbs, watermark, signature, text, (disembodied eye:1.4), (brown legwear:1.5), brown thighhighs, brown pantyhose, (fishnet:1.4), (ribbed legwear:1.3), knit, fabric texture, thread, (latex:1.45), (rubber:1.45), wet look, (leather legwear:1.45), leather pants, (upskirt:1.4), panties, (from below:1.35), (blue legwear:1.5), (periwinkle:1.45), (blue background:1.5), (navy:1.45), (blue tint:1.4), (opaque pantyhose:1.5), (solid black legwear:1.4), (mismatched legwear:1.5), (single thighhigh:1.5), (asymmetrical legwear:1.45), (uneven legwear:1.4), (hood up:1.5), (hood over head:1.4)"
+```
+
+`(thighhighs over pantyhose:1.55)` is what makes it two garments instead of one.
+Without it the two colour blocks fight and the model draws a single legwear in
+some blend of them; with it the pale thighhigh sits on top of the sheer black
+and the thigh above the welt reads as skin through tights.
+
+**Accepted with a known defect: the welt.** The band at the top of the
+thighhighs is not drawn as a real garment edge — its width wanders, and on
+`626262626` it sits at a different height on each leg. It was called good enough
+rather than fixed. Worth knowing that this is the part of a two-layer legwear
+the model is worst at: everything above and below it is clean, and the seam is
+where a layered prompt shows its seam.
 
 ## Where a colour change belongs: in the prompt, or after the sampler
 

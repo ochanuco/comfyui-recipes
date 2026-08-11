@@ -179,6 +179,18 @@ CLASSES = {
         "rabbit print, "
         "long sleeves, drawstring, (purple dress:1.2), short dress, frills"
     ),
+    # Taken from the danbooru wiki rather than from memory, after the two wrong
+    # guesses that cost Takao a round each. Sword and shield are canon and are
+    # deliberately absent: held objects are the tag most likely to fight the
+    # pose, and this block is already long.
+    "momiji": (
+        "inubashiri momiji, (white hair:1.25), short hair, (red eyes:1.25), "
+        "(wolf ears:1.35), animal ear fluff, (wolf tail:1.3), tail, "
+        "(red tokin:1.35), tokin hat, pom pom (clothes), "
+        "(white sleeveless turtleneck:1.3), sleeveless, "
+        "(detached sleeves:1.3), white detached sleeves, "
+        "(black and red skirt:1.3), (maple leaf print:1.25), short skirt"
+    ),
     "mage": (
         "mage (dq3), (purple hair:1.2), (medium hair:1.3), "
         "(blue wizard hat:1.2), pointy hat, (yellow robe:1.2), short robe, blue cape, "
@@ -359,7 +371,7 @@ EXTRA_BY_JOB = {
 # face is bought back through the face preset instead. If the face ever matters
 # more than the palette, the two are swapped here and nowhere else.
 BASE_BY_JOB = {"takao": "hassaku-il-v22", "sage": "hassaku-il-v22",
-               "yukari": "hassaku-il-v22"}
+               "yukari": "hassaku-il-v22", "momiji": "hassaku-il-v22"}
 
 # --minimal carries no legs block, so legwear is whatever the base felt like on
 # the day -- bare on most seeds. These are the standing choices. Kept to the
@@ -372,6 +384,7 @@ LEGWEAR_BY_JOB = {
     # Yukari's own thighhighs are purple, so hers is the same garment in her own
     # colour rather than the black the other two were asked for.
     "yukari": "(purple thighhighs:1.35), thighhighs, (shiny legwear:1.45), glossy legwear",
+    "momiji": "(black pantyhose:1.3), pantyhose, (shiny legwear:1.45), glossy legwear",
 }
 
 # A highlight band is a shading feature, so a palette that forbids shading
@@ -432,6 +445,7 @@ EYES_BY_JOB = {
     "sage": "(blue eyes:1.2)",
     "takao": "(red eyes:1.2)",
     "yukari": "(purple eyes:1.2)",
+    "momiji": "(red eyes:1.2)",
 }
 
 LEGWEAR_GUARD = (
@@ -502,6 +516,7 @@ FRANCHISE = {
     "mage": "dragon quest iii, dragon quest",
     "yukari": "vocaloid, voiceroid",
     "takao": "kantai collection",
+    "momiji": "touhou",
 }
 
 # Individual terms a class has to remove from the assembled negative. Dropping a

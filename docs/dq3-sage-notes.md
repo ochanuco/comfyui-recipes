@@ -1463,6 +1463,42 @@ Left out on purpose and still out: nothing. Sword, shield and geta were all held
 back at the start on the assumption they would be expensive, and all three were
 free when finally tried.
 
+## `--scene`: putting her in a place, in one flag
+
+The warm-interior look was reached by hand: about forty tags of room, light and
+lineart in `--extra`, plus `--drop` on three tags that are hardcoded into every
+minimal render — `(flat color:1.3)`, `(simple background:1.3)` and the grey
+background. Three `--drop`s to remove something there is no flag for is a
+workaround, not a setting, and nothing about it was reproducible.
+
+`--scene warm-room` substitutes for that block instead:
+
+```bash
+uv run scripts/queue_dq3.py --job momiji --pose sitting --scene warm-room \
+  --width 1024 --height 1536 --minimal --face moe-far-noeye --seed 737373737 \
+  --extra "<costume and body tags>"
+```
+
+Verified against `at-warm` (`1fa0982e`): identical tag set apart from the
+per-render `--extra`, and the render holds the pose, the light, the room and the
+costume. Not byte-identical — the scene tags now sit where the background line
+was rather than at the tail, and position is known to matter here, so the two
+renders differ in small ways.
+
+Three things are deliberate in the entry:
+
+- **Room, light and line travel together.** Splitting them was tried and the
+  room came out lit like a studio; the light block is what makes a window at
+  night read as a window at night.
+- **Substitution, not addition.** Leaving the flat-colour field in and adding a
+  room on top gives a room drawn in flat colour, which is what neither half
+  wants.
+- **`--scene` errors without `--minimal`** rather than doing nothing. A flag
+  that silently no-ops on the wrong path has already cost this project a round
+  of ablations that looked performed and were not.
+
+`--border` is a cut-out device and does not belong with a scene.
+
 ## Substitution is free, addition is not — measured
 
 The clearest measurement of this in the project, on Yukari stretching and

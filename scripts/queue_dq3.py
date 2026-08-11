@@ -728,6 +728,33 @@ MINIMAL_FACE_GUARD = "(disembodied eye:1.4)"
 # The tags pin the commits they were made at.
 MINIMAL_FRAMING_GUARD = "(upskirt:1.4), panties, (from below:1.35)"
 
+# A scene replaces the flat field the minimal path otherwise draws. That field
+# is not an option there -- build_minimal_positive writes
+# "(flat color:1.3), (simple background:1.3), (<bg> background:1.2)" into every
+# render -- so a room had to be reached by --drop'ing all three back out, which
+# is a workaround rather than a setting. --scene substitutes instead.
+#
+# Each entry carries three things that have to arrive together: where she is,
+# what is lighting her, and what the line does. Splitting them was tried and the
+# room came out lit like a studio, because the light block is what makes a
+# window at night read as a window at night.
+#
+# The line block belongs here for the same reason it belongs anywhere: Illustrious
+# tints the outline to match the fill, and only asking for black ink brings the
+# drawn line back. On a flat grey field that reads as a sticker and nothing needs
+# it; in a room it is the difference between a drawing and a render.
+SCENES = {
+    "warm-room": (
+        "(indoors:1.35), (bedroom:1.25), (window:1.2), (night:1.2), "
+        "(city lights:1.2), (bokeh:1.3), (lamp:1.2), (depth of field:1.3), "
+        "(blurry background:1.25), "
+        "(warm lighting:1.4), (orange lighting:1.3), (soft lighting:1.35), "
+        "(ambient light:1.25), (soft shading:1.35), (gradient shading:1.2), "
+        "(backlighting:1.35), (rim light:1.3), (sunset:1.2), "
+        "(thin lineart:1.45), (black lineart:1.4), (defined lines:1.2)"
+    ),
+}
+
 # The anti-impasto bundle: negates the paint without touching the style.
 # Found for galge (abc-I1), transfers to cel-plain (pt1/pt6). "mild" keeps
 # a little gloss and depth — the level of the accepted sage renders; "full"
@@ -757,6 +784,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # since a face is the one block it will accept being added back.
     parser.add_argument("--face", choices=sorted(FACES), default=None)
     parser.add_argument("--style", choices=sorted(STYLES), default="cel")
+    parser.add_argument(
+        "--scene",
+        choices=sorted(SCENES),
+        help="put her in a place instead of on a flat field. Minimal path only: "
+        "it substitutes for the (flat color)/(simple background) block, which "
+        "is not otherwise removable. --border is a cut-out device and does not "
+        "belong with one",
+    )
     parser.add_argument(
         "--plain-quality",
         action="store_true",
@@ -1052,8 +1087,15 @@ def build_minimal_positive(args: argparse.Namespace) -> str:
         face = FACES[args.face]
         if face:
             parts.append(face)
-    bg = getattr(args, "bg_color", None) or "grey"
-    parts.append(f"(flat color:1.3), (simple background:1.3), ({bg} background:1.2)")
+    scene = getattr(args, "scene", None)
+    if scene:
+        # Substituted, not appended. Leaving the flat-colour field in place and
+        # adding a room on top gives a room drawn in flat colour, which is the
+        # one combination neither half wants.
+        parts.append(SCENES[scene])
+    else:
+        bg = getattr(args, "bg_color", None) or "grey"
+        parts.append(f"(flat color:1.3), (simple background:1.3), ({bg} background:1.2)")
     # The sticker border, at the weight the full recipe uses. Opt-in: the
     # accepted minimal renders were drawn without it, and it is a compositional
     # choice rather than part of the look.
@@ -1575,6 +1617,11 @@ def apply_defaults(args: argparse.Namespace) -> None:
     job_extra = EXTRA_BY_JOB.get(args.job)
     if job_extra and not minimal:
         args.extra = ", ".join(p for p in (args.extra, job_extra) if p)
+    # --drop was accepted and silently did nothing on this path once, and an
+    # ablation that looked performed and was not cost several rounds. --scene
+    # only exists in build_minimal_positive, so say so rather than no-op.
+    if getattr(args, "scene", None) and not minimal:
+        raise SystemExit("--scene applies to --minimal only")
     if args.negative is None and minimal:
         args.negative = NEG_QUALITY_PLAIN
         if args.face_given:

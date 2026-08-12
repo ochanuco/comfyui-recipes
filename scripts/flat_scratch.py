@@ -14,8 +14,21 @@ Canny edge pixels surviving inside the mask, per thousand flat pixels.
 
     uv run scripts/flat_scratch.py out/sb-111222333_00001_.png ...
 
-Calibration, on this recipe at 1024x1536 (measure again before trusting these
-numbers at another size -- the window is in pixels, so it does not scale):
+IT IS NOT A GENERAL ROUGHNESS MEASURE, AND ITS SIGN FLIPS BY CHARACTER. What it
+counts is fine line inside flat-ish areas. Whether that is a defect depends on
+whether the costume is supposed to be plain there. The sage's garments are large
+unbroken fields, so line inside them is stray and the number tracks the eye.
+Yukari's dress is ribbed and her thighhighs carry highlight bands by design, so
+the same signal means "drawn" rather than "damaged" -- and on her the ranking
+inverts outright:
+
+    rb-sh-1886970040   1.842   the accepted best render
+    ct-yu-bare         1.325
+    zy-full            0.165   flat, duplicated, the one agreed to be bad
+
+Calibrate per character before using a threshold, and never carry the sage's
+across. Numbers below are the sage's only, at 1024x1536; the window is in
+pixels, so they do not survive a size change either.
 
     0.06 - 0.22   clean. Every render without the surface block landed here.
     0.53 - 0.99   scratchy. Every render carrying the surface block landed here,
@@ -82,8 +95,7 @@ def main() -> None:
         score, area = flat_scratch(
             path, win=args.win, flat_std=args.flat_std, erode=args.erode
         )
-        verdict = "clean" if score < 0.25 else "SCRATCHY"
-        print(f"{path.name:34} {score:6.3f}  flat={area:8d}  {verdict}")
+        print(f"{path.name:34} {score:6.3f}  flat={area:8d}")
 
 
 if __name__ == "__main__":

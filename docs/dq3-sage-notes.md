@@ -1531,6 +1531,96 @@ Two other things this round settled:
   puts the camera in the lap, which is the framing this project does not
   develop, and it was dropped rather than tuned.
 
+## The rough-sketch feel: it was the surface block, and it needed a number
+
+The complaint was that renders look like coloured roughs. Three rounds of tag
+work missed it entirely, and the reason they missed it is worth more than the
+answer.
+
+What was tried and did nothing. Dropping `--flat-paint`, whose negative bans
+`(heavy shading:1.2)` and `(detailed shading:1.2)` by name. Adding
+`(clean lineart:1.4), (crisp edges:1.3), (smooth shading:1.35)`. Adding the two
+Illustrious aesthetic-score tags `QUALITY_PLAIN` deliberately leaves out. All
+three were single-variable runs on one seed, and all three came back
+indistinguishable from the baseline.
+
+A second pass at 1.25x added hair strands and softened the line — a trade, not a
+fix. 1.5x is not available: VAEEncode at 1536x2304 dies on MPS with
+`MPSGraph does not support tensor dims larger than INT_MAX`, so whole-image hires
+tops out at 1280x1920 on this machine.
+
+Framing does move it. Zooming the sage in to `cowboy shot` brought fabric folds
+and chest shading that the full-body shot has no pixels for; and the reverse test
+is the one that mattered — Yukari's accepted `resuba` recipe, re-shot at
+`standing, full body`, comes back as flat as the sage, and duplicates on 2 of 2
+seeds. She was never a better recipe. She was a closer crop.
+
+### The actual cause
+
+The `GLOSS` block — `(taut fabric:1.25), (stretched fabric:1.2),
+(soft shading:1.25), smooth fabric, (specular highlights:1.3), light streaks` —
+sprays short strokes across the inside of every flat garment, and stages the
+figure to display cloth: from the render it entered onwards the sage stopped
+holding his staff and stood with both arms spread holding the cape open. One
+block, two symptoms, and the fix is to not use it.
+
+### Why three rounds of eyeballing could not find that
+
+Changing one tag does not edit the picture, it draws a different one. So a
+one-render-versus-one-render comparison cannot separate a tag's effect from the
+sample it happened to land on, and every confident reading here that came from
+such a pair turned out to be wrong — including "`pt-c`'s line is cleaner than
+`bs-a`'s", which the metric scores the other way round. Judging from torso crops
+made it worse: the composition had broken while the crops looked fine.
+
+`scripts/flat_scratch.py` is what replaced the eye. It counts edge pixels
+surviving inside areas that should be flat fill. The first version counted short
+edge components across the whole frame and ranked the best render worst, because
+a gold trim line and a stray fold stroke look identical to it; restricting the
+count to flat interiors is the entire idea.
+
+    no surface block   0.06 - 0.22
+    surface block      0.53 - 0.99
+    lb-lap             2.04          costume dissolved outright
+
+No overlap, across nine renders. Then six fresh seeds on the parts-only recipe,
+with 0.25 declared as the threshold before the run: 0.059, 0.071, 0.115, 0.127,
+0.156, 0.219. Six of six, worst case inside the bound, and all six hold the
+staff, the trim, the legwear and a normal chest.
+
+### What the parts block buys, and where it does not
+
+Adding small parts is what closes the gap to Yukari without touching the
+framing: `(gold trim:1.25), (embroidery:1.2), (cape clasp:1.2),
+(belt buckle:1.2), (decorated hem:1.2), (hair strands:1.2)`. The sage's costume
+is three large flat fields and has nowhere for a line to go; the block gives the
+dress a gold hem band and the buckle an emblem, and it survives at full body.
+
+It does not transfer blindly. On Takao it lands cleanly, because dress uniform
+has trim and fastenings a line can follow. On Momiji it replaced the costume
+rather than decorating it — `(fur trim)`, `(tassel)` and `(decorated hem)` came
+back as a white robe over the sleeveless top. Her costume already carries the
+small parts the sage's lacks, which is the density argument working in reverse.
+
+### Two corrections to earlier entries
+
+`(wide hips:1.2)` and `(thick thighs:1.3)` were being carried on characters that
+never asked for them, copied over from Yukari's block. They are what inflated the
+chest on every closer framing, worst on the sage because his dress is a strapless
+tube top and there is nothing under the volume to support it. Removing the two
+tags fixes it; naming the chest in the positive does not. `(medium breasts:1.3),
+(perky breasts:1.25)` made it larger and pulled the framing in — naming a part
+raises its salience whatever the adjective says, the same way lowering
+`(large iris:1.4)` made the backdrop eye worse.
+
+And the nine-tag pose-block ceiling recorded in the chair section is not about
+tag count. `pt-b` added twenty-four tags with nothing pushed out, while a
+thirteen-tag `kneesup` block shredded the costume. The rule is that a pose block
+costs the garment only where the two specify the same thing: `kneesup` carries
+`(soles:1.25)`, `(foreshortening:1.3)` and `(adjusting legwear:1.3)`, which are
+bidding for the legs and the clothing. Decoration, which competes with nothing,
+is free at any length.
+
 ## Open, for next time
 
 - `standing` no longer shreds the costume: `--pose-text "full body"` did that,

@@ -1645,6 +1645,52 @@ costs the garment only where the two specify the same thing: `kneesup` carries
 bidding for the legs and the clothing. Decoration, which competes with nothing,
 is free at any length.
 
+## Fixing a character when pose and expression are explicitly not part of it
+
+The brief was full hips and healthy thighs, upper body left slight, a character
+confident and hopeless at once — and pose and expression deliberately excluded.
+That last part decides the method: a spec that excludes framing can only be
+validated by varying framing. Four expressions crossed with two framings and two
+seeds, holding nothing but the body block. See `pick/yk-body-spec`.
+
+    --extra "(wide hips:1.3), (thick thighs:1.35), (narrow waist:1.25),
+             (petite:1.2), (pale skin:1.25), (hood down:1.5),
+             (hood behind head:1.3), (visible hair:1.2)"
+    --negative-extra "(huge breasts:1.4), (large breasts:1.25), cleavage"
+    pose block opens with (solo:1.5)
+
+`(narrow waist)` and `(petite)` are what make this read as the brief rather than
+as bulk. 安産型 names the drop from hip to waist, not the size of the hip, and the
+candidate that raised the volume instead — `(wide hips:1.4), (thick thighs:1.45)`
+— gave fuller thighs and a worse silhouette.
+
+### Three things that did not transfer, and one that did not work at all
+
+The hardened chest guard from the sage does not transfer. `bs-c` established that
+volume tags plus `(breasts:1.2)` in the negative holds his chest down; on Yukari
+the same block pushed the entire palette to a saturated purple and destroyed the
+pale-thighhigh-over-dark-tights contrast, on 9 of 9. The difference across those
+nine was the guard alone. The plain three-tag guard is enough for her and costs
+nothing.
+
+The clone in the empty canvas is a positive-side problem, and this was learned
+twice. Adding `(2girls:1.6), (multiple girls:1.6), (duplicate:1.55),
+(another person:1.5)` and `(chibi:1.4)` to the negative took the clone rate from
+5/8 to **7/8** and wrecked the palette, the border and the background with it.
+`(solo:1.5)` at the head of the pose block took it to 0/8 and left everything
+else untouched. This is the backdrop-eye lesson again: naming the intruder louder
+feeds it.
+
+Two framings are unusable for her, and neither is a body problem:
+
+    standing, full body     9 of 9 duplicated
+    sitting + cowboy shot   3 of 4 dropped to a low angle with the thighs forward
+
+Yokozuwari and the chair both come back clean. The standing result matches
+`zy-full` duplicating on 2 of 2 earlier — a full-body standing shot leaves
+vertical canvas this prompt fills with a second figure, and `(solo:1.5)` was not
+tested against it.
+
 ## Open, for next time
 
 - `standing` no longer shreds the costume: `--pose-text "full body"` did that,

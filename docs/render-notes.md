@@ -1,11 +1,25 @@
-# DQ3 sage — where the recipe stands
+# Render notes — what has been measured, per character
 
-Everything below is already the default in `scripts/queue_dq3.py`. The bare
-command reproduces it:
+Renamed from `docs/dq3-sage-notes.md`. Eleven tag messages still cite the old
+path; they are records of where the file was at the commit they point to, and
+they stay correct there. Nothing else in the repo referenced it, which is why
+the rename was cheap. `scripts/queue_dq3.py` keeps its name for now — that one
+is named by four files and five tags, so it is a separate decision.
+
+The file started as the sage's recipe and is no longer only that: Yukari,
+Momiji and Takao all have sections below, and the later findings — the surface
+block, the pose-block ceiling, the volume tags — apply to whichever character
+is being drawn.
+
+The sage's own defaults are still the defaults in `scripts/queue_dq3.py`, and
+the bare command reproduces the state this file opened in:
 
 ```bash
 uv run scripts/queue_dq3.py --job sage --pose sitting --width 1024 --height 1536
 ```
+
+That command predates the rough-sketch work. For the sage as he stands now, see
+`pick/sage-parts` and the surface-block section near the end.
 
 ## Accepted results
 

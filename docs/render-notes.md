@@ -1602,6 +1602,16 @@ with 0.25 declared as the threshold before the run: 0.059, 0.071, 0.115, 0.127,
 0.156, 0.219. Six of six, worst case inside the bound, and all six hold the
 staff, the trim, the legwear and a normal chest.
 
+**Those numbers are the sage's and do not generalise.** The metric counts fine
+line inside flat-ish areas, and whether that is a defect depends on whether the
+costume is meant to be plain there. His garments are large unbroken fields, so
+line inside them is stray. Yukari's dress is ribbed and her thighhighs carry
+highlight bands by design, and on her the ranking inverts outright: the accepted
+`rb-sh` scores 1.842 and `zy-full` — flat, duplicated, the render everyone agreed
+was bad — scores 0.165. Calibrate per character, and never carry a threshold
+across. This was first written up as a general roughness measure, which it is
+not.
+
 ### What the parts block buys, and where it does not
 
 Adding small parts is what closes the gap to Yukari without touching the

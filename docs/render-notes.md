@@ -1795,12 +1795,16 @@ render from its embedded prompt rather than from its filename.
 
 Six sweeps in one session, all on Hassaku, all seeded 111222333.
 
-The two pieces of the line-first pipeline are tracked: `scripts/line_overlay.py`
-extracts lineart from a finished render and multiplies it back on, and
-`scripts/colorize_lineart.py` colours an authored lineart through a ControlNet.
-The sweeps that found the settings — `style_sweep2.py` through `style_sweep6.py`
-— stayed in `.local/` as scratch, so the numbers below are the record of them,
-not the scripts.
+`scripts/style_sweep2.py` through `style_sweep6.py` are the sweeps, in order.
+`scripts/line_overlay.py` extracts lineart from a finished render and multiplies
+it back on; `scripts/colorize_lineart.py` colours an authored lineart through a
+ControlNet.
+
+Each sweep holds everything but one axis, so re-running one and reading its diff
+against the numbers below is how to check whether a conclusion still stands.
+`style_sweep2.py` reads the base it varies out of `/history` rather than carrying
+a copy — `--from-prompt` refetches and caches it, which is needed after a ComfyUI
+restart drops the history.
 
 ### A LoRA is not the style lever
 

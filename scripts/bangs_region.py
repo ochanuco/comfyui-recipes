@@ -34,10 +34,20 @@ INPUT_DIR = REPO / ".local/ComfyUI/input"
 WIDTH, HEIGHT = 1024, 1280
 CONTROLNET = "noob-canny-fp16.safetensors"
 
-# The box the measurements use is x 300-760, y 30-300. The mask is a little wider
-# and taller so the feather falls outside the region being scored rather than
-# across it.
-MASK = {"x": 240, "y": 0, "w": 580, "h": 360, "feather": 48}
+# The box the measurements use is x 300-760, y 30-300. The bangs rectangle is a
+# little wider and taller so the feather falls outside the region being scored
+# rather than across it.
+#
+# "bangs" answers whether the two regions can be moved apart. "hair" gives up on
+# separating them and asks for more line everywhere the hair is -- once the
+# region prompt is known to raise what it covers, covering more of the hair is
+# the way to raise the whole of it.
+BANGS = (240, 0, 580, 360)
+MASKS = {
+    "bangs": [BANGS],
+    "hair": [BANGS, (60, 240, 320, 620), (640, 240, 340, 620)],
+}
+FEATHER = 48
 
 BASE = (
     "best quality, absurdres, 1girl, solo, hamakaze (kancolle), (grey hair:1.3), "
@@ -71,32 +81,40 @@ NEGATIVE = (
 )
 
 
-def build(filename: str, region_strength: float, cn_strength: float,
-          cn_end: float, seed: int, prefix: str) -> dict:
-    m = MASK
-    return {
+def build(filename: str, rects: list[tuple[int, int, int, int]], region_strength: float,
+          cn_strength: float, cn_end: float, seed: int, prefix: str) -> dict:
+    graph = {
         "1": {"class_type": "LoadImage", "inputs": {"image": filename}},
         "2": {"class_type": "ImageInvert", "inputs": {"image": ["1", 0]}},
         "4": {"class_type": "DiffusersLoader", "inputs": {"model_path": "hassaku-il-v22"}},
         "11": {"class_type": "ControlNetLoader", "inputs": {"control_net_name": CONTROLNET}},
-
-        # An empty full-size mask with a filled rectangle added into it.
+        # An empty full-size mask with the rectangles added into it one at a time.
         "20": {"class_type": "SolidMask", "inputs": {
             "value": 0.0, "width": WIDTH, "height": HEIGHT}},
-        "21": {"class_type": "SolidMask", "inputs": {
-            "value": 1.0, "width": m["w"], "height": m["h"]}},
-        "22": {"class_type": "MaskComposite", "inputs": {
-            "destination": ["20", 0], "source": ["21", 0],
-            "x": m["x"], "y": m["y"], "operation": "add"}},
-        "23": {"class_type": "FeatherMask", "inputs": {
-            "mask": ["22", 0], "left": m["feather"], "top": 0,
-            "right": m["feather"], "bottom": m["feather"]}},
+    }
+    mask_src, node_id = ["20", 0], 21
+    for x, y, w, h in rects:
+        solid, comp = str(node_id), str(node_id + 1)
+        graph[solid] = {"class_type": "SolidMask", "inputs": {
+            "value": 1.0, "width": w, "height": h}}
+        graph[comp] = {"class_type": "MaskComposite", "inputs": {
+            "destination": mask_src, "source": [solid, 0],
+            "x": x, "y": y, "operation": "add"}}
+        mask_src, node_id = [comp, 0], node_id + 2
 
+    # Numbered clear of the loop above: with more than one rectangle the loop
+    # reaches into the 20s, and a fixed id here would overwrite one of its
+    # SolidMasks and leave the composite chain referring back to this node.
+    graph["40"] = {"class_type": "FeatherMask", "inputs": {
+        "mask": mask_src, "left": FEATHER, "top": 0,
+        "right": FEATHER, "bottom": FEATHER}}
+
+    graph.update({
         "6": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": BASE}},
         "7": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": NEGATIVE}},
         "30": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": REGION}},
         "31": {"class_type": "ConditioningSetMask", "inputs": {
-            "conditioning": ["30", 0], "mask": ["23", 0],
+            "conditioning": ["30", 0], "mask": ["40", 0],
             "strength": region_strength, "set_cond_area": "default"}},
         "32": {"class_type": "ConditioningCombine", "inputs": {
             "conditioning_1": ["6", 0], "conditioning_2": ["31", 0]}},
@@ -117,7 +135,8 @@ def build(filename: str, region_strength: float, cn_strength: float,
         "8": {"class_type": "VAEDecode", "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
         "9": {"class_type": "SaveImage", "inputs": {
             "images": ["8", 0], "filename_prefix": prefix}},
-    }
+    })
+    return graph
 
 
 def main() -> None:
@@ -125,6 +144,8 @@ def main() -> None:
     parser.add_argument("--line", default="lb-parted", help="output/ basename of the lineart")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--mask", choices=sorted(MASKS), default="bangs",
+                        help="bangs separates the two regions; hair raises both")
     parser.add_argument("--region-strength", action="append", type=float, default=[],
                         help="ConditioningSetMask strength; repeat for a ladder")
     parser.add_argument("--cn-strength", type=float, default=0.6)
@@ -140,15 +161,17 @@ def main() -> None:
     INPUT_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, INPUT_DIR / filename)
 
+    rects = MASKS[args.mask]
     for strength in args.region_strength or [0.0, 0.6, 1.0, 1.5]:
-        prefix = f"br-{args.line}-r{int(round(strength * 100)):03d}"
-        print(f"{prefix:26s} region={strength}  cn={args.cn_strength}/{args.cn_end}")
+        prefix = f"br-{args.line}-{args.mask}-r{int(round(strength * 100)):03d}"
+        print(f"{prefix:32s} region={strength}  cn={args.cn_strength}/{args.cn_end}"
+              f"  {len(rects)} rect(s)")
         if args.dry_run:
             continue
         req = urllib.request.Request(
             f"http://{args.host}:{args.port}/prompt",
             data=json.dumps({"prompt": build(
-                filename, strength, args.cn_strength, args.cn_end,
+                filename, rects, strength, args.cn_strength, args.cn_end,
                 args.seed, prefix)}).encode(),
             headers={"Content-Type": "application/json"},
         )

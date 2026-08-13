@@ -45,7 +45,9 @@ CHARACTER = (
     "(very long sidelocks:1.3), sidelocks, (purple eyes:1.25), hair between eyes, "
     "hair ornament, (black hoodie:1.35), open hoodie, (rabbit hood:1.55), "
     "animal hood, long sleeves, drawstring, (purple dress:1.2), short dress, "
-    "frills, vocaloid, voiceroid"
+    # Weighted down rather than deleted: the dress is meant to have frill trim,
+    # it just should not be the loudest thing in the lower half.
+    "(frills:0.85), vocaloid, voiceroid"
 )
 
 # rabbit print is deliberately absent: paired with `sticker` it drew a rabbit
@@ -87,8 +89,15 @@ THIN = "(thin lineart:1.3), (fine lines:1.25), (delicate lines:1.2)"
 # dress sheer over her stomach.
 LEGWEAR = (
     "(black pantyhose:1.45), pantyhose, (opaque pantyhose:1.3), "
+    # over-kneehighs ends just above the knee and, per its danbooru wiki, exists
+    # to "leave a larger gap between the stocking and the skirt or dress" --
+    # which is the shortening that was wanted. It is ADDED, not substituted:
+    # swapping the whole block to over-kneehighs removed the socks entirely,
+    # because `thighhighs over pantyhose` is a real tag carrying the layering
+    # and `over-kneehighs over pantyhose` is a phrase that is not.
     "(very pale purple thighhighs:1.5), (white thighhighs:1.2), "
-    "(lavender tint:1.3), (thighhighs over pantyhose:1.55)"
+    "(over-kneehighs:1.4), (lavender tint:1.3), "
+    "(thighhighs over pantyhose:1.55)"
 )
 
 POSES = {
@@ -125,7 +134,12 @@ NEGATIVE = (
     # (sheer clothes) went in with it and the palette came back flat and dark,
     # which is the same shape as the duplicate-guard block that wrecked the
     # colours once before.
+    # (thighhighs:1.3) was tried here to stop the socks creeping back to full
+    # length. It removed them outright: the model does not hold thighhighs and
+    # over-kneehighs apart, whatever the danbooru wiki separates. Length has to
+    # come from the positive tag alone.
     "(mismatched legwear:1.5), "
+    "(petticoat:1.35), (layered skirt:1.25), "
     "(see-through dress:1.45), (transparent clothing:1.3), "
     "(hood up:1.5), (hood over head:1.4), "
     "(impasto:1.25), (painterly:1.25), (oil painting (medium):1.2), "

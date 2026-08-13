@@ -97,6 +97,10 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8188)
     parser.add_argument("--controlnet", choices=sorted(CONTROLNETS), default="canny")
     parser.add_argument("--seed", type=int, default=111222333)
+    parser.add_argument(
+        "--only", action="append", default=[], choices=[r[0] for r in RUNGS],
+        help="run just these strength rungs; the ladder is for comparing, "
+             "s60-e80 is the one to use")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -108,7 +112,9 @@ def main() -> None:
     shutil.copyfile(src, INPUT_DIR / filename)
 
     for suffix, strength, end in RUNGS:
-        prefix = f"cz-{args.controlnet}-{suffix}"
+        if args.only and suffix not in args.only:
+            continue
+        prefix = f"cz-{args.line}-{args.controlnet}-{suffix}"
         print(f"{prefix:22s} strength={strength} end={end}")
         if args.dry_run:
             continue

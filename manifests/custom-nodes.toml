@@ -31,3 +31,18 @@ repo = "https://github.com/Fannovel16/comfyui_controlnet_aux.git"
 ref = "main"
 path = "comfyui_controlnet_aux"
 install_requirements = false
+
+# Detail Daemon: a third axis for line density, after the prompt and the
+# ControlNet. It rescales the sigmas during sampling -- injecting the same noise
+# but removing less of it each step -- which sharpens line without redrawing the
+# image, so it reaches detail that neither a tag nor a held hint can.
+#
+# It replaces the sampler rather than adding a node beside it: the wrapper takes
+# a SAMPLER, so a graph on plain KSampler has to be rebuilt on
+# SamplerCustomAdvanced to use it. Pure Python, no requirements of its own.
+[[node]]
+name = "ComfyUI-Detail-Daemon"
+repo = "https://github.com/Jonseed/ComfyUI-Detail-Daemon.git"
+ref = "main"
+path = "ComfyUI-Detail-Daemon"
+install_requirements = false

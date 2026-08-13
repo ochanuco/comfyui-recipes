@@ -109,11 +109,28 @@ POSES = {
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2), "
         "(face focus:1.3), (smug:1.35), (half-closed eyes:1.3)"
     ),
+    # Both hands making a V, one held over the eye and one arm thrown out
+    # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
+    # the eye between the fingers") are both real tags; the gesture is not
+    # something a description of fingers would get.
+    #
+    # Kept to eight tags, matching lounge. At nine -- with (outstretched arm:1.3)
+    # for the arm thrown at the camera -- the dress went saturated purple, the
+    # socks grew back to full length and the collarbone straps vanished. That is
+    # the pose-block ceiling doing what it has done before, and the arm tag was
+    # the one paying nothing for its place: it opened the arm sideways rather
+    # than towards the viewer. `sitting on floor` is also out, implied by
+    # yokozuwari.
+    "peace": (
+        "(solo:1.5), (yokozuwari:1.35), legs to the side, (double v:1.45), "
+        "(v over eye:1.4), (smug:1.35), (half-closed eyes:1.3), full body"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
 # at 1024x1280 and drew down to the thighs. 1024x1024 held it.
-SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024)}
+SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
+         "peace": (1024, 1536)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -153,16 +170,17 @@ SWEEP_SEEDS = [555666777, 111222333, 1886970040, 737373737, 2557902837, 34095643
 
 
 def positive(pose: str) -> str:
+    # The legwear, body and thin-line blocks belong to whole-figure framings;
+    # the portrait crops above them and naming what is out of frame is what
+    # invites it back in.
+    full_figure = pose != "portrait"
     parts = ["best quality, absurdres, 1girl, solo", CHARACTER, POSES[pose]]
-    if pose == "lounge":
+    if full_figure:
         parts.append(LEGWEAR)
     parts += [FACE, SURFACE]
-    if pose == "lounge":
-        parts.append(BODY)
-    else:
-        parts.append("(pale skin:1.25)")
+    parts.append(BODY if full_figure else "(pale skin:1.25)")
     parts.append(HOOD)
-    if pose == "lounge":
+    if full_figure:
         parts.append(THIN)
     return ", ".join(parts)
 

@@ -27,12 +27,13 @@ import shutil
 import urllib.request
 from pathlib import Path
 
+import colorize_lineart
+
 REPO = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = REPO / ".local/ComfyUI/output"
 INPUT_DIR = REPO / ".local/ComfyUI/input"
 
 WIDTH, HEIGHT = 1024, 1280
-CONTROLNET = "noob-canny-fp16.safetensors"
 
 # The box the measurements use is x 300-760, y 30-300. The bangs rectangle is a
 # little wider and taller so the feather falls outside the region being scored
@@ -49,19 +50,13 @@ MASKS = {
 }
 FEATHER = 48
 
-BASE = (
-    "best quality, absurdres, 1girl, solo, hamakaze (kancolle), (grey hair:1.3), "
-    "short hair, (hair over one eye:1.35), (eyes visible through hair:1.2), "
-    "(blue eyes:1.25), (hairclip:1.25), hair ornament, (serafuku:1.3), "
-    "(white shirt:1.25), (blue sailor collar:1.35), (yellow neckerchief:1.3), "
-    "kantai collection, (solo:1.5), (upper body:1.4), looking at viewer, "
-    "(closed mouth:1.2), (smug:1.4), (half-closed eyes:1.3), (tareme:1.2), "
-    "eyelashes, (pale skin:1.15), (realistic:1.3), "
-    "(detailed hair:1.5), (defined hair strands:1.55), (hair strand outline:1.3), "
-    "(black lineart:1.35), (defined lines:1.25), "
-    "(cel shading:1.45), (sharp shadow edges:1.35), (two-tone shading:1.3), "
-    "(simple background:1.3), (grey background:1.2)"
-)
+# The global prompt, the negative, the ControlNet table and the render blocks are
+# colorize_lineart's. This script is that pipeline with a region added, so the two
+# have to stay in step -- they were byte-identical copies until this import, which
+# is exactly the arrangement that drifts.
+NEGATIVE = colorize_lineart.NEGATIVE
+CONTROLNETS = colorize_lineart.CONTROLNETS
+RENDERS = colorize_lineart.RENDERS
 
 # Only what the bangs are short of. Naming the character or the costume here
 # would put a second face in the region.
@@ -71,23 +66,14 @@ REGION = (
     "(black lineart:1.45), (defined lines:1.35), (crisp lines:1.25)"
 )
 
-# (shading:1.3) belonged to the lineart pass and cancels the (cel shading:1.45)
-# the colour prompt asks for; it is not carried over here.
-NEGATIVE = (
-    "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
-    "extra fingers, extra limbs, watermark, signature, text, (disembodied eye:1.4), "
-    "(impasto:1.25), (painterly:1.25), (oil painting (medium):1.2), "
-    "(monochrome:1.3), (greyscale:1.3), (sketch:1.2)"
-)
-
 
 def build(filename: str, rects: list[tuple[int, int, int, int]], region_strength: float,
-          cn_strength: float, cn_end: float, seed: int, prefix: str) -> dict:
+          controlnet: str, invert: bool, cn_strength: float, cn_end: float,
+          seed: int, render: str, prefix: str) -> dict:
     graph = {
         "1": {"class_type": "LoadImage", "inputs": {"image": filename}},
-        "2": {"class_type": "ImageInvert", "inputs": {"image": ["1", 0]}},
         "4": {"class_type": "DiffusersLoader", "inputs": {"model_path": "hassaku-il-v22"}},
-        "11": {"class_type": "ControlNetLoader", "inputs": {"control_net_name": CONTROLNET}},
+        "11": {"class_type": "ControlNetLoader", "inputs": {"control_net_name": controlnet}},
         # An empty full-size mask with the rectangles added into it one at a time.
         "20": {"class_type": "SolidMask", "inputs": {
             "value": 0.0, "width": WIDTH, "height": HEIGHT}},
@@ -110,7 +96,8 @@ def build(filename: str, rects: list[tuple[int, int, int, int]], region_strength
         "right": FEATHER, "bottom": FEATHER}}
 
     graph.update({
-        "6": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": BASE}},
+        "6": {"class_type": "CLIPTextEncode", "inputs": {
+            "clip": ["4", 1], "text": colorize_lineart.positive_for(render)}},
         "7": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": NEGATIVE}},
         "30": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": REGION}},
         "31": {"class_type": "ConditioningSetMask", "inputs": {
@@ -123,7 +110,7 @@ def build(filename: str, rects: list[tuple[int, int, int, int]], region_strength
         # only outside the region.
         "12": {"class_type": "ControlNetApplyAdvanced", "inputs": {
             "positive": ["32", 0], "negative": ["7", 0], "control_net": ["11", 0],
-            "image": ["2", 0], "strength": cn_strength,
+            "image": ["2", 0] if invert else ["1", 0], "strength": cn_strength,
             "start_percent": 0.0, "end_percent": cn_end}},
 
         "5": {"class_type": "EmptyLatentImage", "inputs": {
@@ -136,6 +123,8 @@ def build(filename: str, rects: list[tuple[int, int, int, int]], region_strength
         "9": {"class_type": "SaveImage", "inputs": {
             "images": ["8", 0], "filename_prefix": prefix}},
     })
+    if invert:
+        graph["2"] = {"class_type": "ImageInvert", "inputs": {"image": ["1", 0]}}
     return graph
 
 
@@ -148,6 +137,9 @@ def main() -> None:
                         help="bangs separates the two regions; hair raises both")
     parser.add_argument("--region-strength", action="append", type=float, default=[],
                         help="ConditioningSetMask strength; repeat for a ladder")
+    parser.add_argument("--controlnet", choices=sorted(CONTROLNETS), default="canny")
+    parser.add_argument("--render", choices=sorted(RENDERS), default="cg",
+                        help="how flat the colour pass is asked to be")
     parser.add_argument("--cn-strength", type=float, default=0.6)
     parser.add_argument("--cn-end", type=float, default=0.8)
     parser.add_argument("--seed", type=int, default=111222333)
@@ -162,17 +154,20 @@ def main() -> None:
     shutil.copyfile(src, INPUT_DIR / filename)
 
     rects = MASKS[args.mask]
+    controlnet, invert = CONTROLNETS[args.controlnet]
     for strength in args.region_strength or [0.0, 0.6, 1.0, 1.5]:
-        prefix = f"br-{args.line}-{args.mask}-r{int(round(strength * 100)):03d}"
-        print(f"{prefix:32s} region={strength}  cn={args.cn_strength}/{args.cn_end}"
+        tail = "" if args.render == "cg" else f"-{args.render}"
+        prefix = (f"br-{args.line}-{args.mask}-{args.controlnet}"
+                  f"-r{int(round(strength * 100)):03d}{tail}")
+        print(f"{prefix:46s} region={strength}  cn={args.cn_strength}/{args.cn_end}"
               f"  {len(rects)} rect(s)")
         if args.dry_run:
             continue
         req = urllib.request.Request(
             f"http://{args.host}:{args.port}/prompt",
             data=json.dumps({"prompt": build(
-                filename, rects, strength, args.cn_strength, args.cn_end,
-                args.seed, prefix)}).encode(),
+                filename, rects, strength, controlnet, invert,
+                args.cn_strength, args.cn_end, args.seed, args.render, prefix)}).encode(),
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=30) as resp:

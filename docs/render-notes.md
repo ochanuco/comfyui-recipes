@@ -2004,8 +2004,24 @@ which is why `ImageInvert` was in the graph; lineart_anime is trained on the
 lineart itself, so inverting it hands the model a photographic negative of what
 it expects. `CONTROLNETS` in `colorize_lineart.py` carries that flag per model.
 
-Not yet tried: the two stacked. They came out level separately and they work by
-different means, so there is no reason to assume they compose.
+### They do compose
+
+Level separately, and I wrote down that there was no reason to expect them to
+add. They add:
+
+    canny,   no region                    bangs 18.97%   side 29.54%   ratio 0.64
+    canny  + hair region                  bangs 21.82%   side 28.49%   ratio 0.77
+    lineart, no region                    bangs 21.63%   side 30.32%   ratio 0.71
+    lineart + hair region                 bangs 25.47%   side 33.65%   ratio 0.76
+    lineart + hair region + flat-noreal   bangs 23.18%   side 31.83%   ratio 0.73
+
+25.47% is 17% above the better of the two alone and 34% above where the two-pass
+pipeline started. They are doing different jobs — the ControlNet decides how much
+of the drawing survives, the region decides how much line is asked for where —
+so the reason to expect no interaction was really just an absence of evidence.
+
+Adding `flat-noreal` on top costs line (23.18%) and buys back the flat look. That
+trade is a taste call, not a defect: it is still above lineart alone.
 
 ### (flat color) is free again once the ControlNet holds the line
 

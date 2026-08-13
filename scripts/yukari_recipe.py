@@ -182,12 +182,38 @@ POSES = {
         "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
         "(half-closed eyes:1.3), full body"
     ),
+    # `peace` off the floor and onto a chair. `sitting on chair` is not a tag --
+    # its wiki says to use `sitting` + `on chair` -- so it is the two of them.
+    # Nine tags, matching `peace`, with yokozuwari and `legs to the side`
+    # swapped out for the pair.
+    #
+    # NOT SETTLED. One of four seeds is clean where `peace` was seven of seven:
+    #
+    #   111222333   clean -- chair drawn, socks over tights on both legs
+    #   555666777   layered correctly, but two rabbit plushies appear and the
+    #               camera drops low onto her thighs
+    #   737373737   layering gone; the purple dress is replaced by a long black
+    #               hoodie dress
+    #   3409564303  three chibi clones around her, with (solo:1.5) leading
+    #
+    # `sitting` has form for the low angle -- three of four renders once before.
+    # Busy hands stopped it that time and mostly do here.
+    #
+    # The clones and the props are the new thing, and the guess is empty frame:
+    # a figure seated on a chair fills less of a 2:3 canvas than one on the
+    # floor, and what is left over gets filled. Untested. A tighter framing than
+    # `full body` is the obvious thing to try.
+    "chair": (
+        "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "
+        "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
+        "(half-closed eyes:1.3), full body"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
 # at 1024x1280 and drew down to the thighs. 1024x1024 held it.
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
-         "peace": (1024, 1536)}
+         "peace": (1024, 1536), "chair": (1024, 1536)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "

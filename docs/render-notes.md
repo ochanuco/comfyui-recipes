@@ -2007,6 +2007,29 @@ it expects. `CONTROLNETS` in `colorize_lineart.py` carries that flag per model.
 Not yet tried: the two stacked. They came out level separately and they work by
 different means, so there is no reason to assume they compose.
 
+### (flat color) is free again once the ControlNet holds the line
+
+It cost the strand lines when the prompt was the only thing asking for a line.
+That is no longer the situation, and the finding does not survive the change —
+with lineart_anime holding the drawing, putting the flat block back costs
+nothing:
+
+    cg (no flat block)          bangs 21.63%   side 30.32%   ratio 0.71
+    + (flat color:1.3)          bangs 21.67%   side 34.26%   ratio 0.63
+    + flat, white outline,
+      outline, sticker          bangs 20.95%   side 30.90%   ratio 0.68
+    + flat, (realistic) cut     bangs 19.39%   side 24.08%   ratio 0.81
+
+Without the flat block the colour pass renders in the base's smooth CG shading,
+and `(realistic:1.3)` in the face block is a second, independent source of it.
+Cutting both is the flattest, most cel-like result and it holds the best ratio
+measured anywhere — 0.81 — at some cost in absolute line, though still above
+what canny managed with no flattening asked for at all.
+
+A conclusion measured under one mechanism does not carry to another. This one was
+recorded four sections above as a hard rule about `(flat color)` and was already
+false by the time the ControlNet changed.
+
 ### Measuring
 
 Edge density in a hand-placed box ranks variants within one sweep and nothing

@@ -39,9 +39,12 @@ CONTROLNETS = {
     "lineart": ("noob-lineart-anime-fp16.safetensors", False),
 }
 
-# The colour prompt, minus every tag that flattens a mass. (flat color) and the
-# sticker block are deliberately gone: they are what erased the strand lines in
-# the first place, and the ControlNet is now what holds the drawing together.
+# The colour prompt. (flat color) and the sticker block are not in it, because
+# they are what erased the strand lines in the first place -- but that was
+# measured when the prompt was the only thing asking for a line. The ControlNet
+# holds the drawing now, and a lineart-trained one holds it well, so whether the
+# flat block can come back is a live question rather than a settled one. Without
+# it the colour pass renders in the base's own smooth CG shading.
 POSITIVE = (
     "best quality, absurdres, 1girl, solo, hamakaze (kancolle), (grey hair:1.3), "
     "short hair, (hair over one eye:1.35), (eyes visible through hair:1.2), "
@@ -62,6 +65,18 @@ NEGATIVE = (
     "(monochrome:1.3), (greyscale:1.3), (sketch:1.2)"
 )
 
+# Appended to POSITIVE. "cg" is what the colour pass does when nothing asks it to
+# flatten; the rest walk back toward the flat sticker look the recipe started
+# from, one block at a time, so whichever one costs the line can be identified.
+RENDERS = {
+    "cg": "",
+    "flat": "(flat color:1.3)",
+    "flat-sticker": "(flat color:1.3), (white outline:1.6), outline, sticker",
+    # (realistic:1.3) sits in the face block and is a second, separate source of
+    # rendered-looking shading, so it gets its own rung rather than riding along.
+    "flat-noreal": "(flat color:1.3)",
+}
+
 RUNGS = [
     ("s60-e80", 0.6, 0.8),
     # Strength and reach are separate questions and the first ladder confounded
@@ -75,14 +90,24 @@ RUNGS = [
 ]
 
 
+def positive_for(render: str) -> str:
+    text = POSITIVE
+    if render == "flat-noreal":
+        text = text.replace(", (realistic:1.3)", "")
+        assert text != POSITIVE, "the realistic tag moved; fix this replacement"
+    extra = RENDERS[render]
+    return f"{text}, {extra}" if extra else text
+
+
 def build(filename: str, controlnet: str, invert: bool, strength: float,
-          end: float, seed: int, prefix: str) -> dict:
+          end: float, seed: int, render: str, prefix: str) -> dict:
     hint = ["2", 0] if invert else ["1", 0]
     graph = {
         "1": {"class_type": "LoadImage", "inputs": {"image": filename}},
         "4": {"class_type": "DiffusersLoader", "inputs": {"model_path": "hassaku-il-v22"}},
         "11": {"class_type": "ControlNetLoader", "inputs": {"control_net_name": controlnet}},
-        "6": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": POSITIVE}},
+        "6": {"class_type": "CLIPTextEncode", "inputs": {
+            "clip": ["4", 1], "text": positive_for(render)}},
         "7": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": NEGATIVE}},
         "12": {"class_type": "ControlNetApplyAdvanced", "inputs": {
             "positive": ["6", 0], "negative": ["7", 0], "control_net": ["11", 0],
@@ -109,6 +134,8 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8188)
     parser.add_argument("--controlnet", choices=sorted(CONTROLNETS), default="canny")
+    parser.add_argument("--render", action="append", default=[], choices=sorted(RENDERS),
+                        help="how flat the colour pass is asked to be; repeat for a ladder")
     parser.add_argument("--seed", type=int, default=111222333)
     parser.add_argument(
         "--only", action="append", default=[], choices=[r[0] for r in RUNGS],
@@ -125,23 +152,25 @@ def main() -> None:
     shutil.copyfile(src, INPUT_DIR / filename)
 
     controlnet, invert = CONTROLNETS[args.controlnet]
-    for suffix, strength, end in RUNGS:
-        if args.only and suffix not in args.only:
-            continue
-        prefix = f"cz-{args.line}-{args.controlnet}-{suffix}"
-        print(f"{prefix:34s} strength={strength} end={end}"
-              f" hint={'inverted' if invert else 'as drawn'}")
-        if args.dry_run:
-            continue
-        req = urllib.request.Request(
-            f"http://{args.host}:{args.port}/prompt",
-            data=json.dumps({"prompt": build(
-                filename, controlnet, invert, strength, end,
-                args.seed, prefix)}).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            print("   ->", json.load(resp)["prompt_id"])
+    for render in args.render or ["cg"]:
+        for suffix, strength, end in RUNGS:
+            if args.only and suffix not in args.only:
+                continue
+            tail = suffix if render == "cg" else f"{suffix}-{render}"
+            prefix = f"cz-{args.line}-{args.controlnet}-{tail}"
+            print(f"{prefix:44s} strength={strength} end={end}"
+                  f" hint={'inverted' if invert else 'as drawn'}")
+            if args.dry_run:
+                continue
+            req = urllib.request.Request(
+                f"http://{args.host}:{args.port}/prompt",
+                data=json.dumps({"prompt": build(
+                    filename, controlnet, invert, strength, end,
+                    args.seed, render, prefix)}).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                print("   ->", json.load(resp)["prompt_id"])
 
 
 if __name__ == "__main__":

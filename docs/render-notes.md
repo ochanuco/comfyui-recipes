@@ -1900,6 +1900,26 @@ from — one tag, so it is available on demand, and avoidable. `(parted bangs:1.
 Stacking everything (`lb-combo`) scores highest but breaks the monochrome
 constraint — the hairclip picks up colour and the ground turns grey.
 
+Raising the strand weights on top of `parted bangs` adds nothing: 17.75% against
+17.78% for `parted bangs` alone. The two do not compose, unlike the strand/flat
+pair above.
+
+### The lineart's advantage does not survive the colour pass
+
+`lb-parted` carries 16% more line in the bangs than the lineart it replaced.
+Coloured at strength 0.6 / end 0.8, the finished renders come out at 0.64 and
+0.59 against 0.65 for the old lineart — level, or worse. The gain is spent
+somewhere in the colour pass, and on `lb-parted-dense` the side hair rose
+(29.5% → 30.9%) while the bangs fell, which is the colour pass redrawing hair the
+ControlNet stopped holding at 80%. One seed each, so this is a direction to check
+and not a measurement to build on: `end_percent` at 1.0 is the obvious next rung,
+and the earlier finding that strength *hurts* line retention was measured with
+the lineart held identical, which is not this case.
+
+Both renders also came out nearly unshaded despite `(cel shading:1.45)` in the
+positive, because `(shading:1.3)` was still in the negative — the lineart pass's
+negative was reused wholesale for the colour pass. They need to be separate.
+
 ### Measuring
 
 Edge density in a hand-placed box ranks variants within one sweep and nothing
@@ -1911,8 +1931,14 @@ was used for.
 
 ## Open, for next time
 
-- **Nothing raises the bangs alone yet.** `parted bangs` + raised strand weights
-  (no `messy hair`) is the untested cell; every mix so far lifted both regions.
+- **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven
+  lineart variants plus `parted bangs` + raised strands all lifted both regions
+  together or neither. If the ratio matters, it probably has to come from
+  masking the bangs and treating them separately, not from another tag.
+- **Split the two passes' negatives.** `colorize_lineart.py` inherits the lineart
+  pass's `(shading:1.3)`, which cancels the `(cel shading:1.45)` it asks for.
+- Colour at `end_percent` 1.0 with `lb-parted`, to see whether holding the
+  ControlNet to the end keeps the lineart's bangs advantage.
 - `cel shading` and `soft shading, smooth shading` sit in the same positive in
   `hs-cel`, which should be the reason its line density stalled at 15.1%. The
   sweep that would have measured the cost of that contradiction (`cl-*`, with

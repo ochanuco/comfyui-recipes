@@ -2246,6 +2246,41 @@ switches to the 1024x1024 crop. `rabbit print` is out of the character block: wi
 `sticker` it drew a rabbit decal on her cheek, and `sticker` is the half of that
 pair worth keeping.
 
+## A tag that names a relationship summons the other party, and weight will not stop it
+
+Asked for a lap-pillow invitation with one girl. `lap pillow` is the wrong tag to
+begin with -- its wiki says to use `lap pillow invitation` for merely offering --
+but the right one is no better here. Every attempt that carried it drew a second
+Yukari lying across her lap:
+
+    lap pillow invitation, plain negative              2 of 2 had two girls
+    ... + (2girls:1.6), (multiple girls:1.6),
+          (duplicate:1.55), (another person:1.5)       2 of 2 had two girls
+    ... + (solo:1.7) instead of (solo:1.5)             2 of 2 had two girls
+
+Deleting it worked on the first try: `(seiza:1.35), (hand on own thigh:1.45),
+(beckoning:1.35), (looking down:1.4), (smug:1.4), (come hither:1.25)` — every tag
+describing only her — came out solo on both seeds, and on all twelve renders of
+the pattern sweep that followed. `pick/momiji-lap` had already recorded the same
+thing about `(head on lap)` and `(hand on another's head)`: **a tag naming a
+relationship names the other person, and `solo` does not outvote it.** The
+generalisation is that this is about deletion, not weight — 1.7 changed nothing.
+
+The guard block did something else, and it is the second time: mean saturation
+went from ~25 to 105–163, neon backdrop and orange skin, with the headcount
+unchanged. That is the same failure as the five duplicate-guard tags that wrecked
+the palette earlier. **Duplicate guards in the negative are not a tool this
+recipe has.**
+
+One wrong turn worth recording: the blown colour was first blamed on
+`(flat color:1.3), (simple background:1.3), (grey background:1.2)`, because
+`pick/momiji-lap` had dropped them. Removing them made it worse — 163 against
+138. The old note was about a warm-interior scene and did not transfer.
+
+`--pose invite` is the settled version. `scripts/lap_invite.py` is the sweep, and
+`.local/ComfyUI/output/sheet-invite-patterns.png` holds six readings of it
+(smug, gentle, teasing, patting, head-tilt, full-body) at two seeds each.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

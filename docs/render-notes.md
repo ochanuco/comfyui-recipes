@@ -1793,9 +1793,14 @@ render from its embedded prompt rather than from its filename.
 
 ## Hamakaze: changing the art style, and getting a line into the hair
 
-Six sweeps in one session, all on Hassaku, all seeded 111222333. Scripts are in
-`.local/`: `style_sweep2.py` through `style_sweep6.py`, `line_overlay.py`,
-`colorize_lineart.py`.
+Six sweeps in one session, all on Hassaku, all seeded 111222333.
+
+The two pieces of the line-first pipeline are tracked: `scripts/line_overlay.py`
+extracts lineart from a finished render and multiplies it back on, and
+`scripts/colorize_lineart.py` colours an authored lineart through a ControlNet.
+The sweeps that found the settings — `style_sweep2.py` through `style_sweep6.py`
+— stayed in `.local/` as scratch, so the numbers below are the record of them,
+not the scripts.
 
 ### A LoRA is not the style lever
 

@@ -51,6 +51,19 @@ CHARACTER = (
     "yuzuki yukari, (light purple hair:1.25), (short hair with long locks:1.45), "
     "(very long sidelocks:1.3), sidelocks, (purple eyes:1.25), hair between eyes, "
     "hair ornament, (black hoodie:1.35), open hoodie, (rabbit hood:1.55), "
+    # The hem does not respond to length tags. Asked to cover the buttocks, three
+    # renders moved bare skin in the upper-leg band 37.4% -> 40.1% -> 38.3%:
+    # (medium dress:1.3), then (medium dress:1.45) with (short dress:1.4),
+    # (microdress:1.4) opposing it in the negative. All noise. `short dress` per
+    # its wiki already spans "the middle of the thighs at the lowest to just
+    # below the crotch and ass at the highest" and this sits at the top of that
+    # range and stays there.
+    #
+    # The likely reason -- untested -- is that the costume comes from
+    # `yuzuki yukari` itself rather than from these garment tags, so a length tag
+    # is arguing with the character prior and losing. Lengthening it will need
+    # something with more authority than a tag: a different garment noun, or
+    # inpainting the hem.
     "animal hood, long sleeves, drawstring, (purple dress:1.2), short dress, "
     # Weighted down rather than deleted: the dress is meant to have frill trim,
     # it just should not be the loudest thing in the lower half.
@@ -137,17 +150,6 @@ POSES = {
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
     # the eye between the fingers") are both real tags; the gesture is not
     # something a description of fingers would get.
-    #
-    # Kept to eight tags, matching lounge. At nine -- with (outstretched arm:1.3)
-    # for the arm thrown at the camera -- the dress went saturated purple, the
-    # socks grew back to full length and the collarbone straps vanished. That is
-    # the pose-block ceiling doing what it has done before, and the arm tag was
-    # the one paying nothing for its place: it opened the arm sideways rather
-    # than towards the viewer. `sitting on floor` is also out, implied by
-    # yokozuwari.
-    # Seven tags, not eight. At eight the legwear came apart: one sock pale and
-    # one black, and the tights gone from under both, with the legwear block
-    # byte-identical to the lounge render where it worked.
     #
     # This is pv1 (prompt 37ac6c0d) exactly, reverted to on request. Nine tags.
     #

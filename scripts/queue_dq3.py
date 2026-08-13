@@ -889,9 +889,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # Many Civitai checkpoints are only mirrored in diffusers layout, which
     # CheckpointLoaderSimple cannot read. DiffusersLoader returns the same
     # MODEL/CLIP/VAE triple, so the rest of the graph is unchanged.
+    # Default None rather than a base name, so "the caller chose Amanatsu" and
+    # "the caller chose nothing" stay distinguishable; apply_defaults fills it.
     parser.add_argument(
         "--diffusers-path",
-        default="amanatsu-il-v11",
+        default=None,
         help="subdirectory under assets/diffusers; pass '' to fall back to --ckpt-name",
     )
     # Structure, as opposed to IPAdapter's --ref-image, which carries style.
@@ -1615,10 +1617,17 @@ def wait_for(args: argparse.Namespace, prompt_ids: list[str]) -> None:
 
 def apply_defaults(args: argparse.Namespace) -> None:
     """Fill in the settled recipe for anything the caller left alone."""
-    # The parser default doubles as "the caller did not choose a base", so a job
-    # with a settled base can claim it while --diffusers-path still overrides.
-    if args.diffusers_path == "amanatsu-il-v11" and args.job in BASE_BY_JOB:
-        args.diffusers_path = BASE_BY_JOB[args.job]
+    # A job with a settled base claims it only when the caller did not choose one.
+    #
+    # This used to test `args.diffusers_path == "amanatsu-il-v11"`, taking the
+    # parser default as proof that nobody had asked. That makes
+    # `--diffusers-path amanatsu-il-v11` indistinguishable from passing nothing,
+    # so an explicit request for Amanatsu was silently answered with the job's
+    # base -- which is exactly the case a base comparison needs, and it would have
+    # returned Hassaku labelled as Amanatsu with nothing to notice.
+    args.base_given = args.diffusers_path is not None
+    if not args.base_given:
+        args.diffusers_path = BASE_BY_JOB.get(args.job, "amanatsu-il-v11")
     if getattr(args, "diffusers_path", None) in V_PRED_MODELS:
         args.v_pred = True
     tuning = CHECKPOINT_TUNING.get(getattr(args, "diffusers_path", None) or "", {})

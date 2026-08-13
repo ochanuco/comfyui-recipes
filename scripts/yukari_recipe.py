@@ -253,6 +253,45 @@ POSES = {
         "(one eye closed:1.35), (blush:1.35), (heart:1.25), (smile:1.25), "
         "full body"
     ),
+    # Giving a lap pillow, and pleased with herself about it. The person whose
+    # head is on her lap is the camera -- this is the composition recorded in
+    # pick/momiji-lap, which is the only lap pillow in this repo that came out
+    # with one girl in it.
+    #
+    # (head on lap) and (hand on another's head) are deliberately absent. They
+    # name a second person literally and drew her twice; (solo:1.5) cannot
+    # outvote a tag that says two people are present.
+    #
+    # `lap pillow` is the right tag over `lap pillow invitation` -- per its wiki
+    # the latter is for merely offering, and she is doing it.
+    #
+    # `looking at viewer` already comes from FACE, so it is not repeated here.
+    "lap": (
+        "(solo:1.5), (lap pillow:1.35), (pov:1.45), sitting, (seiza:1.25), "
+        "(looking down:1.4), (smug:1.4), (hand up:1.25), cowboy shot"
+    ),
+    # Patting her own thigh, inviting you to put your head on it. One girl.
+    #
+    # There is no lap-pillow tag here on purpose. `lap pillow` is for a head
+    # already resting on someone, and `lap pillow invitation` -- which its wiki
+    # describes as exactly this gesture -- still drew a second Yukari lying on
+    # her lap on every seed tried, guarded or not, and with (solo:1.7). It names
+    # the relationship, and so names the other party; the same way (head on lap)
+    # and (hand on another's head) did in pick/momiji-lap. Weight does not beat
+    # that, deletion does.
+    #
+    # So the invitation is assembled only from things that describe her alone:
+    # kneeling, a hand on her own thigh, beckoning, looking down at someone who
+    # is not drawn.
+    #
+    # Do NOT add duplicate guards to the negative for this. Four of them at
+    # 1.5-1.6 left the headcount unchanged and took mean saturation from ~25 to
+    # 105-163 -- neon backdrop, orange skin. Same as the five-guard block that
+    # wrecked the palette once before.
+    "invite": (
+        "(solo:1.5), (seiza:1.35), (hand on own thigh:1.45), (beckoning:1.35), "
+        "(looking down:1.4), (smug:1.4), (come hither:1.25), cowboy shot"
+    ),
     "chair": (
         "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "
         "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
@@ -265,7 +304,9 @@ POSES = {
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          "peace": (1024, 1536), "chair": (1024, 1536),
          "yawn": (1024, 1536), "fall": (1024, 1536),
-         "coy": (1024, 1536)}
+         "coy": (1024, 1536),
+         "lap": (1024, 1536),
+         "invite": (1024, 1536)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -321,6 +362,20 @@ NEGATIVE = (
 SWEEP_SEEDS = [555666777, 111222333, 1886970040, 737373737, 2557902837, 3409564303]
 
 
+def negative(pose: str) -> str:
+    """The negative, with the one pose that needs a different one handled here."""
+    if pose != "lap":
+        return NEGATIVE
+    # A head resting in her lap looks up at her, so the guard against low angles
+    # is fighting the shot rather than protecting it. (upskirt:1.4) and panties
+    # stay -- those are about what the camera sees, not where it sits.
+    text = NEGATIVE.replace("(from below:1.35), ", "")
+    assert "from below" not in text
+    # And the second person has to be named to be kept out, since the pose is
+    # about someone who is not in frame.
+    return text + ", (2girls:1.6), (multiple girls:1.6), (duplicate:1.55), (another person:1.5)"
+
+
 def positive(pose: str) -> str:
     # The legwear, body and thin-line blocks belong to whole-figure framings;
     # the portrait crops above them and naming what is out of frame is what
@@ -350,7 +405,7 @@ def build(pose: str, seed: int, prefix: str) -> dict:
         "6": {"class_type": "CLIPTextEncode",
               "inputs": {"clip": ["4", 1], "text": positive(pose)}},
         "7": {"class_type": "CLIPTextEncode",
-              "inputs": {"clip": ["4", 1], "text": NEGATIVE}},
+              "inputs": {"clip": ["4", 1], "text": negative(pose)}},
         "3": {"class_type": "KSampler", "inputs": {
             "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
             "latent_image": ["5", 0], "seed": seed, "steps": 30, "cfg": 5.0,
@@ -376,7 +431,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.print_prompt:
-        print(positive(args.pose), "\n\n---\n\n", NEGATIVE)
+        print(positive(args.pose), "\n\n---\n\n", negative(args.pose))
         return
 
     seeds = args.seed or SWEEP_SEEDS[:args.seeds] or [SWEEP_SEEDS[0]]

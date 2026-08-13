@@ -2046,6 +2046,31 @@ A conclusion measured under one mechanism does not carry to another. This one wa
 recorded four sections above as a hard rule about `(flat color)` and was already
 false by the time the ControlNet changed.
 
+### Detail Daemon: the number goes up, the picture does not
+
+`ComfyUI-Detail-Daemon` on the stacked best, region 1.0 through lineart_anime:
+
+    KSampler                       bangs 25.47%   side 33.65%   ratio 0.76
+    custom sampler, detail 0.0     bangs 25.47%   side 33.65%   ratio 0.76
+    detail 0.10                    bangs 26.76%   side 36.19%   ratio 0.74
+    detail 0.25                    bangs 30.35%   side 38.68%   ratio 0.78
+
+The control matters: rebuilding on `SamplerCustomAdvanced` at `detail_amount` 0.0
+reproduces `KSampler` to the digit, so the rest of the ladder is the node and not
+the rebuild.
+
+And the rest of the ladder is not line. At 0.25 the bangs have bright blue
+strands running through grey hair, and there are yellow specks on the background;
+at 0.10 the same thing is starting. Edge density counts a saturated colour band
+exactly like a drawn line, so 30.35% is chroma breaking, measured as an
+improvement. The caveat written a section below — that the measure counts any
+luminance step — stopped being a caveat here and became the whole result. Look at
+the render before believing the ladder.
+
+Detail Daemon is not broken; grey hair under near-flat colour is just where it
+breaks first. Under 0.10, or a narrower `start`/`end` window, is where it would
+have to live on this character.
+
 ### Measuring
 
 Edge density in a hand-placed box ranks variants within one sweep and nothing

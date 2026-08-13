@@ -69,7 +69,7 @@ REGION = (
 
 def build(filename: str, rects: list[tuple[int, int, int, int]], region_strength: float,
           controlnet: str, invert: bool, cn_strength: float, cn_end: float,
-          seed: int, render: str, prefix: str) -> dict:
+          seed: int, render: str, detail_amount: float | None, prefix: str) -> dict:
     graph = {
         "1": {"class_type": "LoadImage", "inputs": {"image": filename}},
         "4": {"class_type": "DiffusersLoader", "inputs": {"model_path": "hassaku-il-v22"}},
@@ -115,14 +115,14 @@ def build(filename: str, rects: list[tuple[int, int, int, int]], region_strength
 
         "5": {"class_type": "EmptyLatentImage", "inputs": {
             "batch_size": 1, "width": WIDTH, "height": HEIGHT}},
-        "3": {"class_type": "KSampler", "inputs": {
-            "model": ["4", 0], "positive": ["12", 0], "negative": ["12", 1],
-            "latent_image": ["5", 0], "seed": seed, "steps": 30, "cfg": 5.0,
-            "sampler_name": "dpmpp_2m", "scheduler": "karras", "denoise": 1.0}},
-        "8": {"class_type": "VAEDecode", "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
         "9": {"class_type": "SaveImage", "inputs": {
             "images": ["8", 0], "filename_prefix": prefix}},
     })
+    sampling, latent_out = colorize_lineart.sampler_nodes(
+        ["4", 0], ["12", 0], ["12", 1], ["5", 0], seed, detail_amount)
+    graph.update(sampling)
+    graph["8"] = {"class_type": "VAEDecode", "inputs": {
+        "samples": latent_out, "vae": ["4", 2]}}
     if invert:
         graph["2"] = {"class_type": "ImageInvert", "inputs": {"image": ["1", 0]}}
     return graph
@@ -142,6 +142,9 @@ def main() -> None:
                         help="how flat the colour pass is asked to be")
     parser.add_argument("--cn-strength", type=float, default=0.6)
     parser.add_argument("--cn-end", type=float, default=0.8)
+    parser.add_argument("--detail-amount", type=float, action="append", default=[],
+                        help="route through Detail Daemon at this amount; SDXL "
+                             "wants under 0.25. 0.0 is the rebuild-only control")
     parser.add_argument("--seed", type=int, default=111222333)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -156,22 +159,26 @@ def main() -> None:
     rects = MASKS[args.mask]
     controlnet, invert = CONTROLNETS[args.controlnet]
     for strength in args.region_strength or [0.0, 0.6, 1.0, 1.5]:
-        tail = "" if args.render == "cg" else f"-{args.render}"
-        prefix = (f"br-{args.line}-{args.mask}-{args.controlnet}"
-                  f"-r{int(round(strength * 100)):03d}{tail}")
-        print(f"{prefix:46s} region={strength}  cn={args.cn_strength}/{args.cn_end}"
-              f"  {len(rects)} rect(s)")
-        if args.dry_run:
-            continue
-        req = urllib.request.Request(
-            f"http://{args.host}:{args.port}/prompt",
-            data=json.dumps({"prompt": build(
-                filename, rects, strength, controlnet, invert,
-                args.cn_strength, args.cn_end, args.seed, args.render, prefix)}).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            print("   ->", json.load(resp)["prompt_id"])
+        for detail in args.detail_amount or [None]:
+            tail = "" if args.render == "cg" else f"-{args.render}"
+            if detail is not None:
+                tail += f"-d{int(round(detail * 100)):03d}"
+            prefix = (f"br-{args.line}-{args.mask}-{args.controlnet}"
+                      f"-r{int(round(strength * 100)):03d}{tail}")
+            print(f"{prefix:50s} region={strength}  cn={args.cn_strength}/{args.cn_end}"
+                  f"  detail={detail}")
+            if args.dry_run:
+                continue
+            req = urllib.request.Request(
+                f"http://{args.host}:{args.port}/prompt",
+                data=json.dumps({"prompt": build(
+                    filename, rects, strength, controlnet, invert,
+                    args.cn_strength, args.cn_end, args.seed, args.render,
+                    detail, prefix)}).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                print("   ->", json.load(resp)["prompt_id"])
 
 
 if __name__ == "__main__":

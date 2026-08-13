@@ -2095,6 +2095,41 @@ luminance step — a highlight boundary scores the same as a drawn line. It sort
 the rungs correctly every time it was checked against the images, which is all it
 was used for.
 
+## Swapping the character under a lineart ControlNet: 0.6 carries the hairstyle over
+
+`7219d431` is a Hamakaze render on the lineart-ControlNet pipeline —
+`noob-lineart-anime-fp16` at strength 0.6 over 0–80%, source
+`br-src-lb-parted.png`, plus a hair-region prompt through `ConditioningSetMask`
+and a Detail Daemon finish. Putting Yukari on it means editing the character
+span of the positive and leaving everything else byte-identical
+(`scratchpad/yk_face.py`). Her costume, colours and expression came over
+correctly. Her hairstyle did not: she came out in Hamakaze's short parted bob,
+and her hair was a much deeper purple than `(light purple hair:1.25)` asks for,
+with teal streaks that nothing in the prompt names.
+
+Two candidate causes, and the sweep (`hr-c60`/`hr-c35`/`hr-c00`, one seed,
+prompt fix in all three, strength 0.60/0.35/0.00) separated them:
+
+- the region prompt still said `(parted bangs:1.4)`, a Hamakaze hairstyle tag
+  aimed at the hair mask at strength 1.0, left behind by the character swap;
+- the ControlNet was holding the silhouette.
+
+**It was the ControlNet alone.** `hr-c60` fixed the region prompt and changed
+essentially nothing — same bob. At 0.35 the hairstyle is Yukari's outright:
+long sidelocks in front, the ring hair ornaments, the rabbit hood sitting
+properly on the head. The deep purple and the teal streaks went with it, which
+says those were structure read out of the source lineart rather than anything
+the prompt did. At 0.00 the hood closes over the head and the hair mostly
+disappears, and a white sticker outline appears — worse for showing a hairstyle.
+
+So a lineart ControlNet strong enough to be worth borrowing is also strong
+enough to transfer the donor's silhouette. Tags that change an outline —
+`(short hair with long locks:1.45)`, `(very long sidelocks:1.3)` — are exactly
+the ones it overrides, while tags that only fill an area (costume, colour,
+expression) pass through untouched. Around 0.35 both survive on this graph.
+Upper-body framing held at 0.35, so the composition is not the thing that pays
+for it here.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

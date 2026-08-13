@@ -73,12 +73,14 @@ HOOD = "(hood down:1.5), (hood behind head:1.3), (visible hair:1.2), (purple eye
 # Measured to do nothing to stroke width; present because fb-b carried them.
 THIN = "(thin lineart:1.3), (fine lines:1.25), (delicate lines:1.2)"
 
-LEGWEAR = (
-    "(sheer black pantyhose:1.5), (see-through pantyhose:1.45), "
-    "(skin visible through pantyhose:1.4), (charcoal pantyhose:1.35), "
-    "(glossy pantyhose:1.3), (very pale purple thighhighs:1.5), "
-    "(white thighhighs:1.2), (lavender tint:1.3), (thighhighs over pantyhose:1.55)"
-)
+# Black tights, and the layering is abandoned rather than retried.
+# (thighhighs over pantyhose:1.55) was the highest-weighted tag in the old block
+# and it still lost: fb-b drew the pale thighhighs alone with no tights under
+# them. Two garments on one limb is not something a weight seems able to buy.
+#
+# The see-through tags went with it, and they were not staying on the legs --
+# the dress was sheer over her stomach in every render that carried them.
+LEGWEAR = "(black pantyhose:1.45), pantyhose, (opaque pantyhose:1.3)"
 
 POSES = {
     "lounge": (
@@ -102,7 +104,11 @@ NEGATIVE = (
     "(latex:1.45), (rubber:1.45), (leather legwear:1.45), "
     "(upskirt:1.4), panties, (from below:1.35), "
     "(blue legwear:1.5), (blue background:1.5), (blue tint:1.4), "
-    "(opaque pantyhose:1.5), (mismatched legwear:1.5), (single thighhigh:1.5), "
+    # (opaque pantyhose:1.5) used to live here, from when the tights were meant
+    # to be sheer. It is the direct opposite of the current ask and had to go.
+    "(mismatched legwear:1.5), (thighhighs:1.4), (white legwear:1.4), "
+    "(see-through:1.5), (see-through clothes:1.45), (transparent clothing:1.4), "
+    "(sheer clothes:1.4), "
     "(hood up:1.5), (hood over head:1.4), "
     "(impasto:1.25), (painterly:1.25), (oil painting (medium):1.2), "
     "(heavy shading:1.2), (detailed shading:1.2), (realistic:1.1), "

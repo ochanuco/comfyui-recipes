@@ -1691,6 +1691,71 @@ Yokozuwari and the chair both come back clean. The standing result matches
 vertical canvas this prompt fills with a second figure, and `(solo:1.5)` was not
 tested against it.
 
+## Hamakaze: cloning a character onto the standard face, and six rounds after
+
+The clone itself is cheap. Fill in `CLASSES`, `BASE_BY_JOB`, `EYES_BY_JOB`,
+`FRANCHISE` and `LEGWEAR_BY_JOB`, and `--job hamakaze --minimal --face
+moe-far-noeye --border --flat-paint mild` draws her in the same look as the
+others. The class block came off the danbooru wiki and her co-tag frequencies,
+per the rule Takao's two wasted rounds bought. `(hair over one eye:1.35)` carries
+a weight because it is the one thing separating her from every other grey-haired
+destroyer, and at 1.0 it came and went by seed.
+
+What that got was a correct costume and nothing else — flat, and on six standing
+renders, a giant disembodied eye on one seed and a duplicate on another. Six
+rounds of brush-up followed. The recipe is `pick/hamakaze-invite`; what
+generalises is below.
+
+### A tag block cannot be moved out of the context it was tuned in
+
+`(thin lineart:1.45), (black lineart:1.4), (defined lines:1.2)` lives in
+`SCENES["warm-room"]`, where the note says Illustrious tints the outline to match
+the fill and only asking for black ink brings the drawn line back. That diagnosis
+is correct and it applies to Hamakaze exactly — a white shirt and grey hair over a
+pale field is the case it describes. Copied across whole, the block *lowered* ink
+coverage and edge contrast on 3 of 3, because `(thin lineart:1.45)` is also
+obeyed and a thinner line is a weaker one. Dropping the thinning and keeping
+`(black outline:1.4), (defined lines:1.25), (crisp lines:1.2)` raised edge
+contrast on 3 of 3 and put real black in the frame: the darkest 1% of pixels went
+from luminance 4–7 to 0–1. Adding `(outline:1.3), (thick outline:1.2)` on top
+changed nothing measurable.
+
+### "Yukari quality" is not a number
+
+Measured with `scripts/inkiness`-style stats — fraction of pixels below 80/255,
+mean luminance of the darkest 1%, mean Sobel magnitude — her own accepted renders
+disagree with each other:
+
+    rb-sh (resuba)        ink 18.73%   edge 48.35
+    so-smug-yo            ink  7.70%   edge 35.90
+    Hamakaze, six seeds   ink 9.7-14%  edge 32.7-57.3
+
+Hamakaze sits inside Yukari's own range and exceeds `rb-sh` on two seeds. What
+makes `rb-sh` read as inkier is a black hoodie filling most of the frame. The
+residual gap is dark mass, which is a costume property, not the drawing.
+
+### Repeats of things already in this file
+
+`(lap pillow)` and `(pov)` name a second person. With `(solo:1.5)` in the
+positive **and** four duplicate guards in the negative, they still drew a second
+Hamakaze on her own lap on 5 of 6. Deleting them and describing the invitation
+instead — seiza, a hand on her own thigh — gave 6 of 6 solo. Identical to the
+`(head on lap)` finding in `pick/momiji-lap`.
+
+`(cuffs:1.2)` was read as wrist cuffs and put dark restraints over her white
+gloves on 3 of 3. A decoration tag lands on whatever in the frame will take it,
+the same way `(fur trim)` replaced Momiji's costume rather than trimming it.
+
+`(soft shading:1.3), (gradient shading:1.15)` measured flatter, not richer —
+`flat_scratch` 0.580 → 0.224 — and were invisible by eye. Shading tags are not a
+route to finish.
+
+### A note on the metric trap
+
+Of three `hi-c` renders, the one with the highest edge contrast (53.27) was the
+one with a backdrop intruder in it: the intruder was supplying the contrast.
+Numbers rank, eyes disqualify, and neither does the other's job.
+
 ## Open, for next time
 
 - `standing` no longer shreds the costume: `--pose-text "full body"` did that,

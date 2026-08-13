@@ -133,13 +133,16 @@ LEGWEAR = (
     # generate against whatever flat value turns up and set the real one with
     # scripts/recolor_bg.py --color. fb-b's is #d0d0c0.
     "(very pale purple thighhighs:1.5), (white thighhighs:1.2), "
-    # over-kneehighs is OUT. Chosen from lyC-555666777 (prompt 9d24700e).
+    # over-kneehighs is OUT. This is lyC-555666777 (prompt 9d24700e), checked
+    # afterwards across seven seeds: all seven put pale socks over black tights
+    # on both legs, with the tights showing as a band at the top of the thigh.
     #
-    # This is the arm that measured worst for consistency: over four seeds its
-    # worst-case left/right difference was 73.9 against 28.1 with the tag kept,
-    # and at 737373737 one sock all but disappeared. The render that was picked
-    # is the good end of that spread, not the middle of it. Keeping the tag was
-    # the safer recipe and the look is the thing being chosen here.
+    # It was written up as the least consistent arm on the strength of a
+    # left/right brightness difference that peaked at 73.9. That measure reads
+    # pose and overlap, not sock length -- 737373737, reported here as having
+    # lost a sock, has both -- and it had already been found unfit for judging
+    # legwear one arm earlier. The number was wrong, not the recipe. Judge this
+    # block by looking at it.
     "(lavender tint:1.3), "
     "(thighhighs over pantyhose:1.55)"
 )

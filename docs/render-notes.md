@@ -2172,6 +2172,42 @@ from `hd-yk` and drive the ControlNet with that at 0.6. That resolves the
 silhouette-versus-detail tug-of-war, because the silhouette being enforced would
 finally be hers.
 
+## Her design lived in the tags the port dropped, and three of them were sign-flipped
+
+The port kept Yukari's class block and nothing else, and by `hd-yk` the result
+had stopped reading as her. Diffing against `gl-lounge-555666777` (job
+`38918ed3`, the render Hamakaze was derived from — its graph is embedded in the
+PNG; ComfyUI's `/history` only retains about 18 entries, so the file is the
+record) found three tags pointing the opposite way:
+
+| | `38918ed3` | the port |
+|---|---|---|
+| realistic | negative `(realistic:1.1)` | positive `(realistic:1.3)` |
+| shading | `(flat color:1.3), (soft shading:1.3), smooth shading`, with `(heavy shading:1.2), (detailed shading:1.2)` negative | `(cel shading:1.45), (sharp shadow edges:1.35), (two-tone shading:1.3)` |
+| hood | `(rabbit hood:1.55)` **kept** and pushed down with `(hood down:1.5), (hood behind head:1.3)`, `(hood up:1.5)` negative | hood up — and `hd-yk` deleted the rabbit hood outright, which the reference never does |
+
+Missing entirely: `2000s (style)`, `(white outline:1.6), outline, sticker`, the
+eye block (`(large eyes:1.3), (large iris:1.25), thin eyebrows, small mouth`),
+and the body block. Restoring all of it (`scripts/yk_restore.py`) brought back
+the near-white lavender hair, the spool hair ornaments, the red round ear
+ornaments, the ribboned frilled dress and the red-lined hoodie in one step.
+
+Two things fell out of it:
+
+- **`(upper body:1.4)` does not hold the framing here.** All three restored
+  renders came out down to the thighs with it in the positive.
+- **Detail Daemon is invisible on this recipe.** `rc-b` (ControlNet off, Detail
+  Daemon on) and `rc-c` (plain KSampler, neither) are near-identical. Its
+  earlier gain was measured on a cel-shaded, chroma-breaking render; on flat
+  colour there is nothing for it to sharpen.
+- ControlNet at 0.35 still drags the pose even when the character reads right —
+  `rc-a` put a spare arm up that neither of the others has.
+
+The lesson to carry: a character's identity is not the class block. Porting one
+onto another character's graph moves the class block and leaves the identity
+behind, and the parts that go missing are the ones nobody wrote down as
+belonging to her.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

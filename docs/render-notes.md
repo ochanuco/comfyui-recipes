@@ -1910,11 +1910,24 @@ pair above.
 Coloured at strength 0.6 / end 0.8, the finished renders come out at 0.64 and
 0.59 against 0.65 for the old lineart — level, or worse. The gain is spent
 somewhere in the colour pass, and on `lb-parted-dense` the side hair rose
-(29.5% → 30.9%) while the bangs fell, which is the colour pass redrawing hair the
-ControlNet stopped holding at 80%. One seed each, so this is a direction to check
-and not a measurement to build on: `end_percent` at 1.0 is the obvious next rung,
-and the earlier finding that strength *hurts* line retention was measured with
-the lineart held identical, which is not this case.
+(29.5% → 30.9%) while the bangs fell.
+
+The obvious explanation — the ControlNet releases at 80% and the colour pass
+redraws the hair over the last fifth — is wrong. Holding it to the end changes
+nothing and costs line:
+
+    s60-e80    18.97%   ratio 0.64
+    s60-e100   18.41%   ratio 0.64
+    s80-e100   18.07%   ratio 0.63
+    s100-e100  17.49%   ratio 0.63
+
+What is left is a constant. Every coloured render measured — from three different
+linearts at ratios 0.66 to 0.70, across four strength/reach settings — lands
+between 0.59 and 0.65. The colour pass imposes its own bangs-to-side ratio of
+about 0.64 and neither the drawing it is given nor the force it is held with
+moves it. That also settles the earlier reading that strength *hurts* line
+retention: it was measured with the lineart held identical, and it holds here
+too, where the lineart differs.
 
 Both renders also came out nearly unshaded despite `(cel shading:1.45)` in the
 positive, because `(shading:1.3)` was still in the negative — the lineart pass's
@@ -1937,8 +1950,9 @@ was used for.
   masking the bangs and treating them separately, not from another tag.
 - **Split the two passes' negatives.** `colorize_lineart.py` inherits the lineart
   pass's `(shading:1.3)`, which cancels the `(cel shading:1.45)` it asks for.
-- Colour at `end_percent` 1.0 with `lb-parted`, to see whether holding the
-  ControlNet to the end keeps the lineart's bangs advantage.
+- The bangs ratio is out of reach of both tags and ControlNet settings. If it is
+  worth pursuing, the next thing to try is treating the bangs as their own
+  region — a mask and a second pass over it — rather than another global dial.
 - `cel shading` and `soft shading, smooth shading` sit in the same positive in
   `hs-cel`, which should be the reason its line density stalled at 15.1%. The
   sweep that would have measured the cost of that contradiction (`cl-*`, with

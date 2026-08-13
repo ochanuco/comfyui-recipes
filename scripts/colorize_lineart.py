@@ -59,6 +59,11 @@ NEGATIVE = (
 
 RUNGS = [
     ("s60-e80", 0.6, 0.8),
+    # Strength and reach are separate questions and the first ladder confounded
+    # them. Releasing at 80% hands the last fifth of the render back to the
+    # colour pass, which is where a lineart's extra bangs detail was suspected of
+    # being redrawn away; this rung holds the same strength to the end instead.
+    ("s60-e100", 0.6, 1.0),
     ("s80-e80", 0.8, 0.8),
     ("s80-e100", 0.8, 1.0),
     ("s100-e100", 1.0, 1.0),

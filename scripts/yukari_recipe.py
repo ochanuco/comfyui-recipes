@@ -203,6 +203,22 @@ POSES = {
     # a figure seated on a chair fills less of a 2:3 canvas than one on the
     # floor, and what is left over gets filled. Untested. A tighter framing than
     # `full body` is the obvious thing to try.
+    # Stretching and yawning, looked down on. The pose text comes from
+    # pick/yk-yawn-full, which was settled on the older queue_dq3 recipe against
+    # the same base and sampler, and carries two measured constraints:
+    #
+    #   the block must stay at eight tags after (solo:1.5) -- a ninth pushes the
+    #   pale thighhighs out;
+    #   (closed eyes:1.35) drew a second figure on four seeds of four, so the
+    #   eyes stay open even though a yawn would close them.
+    #
+    # `closed mouth` comes out of FACE for this pose; it is the direct opposite
+    # of what a yawn needs.
+    "yawn": (
+        "(solo:1.5), (stretching:1.4), (arms up:1.35), (yawning:1.4), "
+        "(open mouth:1.35), (from above:1.4), sitting, looking at viewer, "
+        "full body"
+    ),
     "chair": (
         "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "
         "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
@@ -213,7 +229,8 @@ POSES = {
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
 # at 1024x1280 and drew down to the thighs. 1024x1024 held it.
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
-         "peace": (1024, 1536), "chair": (1024, 1536)}
+         "peace": (1024, 1536), "chair": (1024, 1536),
+         "yawn": (1024, 1536)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -274,10 +291,11 @@ def positive(pose: str) -> str:
     # the portrait crops above them and naming what is out of frame is what
     # invites it back in.
     full_figure = pose != "portrait"
+    face = FACE.replace("closed mouth, ", "") if pose == "yawn" else FACE
     parts = ["best quality, absurdres, 1girl, solo", CHARACTER, POSES[pose]]
     if full_figure:
         parts.append(LEGWEAR)
-    parts += [FACE, SURFACE]
+    parts += [face, SURFACE]
     parts.append(BODY if full_figure else "(pale skin:1.25)")
     parts.append(HOOD)
     if full_figure:

@@ -1958,9 +1958,31 @@ The region prompt names no character and no costume, only hair rendering. That
 is deliberate: a full prompt inside a mask is how a second face appears in the
 region.
 
-The mask is a rectangle (x 240, y 0, w 580, h 360, feather 48) — enough to answer
-whether regional conditioning moves the ratio at all, which it does. Cutting a
-mask that follows the hair is the obvious next step.
+Covering more of the hair beats aiming at the bangs, which is backwards from what
+narrowing a region is supposed to do. Adding two side rectangles to the bangs one
+(`--mask hair`):
+
+    no region                bangs 18.97%   side 29.54%   ratio 0.64
+    bangs rectangle, 1.0     bangs 19.42%   side 27.70%   ratio 0.70
+    whole hair, 1.0          bangs 21.82%   side 28.49%   ratio 0.77
+    whole hair, 1.4          bangs 21.75%   side 28.42%   ratio 0.77
+
+The bangs gain 15% over no region at all, and 1.0 is again the plateau. A guess
+at why the narrower mask does worse: the bangs rectangle cuts across the middle
+of the hair, so the two prompts compete along a border drawn through the thing
+they are both describing, where the hair mask's borders mostly fall outside it.
+Untested — it would need the same mask at different border positions.
+
+The masks are rectangles (bangs is x 240, y 0, w 580, h 360, feather 48) — enough
+to answer whether regional conditioning moves the ratio at all, which it does.
+Cutting a mask that follows the hair is the obvious next step.
+
+One bug worth remembering: the loop that adds a rectangle per mask allocates node
+ids from 21 upward, and the `FeatherMask` after it was fixed at 23. With one
+rectangle nothing collides; with three, the feather overwrites a `SolidMask` and
+the composite chain ends up referring forward to it. Validate a built graph for
+dangling references and cycles before queueing it — it costs nothing and this one
+would have been three renders of confusing output.
 
 ### Measuring
 

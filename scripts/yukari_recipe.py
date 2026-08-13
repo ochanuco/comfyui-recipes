@@ -8,6 +8,13 @@ vocabulary; the port onto the Hamakaze graph is not part of it.
     uv run scripts/yukari_recipe.py --seeds 6          # sweep fresh seeds
     uv run scripts/yukari_recipe.py --seed 555666777   # the settled render
     uv run scripts/yukari_recipe.py --pose portrait    # head and shoulders
+    uv run scripts/yukari_recipe.py --pose peace       # double v, v over eye
+
+Then set the backdrop, which the prompt does not control -- it landed on
+#d0d0c0, #a0a0a0 and #909090 across three renders whose only difference was two
+leg-tag weights:
+
+    uv run scripts/recolor_bg.py out/yk-peace-555666777_00001_.png --color '#d0d0c0'
 
 Three findings are baked into the constants and should not be quietly undone:
 
@@ -95,11 +102,18 @@ LEGWEAR = (
     # swapping the whole block to over-kneehighs removed the socks entirely,
     # because `thighhighs over pantyhose` is a real tag carrying the layering
     # and `over-kneehighs over pantyhose` is a phrase that is not.
-    # White ahead of pale purple. With the same two tags at 1.5/1.2 the socks
-    # measured sat 22.9 against fb-b's 12.2 -- twice as purple -- once opaque
-    # black tights went under them and over-kneehighs was added. Which of those
-    # two did it is not established; swapping the weights treats the symptom.
-    "(white thighhighs:1.45), (very pale purple thighhighs:1.25), "
+    # 1.2/1.5 measured sock saturation 22.9 against fb-b's 12.2, and 1.45/1.25
+    # overshot to 8.7. Left at the first, because the second cost dress hue
+    # (306 -> 280 against a 300 target) and whiteness is the cheaper of the two
+    # to fix afterwards.
+    #
+    # The background moved too -- #d0d0c0, #a0a0a0, #909090 across 1.2/1.5,
+    # 1.45/1.25 and 1.35/1.35 -- and the middle setting was the darkest of the
+    # three. That is not these tags controlling it, it is the backdrop being
+    # unstable under any small perturbation, which is already written down:
+    # generate against whatever flat value turns up and set the real one with
+    # scripts/recolor_bg.py --color. fb-b's is #d0d0c0.
+    "(very pale purple thighhighs:1.5), (white thighhighs:1.2), "
     "(over-kneehighs:1.4), (lavender tint:1.3), "
     "(thighhighs over pantyhose:1.55)"
 )

@@ -94,7 +94,9 @@ SAMPLER, SCHEDULER, STEPS, CFG = "dpmpp_2m", "karras", 30, 5.0
 
 
 def sampler_nodes(model, positive, negative, latent, seed: int,
-                  detail_amount: float | None) -> tuple[dict, list]:
+                  detail_amount: float | None, sampler: str = SAMPLER,
+                  scheduler: str = SCHEDULER, steps: int = STEPS,
+                  cfg: float = CFG) -> tuple[dict, list]:
     """The sampling half of a graph, as plain KSampler or through Detail Daemon.
 
     Detail Daemon wraps a SAMPLER rather than sitting beside one, so using it
@@ -104,25 +106,29 @@ def sampler_nodes(model, positive, negative, latent, seed: int,
     detail_amount None keeps the plain KSampler. 0.0 does not: it still goes the
     custom-sampler route, which is the control that says whether the rebuild
     alone changes the image.
+
+    The sampler settings are arguments rather than constants because the other
+    caller is queue_dq3, whose recipe sets its own and must not be altered by
+    being routed through here.
     """
     if detail_amount is None:
         return {"3": {"class_type": "KSampler", "inputs": {
             "model": model, "positive": positive, "negative": negative,
-            "latent_image": latent, "seed": seed, "steps": STEPS, "cfg": CFG,
-            "sampler_name": SAMPLER, "scheduler": SCHEDULER, "denoise": 1.0}}}, ["3", 0]
+            "latent_image": latent, "seed": seed, "steps": steps, "cfg": cfg,
+            "sampler_name": sampler, "scheduler": scheduler, "denoise": 1.0}}}, ["3", 0]
 
     return {
         "50": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
-        "51": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": SAMPLER}},
+        "51": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": sampler}},
         "52": {"class_type": "DetailDaemonSamplerNode", "inputs": {
             "sampler": ["51", 0], "detail_amount": detail_amount,
             "start": 0.2, "end": 0.8, "bias": 0.5, "exponent": 1.0,
             "start_offset": 0.0, "end_offset": 0.0, "fade": 0.0,
             "smooth": True, "cfg_scale_override": 0.0}},
         "53": {"class_type": "BasicScheduler", "inputs": {
-            "model": model, "scheduler": SCHEDULER, "steps": STEPS, "denoise": 1.0}},
+            "model": model, "scheduler": scheduler, "steps": steps, "denoise": 1.0}},
         "54": {"class_type": "CFGGuider", "inputs": {
-            "model": model, "positive": positive, "negative": negative, "cfg": CFG}},
+            "model": model, "positive": positive, "negative": negative, "cfg": cfg}},
         "55": {"class_type": "SamplerCustomAdvanced", "inputs": {
             "noise": ["50", 0], "guider": ["54", 0], "sampler": ["52", 0],
             "sigmas": ["53", 0], "latent_image": latent}},

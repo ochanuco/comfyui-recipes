@@ -2071,6 +2071,21 @@ Detail Daemon is not broken; grey hair under near-flat colour is just where it
 breaks first. Under 0.10, or a narrower `start`/`end` window, is where it would
 have to live on this character.
 
+Yukari confirms that reading. `scripts/queue_dq3_detail.py` swaps the sampler
+under whatever recipe queue_dq3 builds, so `--job yukari` runs the tuned recipe
+with only the sampler changed. At 0.10 and 0.25 there is no chroma break at all —
+what the node adds is strand lines in the hair, folds in the hood and a cast
+shadow behind the figure, and the purple stays purple. A character made of colour
+gives the extra detail somewhere to go; on grey under flat colour the only place
+left is hue, which is what those blue strands were.
+
+The control here is stronger than Hamakaze's: `detail_amount` 0.0 through
+`SamplerCustomAdvanced` is *pixel-identical* to `KSampler`, same sha256.
+
+Unrelated defect in those renders: all three drew two figures. It is present in
+the base, so it is not the node — it is the duplicate-figure problem, run with no
+`--pose` and so probably without the `(solo:1.5)` placement that fixed it.
+
 ### Measuring
 
 Edge density in a hand-placed box ranks variants within one sweep and nothing

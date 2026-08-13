@@ -1791,8 +1791,127 @@ cells showed the wrong character until the graph embedded in each PNG was read.
 Check whether a prefix is already on disk before reusing it, and identify a
 render from its embedded prompt rather than from its filename.
 
+## Hamakaze: changing the art style, and getting a line into the hair
+
+Six sweeps in one session, all on Hassaku, all seeded 111222333. Scripts are in
+`.local/`: `style_sweep2.py` through `style_sweep6.py`, `line_overlay.py`,
+`colorize_lineart.py`.
+
+### A LoRA is not the style lever
+
+`outlined-ill` at 0.8, 1.0 and 1.3, `usnr-style-ill-v1` at 0.8 and 1.1,
+`moe-2000s-a` and `-b`, `mozudoll` — nine renders, one face. What moved was the
+thickness of the silhouette outline and nothing else. The face, the hair
+construction and the proportions were identical across all of them.
+
+The style LoRAs on disk carry their style on a trigger the first sweep never
+passed. From `ss_tag_frequency` in the safetensors metadata: `usnr` for
+usnr-style, `cheeky \(mozudoll\)` for mozudoll, `re4lity_sync_illu` for re4lity.
+`outlined-ill` has none. A style LoRA run without its trigger is stacked but not
+fired, which is why `sw-lora-usnr-style-ill-v1` looked like the bare base.
+
+### The era-tag slot
+
+The `st-ukiyoe` / `st-water` / `st-retro` / `st-mono` sweep from a previous day
+moved the palette and left the face alone, which reads as "abstract style words
+do not move Illustrious". That is the wrong conclusion. The recipe already
+carried `2000s (style)`; the slot was occupied, and a second style word on top of
+it does nothing. Drop `2000s (style)` and `(1980s (style):1.5)` comes through
+hard — face length, nose bridge, and where the hair highlight sits all change.
+`1990s (style)` likewise, with heavy cheek blush as a side effect.
+
+Only `st-chibi` moved under the old recipe, because head-to-body ratio is not a
+style word competing for that slot.
+
+### What made the face read as a child
+
+`(petite:1.2)`, `(large eyes:1.3)`, `(large iris:1.25)`, `small mouth` and
+`2000s (style)` in the positive, and `(realistic:1.1)` in the negative — the last
+one placed there to ban oil paint, pushing away from adult proportions as a side
+effect. Removing those five and releasing `realistic` narrows the eyes and
+lengthens the face on its own, with nothing added. `mature female` + `aged up`
+and a `tareme`→`tsurime` swap are separate dials on top of it and can be stacked.
+
+Invented descriptors — `defined jawline`, `small head`, `realistic proportions`,
+`thin face`, `long neck` — are outside the training vocabulary and do nothing.
+Half of one proposed sweep was tags that could not fire. Check a tag exists
+before spending a render on it.
+
+### Interior hair line: two tags that are superadditive
+
+Measured as the share of pixels in a box strictly inside the hair mass whose
+local gradient exceeds 12, against 13.7% for the accepted render:
+
+    strand tags raised to 1.5/1.55/1.3 alone       16.9%   +23%
+    (flat color:1.3) released alone                17.5%   +28%
+    both                                           23.0%   +68%
+
+Neither is worth doing without the other, which is why releasing flat colour on
+its own was first written off as ineffective. Two hypotheses died here:
+`(shiny hair)`/`(hair highlights)` in the negative scored *below* the reference
+(13.1%) — clearing the highlight blob does not free room for a line, it just
+leaves the mass empty — and `outlined-ill` at 1.1 scored 13.6%, i.e. nothing.
+
+### The line has to exist before the colour
+
+`AnimeLineArtPreprocessor`, `Manga2Anime_LineArt_Preprocessor` and
+`LineartStandardPreprocessor` at sigma 6/1 and threshold 8/4/2 — six extractions
+from one finished render. Every one returned the bangs as an empty black region
+with only the outer contour drawn. The bangs are a plane in the source, so there
+is no line to recover, and multiply-compositing at 0.3/0.5/0.7 changed nothing
+visible. Drawing the line last cannot work on a flat-coloured render.
+
+Drawing it first can. A lineart pass — `(lineart:1.5), (monochrome:1.4),
+(greyscale:1.35)`, with `(flat color)` and the sticker block absent — makes
+Hassaku draw the bangs as strands, on the same seed and the same character tags.
+The model always knew how; the flat-colour block was erasing it. Feed that
+lineart inverted into `noob-canny-fp16` via `ControlNetApplyAdvanced` and the
+strand lines survive the colour pass.
+
+ControlNet strength runs slightly backwards: 0.6/end 0.8 keeps *more* line
+(17.0%) than 1.0/end 1.0 (15.7%). Held hard enough, the colour pass reproduces
+the lineart's white areas faithfully and stops drawing shading of its own. The
+spread is 1.3 points, so 0.6 is a fine default.
+
+### Bangs against side hair: still 0.66
+
+The bangs carry 0.66 of the side hair's line density, and the deficit is already
+in the lineart — the colour pass inherits it (0.65, 0.62) rather than causing it.
+Seven lineart variants later the ratio sits between 0.66 and 0.70. Every tag
+that helped raised both regions together; none raised the bangs alone.
+
+`(hair over one eye:1.35)` was the suspect — a curtain across the face is a
+smooth sheet by definition, and it covers exactly the short region. It is not the
+cause: at 1.1 the ratio stays at 0.66 and the bangs gain 0.5 points. The
+character's silhouette does not have to be given up for this.
+
+`(messy hair:1.35)` raises the bangs 21% and is where the flyaway strands come
+from — one tag, so it is available on demand, and avoidable. `(parted bangs:1.35),
+(hair between eyes:1.3)` is the pick: +16% on the bangs, no flyaway, ratio 0.70.
+Stacking everything (`lb-combo`) scores highest but breaks the monochrome
+constraint — the hairclip picks up colour and the ground turns grey.
+
+### Measuring
+
+Edge density in a hand-placed box ranks variants within one sweep and nothing
+else. The framing changed between the flat-colour sweeps and the two-pass ones,
+so those numbers are not comparable across the two, and the measure counts any
+luminance step — a highlight boundary scores the same as a drawn line. It sorted
+the rungs correctly every time it was checked against the images, which is all it
+was used for.
+
 ## Open, for next time
 
+- **Nothing raises the bangs alone yet.** `parted bangs` + raised strand weights
+  (no `messy hair`) is the untested cell; every mix so far lifted both regions.
+- `cel shading` and `soft shading, smooth shading` sit in the same positive in
+  `hs-cel`, which should be the reason its line density stalled at 15.1%. The
+  sweep that would have measured the cost of that contradiction (`cl-*`, with
+  `cl-soft` as the control) was cancelled after five of eight renders.
+- The two-pass pipeline has only been run on one face. Whether the lineart pass
+  honours the face block (`db-real`, `db-tall`, `mature female`, `tsurime`) as
+  well as a flat-colour render does is unknown.
+- `re4lity` and `mozudoll` have still never been run with their triggers.
 - `standing` no longer shreds the costume: `--pose-text "full body"` did that,
   with no working trace involved. Whether it also survives a real skeleton is
   untested — every `--pose-text` result so far had an empty one.

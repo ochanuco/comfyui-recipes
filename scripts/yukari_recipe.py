@@ -219,6 +219,27 @@ POSES = {
         "(open mouth:1.35), (from above:1.4), sitting, looking at viewer, "
         "full body"
     ),
+    # Going over spectacularly. ONE fall tag.
+    #
+    # tripping + falling + fallen down together drew two figures on three seeds
+    # of three -- one still upright, one already on the ground. They are three
+    # moments, not three descriptions of one moment, and the model resolved that
+    # by giving each moment a body. Competing tags did hold each other in place
+    # for the socks, but that was two lengths of one garment at one instant;
+    # carrying the idea over to a sequence was a bad generalisation.
+    #
+    # `falling` is the one kept: mid-air is what reads as spectacular, and both
+    # of the others describe ground contact. `flailing` supplies the drama and
+    # `motion lines` is a comic convention that survives flat colour. Eight tags
+    # after (solo:1.5), and `closed mouth` comes out of FACE for the shout.
+    "fall": (
+        "(solo:1.5), (falling:1.5), (flailing:1.35), (surprised:1.35), "
+        # No (spread legs) here. Paired with (from above) that is exactly the
+        # crotch-forward low-angle framing this project already threw a whole
+        # composition away over.
+        "(open mouth:1.3), (motion lines:1.25), (outstretched arms:1.3), "
+        "(from above:1.25), full body"
+    ),
     "chair": (
         "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "
         "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
@@ -230,7 +251,7 @@ POSES = {
 # at 1024x1280 and drew down to the thighs. 1024x1024 held it.
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          "peace": (1024, 1536), "chair": (1024, 1536),
-         "yawn": (1024, 1536)}
+         "yawn": (1024, 1536), "fall": (1024, 1536)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -291,7 +312,9 @@ def positive(pose: str) -> str:
     # the portrait crops above them and naming what is out of frame is what
     # invites it back in.
     full_figure = pose != "portrait"
-    face = FACE.replace("closed mouth, ", "") if pose == "yawn" else FACE
+    # A yawn and a shout both need the mouth open; FACE closes it by default.
+    open_mouthed = pose in ("yawn", "fall")
+    face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     parts = ["best quality, absurdres, 1girl, solo", CHARACTER, POSES[pose]]
     if full_figure:
         parts.append(LEGWEAR)

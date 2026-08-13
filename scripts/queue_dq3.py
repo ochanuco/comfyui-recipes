@@ -191,6 +191,27 @@ CLASSES = {
         "(detached sleeves:1.3), white detached sleeves, "
         "(black and red skirt:1.3), (maple leaf print:1.25), short skirt"
     ),
+    # From the danbooru wiki and her co-tag frequencies, not from memory -- the
+    # rule Takao's two wasted rounds bought.
+    #
+    # (hair over one eye:1.35) is the one weight that has to be up: it is the
+    # single thing that distinguishes her from every other grey-haired destroyer,
+    # and at 1.0 it comes and goes by seed.
+    #
+    # Canon legwear is brown pantyhose, and LEGWEAR_GUARD bans brown pantyhose by
+    # name -- it exists because Hassaku renders black legwear as dark brown, so
+    # the ban and her design want the same pixels for opposite reasons. She gets
+    # black here, which is also what most of her fan art draws. Asking for canon
+    # brown means dropping those three terms from the guard first, and then
+    # nothing stops any other black legwear in the frame going brown.
+    "hamakaze": (
+        "hamakaze (kancolle), (grey hair:1.3), short hair, "
+        "(hair over one eye:1.35), (eyes visible through hair:1.2), "
+        "(blue eyes:1.25), (hairclip:1.25), hair ornament, "
+        "(serafuku:1.3), (white shirt:1.25), (blue sailor collar:1.35), "
+        "(yellow neckerchief:1.3), (white gloves:1.3), "
+        "(black pleated skirt:1.3), pleated skirt"
+    ),
     "mage": (
         "mage (dq3), (purple hair:1.2), (medium hair:1.3), "
         "(blue wizard hat:1.2), pointy hat, (yellow robe:1.2), short robe, blue cape, "
@@ -371,7 +392,8 @@ EXTRA_BY_JOB = {
 # face is bought back through the face preset instead. If the face ever matters
 # more than the palette, the two are swapped here and nowhere else.
 BASE_BY_JOB = {"takao": "hassaku-il-v22", "sage": "hassaku-il-v22",
-               "yukari": "hassaku-il-v22", "momiji": "hassaku-il-v22"}
+               "yukari": "hassaku-il-v22", "momiji": "hassaku-il-v22",
+               "hamakaze": "hassaku-il-v22"}
 
 # --minimal carries no legs block, so legwear is whatever the base felt like on
 # the day -- bare on most seeds. These are the standing choices. Kept to the
@@ -385,6 +407,8 @@ LEGWEAR_BY_JOB = {
     # colour rather than the black the other two were asked for.
     "yukari": "(purple thighhighs:1.35), thighhighs, (shiny legwear:1.45), glossy legwear",
     "momiji": "(black pantyhose:1.3), pantyhose, (shiny legwear:1.45), glossy legwear",
+    # Black, not her canon brown -- see the note on her CLASSES entry.
+    "hamakaze": "(black pantyhose:1.3), pantyhose, (shiny legwear:1.45), glossy legwear",
 }
 
 # A highlight band is a shading feature, so a palette that forbids shading
@@ -446,6 +470,7 @@ EYES_BY_JOB = {
     "takao": "(red eyes:1.2)",
     "yukari": "(purple eyes:1.2)",
     "momiji": "(red eyes:1.2)",
+    "hamakaze": "(blue eyes:1.2)",
 }
 
 LEGWEAR_GUARD = (
@@ -517,6 +542,7 @@ FRANCHISE = {
     "yukari": "vocaloid, voiceroid",
     "takao": "kantai collection",
     "momiji": "touhou",
+    "hamakaze": "kantai collection",
 }
 
 # Individual terms a class has to remove from the assembled negative. Dropping a

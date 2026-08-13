@@ -240,6 +240,19 @@ POSES = {
         "(open mouth:1.3), (motion lines:1.25), (outstretched arms:1.3), "
         "(from above:1.25), full body"
     ),
+    # Knowingly cute -- the pose is aware of being looked at. Head tilted,
+    # finger to the cheek, one eye shut, blushing, with a heart floating.
+    # `head tilt`, `finger to cheek` and `one eye closed` are all real tags
+    # (`wink` has no wiki page of its own and appears to fold into the last).
+    #
+    # It sits on yokozuwari, which is the seat this recipe has seven clean seeds
+    # on, so only the face and the hand are new. Building an untested gesture on
+    # an untested seat is how the fall pose ended up with two of her.
+    "coy": (
+        "(solo:1.5), (yokozuwari:1.3), (head tilt:1.4), (finger to cheek:1.45), "
+        "(one eye closed:1.35), (blush:1.35), (heart:1.25), (smile:1.25), "
+        "full body"
+    ),
     "chair": (
         "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "
         "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
@@ -251,7 +264,8 @@ POSES = {
 # at 1024x1280 and drew down to the thighs. 1024x1024 held it.
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          "peace": (1024, 1536), "chair": (1024, 1536),
-         "yawn": (1024, 1536), "fall": (1024, 1536)}
+         "yawn": (1024, 1536), "fall": (1024, 1536),
+         "coy": (1024, 1536)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "

@@ -2130,6 +2130,48 @@ expression) pass through untouched. Around 0.35 both survive on this graph.
 Upper-body framing held at 0.35, so the composition is not the thing that pays
 for it here.
 
+## Strand line does not come from the prompt, and the hood was hiding the hair
+
+Following the 0.35 result: the hairstyle was right but the strand line was gone,
+replaced by smooth colour blending. Two asks, and they came apart —
+
+  hl-a  strand-line weights up ((defined hair strands:1.9),
+        (hair strand outline:1.7), (black lineart:1.55)) plus (flat color:1.3)
+        inside the hair mask
+  hl-b  hl-a + (gradient:1.35), (soft shading:1.35), (airbrush:1.3),
+        (smooth shading:1.3), (glossy hair:1.25) in the negative, which had no
+        guard against tonal blending at all before this
+  hl-c  hl-b + (hair strands:1.5), (clumped hair strands:1.4)
+
+**All three went the wrong way.** Head-box edge density, comparable across these
+four because the composition is identical: c35 12.5, hl-a 10.3, hl-b 9.6,
+hl-c 9.8. The negative guards did remove the colour shading, which was half the
+ask; nothing replaced it with line, so the hair just went flatter. Raising the
+line weights to 1.55/1.7/1.9 added nothing — the same null result as `hr-c60`,
+where fixing the region prompt changed nothing while the ControlNet held.
+
+So on this graph the strand line is written by the ControlNet source, not by any
+tag. `br-src-lb-parted.png` is a real lineart drawing with strand lines in it,
+and at 0.6 those were being copied; the prompt was never doing that work.
+
+`hd-yk` takes the hood off — `(rabbit hood:1.55), animal hood` substituted with
+`(hood down:1.45)`, plus `(hood up:1.4), (animal hood:1.35)` in the negative —
+and the hair comes back with drawn clumps and separations. The hood was covering
+the hair at low strength, so no amount of hair-region prompting had anywhere to
+land. Its edge density is 13.2, but **that number is not comparable to the four
+above**: the box changed from mostly hood to all hair, so it is measuring
+something else. The line is visible by eye; the number is not the evidence.
+
+`hd-hz` is the same graph with Hamakaze back in it, and scores 11.9 against
+Yukari's 13.2. The worry that Yukari was disadvantaged by being drawn over a
+Hamakaze lineart is not supported at 0.35 — she gets more strand line than the
+character the source depicts.
+
+Next lever, and the only one left: extract a lineart that has strand lines in it
+from `hd-yk` and drive the ControlNet with that at 0.6. That resolves the
+silhouette-versus-detail tug-of-war, because the silhouette being enforced would
+finally be hers.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

@@ -1933,6 +1933,35 @@ Both renders also came out nearly unshaded despite `(cel shading:1.45)` in the
 positive, because `(shading:1.3)` was still in the negative — the lineart pass's
 negative was reused wholesale for the colour pass. They need to be separate.
 
+### Regional conditioning is what moves the ratio
+
+`ConditioningSetMask` over a rectangle on the bangs, a strand-only prompt inside
+it, `ConditioningCombine` with the ordinary one, and the ControlNet applied after
+the combine so the line still holds across the whole frame. Core nodes only —
+`SolidMask`, `MaskComposite`, `FeatherMask`, no custom pack.
+
+    region strength 0.0   bangs 18.97%   side 29.54%   ratio 0.64
+    region strength 0.6   bangs 19.29%   side 28.35%   ratio 0.68
+    region strength 1.0   bangs 19.42%   side 27.70%   ratio 0.70
+    region strength 1.5   bangs 19.27%   side 28.50%   ratio 0.68
+
+1.0 is the peak and 1.5 is past it. It reaches the lineart's own 0.70, and the
+bangs are the densest of any coloured render measured — but the number that
+matters is that the bangs rose while the side hair *fell*. Nothing else tried
+moved the two in opposite directions; a tag in the shared prompt cannot, because
+it is the same prompt for both regions.
+
+Strength 0.0 reproduces `cz-lb-parted-canny-s60-e80` to the digit (18.97/29.54),
+which is what makes the rest of the ladder attributable.
+
+The region prompt names no character and no costume, only hair rendering. That
+is deliberate: a full prompt inside a mask is how a second face appears in the
+region.
+
+The mask is a rectangle (x 240, y 0, w 580, h 360, feather 48) — enough to answer
+whether regional conditioning moves the ratio at all, which it does. Cutting a
+mask that follows the hair is the obvious next step.
+
 ### Measuring
 
 Edge density in a hand-placed box ranks variants within one sweep and nothing
@@ -1950,9 +1979,16 @@ was used for.
   masking the bangs and treating them separately, not from another tag.
 - **Split the two passes' negatives.** `colorize_lineart.py` inherits the lineart
   pass's `(shading:1.3)`, which cancels the `(cel shading:1.45)` it asks for.
-- The bangs ratio is out of reach of both tags and ControlNet settings. If it is
-  worth pursuing, the next thing to try is treating the bangs as their own
-  region — a mask and a second pass over it — rather than another global dial.
+- Cut a mask that follows the hair instead of the rectangle in
+  `scripts/bangs_region.py`, now that the rectangle has shown the mechanism works.
+- Two things found while looking for a way past the global dials and not yet
+  tried: a lineart-trained ControlNet for this base family
+  (`Eugeoter/noob-sdxl-controlnet-lineart_anime`, and an Illustrious-XL lineart
+  anime one on Civitai) to replace canny, which is being used to hold a drawing
+  it was not trained on; and `ComfyUI-Detail-Daemon`, which adjusts sigmas during
+  sampling — a third axis that is neither prompt nor ControlNet. It wants a
+  custom sampler node, so `colorize_lineart.py`'s plain `KSampler` would need
+  rebuilding, and SDXL is said to want `detail_amount` under 0.25.
 - `cel shading` and `soft shading, smooth shading` sit in the same positive in
   `hs-cel`, which should be the reason its line density stalled at 15.1%. The
   sweep that would have measured the cost of that contradiction (`cl-*`, with

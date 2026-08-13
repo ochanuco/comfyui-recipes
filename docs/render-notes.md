@@ -2208,6 +2208,44 @@ onto another character's graph moves the class block and leaves the identity
 behind, and the parts that go missing are the ones nobody wrote down as
 belonging to her.
 
+## The line is 1.91px wide and no tag changes that
+
+Framing first: `(upper body:1.4)` lost to the canvas — all three restored renders
+drew down to the thighs with it in the positive. `(portrait:1.5),
+(head and shoulders:1.4), (close-up:1.2), (face focus:1.3)` plus `(full body:1.5),
+(cowboy shot:1.45)` negative held it, but only once the canvas went square:
+1024x1024 cropped to the chest, 1024x1280 did not. **The frame shape is a
+framing control, not just an output size.**
+
+Then the thinness question, which had an assumption in it worth checking before
+spending renders on it. Median stroke width, from a distance transform over the
+dark-ink mask:
+
+    1024x1024 portrait          1.91px
+    1024x1280                   1.91px
+    1024x1536 full body         1.91px
+    1024x1536 + thin-line tags  1.91px
+    1280x1920                   1.91px
+
+**The stroke never moves.** Full-body line reads heavier purely because the head
+is ~230px instead of ~700px, so the same 1.9px stroke covers three times more of
+it. `(thin lineart:1.3), (fine lines:1.25), (delicate lines:1.2)` changed the
+picture and not the width, on a prompt with no `black lineart` tag for them to
+fight — so the earlier "(thin lineart) cancelled (black lineart)" story is not
+what is happening here; the tags simply do not control this.
+
+That leaves resolution as the only working lever, and it is blocked: 1280x1920
+improves the ratio to 1.53px (1536-equivalent) and **drew a second figure in both
+renders that used it**, with `(solo:1.5)` already in the prompt. Matching the
+portrait's ratio at full body would need a frame around 4000px tall. 1024x1536
+is where it sits.
+
+`scripts/yukari_recipe.py` is the settled recipe — `fb-b` / prompt `4c012937`,
+verified byte-identical to that render's positive and negative. `--pose portrait`
+switches to the 1024x1024 crop. `rabbit print` is out of the character block: with
+`sticker` it drew a rabbit decal on her cheek, and `sticker` is the half of that
+pair worth keeping.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

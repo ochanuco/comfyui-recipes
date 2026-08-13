@@ -2281,6 +2281,25 @@ One wrong turn worth recording: the blown colour was first blamed on
 `.local/ComfyUI/output/sheet-invite-patterns.png` holds six readings of it
 (smug, gentle, teasing, patting, head-tilt, full-body) at two seeds each.
 
+## `patting` multiplies the hand, and it is the verb doing it, not the motion lines
+
+The `pon` cell of the invitation sweep — `(patting:1.45), (motion lines:1.25)` —
+drew a hand smeared across several positions with far too many fingers. Motion
+lines are literally a convention for drawing one thing in several places, so they
+looked like the culprit. Three arms, three seeds each:
+
+    (patting:1.45), no motion lines    2 of 3 hands broken
+    (patting:1.3),  no motion lines    2 of 3 hands broken
+    no patting at all                  3 of 3 hands clean
+
+**It is `patting`.** A verb for a repeated action gets drawn as a repeated hand,
+with or without the convention beside it. Lowering the weight does not help,
+which is the same shape as the relationship tags: the fix is deletion.
+
+`--pose invite` never carried it — the gesture there is `(hand on own thigh:1.45)`
+plus `(beckoning:1.35)`, which reads as the invitation without asking for motion.
+Only the sweep cell was broken.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

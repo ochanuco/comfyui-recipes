@@ -133,7 +133,14 @@ LEGWEAR = (
     # generate against whatever flat value turns up and set the real one with
     # scripts/recolor_bg.py --color. fb-b's is #d0d0c0.
     "(very pale purple thighhighs:1.5), (white thighhighs:1.2), "
-    "(over-kneehighs:1.4), (lavender tint:1.3), "
+    # over-kneehighs is OUT. Chosen from lyC-555666777 (prompt 9d24700e).
+    #
+    # This is the arm that measured worst for consistency: over four seeds its
+    # worst-case left/right difference was 73.9 against 28.1 with the tag kept,
+    # and at 737373737 one sock all but disappeared. The render that was picked
+    # is the good end of that spread, not the middle of it. Keeping the tag was
+    # the safer recipe and the look is the thing being chosen here.
+    "(lavender tint:1.3), "
     "(thighhighs over pantyhose:1.55)"
 )
 

@@ -1756,6 +1756,41 @@ Of three `hi-c` renders, the one with the highest edge contrast (53.27) was the
 one with a backdrop intruder in it: the intruder was supplying the contrast.
 Numbers rank, eyes disqualify, and neither does the other's job.
 
+## Matching a reference look is subtraction, and it is not the same as improving
+
+Asked to put the `5f323a1a` look — a Yukari render, `gl-lecture-111222333` — onto
+Hamakaze. Diffing the reference against what she had accumulated over six rounds
+of brush-up showed the reference is the *simpler* prompt. It carries none of the
+lineart block, none of the hair block, none of the collar/buttons parts block,
+none of the cloth-wrinkle block, and none of the fabric-physics legwear — all
+five of which had been added to her while trying to make her better. Reaching the
+look meant deleting all five. See `pick/hamakaze-yk-style`.
+
+The measurement that makes the point, on ink coverage, mean luminance of the
+darkest 1% of pixels, and mean Sobel magnitude:
+
+    reference (Yukari)        ink  8.81%   darkest 21.5   edge 29.28
+    Hamakaze, ported          ink  4.80%   darkest 16.2   edge 35.02
+    Hamakaze, previous build  ink 13.96%   darkest  1.1   edge 46.92
+
+`darkest` is the one that decides it. **The reference does not draw black ink.**
+At 21.5 its outline is tinted toward the fill — that tinting is the look, the
+same behaviour `SCENES["warm-room"]` describes as something to fight when you
+want a drawn line in a room. The previous build sat at 1.1, true black, because
+`(black outline:1.4)` had been added and *measured as an improvement on three of
+three seeds*. It was an improvement. It was also directly away from the target.
+
+Better and matches-the-reference are different axes. A metric can rank one of
+them; it cannot tell you which one you were asked for.
+
+### Prefix collision
+
+`ys-` had been used by an earlier session, so these landed as `_00002_` while the
+`_00001_` files were a different day's Yukari renders. Three of four contact-sheet
+cells showed the wrong character until the graph embedded in each PNG was read.
+Check whether a prefix is already on disk before reusing it, and identify a
+render from its embedded prompt rather than from its filename.
+
 ## Open, for next time
 
 - `standing` no longer shreds the costume: `--pose-text "full body"` did that,

@@ -68,8 +68,14 @@ FACE = (
 )
 
 SURFACE = (
+    # `sticker` is out. It was here for the die-cut look and it was drawing
+    # literal stickers: a rabbit decal on her cheek in the portrait, then rabbit
+    # patches, floating flowers and loose cut-outs around the figure. The cheek
+    # decal was blamed on `rabbit print` and that tag removed; the stickers kept
+    # coming, so this was the one. (white outline:1.6), outline carry the edge
+    # on their own.
     "(flat color:1.3), (simple background:1.3), (grey background:1.2), "
-    "(white outline:1.6), outline, sticker, (soft shading:1.3), smooth shading"
+    "(white outline:1.6), outline, (soft shading:1.3), smooth shading"
 )
 
 BODY = (
@@ -139,9 +145,23 @@ POSES = {
     # the one paying nothing for its place: it opened the arm sideways rather
     # than towards the viewer. `sitting on floor` is also out, implied by
     # yokozuwari.
+    # Seven tags, not eight. At eight the legwear came apart: one sock pale and
+    # one black, and the tights gone from under both, with the legwear block
+    # byte-identical to the lounge render where it worked.
+    #
+    # `full body` is the tag that matters, not the count. Two seven-tag blocks
+    # went opposite ways: this one, and one that traded `full body` away for
+    # `legs to the side`, where the left/right leg gap went from 15 to 37 and
+    # the frame cropped at the shins. `legs to the side` is what yokozuwari
+    # already implies; `full body` is what keeps the legs in frame at all.
+    #
+    # (solo:1.5) is left exactly where it is. That weight is measured -- it took
+    # clones from 5-of-8 to 0-of-8 at the head of this block -- and raising a
+    # number that is already doing its job is how the last few rounds went
+    # wrong.
     "peace": (
-        "(solo:1.5), (yokozuwari:1.35), legs to the side, (double v:1.45), "
-        "(v over eye:1.4), (smug:1.35), (half-closed eyes:1.3), full body"
+        "(solo:1.5), (yokozuwari:1.35), (double v:1.45), (v over eye:1.4), "
+        "(smug:1.35), (half-closed eyes:1.3), full body"
     ),
 }
 

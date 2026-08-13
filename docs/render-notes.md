@@ -2300,6 +2300,38 @@ which is the same shape as the relationship tags: the fix is deletion.
 plus `(beckoning:1.35)`, which reads as the invitation without asking for motion.
 Only the sweep cell was broken.
 
+## Palette instability was three separate things, and only one of them was the prompt
+
+"The colours are unstable" across the twelve invitation patterns turned out to be
+three axes that needed separating before any of them could be fixed.
+
+**Dress hue.** Spread 285-319 degrees over the set. It is not seed noise: within
+a register it barely moves, and the whole spread is *between* registers.
+
+    dowa  (smug, come hither)             319.3 / 319.2 / 320.3    1.1 deg
+    tilt  (head tilt, smile)              317.4 / 318.0 / 320.1    2.7 deg
+    kind  (smile, half-closed eyes)       313.2 / 307.0 / 300.6   12.6 deg
+    tease (one eye closed, smug, tilt)    297.6 / 285.5 / 290.4   12.1 deg
+
+The two loose ones are the two carrying an **eye-state tag**. `smile` is in a
+stable register, so it is not expressiveness in general -- `(half-closed eyes)`
+and `(one eye closed)` drag the hue down and scatter it. Dropping `blush` was
+tried first on the theory that pink was pulling the palette; it changed the
+spread from 34 to 35 degrees, which is to say nothing.
+
+**Backdrop colour.** Five distinct values over twelve renders. Already known to
+be beyond the prompt; `scripts/recolor_bg.py --color` settles it.
+
+**Backdrop flatness.** New, and the reason recolor_bg was refusing on some
+renders ("only 1.6% matched"). Some backdrops are streaked rather than flat, and
+the tool is right to decline them -- widening `--tolerance` to 40 to force it
+repainted 45.9% of the frame, eating the white outline and the pale socks.
+`scripts/backdrop_flatness.py` scores it; under ~25 is workable.
+
+Restricted to the two stable registers, on screened seeds, recoloured to
+`#d0c0c0`: **dress hue spread 1.3 degrees, from 34.** The backdrops still carry
+visible patches after recolouring, so that axis is improved and not solved.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

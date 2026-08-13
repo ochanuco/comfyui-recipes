@@ -29,9 +29,14 @@ REPO = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = REPO / ".local/ComfyUI/output"
 INPUT_DIR = REPO / ".local/ComfyUI/input"
 
+# invert: canny and softedge are trained on white-on-black edge maps, so a
+# black-on-white lineart has to be flipped for them. lineart_anime is trained on
+# the drawing itself and takes it as it is -- feeding it an inverted one is
+# handing it a photographic negative of what it expects.
 CONTROLNETS = {
-    "canny": "noob-canny-fp16.safetensors",
-    "softedge": "ill-softedge-fp16.safetensors",
+    "canny": ("noob-canny-fp16.safetensors", True),
+    "softedge": ("ill-softedge-fp16.safetensors", True),
+    "lineart": ("noob-lineart-anime-fp16.safetensors", False),
 }
 
 # The colour prompt, minus every tag that flattens a mass. (flat color) and the
@@ -70,18 +75,18 @@ RUNGS = [
 ]
 
 
-def build(filename: str, controlnet: str, strength: float, end: float,
-          seed: int, prefix: str) -> dict:
-    return {
+def build(filename: str, controlnet: str, invert: bool, strength: float,
+          end: float, seed: int, prefix: str) -> dict:
+    hint = ["2", 0] if invert else ["1", 0]
+    graph = {
         "1": {"class_type": "LoadImage", "inputs": {"image": filename}},
-        "2": {"class_type": "ImageInvert", "inputs": {"image": ["1", 0]}},
         "4": {"class_type": "DiffusersLoader", "inputs": {"model_path": "hassaku-il-v22"}},
         "11": {"class_type": "ControlNetLoader", "inputs": {"control_net_name": controlnet}},
         "6": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": POSITIVE}},
         "7": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": NEGATIVE}},
         "12": {"class_type": "ControlNetApplyAdvanced", "inputs": {
             "positive": ["6", 0], "negative": ["7", 0], "control_net": ["11", 0],
-            "image": ["2", 0], "strength": strength,
+            "image": hint, "strength": strength,
             "start_percent": 0.0, "end_percent": end}},
         "5": {"class_type": "EmptyLatentImage", "inputs": {
             "batch_size": 1, "width": 1024, "height": 1280}},
@@ -93,6 +98,9 @@ def build(filename: str, controlnet: str, strength: float, end: float,
         "9": {"class_type": "SaveImage", "inputs": {
             "images": ["8", 0], "filename_prefix": prefix}},
     }
+    if invert:
+        graph["2"] = {"class_type": "ImageInvert", "inputs": {"image": ["1", 0]}}
+    return graph
 
 
 def main() -> None:
@@ -116,17 +124,19 @@ def main() -> None:
     INPUT_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, INPUT_DIR / filename)
 
+    controlnet, invert = CONTROLNETS[args.controlnet]
     for suffix, strength, end in RUNGS:
         if args.only and suffix not in args.only:
             continue
         prefix = f"cz-{args.line}-{args.controlnet}-{suffix}"
-        print(f"{prefix:22s} strength={strength} end={end}")
+        print(f"{prefix:34s} strength={strength} end={end}"
+              f" hint={'inverted' if invert else 'as drawn'}")
         if args.dry_run:
             continue
         req = urllib.request.Request(
             f"http://{args.host}:{args.port}/prompt",
             data=json.dumps({"prompt": build(
-                filename, CONTROLNETS[args.controlnet], strength, end,
+                filename, controlnet, invert, strength, end,
                 args.seed, prefix)}).encode(),
             headers={"Content-Type": "application/json"},
         )

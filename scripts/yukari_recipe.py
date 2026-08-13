@@ -73,14 +73,23 @@ HOOD = "(hood down:1.5), (hood behind head:1.3), (visible hair:1.2), (purple eye
 # Measured to do nothing to stroke width; present because fb-b carried them.
 THIN = "(thin lineart:1.3), (fine lines:1.25), (delicate lines:1.2)"
 
-# Black tights, and the layering is abandoned rather than retried.
-# (thighhighs over pantyhose:1.55) was the highest-weighted tag in the old block
-# and it still lost: fb-b drew the pale thighhighs alone with no tights under
-# them. Two garments on one limb is not something a weight seems able to buy.
+# Pale thighhighs over opaque black tights. The layering failed before with
+# (sheer black pantyhose:1.5) underneath -- the sheer tights vanished and left
+# the socks alone. Solid black is a much stronger thing to ask for, so the pair
+# gets another go rather than being abandoned.
 #
-# The see-through tags went with it, and they were not staying on the legs --
-# the dress was sheer over her stomach in every render that carried them.
-LEGWEAR = "(black pantyhose:1.45), pantyhose, (opaque pantyhose:1.3)"
+# (lavender tint:1.3) and the pale sock colours are not only leg tags: dropping
+# them took the whole palette darker and flatter, because they were where the
+# pale cast came from.
+#
+# What did have to go is the see-through set -- (see-through pantyhose:1.45),
+# (skin visible through pantyhose:1.4) never stayed on the legs and left the
+# dress sheer over her stomach.
+LEGWEAR = (
+    "(black pantyhose:1.45), pantyhose, (opaque pantyhose:1.3), "
+    "(very pale purple thighhighs:1.5), (white thighhighs:1.2), "
+    "(lavender tint:1.3), (thighhighs over pantyhose:1.55)"
+)
 
 POSES = {
     "lounge": (
@@ -106,9 +115,18 @@ NEGATIVE = (
     "(blue legwear:1.5), (blue background:1.5), (blue tint:1.4), "
     # (opaque pantyhose:1.5) used to live here, from when the tights were meant
     # to be sheer. It is the direct opposite of the current ask and had to go.
-    "(mismatched legwear:1.5), (thighhighs:1.4), (white legwear:1.4), "
-    "(see-through:1.5), (see-through clothes:1.45), (transparent clothing:1.4), "
-    "(sheer clothes:1.4), "
+    #
+    # So did (thighhighs:1.4), (white legwear:1.4), which forbade the socks
+    # outright -- they were added while abandoning the layering and are the
+    # reason it could not come back.
+    #
+    # The sheer guard names the dress and nothing else. A four-tag block of
+    # (see-through), (see-through clothes), (transparent clothing),
+    # (sheer clothes) went in with it and the palette came back flat and dark,
+    # which is the same shape as the duplicate-guard block that wrecked the
+    # colours once before.
+    "(mismatched legwear:1.5), "
+    "(see-through dress:1.45), (transparent clothing:1.3), "
     "(hood up:1.5), (hood over head:1.4), "
     "(impasto:1.25), (painterly:1.25), (oil painting (medium):1.2), "
     "(heavy shading:1.2), (detailed shading:1.2), (realistic:1.1), "

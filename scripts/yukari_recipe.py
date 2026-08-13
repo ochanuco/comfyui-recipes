@@ -202,7 +202,24 @@ NEGATIVE = (
     # length. It removed them outright: the model does not hold thighhighs and
     # over-kneehighs apart, whatever the danbooru wiki separates. Length has to
     # come from the positive tag alone.
-    "(mismatched legwear:1.5), "
+    # All four asymmetry guards, as gl-lounge-555666777 carried them. Rebuilding
+    # the legwear block had left only the first.
+    #
+    # Judged over four seeds, not one: restoring them raised the visible tights
+    # band from a 7.7% worst case to 23.0%, so socks-over-tights now reads on
+    # every seed tried rather than most of them. Worst case is the number that
+    # matters here -- the mean barely moved.
+    #
+    # They do NOT fix left/right symmetry, which is what they were restored for:
+    # mean leg difference went 11.0 -> 16.5. By eye both legs are correctly
+    # layered in all four, so that measure is reading pose and overlap, not
+    # sock length. It should not be used to judge legwear again.
+    #
+    # Dropping (over-kneehighs:1.4) alongside was tried and is much worse --
+    # worst-case leg difference 73.9, with one sock nearly gone at 737373737.
+    # Two competing length tags are apparently holding each other in place.
+    "(mismatched legwear:1.5), (single thighhigh:1.5), "
+    "(asymmetrical legwear:1.45), (uneven legwear:1.4), "
     "(petticoat:1.35), (layered skirt:1.25), "
     "(see-through dress:1.45), (transparent clothing:1.3), "
     "(hood up:1.5), (hood over head:1.4), "

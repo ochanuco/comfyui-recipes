@@ -95,7 +95,11 @@ LEGWEAR = (
     # swapping the whole block to over-kneehighs removed the socks entirely,
     # because `thighhighs over pantyhose` is a real tag carrying the layering
     # and `over-kneehighs over pantyhose` is a phrase that is not.
-    "(very pale purple thighhighs:1.5), (white thighhighs:1.2), "
+    # White ahead of pale purple. With the same two tags at 1.5/1.2 the socks
+    # measured sat 22.9 against fb-b's 12.2 -- twice as purple -- once opaque
+    # black tights went under them and over-kneehighs was added. Which of those
+    # two did it is not established; swapping the weights treats the symptom.
+    "(white thighhighs:1.45), (very pale purple thighhighs:1.25), "
     "(over-kneehighs:1.4), (lavender tint:1.3), "
     "(thighhighs over pantyhose:1.55)"
 )

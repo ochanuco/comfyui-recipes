@@ -1984,6 +1984,29 @@ the composite chain ends up referring forward to it. Validate a built graph for
 dangling references and cycles before queueing it — it costs nothing and this one
 would have been three renders of confusing output.
 
+### canny was the wrong ControlNet the whole time
+
+`Eugeoter/noob-sdxl-controlnet-lineart_anime`, the diffusers `fp16` file renamed
+to `noob-lineart-anime-fp16.safetensors` — 2.3GB, the same size class as the
+other three, and ComfyUI loads the diffusers layout directly, so the 4.7GB
+single-file build is not needed.
+
+    canny,    strength 0.6 / end 0.8    bangs 18.97%   side 29.54%   ratio 0.64
+    lineart,  strength 0.6 / end 0.8    bangs 21.63%   side 30.32%   ratio 0.71
+
+That is the regional-conditioning result (21.82%, 0.77) reached with no mask at
+all, from swapping the model. canny is trained to hold an edge *map*; handing it
+a drawing and asking it to preserve the drawing is a mismatch, and the strand
+lines were what fell through it.
+
+The hint is fed as drawn, not inverted. canny and softedge want white-on-black,
+which is why `ImageInvert` was in the graph; lineart_anime is trained on the
+lineart itself, so inverting it hands the model a photographic negative of what
+it expects. `CONTROLNETS` in `colorize_lineart.py` carries that flag per model.
+
+Not yet tried: the two stacked. They came out level separately and they work by
+different means, so there is no reason to assume they compose.
+
 ### Measuring
 
 Edge density in a hand-placed box ranks variants within one sweep and nothing

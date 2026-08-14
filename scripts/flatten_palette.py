@@ -14,6 +14,17 @@ flat cel shading already is -- the gradients collapse back into bands.
     uv run scripts/flatten_palette.py out/ns-1886970040_00001_.png --colors 30
     uv run scripts/flatten_palette.py out/*.png --colors 30 --measure-only
 
+DO NOT USE THIS ON YUKARI'S RENDERS. It costs her the colour it was meant to
+tidy. At --colors 30 her purple went from 9.3% of the frame to 4.0% and its
+saturation from 28.5 to 23.0: the eyes go grey, the dress goes near-neutral, the
+pink cuffs disappear. Median cut spends its palette where the pixels are, and
+this composition is mostly backdrop, black garment and white hair, so the small
+coloured areas are what gets dropped.
+
+Whole-frame mean saturation does NOT show this -- it read 30.8 before and 30.3
+after, which is how the damage was missed on first inspection. Measure the
+coloured region, not the image.
+
 Dithering is off deliberately. It would scatter intermediate pixels to fake the
 missing colours, which is the opposite of the point.
 

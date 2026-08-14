@@ -2416,6 +2416,32 @@ all seven, and left the die-cut edge intact, but patterned rabbits, background
 streaks and one garment turning piebald survived it. `sticker` was the duplicate
 source, not the only decoration source. Three of seven are clean that way.
 
+## Tags that name a garment's fit destroy it; tags that name a part's state do not
+
+Asked for an oversized-hoodie silhouette — boxy body, big soft hood, hem at the
+hip — off a reference photograph. Everything that names how the garment fits
+failed, and failed differently each time:
+
+    (oversized clothes:1.35)   costume replaced; dress 17-25% of frame -> 1.5-5.9%
+    (oversized clothes:1.15)   same failure at a third of the excess weight,
+                               stroke 1.91 -> 3.82 again
+    (loose clothes:1.4)        stroke 1.91 -> 3.82 and 7.64, paint thickened;
+                               it loosens the drawing, not the cloth
+    (coattails:1.4)            narrow straps rather than spreading cloth, several
+                               per figure on some seeds, reading as jointed legs;
+                               two seeds drew a second girl. Confusable with the
+                               hood's own black red-striped ears.
+    (wind:1.35)                floating white shapes swarmed the figure; back
+                               coverage went down, not up
+
+What worked names a **part's state** instead: `(sleeves past wrists:1.35),
+(wide sleeves:1.3)` took lower-back coverage from 54.6% to 78.5%, boxed the body
+out and dropped the hem, at 1.91px. Same for length earlier — swapping the
+garment noun moved the hem where every weight and guard had not, and the four
+nouns rank hoodie < hooded jacket ≈ hooded coat < hooded cardigan.
+
+So: **the noun and the parts are addressable, the fit is not.**
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

@@ -2371,6 +2371,51 @@ is carried by `(hand on own thigh:1.45)`, `(beckoning:1.35)` and
 `(looking down:1.4)`, all three of which measure clean. `yokozuwari` is the seat
 with seven clean seeds under it and it costs nothing here.
 
+## Garment length answers to the noun, not to weight — and each garment differently
+
+The dress and the hoodie both looked too short, and the same lever did not fix
+both.
+
+**The dress** responded to its own weight. `(purple dress:1.2)` was being drawn as
+a pleated skirt with a separate frill under it — a two-piece where the design is
+one — and `(purple dress:1.45)` made it read as one garment and cover the
+backside. Naming the wrong reading in the negative instead, `(skirt:1.35),
+(pleated skirt:1.4)`, deleted the lower half of the garment outright on one seed
+of two: hoodie and tights, no dress. That is the third guard tag in this recipe
+to cost more than it bought.
+
+**The hoodie did not respond to any of it**, over three seeds each:
+
+    (black hoodie:1.35) -> 1.55           no visible change
+    (cropped jacket:1.45) + (midriff)
+      + (navel) in the negative           no visible change
+    (oversized clothes:1.35)              destroyed the costume -- the dress went
+                                          from 17-25% of the frame to 1.5-5.9%
+    (wide hips) + (thick thighs) removed  no change to the hem
+
+What moved it was **swapping the noun**:
+
+    hoodie            dark pixels  18.4 / 13.6 / 15.6
+    hooded jacket                  22.2 / 23.3 / 17.2
+    hooded cardigan                23.7 / 26.1 / 17.9
+    hooded coat                    20.5 / 25.1 / 16.6
+
+`hoodie` is a pullover, `hooded jacket` a zip-up, `hooded cardigan` an
+open-fronted knit — separate tags with separate cuts, and the cardigan is cut
+longest. `hooded coat`, the one that sounds longest, is not. The lesson is that
+these are different garments to the model, not one garment with a length dial,
+and which lever works is a property of the garment.
+
+The trade is unavoidable: as the outer layer lengthens the dress disappears
+under it, 17.2% -> 11.4% -> 8.5% on one seed across hoodie, jacket, cardigan.
+
+**Neither is settled.** The best single render (`62cd93dd`, hooded coat, seed
+1117511306) did not reproduce on six further seeds — two drew a second figure,
+two put foreign objects in frame. Dropping `sticker` removed the second figure on
+all seven, and left the die-cut edge intact, but patterned rabbits, background
+streaks and one garment turning piebald survived it. `sticker` was the duplicate
+source, not the only decoration source. Three of seven are clean that way.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

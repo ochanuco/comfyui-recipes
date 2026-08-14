@@ -352,10 +352,17 @@ POSES = {
         "(from behind:1.3), (glasses:1.3), (looking down:1.25), full body"
     ),
     # The same search, squatting rather than down on her hands, seen from behind
-    # and slightly above. From bk-squat-1886970040 (prompt 3d7376f2). Clean on
-    # three further seeds -- one girl, clothes intact, 1.91px -- but (searching:1.2)
-    # does no work at that weight: none of them look like they are looking for
-    # anything. It is a pose, not yet a scene.
+    # and slightly above. From bk-squat-1886970040 (prompt 3d7376f2).
+    #
+    # Eleven seeds, all eleven at exactly 1.91px, all one girl, no clothing
+    # failures. `hunt` on the same recipe rode the hoodie up on three seeds of
+    # three and doubled her on one, so the difference is the pose, not luck.
+    #
+    # What is NOT stable is the posture inside the pose: some seeds hug the knees,
+    # some pitch the torso much further forward, and the hood's pompom sometimes
+    # lands where the silhouette needs to read. And (searching:1.2) does no work
+    # at that weight -- none of the eleven look like they are looking for
+    # anything. It is a settled drawing style around an unsettled action.
     "crouch": (
         "(solo:1.5), (squatting:1.4), (from behind:1.45), (looking down:1.4), "
         "(searching:1.2), (from above:1.2), (smug:1.2), full body"

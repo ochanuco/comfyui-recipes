@@ -2442,6 +2442,40 @@ nouns rank hoodie < hooded jacket ≈ hooded coat < hooded cardigan.
 
 So: **the noun and the parts are addressable, the fit is not.**
 
+## The clutter has no prompt-side fix, and no cheap automatic screen either
+
+Three of seven crouch renders carry a clone or a plush toy. Five tags were pulled
+one at a time, seven seeds each, looking for the source:
+
+    `sticker`          already out; it WAS the duplicate source earlier, and
+                       removing it took clones from 2-of-7 to 0-of-7. The plushes
+                       and patterns survived it.
+    hood unpinned      (hood behind head) dropped, (hood down) 1.5 -> 1.25.
+                       No change to colour or clutter; one seed grew a third girl.
+    cardigan+sleeves   suspected of breaking the art style. They did not: the
+                       original coat recipe measures 25-62 colours over the same
+                       seven seeds, the same spread. The "broken" reading came
+                       from comparing everything against seed 1117511306, which
+                       happens to land at 29.
+    `animal hood`      4-of-7 clean -> 2-of-7. Four figures on one seed, six on
+                       another. It looks redundant beside (rabbit hood:1.55) and
+                       is not -- it holds the figure together.
+    `drawstring`       4-of-7 clean -> 2-of-7. Same collapse.
+
+**Nothing to remove.** The full block scores better than any subset of it, which
+is the opposite of the tag-budget picture that held for pose blocks.
+
+Two automatic screens were built and both failed, so neither is in the repo:
+
+- **Connected components of the non-backdrop mask.** Clones touch or overlap her,
+  so they merge into one island. It scored a 4-of-7 set as 6-of-7 and a 2-of-7
+  set as 7-of-7 — worse than useless, since it is confidently wrong.
+- **Counting purple irises.** Her hair ornaments are red-purple discs in the same
+  hue and saturation band. Single-figure renders scored 7 and 9 blobs.
+
+Screening is by eye. `scripts/flatten_palette.py` still handles the colour count
+(36-57 -> 17-23 at 1.91px), which is the other half of "the art style drifts".
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

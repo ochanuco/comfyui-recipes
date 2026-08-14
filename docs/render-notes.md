@@ -2484,6 +2484,27 @@ Whole-frame mean saturation reads 30.8 before and 30.3 after, so it hides this
 completely. That number is what the tool was first checked against, and it is
 the wrong number: measure the coloured region, not the image.
 
+## The clones are a sampler property, not a prompt one
+
+Every render in this repo since the recipe settled used `dpmpp_2m` / `karras`,
+30 steps, cfg 5.0. That was never a variable, and the clone problem turned out
+to live there.
+
+Tested on the three seeds that reliably produced clutter, one change each:
+
+    cfg 5.0 -> 4.0        all three still had two or more figures
+    cfg 5.0 -> 6.5        one of three fixed
+    30 -> 50 steps        two of three fixed
+    dpmpp_2m -> euler_ancestral   **three of three single figures**
+
+Stroke stayed 1.91px on all twelve, so the art style survives the swap.
+
+The catch is that `euler_ancestral` re-injects noise every step, so the same seed
+draws a different picture. Everything learned about which seed does what —
+including `7d231c4f`, the render this whole line of work was aimed at — belongs
+to `dpmpp_2m` and does not carry over. Choosing the sampler means choosing
+between a known-good single render and a higher clean rate across seeds.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

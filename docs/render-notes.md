@@ -2505,6 +2505,32 @@ including `7d231c4f`, the render this whole line of work was aimed at — belong
 to `dpmpp_2m` and does not carry over. Choosing the sampler means choosing
 between a known-good single render and a higher clean rate across seeds.
 
+## Two tags that each destroy the drawing hold each other up together
+
+The oversized-hoodie silhouette, second attempt, from `b1258b0c` reset. Stroke
+width, 1.91px being correct, over two seeds:
+
+    (oversized shirt:1.35)         3.82 / 13.69   destroyed
+    (sleeves past fingers:1.4)     4.65 / 7.64    destroyed
+    both, at 1.3 each              1.91 / 1.91    and lower-back coverage
+                                                  54.6% -> 79.8% / 96.2%
+
+Neither works alone. Both together, weakened, work better than anything else
+tried. Same shape as the sock lengths, where removing one of two competing
+length tags made the legwear worse rather than simpler.
+
+**It also fixed two things that were being chased separately.** Over seven seeds:
+colour count went from 25-62 to 20-33 — the spread that produced the "the art
+style keeps drifting" complaint — and the clones and plush toys went from three
+of seven to none, without changing the sampler. Five tags had been pulled one at
+a time hunting the clutter, and `euler_ancestral` had been adopted to solve it;
+neither was necessary.
+
+This also retires the rule written here earlier, that garment **nouns** and
+**part states** pass while **fit** words fail. `oversized shirt` is a noun,
+`sleeves past fingers` is a part state, and both destroy the drawing on their
+own. That rule was generalised from the two tags that happened to work.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

@@ -146,14 +146,17 @@ BODY = (
     "(petite:1.2), (pale skin:1.25)"
 )
 
-# (hood behind head:1.3) is out and (hood down) is down to 1.25. Pinning the hood
-# to her back was competing with the garment for the same area; the reference has
-# the hood sitting as a soft mass on the shoulders instead.
+# Unpinning the hood -- dropping (hood behind head:1.3) and taking (hood down)
+# to 1.25 -- was tried on the theory that it competed with the garment for the
+# back. It did not: colour count and clutter were unchanged, and one seed grew a
+# third figure. Put back as it was.
 #
-# It stays DOWN, and (rabbit hood:1.55) stays in the character block. Deleting
-# the hood to solve a different problem once read as the character breaking, and
-# (hood up:1.5) is still held out in the negative.
-HOOD = "(hood down:1.25), (visible hair:1.2), (purple eyes:1.2)"
+# `animal hood` next to (rabbit hood:1.55) looks redundant and is not. Removing
+# it, keeping the rabbit, took clean renders from 4-of-7 to 2-of-7: four figures
+# on one seed, six on another. It is holding the figure together, not supplying
+# the decoration. Same shape as deleting the rabbit hood outright, which read as
+# the character breaking.
+HOOD = "(hood down:1.5), (hood behind head:1.3), (visible hair:1.2), (purple eyes:1.2)"
 
 # Measured to do nothing to stroke width; present because fb-b carried them.
 THIN = "(thin lineart:1.3), (fine lines:1.25), (delicate lines:1.2)"

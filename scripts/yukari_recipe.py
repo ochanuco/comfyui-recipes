@@ -446,26 +446,24 @@ NEGATIVE = (
     # Dropping (over-kneehighs:1.4) alongside was tried and is much worse --
     # worst-case leg difference 73.9, with one sock nearly gone at 737373737.
     # Two competing length tags are apparently holding each other in place.
-    "(mismatched legwear:1.5), (single thighhigh:1.5), "
-    "(asymmetrical legwear:1.45), (uneven legwear:1.4), "
-    # Two guards carried by ns-1117511306 (prompt 7d231c4f), the render this
-    # recipe is aimed at.
-    #
     # The skirt pair stops the one-piece being drawn as a skirt with a frill
     # under it. It is the riskiest thing in this negative: on its own, before
     # the dress weight went to 1.45, it deleted the whole lower garment on one
-    # seed of two. It is here because the target render has it.
-    "(skirt:1.35), (pleated skirt:1.4), "
-    # And these three measured nothing at all -- the hem did not move with them
-    # in or out. Kept only for byte-identity with the target; delete them if the
-    # recipe is ever rebuilt from scratch.
-    "(cropped jacket:1.45), (midriff:1.35), (navel:1.3), "
+    # seed of two. It is here because ns-1117511306 (prompt 7d231c4f), the
+    # render this recipe is aimed at, has it -- and in this position.
+    "(mismatched legwear:1.5), (skirt:1.35), (pleated skirt:1.4), "
+    "(single thighhigh:1.5), "
+    "(asymmetrical legwear:1.45), (uneven legwear:1.4), "
     "(petticoat:1.35), (layered skirt:1.25), "
     "(see-through dress:1.45), (transparent clothing:1.3), "
     "(hood up:1.5), (hood over head:1.4), "
     "(impasto:1.25), (painterly:1.25), (oil painting (medium):1.2), "
     "(heavy shading:1.2), (detailed shading:1.2), (realistic:1.1), "
     "(huge breasts:1.4), (large breasts:1.25), cleavage"
+    # Tail, and the target render's own order. These three measured nothing --
+    # the hem did not move with them in or out -- and are kept for identity with
+    # 7d231c4f rather than for effect.
+    ", (cropped jacket:1.45), (midriff:1.35), (navel:1.3)"
 )
 
 # Fixed list rather than random: a sweep that cannot be repeated cannot be used

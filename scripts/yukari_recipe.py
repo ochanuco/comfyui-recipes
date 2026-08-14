@@ -114,7 +114,22 @@ THIN = "(thin lineart:1.3), (fine lines:1.25), (delicate lines:1.2)"
 # (skin visible through pantyhose:1.4) never stayed on the legs and left the
 # dress sheer over her stomach.
 LEGWEAR = (
-    "(black pantyhose:1.45), pantyhose, (opaque pantyhose:1.3), "
+        # grey, not black. `grey pantyhose` is the canonical spelling (`gray_` has no
+    # page) and its wiki warns of "considerable overlap" with black and brown --
+    # brown is guarded in the negative already.
+    #
+    # Chosen over red: the hoodie lining measures #bc616a, and (red pantyhose)
+    # landed at hue 338 / saturation 152 against the lining's 313 / 126. Close
+    # enough to read as the same intent, far enough to read as a second red.
+    # Grey sits inside a range the palette already has.
+    #
+    # The cost is the layering: the dark band at the top of the thigh went from
+    # 28.7-41.6% of the measured strip on black to 10.2-28.6% on grey, because
+    # the socks are pale and the contrast under them shrank.
+    #
+    # (charcoal pantyhose:1.35) alongside was tried -- it is how gl-lounge asked
+    # for a dark grey -- and made the band very slightly LIGHTER, not darker.
+    "(grey pantyhose:1.45), pantyhose, (opaque pantyhose:1.3), "
     # over-kneehighs ends just above the knee and, per its danbooru wiki, exists
     # to "leave a larger gap between the stocking and the skirt or dress" --
     # which is the shortening that was wanted. It is ADDED, not substituted:

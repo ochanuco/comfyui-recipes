@@ -67,7 +67,26 @@ CHARACTER = (
     # `hooded cardigan` measures longest of all (17.9-26.1%) and is the one to
     # try if this wants to go further. The coat is here because ns-1117511306 --
     # prompt 7d231c4f, the render this is aimed at -- is a coat.
-    "hair ornament, (black hooded coat:1.4), open coat, (rabbit hood:1.55), "
+    # hooded cardigan, and sleeves that say "too big" without naming the garment.
+    #
+    # Length first: nothing but swapping the noun ever moved the hem. Raising
+    # (black hoodie) to 1.55 did nothing, (cropped jacket) in the negative did
+    # nothing, deleting the body block did nothing. Measured dark pixels by
+    # garment: hoodie 13.6-18.4%, hooded jacket 16.6-25.1%, hooded cardigan
+    # 17.9-26.1%. The cardigan is longest, and against the coat it took the
+    # lower back from 46.6% to 58.0% covered.
+    #
+    # Then the silhouette. The target is an oversized hoodie -- boxy body, big
+    # soft hood on the shoulders, hem at the hip. Every tag that names the
+    # garment's fit failed: (oversized clothes) destroyed the costume at 1.35
+    # AND at 1.15 (stroke 1.91 -> 3.82 both times), (loose clothes) loosened the
+    # drawing rather than the cloth (stroke to 7.64), (coattails) drew narrow
+    # jointed straps, (wind) summoned floating white shapes.
+    #
+    # Tags naming a PART's state pass where tags naming the garment's fit do not.
+    # (sleeves past wrists) + (wide sleeves) took the lower back from 54.6% to
+    # 78.5% covered, boxed out the body and dropped the hem, at 1.91px.
+    "hair ornament, (black hooded cardigan:1.45), open cardigan, (rabbit hood:1.55), "
     # The hem does not respond to length tags. Asked to cover the buttocks, three
     # renders moved bare skin in the upper-leg band 37.4% -> 40.1% -> 38.3%:
     # (medium dress:1.3), then (medium dress:1.45) with (short dress:1.4),
@@ -92,7 +111,8 @@ CHARACTER = (
     "animal hood, long sleeves, drawstring, (purple dress:1.45), short dress, "
     # Weighted down rather than deleted: the dress is meant to have frill trim,
     # it just should not be the loudest thing in the lower half.
-    "(frills:0.85), vocaloid, voiceroid"
+    "(frills:0.85), vocaloid, voiceroid, "
+    "(sleeves past wrists:1.35), (wide sleeves:1.3)"
 )
 
 # rabbit print is deliberately absent: paired with `sticker` it drew a rabbit
@@ -126,7 +146,14 @@ BODY = (
     "(petite:1.2), (pale skin:1.25)"
 )
 
-HOOD = "(hood down:1.5), (hood behind head:1.3), (visible hair:1.2), (purple eyes:1.2)"
+# (hood behind head:1.3) is out and (hood down) is down to 1.25. Pinning the hood
+# to her back was competing with the garment for the same area; the reference has
+# the hood sitting as a soft mass on the shoulders instead.
+#
+# It stays DOWN, and (rabbit hood:1.55) stays in the character block. Deleting
+# the hood to solve a different problem once read as the character breaking, and
+# (hood up:1.5) is still held out in the negative.
+HOOD = "(hood down:1.25), (visible hair:1.2), (purple eyes:1.2)"
 
 # Measured to do nothing to stroke width; present because fb-b carried them.
 THIN = "(thin lineart:1.3), (fine lines:1.25), (delicate lines:1.2)"

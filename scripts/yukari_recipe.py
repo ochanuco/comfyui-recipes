@@ -332,6 +332,26 @@ POSES = {
         "(hand on own thigh:1.45), (beckoning:1.35), (looking down:1.4), "
         "(smug:1.4), (come hither:1.25), full body"
     ),
+    # On all fours, patting the floor for the glasses she has just dropped, looking
+    # back over her shoulder. `all fours`, `searching`, `hands on ground`,
+    # `top-down bottom-up` and `glasses` are all real tags; `crouching` and
+    # `reaching out` have no wiki pages and are not used.
+    #
+    # The dropped thing is named. An unnamed one renders as nothing at all --
+    # the same finding as Hamakaze's meal, which stayed an unreadable dark blob
+    # until it was given (onigiri).
+    #
+    # Kept from gl-fours-737373737 (prompt 3394c4bb).
+    "hunt": (
+        "(solo:1.5), (all fours:1.45), (searching:1.4), (hands on ground:1.35), "
+        "(from behind:1.3), (glasses:1.3), (looking down:1.25), full body"
+    ),
+    # The same search, squatting rather than down on her hands, seen from behind
+    # and slightly above. From bk-squat-1886970040 (prompt 3d7376f2).
+    "crouch": (
+        "(solo:1.5), (squatting:1.4), (from behind:1.45), (looking down:1.4), "
+        "(searching:1.2), (from above:1.2), (smug:1.2), full body"
+    ),
     "chair": (
         "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "
         "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
@@ -346,7 +366,8 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          "yawn": (1024, 1536), "fall": (1024, 1536),
          "coy": (1024, 1536),
          "lap": (1024, 1536),
-         "invite": (1024, 1536)}
+         "invite": (1024, 1536),
+         "hunt": (1024, 1536), "crouch": (1024, 1536)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "

@@ -71,7 +71,15 @@ CHARACTER = (
     # is arguing with the character prior and losing. Lengthening it will need
     # something with more authority than a tag: a different garment noun, or
     # inpainting the hem.
-    "animal hood, long sleeves, drawstring, (purple dress:1.2), short dress, "
+        # 1.2 -> 1.45. At 1.2 the purple was being drawn as a pleated skirt with a
+    # separate white frill under it -- a two-piece where the design is one.
+    #
+    # Naming the wrong reading in the negative instead, (skirt:1.35),
+    # (pleated skirt:1.4), deleted the lower half of the garment outright on one
+    # of two seeds: hoodie and tights, no dress. Third time a guard tag has cost
+    # more than it bought here, after the duplicate guards that wrecked the
+    # palette and the (thighhighs:1.3) that removed the socks.
+    "animal hood, long sleeves, drawstring, (purple dress:1.45), short dress, "
     # Weighted down rather than deleted: the dress is meant to have frill trim,
     # it just should not be the loudest thing in the lower half.
     "(frills:0.85), vocaloid, voiceroid"

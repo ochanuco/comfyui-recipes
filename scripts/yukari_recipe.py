@@ -57,7 +57,17 @@ import urllib.request
 CHARACTER = (
     "yuzuki yukari, (light purple hair:1.25), (short hair with long locks:1.45), "
     "(very long sidelocks:1.3), sidelocks, (purple eyes:1.25), hair between eyes, "
-    "hair ornament, (black hoodie:1.35), open hoodie, (rabbit hood:1.55), "
+        # hooded coat, not hoodie. The hem is the one thing that answered to nothing
+    # else: raising (black hoodie) to 1.55 did nothing, (cropped jacket) in the
+    # negative did nothing, (oversized clothes) destroyed the costume, and
+    # deleting the body block did nothing. Swapping the noun moved it, because
+    # these are different garments to the model rather than one with a length:
+    # dark pixels 13.6-18.4% on hoodie against 16.6-25.1% on hooded coat.
+    #
+    # `hooded cardigan` measures longest of all (17.9-26.1%) and is the one to
+    # try if this wants to go further. The coat is here because ns-1117511306 --
+    # prompt 7d231c4f, the render this is aimed at -- is a coat.
+    "hair ornament, (black hooded coat:1.4), open coat, (rabbit hood:1.55), "
     # The hem does not respond to length tags. Asked to cover the buttocks, three
     # renders moved bare skin in the upper-leg band 37.4% -> 40.1% -> 38.3%:
     # (medium dress:1.3), then (medium dress:1.45) with (short dress:1.4),
@@ -96,14 +106,19 @@ FACE = (
 )
 
 SURFACE = (
-    # `sticker` draws literal stickers -- a rabbit decal on her cheek in the
-    # portrait, then rabbit patches and floating cut-outs around the figure --
-    # and removing it also took the left/right sock mismatch from 15 to 4.
-    # It is kept anyway: this block is pv1 (prompt 37ac6c0d), reverted to on
-    # request after a run of single-tag corrections drifted the design. The
-    # measurement is real and the tag is a known cost, not a mistake left in.
+    # `sticker` is out. It draws literal stickers -- a rabbit decal on her cheek,
+    # rabbit patches, loose cut-outs -- and, measured over seven seeds, it was
+    # also the source of the second figure: with it, two of seven had a chibi
+    # clone in frame; without it, none of seven did.
+    #
+    # (white outline:1.6), outline stay. They are the die-cut edge; `sticker`
+    # was the half that drew actual stickers. The edge survives its removal.
+    #
+    # It does NOT remove all decoration. Patterned rabbits on the garment,
+    # background streaks and one piebald coat came through anyway, so there is
+    # at least one more source.
     "(flat color:1.3), (simple background:1.3), (grey background:1.2), "
-    "(white outline:1.6), outline, sticker, (soft shading:1.3), smooth shading"
+    "(white outline:1.6), outline, (soft shading:1.3), smooth shading"
 )
 
 BODY = (
@@ -433,6 +448,18 @@ NEGATIVE = (
     # Two competing length tags are apparently holding each other in place.
     "(mismatched legwear:1.5), (single thighhigh:1.5), "
     "(asymmetrical legwear:1.45), (uneven legwear:1.4), "
+    # Two guards carried by ns-1117511306 (prompt 7d231c4f), the render this
+    # recipe is aimed at.
+    #
+    # The skirt pair stops the one-piece being drawn as a skirt with a frill
+    # under it. It is the riskiest thing in this negative: on its own, before
+    # the dress weight went to 1.45, it deleted the whole lower garment on one
+    # seed of two. It is here because the target render has it.
+    "(skirt:1.35), (pleated skirt:1.4), "
+    # And these three measured nothing at all -- the hem did not move with them
+    # in or out. Kept only for byte-identity with the target; delete them if the
+    # recipe is ever rebuilt from scratch.
+    "(cropped jacket:1.45), (midriff:1.35), (navel:1.3), "
     "(petticoat:1.35), (layered skirt:1.25), "
     "(see-through dress:1.45), (transparent clothing:1.3), "
     "(hood up:1.5), (hood over head:1.4), "

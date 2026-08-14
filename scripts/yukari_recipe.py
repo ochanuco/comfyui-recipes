@@ -341,13 +341,21 @@ POSES = {
     # the same finding as Hamakaze's meal, which stayed an unreadable dark blob
     # until it was given (onigiri).
     #
-    # Kept from gl-fours-737373737 (prompt 3394c4bb).
+    # Kept from gl-fours-737373737 (prompt 3394c4bb), and NOT SETTLED: that seed
+    # is the one it works on. Three further seeds all rode the hoodie up and bared
+    # her midriff, one of them drew two of her, and none of them read as searching
+    # -- she is still wearing the glasses she is supposed to be looking for.
+    # Stroke stayed 1.91px throughout, so this is a content failure, not the
+    # style break `seiza` caused.
     "hunt": (
         "(solo:1.5), (all fours:1.45), (searching:1.4), (hands on ground:1.35), "
         "(from behind:1.3), (glasses:1.3), (looking down:1.25), full body"
     ),
     # The same search, squatting rather than down on her hands, seen from behind
-    # and slightly above. From bk-squat-1886970040 (prompt 3d7376f2).
+    # and slightly above. From bk-squat-1886970040 (prompt 3d7376f2). Clean on
+    # three further seeds -- one girl, clothes intact, 1.91px -- but (searching:1.2)
+    # does no work at that weight: none of them look like they are looking for
+    # anything. It is a pose, not yet a scene.
     "crouch": (
         "(solo:1.5), (squatting:1.4), (from behind:1.45), (looking down:1.4), "
         "(searching:1.2), (from above:1.2), (smug:1.2), full body"

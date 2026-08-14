@@ -9,6 +9,13 @@ vocabulary; the port onto the Hamakaze graph is not part of it.
     uv run scripts/yukari_recipe.py --seed 555666777   # the settled render
     uv run scripts/yukari_recipe.py --pose portrait    # head and shoulders
     uv run scripts/yukari_recipe.py --pose peace       # double v, v over eye
+    uv run scripts/yukari_recipe.py --pose invite      # patting her lap, one girl
+
+**The tights are grey now, and that is deliberate across every pose.** They were
+black through `pv1` / prompt 37ac6c0d and the `pick/yk-recipe` tag, so `--pose
+peace` no longer reproduces 9d24700e pixel-for-pixel; the tag still points at the
+commit that does. The colour was settled on the invitation pose and then kept
+global rather than split per pose, so the palette is one palette.
 
 Then set the backdrop, which the prompt does not control -- it landed on
 #d0d0c0, #a0a0a0 and #909090 across three renders whose only difference was two

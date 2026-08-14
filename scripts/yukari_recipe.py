@@ -288,9 +288,16 @@ POSES = {
     # 1.5-1.6 left the headcount unchanged and took mean saturation from ~25 to
     # 105-163 -- neon backdrop, orange skin. Same as the five-guard block that
     # wrecked the palette once before.
+    # yokozuwari, NOT seiza. `seiza` on its own moved stroke width from this
+    # recipe's fixed 1.91px to 6.56 and 8.47, mottled the backdrop, and drew a
+    # second Yukari on one of two seeds -- swapped one at a time into `peace`,
+    # it was the only element that did anything. (come hither), (looking down)
+    # and the hand pair all measured 1.91px, and `cowboy shot` only breaks the
+    # die-cut outline, not the line.
     "invite": (
-        "(solo:1.5), (seiza:1.35), (hand on own thigh:1.45), (beckoning:1.35), "
-        "(looking down:1.4), (smug:1.4), (come hither:1.25), cowboy shot"
+        "(solo:1.5), (yokozuwari:1.35), legs to the side, "
+        "(hand on own thigh:1.45), (beckoning:1.35), (looking down:1.4), "
+        "(smug:1.4), (come hither:1.25), full body"
     ),
     "chair": (
         "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "

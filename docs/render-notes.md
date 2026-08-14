@@ -2332,6 +2332,45 @@ Restricted to the two stable registers, on screened seeds, recoloured to
 `#d0c0c0`: **dress hue spread 1.3 degrees, from 34.** The backdrops still carry
 visible patches after recolouring, so that axis is improved and not solved.
 
+## One tag, `seiza`, was behind the drifting art style — and the mottling, and a clone
+
+The complaint was that the art style had changed. It had, and the measure that
+shows it is stroke width, which had been fixed at exactly 1.91px on every render
+this recipe made until the invitation poses:
+
+    peace   4 of 4 at 1.91px
+    coy     0 of 3          3.8 - 5.7
+    yawn    0 of 3          5.5 - 8.2
+    iv      6 of 12
+    st      3 of 12
+    fin     0 of 8          3.8 - 7.6
+
+Two guesses were tested and both were wrong. `cowboy shot` cropping the figure at
+the frame edge does break the die-cut outline — white pixels 8.2-10.6% on
+`full body` against 6.2-9.5% cropped — but it does not restore the line; those
+renders still measured 5.7-6.6. And `(come hither:1.25)`, suspected of dragging
+the style into a softer register, came back at 1.91px on both seeds.
+
+Swapping one element of `invite` into `peace` at a time found it:
+
+    seiza                            6.56 / 8.47   and one seed drew two of her
+    (come hither:1.25)               1.91 / 1.91
+    (looking down:1.4)               1.91 / 1.91
+    (hand on own thigh) + beckoning  1.91 / 1.91
+
+**`seiza` alone.** It takes the line, the backdrop flatness and the headcount
+together, which means the three "separate axes" of instability written up in the
+section above were substantially one cause wearing three faces. That earlier
+analysis — eye-state tags scattering the hue, seeds deciding backdrop flatness —
+was measured on a set where every render carried `seiza`, so it attributed to
+seeds and expressions what one pose tag was doing.
+
+The invitation does not need it. `lap pillow invitation`, the tag whose wiki
+describes seiza as the usual posture, is not in this recipe either; the gesture
+is carried by `(hand on own thigh:1.45)`, `(beckoning:1.35)` and
+`(looking down:1.4)`, all three of which measure clean. `yokozuwari` is the seat
+with seven clean seeds under it and it costs nothing here.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

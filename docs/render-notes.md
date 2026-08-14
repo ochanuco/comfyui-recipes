@@ -2473,8 +2473,16 @@ Two automatic screens were built and both failed, so neither is in the repo:
 - **Counting purple irises.** Her hair ornaments are red-purple discs in the same
   hue and saturation band. Single-figure renders scored 7 and 9 blobs.
 
-Screening is by eye. `scripts/flatten_palette.py` still handles the colour count
-(36-57 -> 17-23 at 1.91px), which is the other half of "the art style drifts".
+Screening is by eye. And `scripts/flatten_palette.py`, written to handle the
+other half of the drift, **cannot be used on her either**: quantising to 30
+colours does drop the count from 36-57 to 17-23 at 1.91px, but it spends the
+palette on backdrop, black coat and white hair and drops the small coloured
+areas. Her purple fell from 9.3% of the frame to 4.0% and its saturation from
+28.5 to 23.0 -- grey eyes, a near-neutral dress, no pink cuffs.
+
+Whole-frame mean saturation reads 30.8 before and 30.3 after, so it hides this
+completely. That number is what the tool was first checked against, and it is
+the wrong number: measure the coloured region, not the image.
 
 ## Open, for next time
 

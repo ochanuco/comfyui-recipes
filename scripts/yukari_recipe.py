@@ -114,7 +114,7 @@ THIN = "(thin lineart:1.3), (fine lines:1.25), (delicate lines:1.2)"
 # (skin visible through pantyhose:1.4) never stayed on the legs and left the
 # dress sheer over her stomach.
 LEGWEAR = (
-        # grey, not black. `grey pantyhose` is the canonical spelling (`gray_` has no
+    # grey, not black. `grey pantyhose` is the canonical spelling (`gray_` has no
     # page) and its wiki warns of "considerable overlap" with black and brown --
     # brown is guarded in the negative already.
     #
@@ -127,8 +127,19 @@ LEGWEAR = (
     # 28.7-41.6% of the measured strip on black to 10.2-28.6% on grey, because
     # the socks are pale and the contrast under them shrank.
     #
-    # (charcoal pantyhose:1.35) alongside was tried -- it is how gl-lounge asked
-    # for a dark grey -- and made the band very slightly LIGHTER, not darker.
+    # Nothing found makes it darker, and two things make it lighter. Band value,
+    # lower being darker, over three seeds:
+    #
+    #     (grey pantyhose:1.45) alone            52.9 / 73.1 / 76.3
+    #     + (black pantyhose:1.1)                80.1 / 81.4 / 84.9
+    #     + (black pantyhose:1.25)               85.8 / 92.2 / 83.8
+    #     (charcoal pantyhose:1.35) alongside    57.5 / 73.1 / 84.9
+    #
+    # Mixing in the darker colour name lightens it, and more of it lightens it
+    # further: two colour words land on neither, somewhere between. Competing
+    # tags held each other in place for sock *length* -- dropping one there made
+    # things worse -- and that does not carry over to colour. Grey alone is the
+    # darkest of everything tried.
     "(grey pantyhose:1.45), pantyhose, (opaque pantyhose:1.3), "
     # over-kneehighs ends just above the knee and, per its danbooru wiki, exists
     # to "leave a larger gap between the stocking and the skirt or dress" --

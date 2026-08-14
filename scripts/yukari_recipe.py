@@ -111,7 +111,21 @@ CHARACTER = (
     "animal hood, long sleeves, drawstring, (purple dress:1.45), short dress, "
     # Weighted down rather than deleted: the dress is meant to have frill trim,
     # it just should not be the loudest thing in the lower half.
-    "(frills:0.85), vocaloid, voiceroid"
+    "(frills:0.85), vocaloid, voiceroid, "
+    # The oversized silhouette: boxy body, big soft hood, hem at the hip.
+    #
+    # Neither of these works alone. (oversized shirt:1.35) on its own broke the
+    # stroke to 3.82 and 13.69px; (sleeves past fingers:1.4) on its own to 4.65
+    # and 7.64. Together at 1.3 each, the stroke holds at 1.91 on both seeds and
+    # lower-back coverage goes 54.6% -> 79.8% and 96.2%.
+    #
+    # That is the same shape as the sock lengths, where dropping one of two
+    # competing tags made things worse: they hold each other in place. It is NOT
+    # the "nouns and part-states pass, fit words fail" rule written here earlier
+    # -- `oversized shirt` is a noun and `sleeves past fingers` is a part state,
+    # and both destroy the drawing on their own. That rule was generalised from
+    # two tags that happened to work and does not hold.
+    "(oversized shirt:1.3), (sleeves past fingers:1.3)"
 )
 
 # rabbit print is deliberately absent: paired with `sticker` it drew a rabbit

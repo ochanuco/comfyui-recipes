@@ -571,7 +571,20 @@ def build(pose: str, seed: int, prefix: str) -> dict:
         "3": {"class_type": "KSampler", "inputs": {
             "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
             "latent_image": ["5", 0], "seed": seed, "steps": 30, "cfg": 5.0,
-            "sampler_name": "dpmpp_2m", "scheduler": "karras", "denoise": 1.0}},
+            # euler_ancestral, not dpmpp_2m. The clone problem was a sampler
+            # property all along: on the three seeds that reliably drew two or
+            # more figures, cfg 4.0 fixed none, cfg 6.5 fixed one, 50 steps fixed
+            # two, and this fixed all three. Over seven seeds it goes 4-of-7
+            # clean to 7-of-7, at 1.91px throughout.
+            #
+            # Five tags were pulled one at a time before this was tried, and two
+            # of them halved the clean rate. The vocabulary was never the lever.
+            #
+            # It re-injects noise each step, so a seed draws a different picture
+            # than it did under dpmpp_2m. Everything recorded about which seed
+            # does what -- 7d231c4f included -- belongs to the old sampler.
+            "sampler_name": "euler_ancestral", "scheduler": "karras",
+            "denoise": 1.0}},
         "8": {"class_type": "VAEDecode",
               "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
         "9": {"class_type": "SaveImage",

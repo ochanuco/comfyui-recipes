@@ -111,8 +111,7 @@ CHARACTER = (
     "animal hood, long sleeves, drawstring, (purple dress:1.45), short dress, "
     # Weighted down rather than deleted: the dress is meant to have frill trim,
     # it just should not be the loudest thing in the lower half.
-    "(frills:0.85), vocaloid, voiceroid, "
-    "(sleeves past wrists:1.35), (wide sleeves:1.3)"
+    "(frills:0.85), vocaloid, voiceroid"
 )
 
 # rabbit print is deliberately absent: paired with `sticker` it drew a rabbit
@@ -146,17 +145,12 @@ BODY = (
     "(petite:1.2), (pale skin:1.25)"
 )
 
-# Unpinning the hood -- dropping (hood behind head:1.3) and taking (hood down)
-# to 1.25 -- was tried on the theory that it competed with the garment for the
-# back. It did not: colour count and clutter were unchanged, and one seed grew a
-# third figure. Put back as it was.
+# Reset to b1258b0c: hood down at 1.25, not pinned behind her head.
 #
-# `animal hood` next to (rabbit hood:1.55) looks redundant and is not. Removing
-# it, keeping the rabbit, took clean renders from 4-of-7 to 2-of-7: four figures
-# on one seed, six on another. It is holding the figure together, not supplying
-# the decoration. Same shape as deleting the rabbit hood outright, which read as
-# the character breaking.
-HOOD = "(hood down:1.5), (hood behind head:1.3), (visible hair:1.2), (purple eyes:1.2)"
+# The alternative -- (hood down:1.5), (hood behind head:1.3) -- was measured and
+# is not better: unpinning changed neither the colour count nor the clutter, and
+# pinning it back did not recover anything. This is the picked render's value.
+HOOD = "(hood down:1.25), (visible hair:1.2), (purple eyes:1.2)"
 
 # Measured to do nothing to stroke width; present because fb-b carried them.
 THIN = "(thin lineart:1.3), (fine lines:1.25), (delicate lines:1.2)"
@@ -571,20 +565,12 @@ def build(pose: str, seed: int, prefix: str) -> dict:
         "3": {"class_type": "KSampler", "inputs": {
             "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
             "latent_image": ["5", 0], "seed": seed, "steps": 30, "cfg": 5.0,
-            # euler_ancestral, not dpmpp_2m. The clone problem was a sampler
-            # property all along: on the three seeds that reliably drew two or
-            # more figures, cfg 4.0 fixed none, cfg 6.5 fixed one, 50 steps fixed
-            # two, and this fixed all three. Over seven seeds it goes 4-of-7
-            # clean to 7-of-7, at 1.91px throughout.
-            #
-            # Five tags were pulled one at a time before this was tried, and two
-            # of them halved the clean rate. The vocabulary was never the lever.
-            #
-            # It re-injects noise each step, so a seed draws a different picture
-            # than it did under dpmpp_2m. Everything recorded about which seed
-            # does what -- 7d231c4f included -- belongs to the old sampler.
-            "sampler_name": "euler_ancestral", "scheduler": "karras",
-            "denoise": 1.0}},
+            # dpmpp_2m, reset to b1258b0c. euler_ancestral took clean renders from
+            # 4-of-7 to 7-of-7 and is the better sampler for clutter -- but it
+            # re-injects noise each step, so every seed draws something else and
+            # the picked render cannot be reproduced under it. Switch back if
+            # clutter matters more than this particular image.
+            "sampler_name": "dpmpp_2m", "scheduler": "karras", "denoise": 1.0}},
         "8": {"class_type": "VAEDecode",
               "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
         "9": {"class_type": "SaveImage",

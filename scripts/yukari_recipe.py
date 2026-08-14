@@ -375,7 +375,30 @@ POSES = {
         "(from behind:1.3), (glasses:1.3), (looking down:1.25), full body"
     ),
     # The same search, squatting rather than down on her hands, seen from behind
-    # and slightly above. From bk-squat-1886970040 (prompt 3d7376f2).
+    # and slightly above.
+    #
+    # SETTLED HERE. `--pose crouch --seed 1117511306` reproduces ns-1117511306
+    # (prompt 7d231c4f) pixel for pixel -- verified, max channel difference 0 --
+    # and that render is the target: the design and the pose that carry the
+    # wide-hipped read this character is meant to have.
+    #
+    # Three attempts to push it further were run and none are in here:
+    #
+    #   (coattails:1.4)        the coat became narrow straps rather than a
+    #                          spreading garment, several of them on some seeds,
+    #                          reading as jointed legs; two seeds drew a second
+    #                          figure. It is confusable with the hood's own black
+    #                          red-striped ears.
+    #   (loose clothes:1.4)    stroke width went 1.91 -> 3.82 and 7.64, the paint
+    #                          thickened, the dress fell to 5-6% of the frame.
+    #                          It loosens the drawing, not the garment.
+    #   (from above:1.2) out   this one worked -- pale legwear went 47% to 55-75%
+    #                          and the legs come back. Left out only because it
+    #                          changes the picked composition; re-add it if the
+    #                          legs are wanted over the overhead angle.
+    #
+    # Originally from bk-squat-1886970040 (prompt 3d7376f2), before the sticker
+    # removal and the coat.
     #
     # Eleven seeds, all eleven at exactly 1.91px, all one girl, no clothing
     # failures. `hunt` on the same recipe rode the hoodie up on three seeds of

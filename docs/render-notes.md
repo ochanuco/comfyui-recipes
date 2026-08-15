@@ -2531,6 +2531,26 @@ This also retires the rule written here earlier, that garment **nouns** and
 `sleeves past fingers` is a part state, and both destroy the drawing on their
 own. That rule was generalised from the two tags that happened to work.
 
+## Substitute, never subtract — the blocks are balanced, not budgeted
+
+Two separate attempts to simplify broke the drawing, and both were made on the
+belief that removing tags is the safe direction. It is not.
+
+**The garment pair.** `(oversized shirt:1.3), (sleeves past fingers:1.3)` at
+1.15 each: the coat stopped covering her and the back came bare. Below 1.3 the
+pair stops holding the garment on at all.
+
+**The pose block.** Dropping it from eight tags to six — pulling the overhead
+angle and the smug face to make the pose read as incidental rather than
+presented — took stroke width from 1.91px to 3.82-5.73 and the colour count from
+17-24 to 40-45. Worse, deleting only `(smug:1.2)` and leaving the count at seven
+did the same: stroke held but colours went to 50, with background streaks and an
+eyeball-shaped object in frame.
+
+So the pose block is not a budget with room in it. It is a balance, like the two
+sock lengths and like the oversized pair, and a hole in it is as damaging as an
+addition. **Replacement keeps the slot filled; deletion does not.**
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

@@ -2693,3 +2693,31 @@ volume, dress length and the dress pulled taut over the hips are all right; the
 thighs being fully covered is the one regret, and the visible hand runs long.
 Both would need the drawing to change, not the pixels — noted here so the next
 pose iteration starts from them.
+
+### Rebuild beats erase, and the model re-grows what you carve out (2026-08-16)
+
+The bottom of `fin-crouch-111222333-noghost` still carried warm-taupe rounded
+masses reading as a second body. Three rounds settled how to handle that class
+of defect:
+
+- **Erasing just the masses fails**: a denoise-1.0 redraw of only their pixels
+  refills the cavity with new masses, four seeds out of four. The surrounding
+  context (hips above, legs beside) demands volume there and the sampler
+  supplies it. A background-only prompt for the cavity was queued as the next
+  test and cancelled when the user called the better move: reconstruct.
+- **Reconstructing the whole zone works**: mask everything below the hem —
+  masses, legs, feet, plus the hand the user had flagged as long — and let the
+  full recipe redraw it. Six seeds: two incoherent, one drew a body pillow, one
+  hid the legs under drapery, one lost the hand to a wisteria bunch, and
+  777043 drew a proper squat (thigh mass, pale-purple over-knee legs, and the
+  hand re-drawn shorter, picking up a small purple object that suits the
+  pose's `picking up`). Keeping small fragments of approved elements just
+  outside the mask (sock top, one purple foot) anchors the redraw to them.
+- **The re-drawn thigh still landed warm-taupe** (R−B ≈ +12 vs the approved
+  pantyhose's +3, shadows stopping at 111 vs 90). What made it read as "mystery
+  body" was the colour, not the shape: `(p − mean) × 1.18 + pantyhose_grey` on
+  the blob's pixels settled it as her thigh. Cheaper and deterministic — try
+  recolouring a wrong-coloured but well-shaped mass before re-rolling it.
+
+Result: `fin-crouch-111222333-rebuild.png` (composite of iprb-777043 through
+`inpaint_composite.py`, then the recolour).

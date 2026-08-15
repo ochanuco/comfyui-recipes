@@ -2551,6 +2551,32 @@ So the pose block is not a budget with room in it. It is a balance, like the two
 sock lengths and like the oversized pair, and a hole in it is as damaging as an
 addition. **Replacement keeps the slot filled; deletion does not.**
 
+## Making the view incidental: two substitutions, and one that backfired
+
+The brief was "she sat down and it happened to look big", not "she is showing it
+off". The shape was already right; what read as staged was the face and the
+camera. Both fixed by substitution, since deletion breaks this recipe.
+
+    (smug:1.2)      -> (expressionless:1.2)    colours 21-24, held
+                       (light smile:1.2)       colours 42-48, rejected
+                       (looking back:1.2)      colours 38-44, rejected
+    (searching:1.2) -> (picking up:1.3)        colours 14-25, six of seven seeds
+                                               now look at the floor, not the lens
+
+`searching` had been in the block since the pose was built and was never legible
+in a single render — it held a slot and did nothing. `picking up` is defined as
+"picking something up that has dropped on the floor", and being a definite action
+it gets drawn. Same lesson as the dropped glasses: the vague version renders as
+nothing.
+
+**`(from above:1.2)` must stay.** It was read as the last piece of staging — an
+observer who chose to look down — and replaced with a dropped object to buy both
+a floor prop and a less deliberate angle. The object appeared (coins, keys;
+`glasses` landed on her face instead of the floor) but the colour count went from
+22/20 to 36/48, 27/39, 23/48, and losing the overhead angle put the camera level
+with her backside on all six. The tag was doing a second job nobody had credited
+it with: keeping the hips out of the centre of the frame.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

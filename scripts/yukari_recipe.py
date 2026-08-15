@@ -458,7 +458,15 @@ POSES = {
         # streaks; cutting the block to six broke the stroke to 3.82-5.73px.
         # Of the three replacements tried, only this one held: `light smile`
         # measured 42-48 colours and `looking back` 38-44, against 21-24 here.
-        "(searching:1.2), (from above:1.2), (expressionless:1.2), full body"
+        # (picking up:1.3), not (searching:1.2). `searching` was never legible in
+        # any render it appeared in -- it held a slot and did nothing. `picking
+        # up` is "picking something up that has dropped on the floor", a definite
+        # action, and six of seven seeds now have her looking at the floor rather
+        # than at the camera. Same finding as the dropped glasses: an action
+        # needs something concrete before it gets drawn.
+        #
+        # It also tightened the palette: colours 14-25 against 16-36.
+        "(picking up:1.3), (from above:1.2), (expressionless:1.2), full body"
     ),
     "chair": (
         "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "

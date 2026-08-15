@@ -2655,3 +2655,41 @@ never had to be flattened. Smug is back and the pose still reads as incidental.
 - Background colour is not worth chasing in the prompt — three attempts landed on
   yellow, cream and pale blue. Generate a flat field and set the exact value with
   `scripts/recolor_bg.py --color "#C1C3C2"`.
+
+## Removing baked-in objects: redraw and composite, never the negative (2026-08-16)
+
+`sm2-crouch-111222333` (f0a4b5c7) carried a pale mirror-image duplicate of her
+along the left edge and a rabbit plush at bottom-left. Everything else about the
+render was approved, so the job was removal, not regeneration.
+
+- **The negative cannot do this.** Re-rendering the same seed with
+  `stuffed animal, stuffed toy, reflection` appended — plain or at 1.3 — rebuilt
+  the whole composition both times, and the plain version summoned a *bigger*
+  plush (a full rabbit face filling the bottom-left). Naming an object in the
+  negative hands the sampler the concept; on this seed that outweighed the
+  suppression. This closes the question for seed-baked clutter: it answers to
+  redrawing, not to prompt adjustment.
+- **`VAEEncodeForInpaint` needs `denoise: 1.0`.** It blanks the latent under the
+  mask, so 0.55/0.70/0.85 all returned the masked column as a flat grey
+  rectangle. There is nothing under the noise to denoise toward.
+- Four seeds of the denoise-1.0 redraw (mask: the left column, 22.8% of frame)
+  all removed both objects. 777011 reconnected her arm down to a drawn hand and
+  won; 777012/777013 ballooned the skirt into the empty space; 777010 invented a
+  cushion. The redraw is a lottery over what fills the vacancy — plan on a few
+  seeds.
+- **Pasting the redraw back is its own problem**, solved in
+  `scripts/inpaint_composite.py` (docstring has the full failure list): the
+  redraw's backdrop lands ~30 levels darker; the original backdrop is warm
+  beige toward left/bottom and neutral at top, so no constant shift matches
+  both edges (and `cv2.seamlessClone` washed the figure's colours instead).
+  Laplace-extend the original's outside-the-mask backdrop across the region,
+  correct only backdrop pixels toward it, erase the seam line the sampler draws
+  along the mask boundary, feather outward only. Final seam gap 0.2 levels.
+- Result: `fin-crouch-111222333-noghost.png`, byte-identical to the original
+  outside the feather ring.
+
+Current reading of the settled render (user, on f0a4b5c7): expression, hoodie
+volume, dress length and the dress pulled taut over the hips are all right; the
+thighs being fully covered is the one regret, and the visible hand runs long.
+Both would need the drawing to change, not the pixels — noted here so the next
+pose iteration starts from them.

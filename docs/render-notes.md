@@ -2577,6 +2577,33 @@ a floor prop and a less deliberate angle. The object appeared (coins, keys;
 with her backside on all six. The tag was doing a second job nobody had credited
 it with: keeping the hips out of the centre of the frame.
 
+## The hands were hidden, not malformed — and a rejected tag was only rejected locally
+
+**Hands.** `(sleeves past fingers:1.3)` covers them completely and they render as
+shapeless lumps. Two ways at it, five seeds each:
+
+    weight the guards already in the negative --
+      (bad hands:1.4), (extra fingers:1.4)      0 of 5 fixed; hands still buried
+    (sleeves past fingers) -> (sleeves past wrists)
+                                                4 of 5 have drawn fingers,
+                                                and colours drop 26-50 -> 16-22
+
+Forbidding the failure did nothing. Removing what hid the hands did. Note this
+is the same substitution that once left her back bare — in a block without
+`(coin:1.3)` in the pose. It behaves differently here, so a tag's past failure
+is not a verdict on the tag.
+
+That cuts both ways: `light smile` and `looking back` were rejected earlier at
+42-48 and 38-44 colours. Re-measured in the current block they come in at 16-23.
+**The measurement was of the block, not of the tag.**
+
+**Expression.** `(smug:1.2)` was swapped for `(expressionless:1.2)` to answer
+"she sat down and it happened to look big, not she is showing it off". That read
+"not showing off" as "no expression", which removed the character with it. The
+staging is carried by the action and the angle — `picking up` instead of
+`searching`, and `(from above:1.2)` keeping the hips off centre — so the face
+never had to be flattened. Smug is back and the pose still reads as incidental.
+
 ## Open, for next time
 
 - **Nothing raises the bangs alone yet**, and the tag side looks exhausted: seven

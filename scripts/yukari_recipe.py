@@ -462,28 +462,21 @@ POSES = {
     # anything. It is a settled drawing style around an unsettled action.
     "crouch": (
         "(solo:1.5), (squatting:1.4), (from behind:1.45), (looking down:1.4), "
-        # (expressionless:1.2), not (smug:1.2). The brief was "she sat down and it
-        # happened to look big", not "she is showing it off", and `smug` is her
-        # knowing about the view.
+        # (smug:1.2) stays. It was swapped for (expressionless:1.2) on a reading
+        # of "not showing it off" as "no expression at all", and that took her
+        # character with it -- she is written as confident and hapless, and a
+        # blank face carries neither. The staging is carried by the action and
+        # the angle, not by the face.
         #
-        # It had to be a SUBSTITUTION. Deleting the tag -- even leaving seven in
-        # the block -- took the colour count from 17-24 to 50 with background
-        # streaks; cutting the block to six broke the stroke to 3.82-5.73px.
-        # Of the three replacements tried, only this one held: `light smile`
-        # measured 42-48 colours and `looking back` 38-44, against 21-24 here.
-        # (picking up:1.3), not (searching:1.2). `searching` was never legible in
-        # any render it appeared in -- it held a slot and did nothing. `picking
-        # up` is "picking something up that has dropped on the floor", a definite
-        # action, and six of seven seeds now have her looking at the floor rather
-        # than at the camera. Same finding as the dropped glasses: an action
-        # needs something concrete before it gets drawn.
+        # (coin:1.3) is gone and (from above:1.2) is back in its slot. The coins
+        # gave `picking up` something to act on, but cost the overhead angle,
+        # which is also what keeps the hips out of centre frame.
         #
-        # It also tightened the palette: colours 14-25 against 16-36.
-                # (coin:1.3) in place of (from above:1.2) -- the picked render 28fbd61e
-        # has it. Trade-off recorded below: the coins give the action something
-        # to act on and cost the overhead angle, which had been keeping the hips
-        # out of centre frame.
-        "(picking up:1.3), (coin:1.3), (expressionless:1.2), full body"
+        # For the record, since it looks like it should be tried: `light smile`
+        # and `looking back` measured 42-48 and 38-44 colours in an earlier
+        # block and were rejected. Re-measured here they come in at 16-23. The
+        # rejection was true of that block, not of the tags.
+        "(picking up:1.3), (from above:1.2), (smug:1.2), full body"
     ),
     "chair": (
         "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "

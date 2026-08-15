@@ -125,7 +125,20 @@ CHARACTER = (
     # -- `oversized shirt` is a noun and `sleeves past fingers` is a part state,
     # and both destroy the drawing on their own. That rule was generalised from
     # two tags that happened to work and does not hold.
-    "(oversized shirt:1.3), (sleeves past fingers:1.3)"
+        # `past wrists`, not `past fingers`. Fingers-length sleeves cover the hands
+    # entirely and they get drawn as shapeless lumps; five of five renders had
+    # them buried. Letting the hands out puts real fingers on the coins in four
+    # of five, and drops the colour count from 26-50 to 16-22 as a bonus.
+    #
+    # Weighting the hand guards already in the negative -- (bad hands:1.4),
+    # (extra fingers:1.4) -- did nothing: all five still had the hands inside
+    # the sleeves. The fix was removing what hid them, not forbidding the
+    # failure.
+    #
+    # Swapping this same tag once left her back bare, in a block without
+    # (coin:1.3) in the pose. It does not here. The same substitution is not the
+    # same change in a different block.
+    "(oversized shirt:1.3), (sleeves past wrists:1.3)"
 )
 
 # rabbit print is deliberately absent: paired with `sticker` it drew a rabbit
@@ -466,7 +479,11 @@ POSES = {
         # needs something concrete before it gets drawn.
         #
         # It also tightened the palette: colours 14-25 against 16-36.
-        "(picking up:1.3), (from above:1.2), (expressionless:1.2), full body"
+                # (coin:1.3) in place of (from above:1.2) -- the picked render 28fbd61e
+        # has it. Trade-off recorded below: the coins give the action something
+        # to act on and cost the overhead angle, which had been keeping the hips
+        # out of centre frame.
+        "(picking up:1.3), (coin:1.3), (expressionless:1.2), full body"
     ),
     "chair": (
         "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "

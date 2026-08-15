@@ -449,7 +449,16 @@ POSES = {
     # anything. It is a settled drawing style around an unsettled action.
     "crouch": (
         "(solo:1.5), (squatting:1.4), (from behind:1.45), (looking down:1.4), "
-        "(searching:1.2), (from above:1.2), (smug:1.2), full body"
+        # (expressionless:1.2), not (smug:1.2). The brief was "she sat down and it
+        # happened to look big", not "she is showing it off", and `smug` is her
+        # knowing about the view.
+        #
+        # It had to be a SUBSTITUTION. Deleting the tag -- even leaving seven in
+        # the block -- took the colour count from 17-24 to 50 with background
+        # streaks; cutting the block to six broke the stroke to 3.82-5.73px.
+        # Of the three replacements tried, only this one held: `light smile`
+        # measured 42-48 colours and `looking back` 38-44, against 21-24 here.
+        "(searching:1.2), (from above:1.2), (expressionless:1.2), full body"
     ),
     "chair": (
         "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "

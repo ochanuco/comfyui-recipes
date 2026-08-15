@@ -2721,3 +2721,29 @@ of defect:
 
 Result: `fin-crouch-111222333-rebuild.png` (composite of iprb-777043 through
 `inpaint_composite.py`, then the recolour).
+
+### Hands: refine in place at double resolution, never blank-and-redraw (2026-08-16)
+
+The rebuilt render's hand was mushy and its held object unreadable. Fixed at
+`fin-crouch-111222333-glasses.png`; the route matters:
+
+- **Crop and upscale first.** The hand occupies ~120px of a 1024×1536 canvas,
+  and the model draws hands at that scale as blobs. Crop 512² around the hand,
+  Lanczos to 1024², fix it there, downscale back, paste through
+  `inpaint_composite.py` (which needed no changes to work in the crop domain).
+- **`VAEEncodeForInpaint` deleted the hand six times out of six.** A blanked
+  region bordered by sleeve and backdrop, with `simple background` in the
+  positive and `sleeves past wrists` implying a hidden hand, resolves to "no
+  hand, just backdrop" every time. The blank encoder is for regions whose
+  content should be *invented*; a hand that exists but is badly drawn needs
+  `VAEEncode` + `SetLatentNoiseMask`, which keeps the old drawing under the
+  noise so the model cleans it instead of choosing whether it exists.
+- **Denoise ladder at 0.45/0.55/0.65 × 2 seeds:** 0.45 stays faithful and
+  stays sloppy; 0.65 redraws cleanly and turned the ambiguous purple object
+  into unmistakable folded glasses. 0.65-777061 won: purple frame, both
+  lenses, black temple tips, fingers pinching the temple.
+- Tags verified before use: `holding_eyewear` does not exist (0 posts) — the
+  real ones are `holding removed eyewear` (11k), `unworn eyewear` (21k),
+  `purple-framed eyewear` (2k). The eyewear read closes the loop on the
+  `hunt`/`crouch` pose family: she squatted to search, and now holds what she
+  found.

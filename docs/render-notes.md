@@ -2773,3 +2773,34 @@ featureless bean-bag, the leg arrangement unreadable. What finished it,
   extension (`laplace_extend`), with the asymmetric band threshold again: a
   symmetric one let the white outline contaminate the fill with haze, and
   mid-grey shadow remnants needed their own darker-than-backdrop-by-12 term.
+
+### "除去して完成": the figure can simply end at the hem (2026-08-16)
+
+The reconstruction row (kneeling legs, refined at 0.70) was still judged
+incomplete as a picture. The user's correction reframed the whole task:
+completion meant the problem region should not exist, not that it should be
+redrawn better. `fin-crouch-111222333-removed.png`:
+
+- Everything below the hem was removed — legs, feet, the rebuilt thigh mass —
+  keeping only the hanging arm with the picked-up glasses and the hair-tail.
+  The dress hem lace is the figure's bottom edge. This is an ordinary
+  illustration convention and it reads as finished where every redraw of the
+  legs did not.
+- The style's white outline does not exist along edges that used to be
+  interior. Low-denoise refine passes will NOT draw it — they return haze or
+  invent scratches (four attempts). What worked: draw the final contour as an
+  explicit polyline, fill below it with Laplace-extended backdrop, and paint
+  an 8px white band along it. Deterministic, one shot.
+- After many rounds of regional fills the backdrop was a patchwork spanning
+  28 grey levels, so every fill boundary showed as a faint rectangle.
+  `recolor_bg.py`'s single-seed flood cannot cross that (its documented
+  failure mode). A multi-reference candidate mask + border-connected
+  components + one flat target colour flattened all of it at once. Guards
+  that mattered: pale skin is within 10 levels of the beige patches, so
+  hue (R−G ≈ 25 on skin vs ≤ 13 on every backdrop patch) is the reliable
+  separator, applied per-pixel — per-component means get dragged over the
+  threshold by the very fades being removed.
+- Near-miss: a purple-grey shape beside the cuff resisted every haze filter
+  and turned out to be the tip of her sidelock hair — real content with its
+  own outline. When a "remnant" refuses to match haze thresholds, look at
+  what it is before forcing it: the thresholds were saying it isn't haze.

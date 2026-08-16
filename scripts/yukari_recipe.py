@@ -715,8 +715,15 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
 
     if hires:
         longest = max(width, height)
+        # bicubic, not bislerp. A latent pixel is an 8x8 patch of picture, so
+        # how it is resampled decides what the edges look like -- and bislerp
+        # steps them. At 1.5x that hid inside the linework; at 2x the diagonals
+        # came back visibly stairstepped. Same size, same denoise, bicubic
+        # instead, and they are smooth. Scaling in image space through a VAE
+        # round trip fixes it too, and is not needed: the resampler was the
+        # whole problem, not the fact that it ran on a latent.
         graph["10"] = {"class_type": "LatentUpscale", "inputs": {
-            "samples": ["3", 0], "upscale_method": "bislerp",
+            "samples": ["3", 0], "upscale_method": "bicubic",
             "width": round(hires * width / longest / 8) * 8,
             "height": round(hires * height / longest / 8) * 8,
             "crop": "disabled"}}

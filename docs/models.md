@@ -1,14 +1,23 @@
-# Model Storage Notes
+# Models
 
-`.local/assets` is the model root rendered into `extra_model_paths.yaml`.
+No models are included in this repository, and nothing here downloads them
+automatically. This is the list of what the recipes in
+[queueing.md](queueing.md) were tuned against, so they can be assembled on
+whichever machine serves ComfyUI. Locally they live under `.local/assets`, the
+model root rendered into `extra_model_paths.yaml`.
+
+Each has its own upstream license — the Illustrious-family checkpoints are
+mostly [FAIPL-1.0-SD](https://freedevproject.org/faipl-1.0-sd/) — which this
+list does not alter. Check the linked page before redistributing any of them.
 
 ## Where every file came from
 
-Verified 2026-08-17: each SHA256 below was computed from the local copy and
+Verified 2026-08-17: each SHA256 below was computed from a local copy and
 matched against the upstream it is listed under, so every one of these is
 re-downloadable bit-for-bit. Civitai rows were resolved through
 `/api/v1/model-versions/by-hash/<sha256>`, which is also the way to re-check
-them later.
+them later. `manifests/models-sha256.txt` carries the full hashes in
+`shasum -a 256 -c` format.
 
 ### Hugging Face
 

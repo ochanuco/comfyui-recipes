@@ -38,7 +38,7 @@ REPO = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = REPO / ".local/ComfyUI/output"
 STATE = REPO / ".local/posted-prompts.json"
 WEBHOOK_FILE = REPO / ".local/discord-webhook"
-USER_AGENT = "ai-comfyui-env-post-renders/1.0 (+local)"
+USER_AGENT = "comfyui-recipes-post-renders/1.0 (+local)"
 
 
 def webhook() -> str:

@@ -18,7 +18,7 @@ room for:
 
     uv run scripts/yukari_recipe.py --pose sip --seeds 8              # find one
     uv run scripts/yukari_recipe.py --pose sip --seed 999999999 \
-        --hires 2048                                                  # keep it
+        --hires 1536                                                  # keep it
 
 Which also means a render the sweep did not produce is not waiting at 2048.
 The arc that 1029384756 refuses to draw at 1024 is refused there too: the
@@ -665,6 +665,14 @@ def hires_denoise(scale: float) -> float:
     with a black blob in the corner, 2048 came back soft with the outline
     washed out of it. 1.5x wanted 0.60 and 2x wanted 0.70, and those two land
     exactly on this line.
+
+    Clearing the blur is all this is for. It is not a quality dial, and more
+    of it is not better: 2048 at 0.70 is the cleanest render of the set and is
+    NOT the one that was picked (hr-deep, prompt cc65b02d, 1536 at 0.60 is).
+    The extra pass has room to draw hair strands and shading the small render
+    had no room for, and this recipe holds `(heavy shading)` and
+    `(detailed shading)` in the negative on purpose -- so past a point, detail
+    is drift toward `rich` rather than a better `cel`.
     """
     return 0.3 + 0.2 * scale
 
@@ -734,7 +742,8 @@ def main() -> None:
         "--hires",
         type=int,
         default=0,
-        help="redraw at this size on a second pass (1536 and 2048 are measured)",
+        help="redraw at this size on a second pass; 1536 is the settled one, "
+        "2048 works but draws its way toward a richer style",
     )
     parser.add_argument(
         "--hires-denoise",

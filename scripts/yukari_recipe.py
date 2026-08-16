@@ -483,6 +483,31 @@ POSES = {
         "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
         "(half-closed eyes:1.3), full body"
     ),
+    # A full squat seen from the side, curled forward over her knees with a mug
+    # held in both hands at her mouth. Built by substituting into `crouch`'s
+    # eight slots one at a time, and every slot here was paid for:
+    #
+    #   `drinking` is what lifts the cup to her mouth. Dropped in favour of
+    #   `leaning forward`, on the theory that `holding cup` plus the mouth would
+    #   carry it, the cup fell to her feet on all four renders. It stays.
+    #
+    #   The mug needs two slots, not one. `coffee mug` alone put a mug in the
+    #   frame but not reliably in her hands; `holding cup` alone drew a paper
+    #   cup or a can. Together they draw a china mug, and on some seeds steam
+    #   off it -- which is the whole "ホッとしている" read, at no extra tag.
+    #
+    #   `smug` and `full body` are the two slots that could be spared. Losing
+    #   smug suits this pose (she is warming up, not showing off) and losing
+    #   full body costs nothing on the square canvas. `knees to chest` can also
+    #   be spared -- `squatting` holds the tuck by itself -- but keeping it
+    #   curls her tighter, which is the reference.
+    #
+    # Seed-sensitive: 3409564303 puts the cup at her mouth, 111222333 has put it
+    # on the ground in three separate blocks. Prefer the former.
+    "sip": (
+        "(solo:1.5), (squatting:1.4), (from side:1.45), (knees to chest:1.4), "
+        "(holding cup:1.3), (drinking:1.2), (coffee mug:1.3), (leaning forward:1.35)"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
@@ -493,7 +518,10 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          "coy": (1024, 1536),
          "lap": (1024, 1536),
          "invite": (1024, 1536),
-         "hunt": (1024, 1536), "crouch": (1024, 1536)}
+         "hunt": (1024, 1536), "crouch": (1024, 1536),
+         # A side-on squat is about as wide as it is tall. At 1024x1536 the same
+         # block drew her small in a tall empty frame; the square fills.
+         "sip": (1024, 1024)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "

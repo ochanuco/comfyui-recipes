@@ -2844,3 +2844,27 @@ were rough, and the hand ran long. `fin-crouch-111222333-final.png`:
 - Ended with the multi-reference backdrop flatten to erase the refine pass's
   faint mask-edge rectangles. That flatten is now the standard last step
   after any regional surgery.
+
+### Context size decides whether a hand can be inpainted at all (2026-08-16)
+
+`fin-yukari-square.png`. Three changes on the accepted removal base, chosen by
+the user off a posted crop sheet: square crop, shorter right arm, left hand
+restored.
+
+- **The crop was the last missing piece.** The figure ended mid-canvas with the
+  lower third empty, which reads as an amputation however clean the edges are.
+  Cropping so the arm exits the frame edge converts the same pixels into an
+  ordinary composition. Try the crop before trying to draw more.
+- **A limb shortens by squash, not redraw** (second use): forearm block scaled
+  0.85 vertically about the elbow, vacated strip filled with backdrop.
+- **The same hand inpaint failed at a 300×260 crop and succeeded at full
+  1024×1024.** Tight crops returned red scribbles, a pole, and dark smears —
+  the model could see only fabric and had no idea a hand belonged there. Fed
+  the whole square with the recipe's own positive plus `hand on own hip`, all
+  four seeds drew a plausible hand from the ribbed cuff. Rule: for a region
+  whose content is implied by body layout rather than by its immediate
+  neighbours, inpaint at full frame. The 2× crop trick (previous note) is for
+  regions whose content is already there and merely too small to be drawn well.
+- The flat cut on the white petticoat closed with `lace trim, frills,
+  petticoat` at 0.70 — a scalloped border with its own dark line. Third
+  confirmation that garments terminate against backdrop happily.

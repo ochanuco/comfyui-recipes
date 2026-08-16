@@ -1,5 +1,9 @@
 # Render notes — what has been measured, per character
 
+> The characters described here belong to their original works — see
+> [Derivative work](../README.md#derivative-work) in the README. Rights in
+> them rest with their creators, not with this repository.
+
 Renamed from `docs/dq3-sage-notes.md`. Eleven tag messages still cite the old
 path; they are records of where the file was at the commit they point to, and
 they stay correct there. Nothing else in the repo referenced it, which is why

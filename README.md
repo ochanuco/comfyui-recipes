@@ -82,13 +82,39 @@ packaged, versioned, or supported, and it is not trying to be.
 
 Read it as a notebook rather than as a tool you are meant to adopt.
 
+## Derivative work
+
+The recipes draw characters from existing works. That matters more than anything
+about the code, so it belongs above the licence and not in a footnote.
+
+| character | source work |
+|---|---|
+| sage, priest, mage | Dragon Quest III |
+| Takao, Hamakaze | Kantai Collection |
+| Momiji | Touhou Project |
+| Yuzuki Yukari | VOICEROID / VOCALOID |
+
+Every right in those characters and their source works belongs to the original
+creators and their rights holders. Nothing here claims any part of it, and
+nothing here could grant it.
+
+Each work also sets its own terms for derivative work, and those terms are not
+the same from one to the next — Touhou publishes a permissive guideline, others
+do not. Anyone acting on what is written here answers to those terms. This
+repository does not stand between them.
+
 ## No licence
 
-No licence is granted. This repository is published to be read, not used:
-every right is reserved, so it may not be copied, modified, or redistributed.
-GitHub's terms of service still allow viewing and forking it here, and that is
-the extent of it.
+No licence is granted for the writing in this repository — the scripts, the
+notes, the tag strings and the measurements. It is published to be read, not
+used: every right is reserved, so it may not be copied, modified, or
+redistributed. GitHub's terms of service still allow viewing and forking it
+here, and that is the extent of it.
 
 That is a deliberate choice rather than a missing file. If something in here is
 useful to you, the ideas and the measurements are yours to take — take those and
 write your own.
+
+To be plain about the boundary: this covers only what was written here. It says
+nothing about the characters above, which were never this repository's to
+license either way.

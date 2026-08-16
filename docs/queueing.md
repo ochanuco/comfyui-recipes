@@ -1,5 +1,9 @@
 # Queueing
 
+> The characters described here belong to their original works — see
+> [Derivative work](../README.md#derivative-work) in the README. Rights in
+> them rest with their creators, not with this repository.
+
 Every script here takes `--host`/`--port` where it makes sense, and otherwise
 reads `COMFYUI_HOST`/`COMFYUI_PORT`. Unset, they fall back to `127.0.0.1:8188`.
 See [remote.md](remote.md) for what changes when the server is elsewhere.

@@ -18,7 +18,7 @@ room for:
 
     uv run scripts/yukari_recipe.py --pose sip --seeds 8              # find one
     uv run scripts/yukari_recipe.py --pose sip --seed 999999999 \
-        --hires 1536                                                  # keep it
+        --hires 2048                                                  # keep it
 
 Which also means a render the sweep did not produce is not waiting at 2048.
 The arc that 1029384756 refuses to draw at 1024 is refused there too: the
@@ -656,6 +656,30 @@ def positive(pose: str) -> str:
     return ", ".join(parts)
 
 
+# No single stretch goes past this, because what a stretch costs is paid in
+# denoise, and denoise is what restyles the drawing. 2x in one jump needs 0.70
+# and comes back richer than the recipe wants; the same 2x as 1.5x then 1.33x
+# never asks for more than 0.60.
+MAX_STRETCH = 1.5
+
+# What every climb after the first one costs. The formula is calibrated on a
+# latent straight out of the first pass; by the second climb the picture is
+# already detailed, so the same stretch leaves far less blur to clear. Measured
+# on 1536 -> 2048: the formula's 0.57 thinned the linework and washed out the
+# mug's outline, and 0.45 held the line while flattening the hood's mottling.
+CLIMB_DENOISE = 0.45
+
+
+def hires_chain(base: int, target: int) -> list[int]:
+    """The sizes to climb through to reach target, none of them a big jump."""
+    sizes, size = [], base
+    while target / size > MAX_STRETCH:
+        size = round(size * MAX_STRETCH / 8) * 8
+        sizes.append(size)
+    sizes.append(target)
+    return sizes
+
+
 def hires_denoise(scale: float) -> float:
     """How hard the second pass has to redraw, for a given upscale.
 
@@ -673,8 +697,14 @@ def hires_denoise(scale: float) -> float:
     had no room for, and this recipe holds `(heavy shading)` and
     `(detailed shading)` in the negative on purpose -- so past a point, detail
     is drift toward `rich` rather than a better `cel`.
+
+    Rounded, and that is load-bearing rather than tidy. 0.3 + 0.2 * 1.5 is
+    0.6000000000000001, and ComfyUI sizes the schedule with
+    int(steps / denoise): 30 / 0.6 is 50 steps, 30 / 0.6000000000000001 falls
+    just under and truncates to 49. One step of difference is a different
+    picture, so the last bit of a float decides which render you get.
     """
-    return 0.3 + 0.2 * scale
+    return round(0.3 + 0.2 * scale, 2)
 
 
 def build(pose: str, seed: int, prefix: str, hires: int = 0,
@@ -715,18 +745,31 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
     }
 
     if hires:
-        scale = hires / max(width, height)
-        graph["10"] = {"class_type": "LatentUpscale", "inputs": {
-            "samples": ["3", 0], "upscale_method": "bislerp",
-            "width": round(hires * width / max(width, height) / 8) * 8,
-            "height": round(hires * height / max(width, height) / 8) * 8,
-            "crop": "disabled"}}
-        graph["11"] = {"class_type": "KSampler", "inputs": {
-            "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
-            "latent_image": ["10", 0], "seed": seed, "steps": 30, "cfg": 5.0,
-            "sampler_name": "dpmpp_2m", "scheduler": "karras",
-            "denoise": hires_denoise(scale) if denoise is None else denoise}}
-        graph["8"]["inputs"]["samples"] = ["11", 0]
+        longest = max(width, height)
+        source, node, previous = ["3", 0], 10, longest
+
+        for index, size in enumerate(hires_chain(longest, hires)):
+            upscale, sampler = str(node), str(node + 1)
+            node += 2
+            graph[upscale] = {"class_type": "LatentUpscale", "inputs": {
+                "samples": source, "upscale_method": "bislerp",
+                "width": round(size * width / longest / 8) * 8,
+                "height": round(size * height / longest / 8) * 8,
+                "crop": "disabled"}}
+            if denoise is not None:
+                step = denoise
+            elif index == 0:
+                step = hires_denoise(size / previous)
+            else:
+                step = CLIMB_DENOISE
+            graph[sampler] = {"class_type": "KSampler", "inputs": {
+                "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
+                "latent_image": [upscale, 0], "seed": seed, "steps": 30,
+                "cfg": 5.0, "sampler_name": "dpmpp_2m", "scheduler": "karras",
+                "denoise": step}}
+            source, previous = [sampler, 0], size
+
+        graph["8"]["inputs"]["samples"] = source
 
     return graph
 
@@ -742,8 +785,7 @@ def main() -> None:
         "--hires",
         type=int,
         default=0,
-        help="redraw at this size on a second pass; 1536 is the settled one, "
-        "2048 works but draws its way toward a richer style",
+        help="redraw at this size, climbing in steps no larger than 1.5x",
     )
     parser.add_argument(
         "--hires-denoise",

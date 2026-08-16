@@ -214,6 +214,66 @@ as a reference for the shape those scripts POST. `dq3sage.json` is a UI
 through the Workflow menu, and edit the checkpoint, prompt text, or anything
 else from there. It is regenerated with `--export-workflow`, documented above.
 
+## Render On Another Machine
+
+The GPU doing the work does not have to be this one. `COMFYUI_HOST` points
+every queue script at a ComfyUI elsewhere on the network:
+
+```bash
+export COMFYUI_HOST=192.168.x.x   # COMFYUI_PORT too, if it is not 8188
+uv run scripts/yukari_recipe.py --seed 555666777
+uv run scripts/post_renders.py
+```
+
+Unset it and everything falls back to `127.0.0.1:8188`, which is what the
+scripts did before this existed. `--host`/`--port` still win where a script
+exposes them. The far end has to have been started with `--listen`, or it only
+answers itself.
+
+One assumption breaks, and it breaks everywhere: the scripts and ComfyUI stop
+sharing a filesystem. `SaveImage` writes to the other machine's `output/`, and
+`LoadImage` reads the other machine's `input/`.
+
+`scripts/comfy_host.py` closes that at the two points where it matters.
+`ensure_local()` pulls a render back through `/view` into `.local/ComfyUI/output`
+before anything opens it, and `stage_input()` pushes an input through
+`/upload/image` after making the usual local copy. Both do nothing when the
+server is local -- they do not open a socket at all -- which is why the
+post-processing scripts (`recolor_bg.py`, `legcrop.py`, `inpaint_composite.py`
+and the rest) needed no changes. What reaches them is still a plain local path.
+Uploads are capped at 100MB by the server.
+
+### Getting models onto it
+
+They have to be on that machine's disk, and nothing in the ComfyUI HTTP API can
+put them there. `/experiment/models` is read-only, there is no download
+endpoint, and no standard node fetches a URL. Short of ComfyUI-Manager, that
+leaves running a command over there.
+
+For a checkpoint mirrored to Hugging Face in diffusers layout:
+
+```powershell
+# on the Windows machine, from the portable install root
+.\python_embeded\python.exe -c "from huggingface_hub import snapshot_download; snapshot_download('John6666/hassaku-xl-illustrious-v22-sdxl', local_dir=r'.\ComfyUI\models\diffusers\hassaku-il-v22')"
+```
+
+The `hf` CLI is a trap on a portable install. It imports `venv` on startup,
+which the embedded Python does not ship, so it dies before downloading
+anything; `snapshot_download` never touches that import.
+
+`DiffusersLoader` lists a directory the moment its `model_index.json` lands,
+which is long before the 5GB `unet/` does. A model showing up in
+`/object_info/DiffusersLoader` is therefore not a signal that it can be loaded.
+Loading a half-fetched folder fails with `'NoneType' object has no attribute
+'lower'`, which is ComfyUI reporting a missing file badly.
+
+Custom nodes are per-machine as well, so a remote box without them cannot run
+the IPAdapter (`--ref-image`) or ControlNet (`--trace-mode`) paths. txt2img and
+img2img need nothing past the checkpoint.
+
+Windows blocks ICMP by default, so `ping` fails against a machine that is up
+and serving. Check the port, or ask `/system_stats`.
+
 ## Python Environment
 
 `.venv` is populated from the pinned upstream checkout's `requirements.txt` by
@@ -226,7 +286,10 @@ without syncing, and `uv sync` / `uv lock` refuse to run. Change dependencies th
 ## Tracked Files You Should Edit
 
 - `config/upstream.env`: choose the upstream ref to follow
-- `config/launch.env`: default listen host, port, and extra launch flags
+- `config/launch.env`: default listen host, port, and extra launch flags. Its
+  `COMFYUI_HOST` is where a local server *binds*, which is the opposite of the
+  `COMFYUI_HOST` above; `run.sh` sources this file, so an exported value cannot
+  leak in and send a local server off to bind an address it does not have
 - `config/extra_model_paths.yaml.tmpl`: template for model search paths
 - `manifests/custom-nodes.toml`: custom node repositories and pinned refs
 - `workflows/`: your saved workflow JSON files

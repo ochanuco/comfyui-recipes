@@ -11,6 +11,19 @@ vocabulary; the port onto the Hamakaze graph is not part of it.
     uv run scripts/yukari_recipe.py --pose peace       # double v, v over eye
     uv run scripts/yukari_recipe.py --pose invite      # patting her lap, one girl
 
+Sweep cheap, then print big. The first pass does not change when `--hires` is
+added -- same seed, same latent, same picture -- so a seed picked at the sweep
+size comes back as the same drawing, only with detail the small render had no
+room for:
+
+    uv run scripts/yukari_recipe.py --pose sip --seeds 8              # find one
+    uv run scripts/yukari_recipe.py --pose sip --seed 999999999 \
+        --hires 2048                                                  # keep it
+
+Which also means a render the sweep did not produce is not waiting at 2048.
+The arc that 1029384756 refuses to draw at 1024 is refused there too: the
+second pass redraws what the first one decided, it does not reconsider it.
+
 **The tights are grey now, and that is deliberate across every pose.** They were
 black through `pv1` / prompt 37ac6c0d and the `pick/yk-recipe` tag, so `--pose
 peace` no longer reproduces 9d24700e pixel-for-pixel; the tag still points at the

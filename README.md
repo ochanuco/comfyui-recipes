@@ -1,23 +1,55 @@
 # ai-comfyui-env
 
-This repository manages the local runtime around [ComfyUI](https://github.com/Comfy-Org/ComfyUI) without vendoring the upstream application itself.
+This repository manages the runtime around [ComfyUI](https://github.com/Comfy-Org/ComfyUI) without vendoring the upstream application itself.
+
+## Where Things Run
+
+Since 2026-08-17 this mac does not run ComfyUI. It drives one over the network
+instead, and everything else — prompts, inputs, post-processing, the Discord
+post — stays here. Point the toolchain at the worker and go:
+
+```bash
+export COMFYUI_HOST=192.168.x.x
+uv run scripts/queue_dq3.py --job sage
+```
+
+[Render On Another Machine](#render-on-another-machine) is the section that
+matters; the local-install sections below are kept as the way back.
+
+What that clean-up removed, and what it left:
+
+- `.local/ComfyUI` no longer holds a checkout. Only `output/`, `input/` and
+  `user/` remain, because `comfy_host.py` uses the first two as its cache for
+  `/view` and `/upload/image`.
+- `.local/assets` is gone — all 42 model files, 67GB. Every one was hash-checked
+  against a live upstream before deletion, so all of it is recoverable:
+  `docs/models.md` says where each file comes from and
+  `manifests/models-sha256.txt` verifies a re-download.
+- `.venv` no longer carries torch. It holds what the client scripts actually
+  import and nothing else.
 
 ## Layout
 
 - `config/`: tracked runtime configuration
-- `docs/`: local operating notes
-- `manifests/`: tracked custom-node inventory
-- `scripts/`: bootstrap, update, and launch entrypoints
-- `.local/ComfyUI`: upstream clone created by the scripts and excluded from Git
-- `.local/assets`: model storage root created by the scripts and excluded from Git
+- `docs/`: local operating notes, including where every model came from
+- `manifests/`: tracked custom-node inventory and model hashes
+- `scripts/`: queue clients, post-processing, and the local-install entrypoints
+- `.local/ComfyUI`: `output/`, `input/` and `user/` only, excluded from Git
+- `.local/assets`: model root when a local ComfyUI exists; currently absent
 
-## First-Time Setup
+## Restoring A Local ComfyUI
+
+Nothing below is needed to drive a remote worker. It is what to run if this
+machine should host ComfyUI again.
 
 ```bash
 ./scripts/bootstrap-comfyui.sh
 ```
 
-Python `3.12` is required. The scripts reuse `.venv` when it already exists and matches that version.
+Python `3.12` is required. Note that the script installs the upstream
+`requirements.txt` into `.venv`, which will pull torch back in and take it from
+231MB to roughly 1.9GB. Models have to be fetched separately, from
+`docs/models.md`.
 
 The bootstrap script will:
 
@@ -27,7 +59,7 @@ The bootstrap script will:
 4. render `.local/ComfyUI/extra_model_paths.yaml`
 5. sync custom nodes listed in `manifests/custom-nodes.toml`
 
-## Daily Commands
+### Running it once it is back
 
 ```bash
 ./scripts/update-comfyui.sh
@@ -57,7 +89,8 @@ that is not registered, so it is not a usable readiness check on its own.
 
 ## Queue A Minimal Prompt
 
-Start ComfyUI first, then queue a simple txt2img job:
+With `COMFYUI_HOST` set (or a local ComfyUI running), queue a simple txt2img
+job:
 
 ```bash
 uv run scripts/queue_prompt.py \
@@ -80,9 +113,12 @@ uv run scripts/queue_img2img.py \
 
 ## Queue An Anima Prompt
 
-[Anima](https://huggingface.co/circlestone-labs/Anima) needs three files under
-`.local/assets`: `diffusion_models/anima-preview3-base.safetensors`,
+[Anima](https://huggingface.co/circlestone-labs/Anima) needs three files on
+whichever machine serves ComfyUI:
+`diffusion_models/anima-preview3-base.safetensors`,
 `text_encoders/qwen_3_06b_base.safetensors` and `vae/qwen_image_vae.safetensors`.
+All three come from that repo's `split_files/`; `docs/models.md` has the exact
+paths and hashes.
 
 ```bash
 uv run scripts/queue_anima.py \
@@ -176,10 +212,14 @@ through `DiffusersLoader` instead, which returns the same MODEL/CLIP/VAE:
 uv run scripts/queue_dq3.py --job sage --diffusers-path amanatsu-il-v11
 ```
 
-Place the repo under `.local/assets/diffusers/<name>/` keeping its `unet/`,
-`vae/`, `text_encoder*/`, `tokenizer*/`, `scheduler/` and `model_index.json`,
-then restart ComfyUI so the path is registered. Everything else — presets,
-IPAdapter, masks — works unchanged.
+Place the repo under the serving machine's `models/diffusers/<name>/` keeping
+its `unet/`, `vae/`, `text_encoder*/`, `tokenizer*/`, `scheduler/` and
+`model_index.json`, then restart ComfyUI so the path is registered. Everything
+else — presets, IPAdapter, masks — works unchanged.
+
+The four that were in use are listed in `docs/models.md` with their John6666
+repo names, so `--diffusers-path amanatsu-il-v11` and friends can be put back
+without hunting for which upstream they came from.
 
 ## Vary Scenes With A Local LLM
 
@@ -250,6 +290,12 @@ put them there. `/experiment/models` is read-only, there is no download
 endpoint, and no standard node fetches a URL. Short of ComfyUI-Manager, that
 leaves running a command over there.
 
+`docs/models.md` is the inventory to work from: every file that used to be
+under `.local/assets`, with the Hugging Face repo or Civitai version it came
+from and its SHA256. `scripts/fetch-models-windows.ps1` automates that pull,
+but only for hassaku-il-v22 and two LoRAs — about 7GB of the 67GB — so anything
+else still needs a command by hand.
+
 For a checkpoint mirrored to Hugging Face in diffusers layout:
 
 ```powershell
@@ -276,12 +322,23 @@ and serving. Check the port, or ask `/system_stats`.
 
 ## Python Environment
 
-`.venv` is populated from the pinned upstream checkout's `requirements.txt` by
-`./scripts/update-comfyui.sh`, so those packages are deliberately not declared in
-`pyproject.toml`. To keep uv from treating them as extraneous and uninstalling them,
-the project is marked `[tool.uv] managed = false`. As a result `uv run` uses `.venv`
-without syncing, and `uv sync` / `uv lock` refuse to run. Change dependencies through
-`config/upstream.env` and the update script, not by editing `pyproject.toml`.
+`.venv` currently holds four packages — **pillow, numpy, opencv-python, scipy** —
+which is everything the scripts here import. None of them imports torch; the
+GPU stack belongs to whichever machine serves ComfyUI. That makes the
+environment about 231MB.
+
+It is still marked `[tool.uv] managed = false` with no dependencies declared in
+`pyproject.toml`, because `./scripts/update-comfyui.sh` installs the upstream
+checkout's `requirements.txt` straight into this same `.venv`, and uv would
+treat those packages as extraneous and uninstall them. So `uv run` uses `.venv`
+without syncing, and `uv sync` / `uv lock` refuse to run.
+
+Rebuilding the client environment from scratch:
+
+```bash
+uv venv --python 3.12 .venv
+VIRTUAL_ENV=.venv uv pip install pillow numpy opencv-python scipy
+```
 
 ## Tracked Files You Should Edit
 
@@ -294,6 +351,10 @@ without syncing, and `uv sync` / `uv lock` refuse to run. Change dependencies th
 - `manifests/custom-nodes.toml`: custom node repositories and pinned refs
 - `workflows/`: your saved workflow JSON files
 
+Generated rather than edited: `docs/models.md` and
+`manifests/models-sha256.txt` record what the model set was on 2026-08-17.
+Regenerate them from a live `.local/assets`, not by hand.
+
 ## Recommended Workflow
 
 - Keep `COMFYUI_REF` on a validated release tag for normal use.
@@ -301,3 +362,10 @@ without syncing, and `uv sync` / `uv lock` refuse to run. Change dependencies th
 - A tag checkout leaves `.local/ComfyUI` in detached `HEAD`, which is expected for this repo.
 - Keep models under `.local/assets` or another external directory rendered through `extra_model_paths.yaml`.
 - Treat `.local/ComfyUI` as disposable runtime state. Rebuild it with the scripts rather than editing it manually.
+- `.local/ComfyUI/output` is the exception: those are finished renders, and
+  nothing regenerates them.
+- Before deleting a model, check it is still fetchable rather than assuming.
+  Hugging Face returns a file's SHA256 as `lfs.oid` from
+  `/api/models/<repo>/tree/main/<dir>`, and Civitai resolves a file to its model
+  and version through `/api/v1/model-versions/by-hash/<sha256>` without a token.
+  That is how `docs/models.md` was built.

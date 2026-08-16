@@ -3,9 +3,13 @@ name = "ai-comfyui-env"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 
-# Runtime dependencies are NOT declared here on purpose: they come from the
-# pinned upstream ComfyUI checkout's requirements.txt, installed into .venv by
-# scripts/update-comfyui.sh. Leaving uv unmanaged stops `uv run` / `uv sync`
-# from treating those packages as extraneous and uninstalling them.
+# Runtime dependencies are NOT declared here on purpose. scripts/update-comfyui.sh
+# installs the pinned upstream ComfyUI checkout's requirements.txt into .venv;
+# leaving uv unmanaged stops `uv run` / `uv sync` from treating those packages as
+# extraneous and uninstalling them.
+#
+# The mac stopped running ComfyUI in 2026-08, so .venv currently holds only what
+# the client scripts import -- pillow, numpy, opencv-python, scipy. See the
+# Python Environment section of README.md.
 [tool.uv]
 managed = false

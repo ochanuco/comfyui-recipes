@@ -2804,3 +2804,24 @@ redrawn better. `fin-crouch-111222333-removed.png`:
   and turned out to be the tip of her sidelock hair — real content with its
   own outline. When a "remnant" refuses to match haze thresholds, look at
   what it is before forcing it: the thresholds were saying it isn't haze.
+
+### The cut edge was the failure, not the cut (2026-08-16)
+
+The hem-terminated composition came back as "全く出来てない". A labeled
+region map posted to the channel settled the scope question — remove
+everything below the hem, A through E — so the rejection was about execution:
+the bare thigh ended in a straight soft cut with a synthesized white arc
+floating under it. An amputation plane, not a silhouette.
+
+The fix that worked (`fin-crouch-111222333-clean.png`): mask just the cut
+zone and refine at 0.70 with dress/lace vocabulary. The model would not
+extend the lace trim leftward (four seeds, none drew lace), but it did
+something as good: it rounded the thigh into a closed convex silhouette
+tucking toward the hem. A body part may end at the frame of another garment
+or curve to a close — what it cannot do is end on a straight line in open
+backdrop.
+
+Asking beat guessing: three consecutive misreadings of the removal scope
+("削る" vs "再構築" vs "除去") were resolved by one annotated screenshot
+with lettered boxes. When the same instruction has been re-interpreted three
+times, the next round belongs to a labeled picture, not another attempt.

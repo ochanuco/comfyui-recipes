@@ -578,8 +578,15 @@ POSES = {
     # merely soften -- the pose collapses and she turns to face the camera.
     # The exposure it brings has to be answered in the negative instead; see
     # `negative`.
+    # `yokozuwari`, not `sitting on floor`. The thighs read too long under the
+    # latter and no amount of describing them fixed it: `thick thighs` down to
+    # 1.15, `(long legs:1.4)` in the negative, `(petite:1.35)`, and the camera
+    # angle eased to 1.3 all changed nothing. They could not, because the
+    # length was never asserted -- `sitting on floor` extends the legs, and a
+    # leg extended away from a camera looking down runs the frame. Naming the
+    # sitting folds them, and the knee lands where the eye expects it.
     "nape": (
-        "(solo:1.55), (from behind:1.45), (from above:1.45), (sitting on floor:1.4), "
+        "(solo:1.55), (from behind:1.45), (from above:1.45), (yokozuwari:1.4), "
         "(nape of neck:1.45), (hair over shoulder:1.35), (head down:1.25), (back focus:1.3)"
     ),
 }

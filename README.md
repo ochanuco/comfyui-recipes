@@ -35,7 +35,7 @@ uv run scripts/queue_dq3.py --job sage --count 3
 | post-processing | `recolor_bg.py`, `legcrop.py`, `inpaint_composite.py`, `contact_sheet.py` and friends — plain PIL/numpy, no ComfyUI involved |
 | `scripts/*.sh` | install, update and launch a ComfyUI on this machine, if you want one here |
 
-## Requirements
+## What it runs on
 
 Python 3.12 and [uv](https://github.com/astral-sh/uv), plus a ComfyUI reachable
 over HTTP — on this machine or another one. The client environment is four
@@ -71,11 +71,24 @@ model these recipes were tuned against.
 - `.local/` — untracked: a ComfyUI checkout if one exists here, models, and
   the `output/`/`input/` pair `comfy_host.py` caches through
 
-## A word on scope
+## What this is, and what it is not
 
 This is personal tooling, published because the measurements in
-`docs/render-notes.md` are worth more written down than kept. The recipes are
-tuned to specific Illustrious-family checkpoints and to one set of characters;
-the plumbing underneath them — the local/remote seam, the UI-graph rebuild, the
-model provenance tooling — is general. Take the second part freely, and read the
-first as a record of what was tried rather than as advice.
+[`docs/render-notes.md`](docs/render-notes.md) are worth more written down than
+kept — a record of what was tried, what worked, and the several occasions where
+the first conclusion turned out to be wrong. The recipes are tuned to specific
+Illustrious-family checkpoints and to one set of characters. Nothing here is
+packaged, versioned, or supported, and it is not trying to be.
+
+Read it as a notebook rather than as a tool you are meant to adopt.
+
+## No licence
+
+No licence is granted. This repository is published to be read, not used:
+every right is reserved, so it may not be copied, modified, or redistributed.
+GitHub's terms of service still allow viewing and forking it here, and that is
+the extent of it.
+
+That is a deliberate choice rather than a missing file. If something in here is
+useful to you, the ideas and the measurements are yours to take — take those and
+write your own.

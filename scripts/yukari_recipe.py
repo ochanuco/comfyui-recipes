@@ -643,9 +643,32 @@ def positive(pose: str) -> str:
     return ", ".join(parts)
 
 
-def build(pose: str, seed: int, prefix: str) -> dict:
+def hires_denoise(scale: float) -> float:
+    """How hard the second pass has to redraw, for a given upscale.
+
+    An upscaled latent is blurred in proportion to how far it was stretched,
+    so the denoise that clears it scales the same way. Measured on `sip`:
+    0.45 failed at both sizes and failed differently -- 1536 came back jagged
+    with a black blob in the corner, 2048 came back soft with the outline
+    washed out of it. 1.5x wanted 0.60 and 2x wanted 0.70, and those two land
+    exactly on this line.
+    """
+    return 0.3 + 0.2 * scale
+
+
+def build(pose: str, seed: int, prefix: str, hires: int = 0,
+          denoise: float | None = None) -> dict:
+    """The settled graph. `hires` adds a second pass at that square size.
+
+    The canvas of the first pass never changes, because that is the pass that
+    decides the composition -- including how many people are in it. Raising the
+    canvas itself is what drew a second figure at 1280x1920, and no card fixes
+    that: it is the model leaving the sizes it was trained on. Upscaling the
+    latent afterwards and redrawing it keeps that decision and buys the pixels
+    anyway.
+    """
     width, height = SIZES[pose]
-    return {
+    graph = {
         "4": {"class_type": "DiffusersLoader",
               "inputs": {"model_path": "hassaku-il-v22"}},
         "5": {"class_type": "EmptyLatentImage",
@@ -670,6 +693,22 @@ def build(pose: str, seed: int, prefix: str) -> dict:
                          "filename_prefix": f"{prefix}-{pose}-{seed}"}},
     }
 
+    if hires:
+        scale = hires / max(width, height)
+        graph["10"] = {"class_type": "LatentUpscale", "inputs": {
+            "samples": ["3", 0], "upscale_method": "bislerp",
+            "width": round(hires * width / max(width, height) / 8) * 8,
+            "height": round(hires * height / max(width, height) / 8) * 8,
+            "crop": "disabled"}}
+        graph["11"] = {"class_type": "KSampler", "inputs": {
+            "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
+            "latent_image": ["10", 0], "seed": seed, "steps": 30, "cfg": 5.0,
+            "sampler_name": "dpmpp_2m", "scheduler": "karras",
+            "denoise": hires_denoise(scale) if denoise is None else denoise}}
+        graph["8"]["inputs"]["samples"] = ["11", 0]
+
+    return graph
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -678,6 +717,17 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, default=0,
                         help="take this many from the fixed sweep list")
     parser.add_argument("--prefix", default="yk")
+    parser.add_argument(
+        "--hires",
+        type=int,
+        default=0,
+        help="redraw at this size on a second pass (1536 and 2048 are measured)",
+    )
+    parser.add_argument(
+        "--hires-denoise",
+        type=float,
+        help="override the second pass denoise; the default follows the upscale",
+    )
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--print-prompt", action="store_true")
@@ -691,7 +741,8 @@ def main() -> None:
     for seed in seeds:
         req = urllib.request.Request(
             f"http://{args.host}:{args.port}/prompt",
-            data=json.dumps({"prompt": build(args.pose, seed, args.prefix)}).encode(),
+            data=json.dumps({"prompt": build(args.pose, seed, args.prefix,
+                                             args.hires, args.hires_denoise)}).encode(),
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=30) as resp:

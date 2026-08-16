@@ -19,11 +19,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import urllib.request
 from pathlib import Path
 
-from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT, stage_input
 
 REPO = Path(__file__).resolve().parent.parent
 INPUT_DIR = REPO / ".local/ComfyUI/input"
@@ -95,19 +94,16 @@ def main() -> None:
         negative = args.negative
     loader_id, loader = find(source, "DiffusersLoader")
 
-    # ComfyUI's LoadImage only sees its own input directory.
-    staged = INPUT_DIR / args.image.name
-    if args.image.resolve() != staged.resolve():
-        shutil.copy(args.image, staged)
+    # ComfyUI's LoadImage only sees its own input directory; remote runs also
+    # need the file pushed through /upload/image.
+    staged_image = stage_input(args.image, INPUT_DIR, host=args.host, port=args.port)
 
     latent_ref = ["11", 0]
     mask_nodes: dict[str, dict] = {}
     if args.mask:
-        staged_mask = INPUT_DIR / args.mask.name
-        if args.mask.resolve() != staged_mask.resolve():
-            shutil.copy(args.mask, staged_mask)
+        staged_mask = stage_input(args.mask, INPUT_DIR, host=args.host, port=args.port)
         mask_nodes = {
-            "12": {"class_type": "LoadImage", "inputs": {"image": staged_mask.name}},
+            "12": {"class_type": "LoadImage", "inputs": {"image": staged_mask}},
             "13": {
                 "class_type": "ImageToMask",
                 "inputs": {"image": ["12", 0], "channel": "red"},
@@ -123,7 +119,7 @@ def main() -> None:
     graph = {
         **mask_nodes,
         "4": {"class_type": "DiffusersLoader", "inputs": dict(loader["inputs"])},
-        "10": {"class_type": "LoadImage", "inputs": {"image": staged.name}},
+        "10": {"class_type": "LoadImage", "inputs": {"image": staged_image}},
         "11": {
             "class_type": "VAEEncode",
             "inputs": {"pixels": ["10", 0], "vae": ["4", 2]},

@@ -31,6 +31,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+import comfy_host
 from comfy_host import DEFAULT_HOST, DEFAULT_PORT
 
 REPO = Path(__file__).resolve().parent.parent
@@ -68,14 +69,18 @@ def history(host: str, port: int, max_items: int = 60) -> dict:
         return json.loads(response.read())
 
 
-def images_of(entry: dict) -> list[str]:
-    """Output filenames of a finished prompt, in the order the graph saved them."""
-    names = []
+def images_of(entry: dict) -> list[dict]:
+    """Output images of a finished prompt, in the order the graph saved them.
+
+    Each entry carries filename/subfolder/type straight from /history -- all
+    three are needed to fetch the file back from a remote ComfyUI via /view.
+    """
+    images = []
     for node_output in entry.get("outputs", {}).values():
         for image in node_output.get("images", []):
             if image.get("type") == "output":
-                names.append(image["filename"])
-    return names
+                images.append(image)
+    return images
 
 
 def post(url: str, job: str, path: Path) -> int:
@@ -124,10 +129,19 @@ def drain(url: str, seen: set[str], host: str, port: int) -> int:
             # image, and leaving them out means re-checking them forever.
             seen.add(job)
             continue
-        for name in images_of(entry):
-            path = OUTPUT_DIR / name
-            if not path.exists():
-                print(f"  ! {name}: missing on disk", flush=True)
+        for image in images_of(entry):
+            name = image["filename"]
+            try:
+                path = comfy_host.ensure_local(
+                    name,
+                    OUTPUT_DIR,
+                    subfolder=image.get("subfolder", ""),
+                    type_=image.get("type", "output"),
+                    host=host,
+                    port=port,
+                )
+            except (OSError, urllib.error.URLError, RuntimeError) as err:
+                print(f"  ! {name}: could not fetch ({err})", flush=True)
                 continue
             status = post(url, job, path)
             print(f"  {status} {job[:8]} {name}", flush=True)

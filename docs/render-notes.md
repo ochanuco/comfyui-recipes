@@ -2825,3 +2825,22 @@ Asking beat guessing: three consecutive misreadings of the removal scope
 ("削る" vs "再構築" vs "除去") were resolved by one annotated screenshot
 with lettered boxes. When the same instruction has been re-interpreted three
 times, the next round belongs to a labeled picture, not another attempt.
+
+### Refining the accepted cut: frill border, tucked hair, squashed hand (2026-08-16)
+
+The removal composition was accepted ("OK") with two notes: the cut regions
+were rough, and the hand ran long. `fin-crouch-111222333-final.png`:
+
+- The hazy wedge where the underskirt met the fill refined (0.6, 2×) into a
+  scalloped frill border with its own white outline — the model closes a
+  garment against backdrop happily when given `white frills, frilled dress`;
+  it is body parts it refuses to terminate (previous note).
+- The smudged hair-tail below the cuff resolved, in all four seeds, to "the
+  strand ends behind the arm". A thin trailing strand that has gone muddy is
+  better tucked than sharpened.
+- "手が長い" was fixed geometrically: the hand+glasses block squashed to 0.84
+  vertical, anchored at the wrist, vacated strip filled with backdrop. One
+  deterministic step; no redraw lottery, no risk to the good glasses.
+- Ended with the multi-reference backdrop flatten to erase the refine pass's
+  faint mask-edge rectangles. That flatten is now the standard last step
+  after any regional surgery.

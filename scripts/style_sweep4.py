@@ -23,6 +23,8 @@ import argparse
 import json
 import urllib.request
 
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+
 BASE_MODEL = "hassaku-il-v22"
 LORA = ("outlined-ill.safetensors", 0.8)
 SEED = 111222333
@@ -95,8 +97,8 @@ def build(face: str, extra: str, render: str, prefix: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--face", action="append", default=[], choices=sorted(FACES))
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()

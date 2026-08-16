@@ -8,6 +8,8 @@ import random
 import urllib.error
 import urllib.request
 
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+
 DEFAULT_NEGATIVE = (
     "worst quality, low quality, normal quality, score_1, score_2, score_3, "
     "blurry, jpeg artifacts, bad anatomy, bad hands, extra fingers, missing fingers, "
@@ -19,8 +21,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Queue an Anima txt2img prompt through the local ComfyUI API."
     )
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--prompt", required=True)
     parser.add_argument("--negative", default=DEFAULT_NEGATIVE)
     parser.add_argument("--width", type=int, default=1216)

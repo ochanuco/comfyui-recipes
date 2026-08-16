@@ -30,6 +30,8 @@ matters is stroke over head and neither term is fixed across these four.
 import json
 import urllib.request
 
+from comfy_host import base_url
+
 SEED = 555666777
 
 YK = ("yuzuki yukari, (light purple hair:1.25), (short hair with long locks:1.45), "
@@ -104,7 +106,7 @@ for name, w, h, positive in RUNS:
               "inputs": {"images": ["8", 0], "filename_prefix": f"{name}-{SEED}"}},
     }
     req = urllib.request.Request(
-        "http://127.0.0.1:8188/prompt",
+        f"{base_url()}/prompt",
         data=json.dumps({"prompt": graph}).encode(),
         headers={"Content-Type": "application/json"},
     )

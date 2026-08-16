@@ -18,6 +18,7 @@ import urllib.error
 import urllib.request
 
 import queue_dq3
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
 
 # Deliberately scene-only: no body, outfit or legwear tags, and nothing that
 # fights queue_dq3's NEG_FRAMING. "from below", "cowboy shot" and "close-up" are
@@ -72,8 +73,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate scene variants with a local LLM and queue them through ComfyUI."
     )
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--job", choices=sorted(queue_dq3.CLASSES), default="sage")
     parser.add_argument("--pose", choices=sorted(queue_dq3.POSES), default="standing")
     parser.add_argument("--face", choices=sorted(queue_dq3.FACES), default="default")

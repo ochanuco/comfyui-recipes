@@ -34,6 +34,7 @@ import urllib.request
 
 sys.path.insert(0, "/Users/chanu/ghq/github.com/ochanuco/ai-comfyui-env/scripts")
 import yukari_recipe as r  # noqa: E402
+from comfy_host import base_url
 
 SEEDS = [555666777, 111222333, 737373737, 3409564303]
 
@@ -63,7 +64,7 @@ for name, legwear, negative in ARMS:
         graph["7"]["inputs"]["text"] = negative
         graph["9"]["inputs"]["filename_prefix"] = f"ly{name}-{seed}"
         req = urllib.request.Request(
-            "http://127.0.0.1:8188/prompt",
+            f"{base_url()}/prompt",
             data=json.dumps({"prompt": graph}).encode(),
             headers={"Content-Type": "application/json"},
         )

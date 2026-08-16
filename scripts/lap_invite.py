@@ -27,8 +27,9 @@ import urllib.request
 
 sys.path.insert(0, "/Users/chanu/ghq/github.com/ochanuco/ai-comfyui-env/scripts")
 import yukari_recipe as r  # noqa: E402
+from comfy_host import base_url
 
-HOST = "http://127.0.0.1:8188/prompt"
+HOST = base_url() + "/prompt"
 FLAT = "(flat color:1.3), (simple background:1.3), (grey background:1.2), "
 assert FLAT in r.SURFACE
 SURFACE_NO_FLAT = r.SURFACE.replace(FLAT, "")

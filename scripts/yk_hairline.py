@@ -30,12 +30,13 @@ import urllib.request
 
 sys.path.insert(0, "/Users/chanu/ghq/github.com/ochanuco/ai-comfyui-env/scripts")
 import queue_dq3 as q  # noqa: E402
+from comfy_host import base_url
 
 JOB = "7219d431-c44f-4c05-be94-c8330b7d0eef"
 SEED = 111222333
 STRENGTH = 0.35
 
-hist = json.load(urllib.request.urlopen(f"http://127.0.0.1:8188/history/{JOB}"))
+hist = json.load(urllib.request.urlopen(f"{base_url()}/history/{JOB}"))
 graph = hist[JOB]["prompt"][2]
 
 # --- character swap, as before --------------------------------------------
@@ -88,7 +89,7 @@ for name, region, neg in RUNS:
         if node["class_type"] == "SaveImage":
             node["inputs"]["filename_prefix"] = f"{name}-{SEED}"
     req = urllib.request.Request(
-        "http://127.0.0.1:8188/prompt",
+        f"{base_url()}/prompt",
         data=json.dumps({"prompt": g}).encode(),
         headers={"Content-Type": "application/json"},
     )

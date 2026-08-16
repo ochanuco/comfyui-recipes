@@ -28,6 +28,7 @@ import urllib.request
 from pathlib import Path
 
 import colorize_lineart
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
 
 REPO = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = REPO / ".local/ComfyUI/output"
@@ -131,8 +132,8 @@ def build(filename: str, rects: list[tuple[int, int, int, int]], region_strength
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--line", default="lb-parted", help="output/ basename of the lineart")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--mask", choices=sorted(MASKS), default="bangs",
                         help="bangs separates the two regions; hair raises both")
     parser.add_argument("--region-strength", action="append", type=float, default=[],

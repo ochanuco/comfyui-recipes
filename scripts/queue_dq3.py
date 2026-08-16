@@ -19,6 +19,7 @@ import urllib.request
 from pathlib import Path
 
 import workflow_ui
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -801,8 +802,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Queue a Dragon Quest III class portrait through the local ComfyUI API."
     )
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--job", choices=sorted(CLASSES), default="sage")
     parser.add_argument("--pose", choices=sorted(POSES), default="standing")
     # None rather than "moe" so that "the caller asked for this face" is

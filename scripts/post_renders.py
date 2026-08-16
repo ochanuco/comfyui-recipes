@@ -31,6 +31,8 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+
 REPO = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = REPO / ".local/ComfyUI/output"
 STATE = REPO / ".local/posted-prompts.json"
@@ -139,8 +141,8 @@ def drain(url: str, seen: set[str], host: str, port: int) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--interval", type=float, default=20.0)
     parser.add_argument("--once", action="store_true", help="drain and exit")
     parser.add_argument(

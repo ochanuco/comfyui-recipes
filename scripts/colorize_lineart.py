@@ -25,6 +25,8 @@ import shutil
 import urllib.request
 from pathlib import Path
 
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+
 REPO = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = REPO / ".local/ComfyUI/output"
 INPUT_DIR = REPO / ".local/ComfyUI/input"
@@ -176,8 +178,8 @@ def build(filename: str, controlnet: str, invert: bool, strength: float,
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--line", default="ln-lineart", help="output/ basename of the pass-1 lineart")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--controlnet", choices=sorted(CONTROLNETS), default="canny")
     parser.add_argument("--render", action="append", default=[], choices=sorted(RENDERS),
                         help="how flat the colour pass is asked to be; repeat for a ladder")

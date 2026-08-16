@@ -27,6 +27,7 @@ import urllib.request
 sys.path.insert(0, "REPO_ROOT/scripts")
 import queue_dq3 as q  # noqa: E402
 import yukari_recipe as r  # noqa: E402
+from comfy_host import base_url
 
 HZ = f'{q.CLASSES["hamakaze"]}, {q.FRANCHISE["hamakaze"]}'
 assert "hamakaze (kancolle)" in HZ
@@ -44,7 +45,7 @@ for seed in (555666777, 111222333):
     graph["6"]["inputs"]["text"] = positive
     graph["9"]["inputs"]["filename_prefix"] = f"hznow-{seed}"
     req = urllib.request.Request(
-        "http://127.0.0.1:8188/prompt",
+        f"{base_url()}/prompt",
         data=json.dumps({"prompt": graph}).encode(),
         headers={"Content-Type": "application/json"},
     )

@@ -8,13 +8,15 @@ import random
 import urllib.error
 import urllib.request
 
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Queue a minimal ComfyUI img2img prompt through the local API."
     )
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--ckpt-name", required=True)
     parser.add_argument("--image", required=True, help="Filename under ComfyUI input/")
     parser.add_argument("--prompt", required=True)

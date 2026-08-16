@@ -26,9 +26,10 @@ import urllib.request
 
 sys.path.insert(0, "REPO_ROOT/scripts")
 import queue_dq3 as q
+from comfy_host import base_url
 
 SRC = "7219d431-c44f-4c05-be94-c8330b7d0eef"
-HOST = "http://127.0.0.1:8188"
+HOST = base_url()
 
 hist = json.load(urllib.request.urlopen(f"{HOST}/history/{SRC}"))
 graph = list(hist.values())[0]["prompt"][2]

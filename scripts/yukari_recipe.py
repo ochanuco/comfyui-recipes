@@ -54,6 +54,8 @@ import argparse
 import json
 import urllib.request
 
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+
 CHARACTER = (
     "yuzuki yukari, (light purple hair:1.25), (short hair with long locks:1.45), "
     "(very long sidelocks:1.3), sidelocks, (purple eyes:1.25), hair between eyes, "
@@ -661,8 +663,8 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, default=0,
                         help="take this many from the fixed sweep list")
     parser.add_argument("--prefix", default="yk")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--print-prompt", action="store_true")
     args = parser.parse_args()
 

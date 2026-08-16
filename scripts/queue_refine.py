@@ -23,6 +23,8 @@ import shutil
 import urllib.request
 from pathlib import Path
 
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+
 REPO = Path(__file__).resolve().parent.parent
 INPUT_DIR = REPO / ".local/ComfyUI/input"
 
@@ -56,8 +58,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--steps", type=int, default=28)
     parser.add_argument("--seed", type=int)
     parser.add_argument("--prefix", default="refine")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     return parser.parse_args()
 
 

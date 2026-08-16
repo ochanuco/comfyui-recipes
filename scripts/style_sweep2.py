@@ -22,6 +22,8 @@ import json
 import pathlib
 import urllib.request
 
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+
 REPO = pathlib.Path(__file__).resolve().parent.parent
 BASE_CACHE = REPO / ".local/_sw_base.json"
 ACCEPTED_PROMPT_ID = "21ea087e-331a-4c70-9619-9ea8745ddbc6"
@@ -99,8 +101,8 @@ def build(base: dict, base_model: str, loras: list[tuple[str, float]],
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--only", action="append", default=[], help="run just these prefixes")
     parser.add_argument(
         "--from-prompt", metavar="ID",

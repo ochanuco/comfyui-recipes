@@ -23,6 +23,8 @@ with sticker, which is there for the white outline idiom and is worth keeping.
 import json
 import urllib.request
 
+from comfy_host import base_url
+
 SEED = 555666777
 W = H = 1024
 
@@ -90,7 +92,7 @@ for name, positive in RUNS:
               "inputs": {"images": ["8", 0], "filename_prefix": f"{name}-{SEED}"}},
     }
     req = urllib.request.Request(
-        "http://127.0.0.1:8188/prompt",
+        f"{base_url()}/prompt",
         data=json.dumps({"prompt": graph}).encode(),
         headers={"Content-Type": "application/json"},
     )

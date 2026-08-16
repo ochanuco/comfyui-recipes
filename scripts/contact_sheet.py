@@ -20,6 +20,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+
 REPO = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = REPO / ".local/ComfyUI/output"
 
@@ -82,8 +84,8 @@ def main() -> None:
                         help="written into the output dir")
     parser.add_argument("--cols", type=int, default=4)
     parser.add_argument("--cell", type=int, default=420)
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8188)
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     args = parser.parse_args()
 
     pattern = args.glob if args.glob.endswith(".png") else f"{args.glob}_00001_.png"

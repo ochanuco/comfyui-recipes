@@ -29,11 +29,12 @@ import urllib.request
 
 sys.path.insert(0, "REPO_ROOT/scripts")
 import queue_dq3 as q  # noqa: E402
+from comfy_host import base_url
 
 JOB = "7219d431-c44f-4c05-be94-c8330b7d0eef"
 SEED = 111222333
 
-hist = json.load(urllib.request.urlopen(f"http://127.0.0.1:8188/history/{JOB}"))
+hist = json.load(urllib.request.urlopen(f"{base_url()}/history/{JOB}"))
 graph = hist[JOB]["prompt"][2]
 
 # --- node 6: character span, as ykf-* already did -------------------------
@@ -73,7 +74,7 @@ for name, strength in [("hr-c60", 0.60), ("hr-c35", 0.35), ("hr-c00", 0.00)]:
             node["inputs"]["filename_prefix"] = f"{name}-{SEED}"
     body = json.dumps({"prompt": g}).encode()
     req = urllib.request.Request(
-        "http://127.0.0.1:8188/prompt", data=body,
+        f"{base_url()}/prompt", data=body,
         headers={"Content-Type": "application/json"},
     )
     print(name, strength, json.load(urllib.request.urlopen(req))["prompt_id"], flush=True)

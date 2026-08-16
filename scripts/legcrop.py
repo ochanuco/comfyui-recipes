@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from PIL import Image
 
-OUT = Path("/Users/chanu/ghq/github.com/ochanuco/ai-comfyui-env/.local/ComfyUI/output")
+OUT = Path(__file__).resolve().parent.parent / ".local/ComfyUI/output"
 
 names = sys.argv[1:]
 tiles = []

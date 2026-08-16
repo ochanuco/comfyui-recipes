@@ -26,9 +26,10 @@ wrecked the palette -- if that happens again it has to be attributable.
 import copy
 import json
 import sys
+from pathlib import Path
 import urllib.request
 
-sys.path.insert(0, "/Users/chanu/ghq/github.com/ochanuco/ai-comfyui-env/scripts")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import queue_dq3 as q  # noqa: E402
 from comfy_host import base_url
 

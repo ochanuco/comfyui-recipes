@@ -2895,3 +2895,25 @@ variable at a time. `fin-yukari-sip.png` (fcA, seed 3409564303). Findings:
   block tried; 111222333 put it on the ground in three of them.
 - A side-on squat wants a square canvas. At 1024×1536 the identical block drew
   her small in a tall empty frame.
+
+### `sip` seed sweep: 5 clean of 8 (2026-08-16)
+
+The settled `sip` block over eight seeds, `sipf-sip-*`. Clean: 1886970040,
+20250816, 31415926 (draws steam off the mug), 3409564303, 555666777. That is a
+better clutter rate than `crouch` managed (4 of 7 on its worst sweep) and is
+the same 60-70% this recipe has always run at under `dpmpp_2m`.
+
+The three failures are each a known family, and all three are object/figure
+duplication rather than anything about the drawing:
+
+  1117511306   two mugs, one in each hand
+  2557902837   a second girl, full size, beside her
+  737373737    a chibi clone bottom-right
+
+`solo` is at 1.5 here and did not prevent either figure. Consistent with the
+older finding that duplicate guards in the negative are not a tool this recipe
+has -- re-rolling the seed is the fix, and at 5-in-8 it is a cheap one.
+
+Worth noting for `holding cup` + `coffee mug`: naming a vessel twice is what
+makes it a mug, and it is presumably also what makes 1117511306 draw two of
+them. The trade has been worth it so far.

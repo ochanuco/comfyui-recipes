@@ -2747,3 +2747,29 @@ The rebuilt render's hand was mushy and its held object unreadable. Fixed at
   `purple-framed eyewear` (2k). The eyewear read closes the loop on the
   `hunt`/`crouch` pose family: she squatted to search, and now holds what she
   found.
+
+### Finishing an unfinished bottom half: name the pose the drawing shows (2026-08-16)
+
+"絵として完成していない" — the rebuilt lower half was soft, the thigh a
+featureless bean-bag, the leg arrangement unreadable. What finished it,
+`fin-crouch-111222333-complete.png`:
+
+- **A 1.5× in-place refine (`SetLatentNoiseMask`) is a ladder of intent.**
+  0.40/0.55 sharpened lines but could not re-shape the mass; 0.70 re-read it as
+  hips over folded calves with both soles visible; 0.80 started inventing
+  garments (frilled bloomers). Structure changes live around 0.70, style-only
+  polish below 0.55.
+- **The pose word was wrong and it mattered.** The crop showed soles-up feet
+  tucked under — that is `kneeling`, not `squatting`. The 0.70 pass prompted
+  with `(kneeling:1.3), knees, soles` is the one that produced readable
+  anatomy. If a region refuses to resolve, check whether the prompt is naming
+  a different pose than the pixels show.
+- Refine passes invent small decorations at mask borders (gold heart
+  embroidery on the cuff, twice). Budget a revert-from-previous-version patch
+  as part of the workflow, not as a surprise.
+- The leftover anchor foot from the rebuild became a third foot once the new
+  legs existed. Anchors kept outside one mask can contradict the next mask's
+  result — re-count limbs after every restructure. Removed by backdrop
+  extension (`laplace_extend`), with the asymmetric band threshold again: a
+  symmetric one let the white outline contaminate the fill with haze, and
+  mid-grey shadow remnants needed their own darker-than-backdrop-by-12 term.

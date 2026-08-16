@@ -2868,3 +2868,30 @@ restored.
 - The flat cut on the white petticoat closed with `lace trim, frills,
   petticoat` at 0.70 — a scalloped border with its own dark line. Third
   confirmation that garments terminate against backdrop happily.
+
+### The `sip` pose, and what each of the eight slots is buying (2026-08-16)
+
+Built from a reference photo by substituting into `crouch`'s eight slots, one
+variable at a time. `fin-yukari-sip.png` (fcA, seed 3409564303). Findings:
+
+- **Eight slots really is the ceiling, so every addition is a trade.** The
+  reference needed four things `crouch` did not have — side view, knees tucked,
+  a drink held to the mouth, a forward lean — and each one had to be paid for
+  out of an existing slot. Mapping them onto `from behind` / `looking down` /
+  `picking up` / `from above` at the same weights worked first try.
+- **`drinking` is what lifts a vessel to the mouth.** Dropped in favour of
+  `leaning forward`, on the reasoning that `holding can` plus the face would
+  carry it, the can moved to her feet on all four renders. `holding X` places
+  the object in the hand; it says nothing about where the hand goes.
+- **A mug costs two slots.** `coffee mug` alone put a mug in frame but not
+  reliably in her hands; `holding cup` alone drew a paper cup or a can. Both
+  together draw a china mug, and on some seeds steam rising off it — the whole
+  cosy read, for no extra tag.
+- **Slots that can be spared, measured:** `full body` (the square canvas frames
+  her anyway), `knees to chest` (`squatting` holds the tuck alone — though
+  keeping it curls her tighter), and `smug` where the pose's mood contradicts
+  it. `solo`, `squatting`, `from side` and `drinking` all carry unique work.
+- Same seed-sensitivity as always: 3409564303 puts the cup at her mouth in every
+  block tried; 111222333 put it on the ground in three of them.
+- A side-on squat wants a square canvas. At 1024×1536 the identical block drew
+  her small in a tall empty frame.

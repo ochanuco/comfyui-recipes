@@ -101,7 +101,12 @@ CHARACTER = (
     # Tags naming a PART's state pass where tags naming the garment's fit do not.
     # (sleeves past wrists) + (wide sleeves) took the lower back from 54.6% to
     # 78.5% covered, boxed out the body and dropped the hem, at 1.91px.
-    "hair ornament, (black hooded cardigan:1.45), open cardigan, (rabbit hood:1.55), "
+    # `hair ornament` carried no weight until the nape renders, where it lost
+    # every time -- her clips were missing from a dozen straight. It is not that
+    # the tag is wrong, it is that an unweighted tag in a prompt this crowded is
+    # indistinguishable from an absent one: everything around it is at 1.3+.
+    # Same disease and same fix as `drawstring` below.
+    "(hair ornament:1.4), (black hooded cardigan:1.45), open cardigan, (rabbit hood:1.55), "
     # The hem does not respond to length tags. Asked to cover the buttocks, three
     # renders moved bare skin in the upper-leg band 37.4% -> 40.1% -> 38.3%:
     # (medium dress:1.3), then (medium dress:1.45) with (short dress:1.4),
@@ -123,7 +128,17 @@ CHARACTER = (
     # of two seeds: hoodie and tights, no dress. Third time a guard tag has cost
     # more than it bought here, after the duplicate guards that wrecked the
     # palette and the (thighhighs:1.3) that removed the socks.
-    "animal hood, long sleeves, drawstring, (purple dress:1.45), short dress, "
+    # `drawstring` -- the coat's cord, with the pink bead on the end -- was
+    # unweighted and therefore not drawn. Weighted, it comes back.
+    #
+    # The dress's own fastening is NOT here, deliberately. It ties at the back
+    # of the neck in black straps, and `positive` adds those for the one pose
+    # that can see them. Globally they are destructive: measured on `sip`,
+    # (halterneck:1.45) + (black straps:1.35) pulled the coat off her shoulders
+    # and bared her back, and lowering them to 1.15/1.1 still bared a shoulder.
+    # Naming a halter is apparently read as naming a garment that leaves the
+    # shoulders out, and the coat gets out of its way.
+    "animal hood, long sleeves, (drawstring:1.4), (purple dress:1.45), short dress, "
     # Weighted down rather than deleted: the dress is meant to have frill trim,
     # it just should not be the loudest thing in the lower half.
     "(frills:0.85), vocaloid, voiceroid, "
@@ -544,6 +559,29 @@ POSES = {
         "(solo:1.5), (squatting:1.4), (from side:1.45), (hunched over:1.45), "
         "(smug:1.3), (holding cup:1.3), (drinking:1.2), (coffee mug:1.3)"
     ),
+    # The back of her neck, seen by someone standing behind her while she sits.
+    #
+    # Framing was the whole problem and the answer was not to move the camera
+    # closer. `(upper body:1.35)` lost to `from behind` every time, and the
+    # obvious fix -- `close-up` and `head and shoulders`, which the portrait
+    # uses -- draws a character reference sheet instead: two figures side by
+    # side, front view and back view, the back one in a strapless dress. A
+    # composition guard in the negative does not stop it. Neither tag is usable
+    # in a shot that is already looking at her from behind.
+    #
+    # Seating her is what solved it. She is below the camera, so the nape is
+    # what faces it, and `(upper body:1.3)` is enough. `from above` tilted a
+    # standing figure diagonally and behaves against a seated one, which has
+    # somewhere for the angle to land.
+    #
+    # `(nape of neck:1.45)` does not come down. Dropped to 1.25 it does not
+    # merely soften -- the pose collapses and she turns to face the camera.
+    # The exposure it brings has to be answered in the negative instead; see
+    # `negative`.
+    "nape": (
+        "(solo:1.55), (from behind:1.45), (from above:1.45), (sitting on floor:1.4), "
+        "(nape of neck:1.45), (hair over shoulder:1.35), (head down:1.25), (back focus:1.3)"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
@@ -557,7 +595,9 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          "hunt": (1024, 1536), "crouch": (1024, 1536),
          # A side-on squat is about as wide as it is tall. At 1024x1536 the same
          # block drew her small in a tall empty frame; the square fills.
-         "sip": (1024, 1024)}
+         "sip": (1024, 1024),
+         # Seated and seen from above: head, back and folded legs fill a square.
+         "nape": (1024, 1024)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -624,7 +664,26 @@ SWEEP_SEEDS = [555666777, 111222333, 1886970040, 737373737, 2557902837, 34095643
 
 
 def negative(pose: str) -> str:
-    """The negative, with the one pose that needs a different one handled here."""
+    """The negative, with the poses that need a different one handled here."""
+    if pose == "nape":
+        # Two guards, both earned by this pose specifically.
+        #
+        # `from behind` invites a turnaround sheet, and while the composition
+        # words alone did not save `close-up`, the pose no longer uses it and
+        # they cost nothing here.
+        #
+        # The exposure guard is the load-bearing one. `nape of neck` reads to
+        # the model as skin to uncover rather than a place to look, and it took
+        # the coat off entirely in three renders of four. What it must NOT
+        # forbid is the coat slipping -- (off-shoulder) and (bare shoulders)
+        # were in this list first and banned the exact look the pose is for.
+        #
+        # In front of NEGATIVE, not appended: that is the order the approved
+        # render was drawn in, and token order changes the encoding.
+        return (
+            "(character sheet:1.4), (multiple views:1.4), reference sheet, "
+            "turnaround, (undressing:1.4), topless, (bare back:1.3), "
+        ) + NEGATIVE
     if pose != "lap":
         return NEGATIVE
     # A head resting in her lap looks up at her, so the guard against low angles
@@ -645,12 +704,28 @@ def positive(pose: str) -> str:
     # A yawn and a shout both need the mouth open; FACE closes it by default.
     open_mouthed = pose in ("yawn", "fall")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
-    parts = ["best quality, absurdres, 1girl, solo", CHARACTER, POSES[pose]]
+    # Turned away from the camera, an instruction to face it has no referent;
+    # it either argues with the pose or spins her back around.
+    if pose == "nape":
+        face = face.replace(", looking at viewer", "")
+    character = CHARACTER
+    if pose == "nape":
+        # The dress ties in a bow at the nape, which only this pose is looking
+        # at, and which costs every other pose its coat -- see CHARACTER.
+        # Spliced in beside the coat's cord rather than appended, because that
+        # is where they sat in the render this was settled on.
+        character = character.replace(
+            "(drawstring:1.4), ",
+            "(drawstring:1.4), (halterneck:1.45), (black straps:1.35), ")
+    parts = ["best quality, absurdres, 1girl, solo", character, POSES[pose]]
     if full_figure:
         parts.append(LEGWEAR)
     parts += [face, SURFACE]
     parts.append(BODY if full_figure else "(pale skin:1.25)")
-    parts.append(HOOD)
+    # The coat pulled off the shoulders, which is what uncovers the nape. It
+    # rides with the hood rather than joining the pose block: that block is at
+    # eight tags and a ninth is where the hair clips broke last time.
+    parts.append(f"{HOOD}, (off shoulder:1.25)" if pose == "nape" else HOOD)
     if full_figure:
         parts.append(THIN)
     return ", ".join(parts)

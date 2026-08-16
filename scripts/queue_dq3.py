@@ -19,9 +19,10 @@ import urllib.request
 from pathlib import Path
 
 import workflow_ui
-from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT, stage_input
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+INPUT_DIR = REPO_ROOT / ".local/ComfyUI/input"
 
 # Body and legwear. Tuned so "thick" reads as soft tissue rather than muscle:
 # muscular* in the negatives is what stops calves from turning sinewy, and the
@@ -997,7 +998,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--ref-image",
-        help="filename under .local/ComfyUI/input to steer the look through IPAdapter",
+        help="image to steer the look through IPAdapter -- a filename already "
+        "staged under .local/ComfyUI/input, or a path to any local image, "
+        "which is staged there (and uploaded to a remote ComfyUI) automatically",
     )
     parser.add_argument("--ref-weight", type=float, default=1.0)
     # "style transfer" leaves composition alone; plain "linear" drags the
@@ -1679,6 +1682,14 @@ def apply_defaults(args: argparse.Namespace) -> None:
 def main() -> int:
     args = parse_args()
     apply_defaults(args)
+    if args.ref_image:
+        # Historically a bare filename already staged under .local/ComfyUI/input;
+        # now also accepted as a path to any local image, staged there (and
+        # uploaded to a remote ComfyUI) via stage_input.
+        ref_path = Path(args.ref_image)
+        if not ref_path.exists() and (INPUT_DIR / ref_path.name).exists():
+            ref_path = INPUT_DIR / ref_path.name
+        args.ref_image = stage_input(ref_path, INPUT_DIR, host=args.host, port=args.port)
     prefix = args.prefix or f"dq3-{args.job}-{args.pose}"
     prompt_ids = []
 

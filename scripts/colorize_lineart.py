@@ -25,7 +25,7 @@ import shutil
 import urllib.request
 from pathlib import Path
 
-from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT, ensure_local, stage_input
 
 REPO = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = REPO / ".local/ComfyUI/output"
@@ -191,12 +191,18 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    src = OUTPUT_DIR / f"{args.line}_00001_.png"
+    src = ensure_local(
+        f"{args.line}_00001_.png", OUTPUT_DIR, host=args.host, port=args.port
+    )
     if not src.exists():
         raise SystemExit(f"no such lineart: {src}")
-    filename = f"cz-src-{args.line}.png"
+    # stage_input keeps the source basename; this pipeline renames on the way
+    # in so a human browsing the flat input dir can tell which script staged
+    # the file, so rename locally first and hand stage_input that copy.
+    renamed = INPUT_DIR / f"cz-src-{args.line}.png"
     INPUT_DIR.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(src, INPUT_DIR / filename)
+    shutil.copyfile(src, renamed)
+    filename = stage_input(renamed, INPUT_DIR, host=args.host, port=args.port)
 
     controlnet, invert = CONTROLNETS[args.controlnet]
     for render in args.render or ["cg"]:

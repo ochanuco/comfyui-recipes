@@ -1008,7 +1008,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--ref-type", default="style transfer")
     parser.add_argument(
         "--ref-mask",
-        help="greyscale image under input/ limiting where this reference applies",
+        help="greyscale image limiting where this reference applies -- staged "
+        "under input/ like --ref-image",
     )
     # A second pass so one reference can steer the face while another steers the
     # legwear, instead of one reference repainting the whole outfit.
@@ -1682,14 +1683,18 @@ def apply_defaults(args: argparse.Namespace) -> None:
 def main() -> int:
     args = parse_args()
     apply_defaults(args)
-    if args.ref_image:
-        # Historically a bare filename already staged under .local/ComfyUI/input;
-        # now also accepted as a path to any local image, staged there (and
-        # uploaded to a remote ComfyUI) via stage_input.
-        ref_path = Path(args.ref_image)
-        if not ref_path.exists() and (INPUT_DIR / ref_path.name).exists():
-            ref_path = INPUT_DIR / ref_path.name
-        args.ref_image = stage_input(ref_path, INPUT_DIR, host=args.host, port=args.port)
+    # Both IPAdapter passes hand their image and their mask straight to a
+    # LoadImage, which only sees ComfyUI's own input directory. Historically
+    # these were bare filenames already staged there; now a path to any local
+    # image works too, and a remote server gets it uploaded.
+    for attr in ("ref_image", "ref_mask", "ref2_image", "ref2_mask"):
+        given = getattr(args, attr)
+        if not given:
+            continue
+        path = Path(given)
+        if not path.exists() and (INPUT_DIR / path.name).exists():
+            path = INPUT_DIR / path.name
+        setattr(args, attr, stage_input(path, INPUT_DIR, host=args.host, port=args.port))
     prefix = args.prefix or f"dq3-{args.job}-{args.pose}"
     prompt_ids = []
 

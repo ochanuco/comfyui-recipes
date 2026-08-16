@@ -14,12 +14,14 @@ outside this session, or one old enough to have fallen out of history.
 """
 
 import argparse
+import fnmatch
 import json
 import urllib.request
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+import comfy_host
 from comfy_host import DEFAULT_HOST, DEFAULT_PORT
 
 REPO = Path(__file__).resolve().parent.parent
@@ -32,16 +34,26 @@ FG = (232, 232, 236)
 DIM = (150, 150, 158)
 
 
-def prompt_ids(host: str, port: int) -> dict[str, str]:
-    """filename -> prompt id, from the whole history."""
+def history_images(host: str, port: int) -> dict[str, dict]:
+    """filename -> {subfolder, type, prompt_id}, from the whole history.
+
+    subfolder/type are carried alongside the prompt id because they are also
+    what /view needs to fetch the file back from a remote ComfyUI.
+    """
     url = f"http://{host}:{port}/history?max_items=2000"
     with urllib.request.urlopen(url) as response:
         history = json.loads(response.read())
-    mapping = {}
+    mapping: dict[str, dict] = {}
     for pid, entry in history.items():
         for output in entry.get("outputs", {}).values():
             for image in output.get("images", []):
-                mapping[image["filename"]] = pid
+                if image.get("type") != "output":
+                    continue
+                mapping[image["filename"]] = {
+                    "subfolder": image.get("subfolder", ""),
+                    "type": image.get("type", "output"),
+                    "prompt_id": pid,
+                }
     return mapping
 
 
@@ -89,15 +101,39 @@ def main() -> None:
     args = parser.parse_args()
 
     pattern = args.glob if args.glob.endswith(".png") else f"{args.glob}_00001_.png"
-    paths = sorted(OUTPUT_DIR.glob(pattern))
+
+    try:
+        images = history_images(args.host, args.port)
+    except OSError:
+        # A sheet without ids still beats no sheet; ComfyUI may not be up.
+        images = {}
+
+    # Files history knows about are pulled locally (a no-op when ComfyUI is
+    # local, a /view fetch when it is remote); files placed by hand under
+    # OUTPUT_DIR -- never queued through this history, e.g. copied in --
+    # are picked up by the glob below regardless.
+    fetched: set[Path] = set()
+    for name in sorted(n for n in images if fnmatch.fnmatch(n, pattern)):
+        meta = images[name]
+        try:
+            fetched.add(
+                comfy_host.ensure_local(
+                    name,
+                    OUTPUT_DIR,
+                    subfolder=meta["subfolder"],
+                    type_=meta["type"],
+                    host=args.host,
+                    port=args.port,
+                )
+            )
+        except (OSError, RuntimeError) as err:
+            print(f"  ! {name}: could not fetch ({err})")
+
+    paths = sorted(set(OUTPUT_DIR.glob(pattern)) | fetched)
     if not paths:
         raise SystemExit(f"no files match {pattern} under {OUTPUT_DIR}")
 
-    try:
-        ids = prompt_ids(args.host, args.port)
-    except OSError:
-        # A sheet without ids still beats no sheet; ComfyUI may not be up.
-        ids = {}
+    ids = {name: meta["prompt_id"] for name, meta in images.items()}
 
     sheet = build(paths, ids, args.cols, args.cell)
     out = OUTPUT_DIR / args.out

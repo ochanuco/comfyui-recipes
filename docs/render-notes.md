@@ -2917,3 +2917,117 @@ has -- re-rolling the seed is the fix, and at 5-in-8 it is a cheap one.
 Worth noting for `holding cup` + `coffee mug`: naming a vessel twice is what
 makes it a mug, and it is presumably also what makes 1117511306 draw two of
 them. The trade has been worth it so far.
+
+### An unweighted tag is an absent tag (2026-08-17)
+
+Her hair clips were missing from a dozen straight `nape` renders. The cause was
+not that `hair ornament` was the wrong tag; it was in CHARACTER the whole time,
+carrying no weight, in a prompt where everything around it sits at 1.3 or
+above. At that ratio a bare tag is indistinguishable from one that was never
+written. `(hair ornament:1.4)` brought them back on the first try.
+
+`drawstring` was in exactly the same state and behaved exactly the same way --
+weighted to 1.4, the coat's cord appears, pink bead and all.
+
+Worth auditing the rest of CHARACTER on this basis rather than adding tags for
+things that are already named.
+
+**But the same fix does not generalise to every missing detail.** The dress
+fastens at the back of the neck in black straps, and `(halterneck:1.45)` plus
+`(black straps:1.35)` draws them correctly -- crossing, and knotted in a bow at
+the nape. Measured on `sip`, the same pair pulls the coat off her shoulders and
+bares her back; at 1.15/1.1 it still bares one shoulder. Naming a halter is
+read as naming a garment that leaves the shoulders out, and the coat gets out
+of its way. So it is spliced in for `nape` only, in `positive`.
+
+`criss-cross halter` is worse than nothing. Naming the X spends the straps'
+budget on it and the bow never gets drawn; `halterneck` alone draws both.
+
+### The `nape` pose, and the turnaround sheet (2026-08-17)
+
+She is sitting; the camera is standing behind her, looking down.
+
+**Framing was the whole difficulty, and moving the camera closer is not the
+answer.** `(upper body:1.35)` loses to `from behind` every time. The obvious
+fix -- `close-up` and `head and shoulders`, which `portrait` uses -- draws a
+character reference sheet instead: two figures side by side, front view and
+back view, the back one in a strapless dress. A composition guard in the
+negative (`character sheet`, `multiple views`, `reference sheet`, `turnaround`)
+does not stop it; the control run with the guard still drew the sheet. Neither
+tag is usable in a shot already looking at her from behind.
+
+**Seating her solved it.** She is below the camera, so the nape is what faces
+it, and `(upper body:1.3)` is enough. `from above` tilted a standing figure
+diagonally and behaves against a seated one, which gives the angle somewhere to
+land.
+
+**`(nape of neck:1.45)` does not come down.** At 1.25 it does not merely soften
+-- the pose collapses and she turns to face the camera.
+
+### The bare back: seventeen attempts, and what none of them taught (2026-08-17)
+
+`nape` draws a bare back and it could not be talked out of it. Recorded so the
+next person does not repeat the list.
+
+Prompt side, twelve: `(bare back)` in the negative at 1.3 / 1.4 / 1.45, plus
+`backless dress` and `backless`; `halterneck` lowered to 1.2 and propped with
+`sleeveless dress`; `halterneck` swapped for `neck ribbon` + `black bow`;
+`black straps` dropped as well; `off shoulder` lowered to 1.15 and then removed
+entirely; `back focus` removed; `camisole` (drew a separate white garment);
+`racerback` (no effect); `purple dress` raised to 1.6 (marginal).
+
+Second pass, three: `HIRES_DENOISE` at 0.45, and both upscale routes. The 1024
+pass does cover more than the print does, which is what suggested the second
+pass was the culprit -- it is not, the coverage is only relatively better
+because there is less of everything at that size.
+
+Inpaint, two, and the first was my own error: I handed the region the full
+`positive(pose="nape")`, which contains `(nape of neck:1.45)`, `(from behind)`
+and `(halterneck)`. I was asking for the defect inside the region I wanted
+covered. A region-local prompt did better -- fabric began to appear at denoise
+0.90 -- but only on one side.
+
+Also: `VAEEncodeForInpaint` is the wrong node for this. It blanks the latent, so
+at denoise 1.0 the model invented black straps from nothing and left the mask
+rectangle visible. `VAEEncode` + `SetLatentNoiseMask` keeps the body underneath
+as context and leaves no seam. Use the former to remove, the latter to change.
+
+Three separate confident diagnoses of mine -- the fastening, `back focus`, the
+second pass -- were each disproved by the next experiment. When a defect
+survives twelve prompt levers, stop diagnosing and change tools.
+
+### The thighs were a pose problem, and the fix was squash then crop (2026-08-17)
+
+Five attempts read "太ももの長さに違和感" as a claim about length and adjusted
+it: `thick thighs` to 1.15, `(long legs:1.4)` and `(bad proportions:1.4)` in
+the negative, `(petite:1.35)`, `from above` eased from 1.45 to 1.3. None moved
+anything, because the length was never asserted -- `sitting on floor` extends
+the legs, and a leg extended away from a camera looking down occupies the frame
+lengthwise whatever the tags claim. `yokozuwari` folds them and the proportions
+come right immediately.
+
+When a tag that plainly describes the defect does nothing at any weight, the
+defect is implied by something else and the fix is upstream of the description.
+
+A second complaint on the finished print -- the femur long relative to where
+the buttocks sit -- was geometric, third use of squash-not-redraw. The warp is
+a function of x alone: identity left of the hip, compressed 0.82 between hip
+and knee, translated by the same amount beyond it. Legs, coat and frills move
+as one piece, so no seam can open inside the region.
+
+**Backfilling the vacated strip is wrong; crop it instead.** Filling with
+backdrop sliced the leg flat and cut its white outline -- the amputation read.
+Cropping the same 63px puts the leg back through the frame edge where it
+started, and the matching crop off the top is all backdrop, so the result stays
+square at 1985. `fin-yukari-nape.png`.
+
+### Image-space upscaling clears the banding latent upscaling leaves (2026-08-17)
+
+`bicubic` fixed the stairstepping `bislerp` drew, but flat areas at 2048 --
+tights, the black coat -- still carried visible banding, worst in compositions
+with large flat fields and long diagonal boundaries. Decoding the first pass,
+resampling the picture with `lanczos`, and encoding it back removes it: the
+resampler has eight times the detail to interpolate between. Paired with
+denoise 0.45 the surfaces come out clean and the linework does not split.
+
+Costs a VAE round trip, which is cheap against another 30 steps.

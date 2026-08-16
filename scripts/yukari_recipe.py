@@ -496,17 +496,23 @@ POSES = {
     #   cup or a can. Together they draw a china mug, and on some seeds steam
     #   off it -- which is the whole "ホッとしている" read, at no extra tag.
     #
-    #   `smug` and `full body` are the two slots that could be spared. Losing
-    #   smug suits this pose (she is warming up, not showing off) and losing
-    #   full body costs nothing on the square canvas. `knees to chest` can also
-    #   be spared -- `squatting` holds the tuck by itself -- but keeping it
-    #   curls her tighter, which is the reference.
+    #   `smug` and `knees to chest` are the two slots spared here. Losing smug
+    #   suits the pose (she is warming up, not showing off); losing knees to
+    #   chest costs nothing because `squatting` holds the tuck by itself.
     #
-    # Seed-sensitive: 3409564303 puts the cup at her mouth, 111222333 has put it
-    # on the ground in three separate blocks. Prefer the former.
+    #   `full body` was the other candidate and is the one that got kept. The
+    #   variant that spent it instead -- keeping knees to chest, curling her
+    #   tighter -- was the closer match to the reference photo and was NOT the
+    #   one picked: it crops to a huddle, and the whole squatting silhouette is
+    #   what makes the drawing read. Keep the frame, spend the tuck.
+    #
+    # Seed-sensitive, and the sensitivity belongs to the block rather than the
+    # seed: this block puts the cup at her mouth on 111222333, while the
+    # tighter-curl variant put it on the ground on that same seed three times
+    # and needed 3409564303 instead.
     "sip": (
-        "(solo:1.5), (squatting:1.4), (from side:1.45), (knees to chest:1.4), "
-        "(holding cup:1.3), (drinking:1.2), (coffee mug:1.3), (leaning forward:1.35)"
+        "(solo:1.5), (squatting:1.4), (from side:1.45), (leaning forward:1.4), "
+        "(holding cup:1.3), (drinking:1.2), (coffee mug:1.3), full body"
     ),
 }
 

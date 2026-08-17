@@ -4127,3 +4127,40 @@ Open, and inherited: the thin white line across the backdrop beside the knee is
 still there, and no welt band is drawn at the sock top -- the boundary is a
 colour change, not a hem. `zettai ryouiki` is not available to ask for it, since
 that names bare thigh above the sock and there is none.
+
+### The rear is the dress's job, and a third region is what gives it back (2026-08-17)
+
+「ワンピースの下に黒いキャミソール着てる？それはちがう。お尻を隠すのはワンピースです」.
+
+Between the purple hem and the grey there was a black band hugging the hip,
+reading as a camisole or a pair of shorts under the one-piece. Nothing asked for
+it: the two regions owned the thigh and the legs, the rear belonged to the base
+prompt, and the base prompt has a black coat in it. **An unassigned region gets
+drawn from whatever is nearest in the prompt.**
+
+The hem has never answered to length tags -- that is in the module docstring,
+measured over three renders back in the first session. It answers to being given
+a region. A third mask over the rear, prompted `(purple dress:1.9), (dress:1.7),
+(dress hem:1.5), (frills:1.3), (long dress:1.4)`, and the dress covers the
+buttocks with its own frilled edge. The black band is gone because there is no
+longer anywhere for the coat to reach.
+
+Two lines across the body now define the whole lower half, and they are the
+tunable part:
+
+    y=430   the sock top      above it sock, below it legwear
+    y=620   the hem           below it dress, between the lines tights
+
+**A thin region needs more strength than a fat one.** The tights band is the
+narrowest of the three and sits between two much larger pale neighbours; at
+parity it came back at 213,206,215 -- washed out -- against the 134,131,134 the
+same prompt lands when it owns more of the leg. `WEIGHT` gives it 1.8x. That is
+buying back what the neighbours take, not asking for a different colour.
+
+Kept: `ykprone-dr2k-prone-1886970040`, 2048x1368, stroke 1.225 per 1000px.
+Dress over the rear, a band of grey tights below the hem, white thigh-highs from
+mid-thigh to the toes.
+
+Open: the tights band is subtle at print size -- pale grey between a purple hem
+and a white sock, and the eye can read it as shadow. Widening it means moving
+one of the two lines, which is a mask edit and not a prompt edit.

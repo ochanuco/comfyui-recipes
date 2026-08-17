@@ -4314,3 +4314,56 @@ welt over them from mid-thigh to the toes.
 intended change -- the grey went from a sliver to a band -- but the tool is
 right that the costume is not what was accepted before, and accepting it is now
 an explicit act (`--record`), not something that happens quietly.
+
+### SSH to the worker, and IPAdapter on it (2026-08-17)
+
+The box grew an SSH server, which changes what is possible: models and custom
+nodes can be put on that disk from here instead of from a chair in front of it.
+
+**Getting in cost three findings, each worth a round trip.**
+
+- **A correctly listening sshd was still dropped**, because the firewall rule
+  ships scoped to the *Private* profile and the LAN interface is classified
+  *Public*. The tell is that the port *times out* instead of refusing:
+  `netstat` showed `0.0.0.0:22 LISTENING` while nothing arrived.
+  `Set-NetFirewallRule -DisplayName 'OpenSSH SSH Server (sshd)' -Profile Any`.
+- **Quoting through ssh -> cmd -> powershell is not usable**, and the console is
+  Shift-JIS so what comes back is mojibake with half the arguments eaten. Send
+  `-EncodedCommand` with UTF-16LE base64 instead.
+- **Windows OpenSSH kills the process tree when the session ends.** Two detached
+  `Start-Process` downloads died at ~160MB the moment the ssh command returned.
+  Hold the connection open for the length of the job, or create the process
+  through `Invoke-CimMethod Win32_Process Create`, which is owned by the WMI
+  service and survives -- that is how ComfyUI is restarted now.
+
+The key is `~/.ssh/comfyui-worker`, dedicated and passphrase-less, deliberately
+not the 1Password one: that agent wants approval for every signature, which is
+right for GitHub and wrong for a host that unattended scripts talk to.
+
+**IPAdapter is installed and verified.** `scripts/fetch-ipadapter-windows.ps1`
+clones `ComfyUI_IPAdapter_plus` and fetches the two models, checking both
+SHA256s against `manifests/models-sha256.txt` -- the hashes taken from the mac's
+own copies before they were deleted, so what is on that disk is bit-for-bit what
+this repo was built against. 35 IPAdapter nodes now load.
+
+**First measurement: it transfers the picture, not the wardrobe.** At the
+obvious settings it is unusable -- `weight 0.6` and `0.9` on `standard` brought
+the reference's whole character across: painterly shading, a cluttered backdrop,
+and the die-cut outline gone. This project's look *is* the flat colour and the
+white cut edge, so the adapter has to be turned down until it stops carrying
+them:
+
+| weight | type | start | result |
+|--------|------|-------|--------|
+| 0.6 / 0.9 | standard | 0.0 | style destroyed, backdrop invented |
+| 0.4 | prompt is more important | 0.0 | style holds, **and a second small figure** |
+| 0.4 | prompt is more important | 0.25 | style holds, costume carried |
+| 0.25 | standard | 0.15 | style holds, costume carried |
+
+A late `start_at` is what buys it: the prompt sets composition and style over the
+first quarter of the schedule, and the adapter only speaks after that.
+
+Not yet answered: whether this actually *stabilises* the costume across poses,
+which is the reason it was installed. That is a measurement -- run the poses with
+and without, and compare `costume_check.py --palette` against their baselines --
+and it needs baselines for more than the two poses that have them.

@@ -3805,3 +3805,17 @@ honest number, and then a judgement smuggled in beside it. Measure the line;
 don't rule on it.
 
 Kept: `ykprone2k-prone-1886970040`, 1536x1024 refined to 2048x1368 at 0.60.
+
+Rendered: `ykprone2k-prone-1886970040`, stroke 2.177 -> 1.532 per 1000px. That
+seed's first pass is the heavy end of the six, so the pass lands it nearer 1.91
+than 555666777's did -- which is a coincidence of where that seed started and
+not a reason to prefer it.
+
+Two things the refine moved on this seed that the 1024-side prints did not show:
+the raised legs come back lavender along their whole length rather than pale
+socks over a grey band, so the layering reads as one stocking at print size; and
+the hem sits above the hip, which the larger canvas makes plainer than the sweep
+did. Both are properties of this seed being the one with the most rear in frame.
+The layering is the one worth chasing if this pose gets another session --
+`4c146593` lost it the same way and the lesson there was that it has to be won
+in the first pass.

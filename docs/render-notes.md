@@ -3646,3 +3646,29 @@ design does not have. Same line, worse picture, which is the invention curve
 already recorded for denoise arriving on top of the line curve.
 
 Kept: `ln-d65`.
+
+### Opening the eyes further: say it, do not ban it harder (2026-08-17)
+
+One pass from `88b01d73` at 0.65 again, three ways:
+
+| | change | result |
+|---|--------|--------|
+| Ga | guard to 1.65 + `(narrowed eyes:1.4)` | open, and **the backdrop goes mottled** |
+| **Gb** | `(large eyes:1.3)` -> 1.55, guard unchanged | **kept.** open, backdrop clean |
+| Gc | both | open, backdrop mostly clean |
+
+**"Guards are cheap in a late pass" needs a correction: cheap, not free.** That
+was written two entries ago on a chain that carried one guard pair. Carrying
+three in the same pass mottles the backdrop -- so stacking is punished at every
+pass depth, and what a late pass buys is a discount rather than an exemption.
+Fifth distinct cost recorded for stacking: saturation, saturation, an intruder,
+a second chair, and now backdrop texture.
+
+Gb is also the cheaper move in the other sense. `(large eyes:1.3)` was sitting
+in FACE unraised the whole time, so opening the eyes needed a weight on a tag
+already present rather than a new ban on the tag already banned. The positive
+was never asked before the negative was pushed twice.
+
+Stroke held at 1.46 per 1000px, so the finer line survives the change.
+
+Kept: `eyes2Gb`.

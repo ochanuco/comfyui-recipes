@@ -4093,3 +4093,37 @@ region boundary printing itself. `recolor_bg.py` is the existing answer to a
 backdrop this recipe does not control. And the masks in `assets/` belong to seed
 1886970040 -- on any other seed they are wrong, and the honest way to get one is
 to render it first and cut new masks from it.
+
+### ニーハイ is `thighhighs`, and the mask is what decides it (2026-08-17)
+
+「ハイソックスとニーハイの違いが曖昧になってる。私が欲しいのはニーハイです」.
+
+The previous entry shipped `kneehighs`, which is **ハイソックス** -- knee-length,
+stopping below the knee. **ニーハイ is `thighhighs`**: over the knee, ending on
+the thigh. The translation was mine and it was wrong, and it did not stay a
+wording problem, because the masks were cut to match the wrong garment: the sock
+region covered the whole raised leg, so the sock top landed where the leg meets
+the hip and the grey had only the buttock. That is the spats read, arrived at a
+third time by a third route.
+
+The fix is two lines and no new mechanism, which is the point:
+
+- the sock region's tags become `(white thighhighs:1.8),
+  (white over-kneehighs:1.6), (thighhighs:1.5)`;
+- the two masks are re-cut against a line across the thigh at y=470, 12px of
+  transition: below it tights, above it sock.
+
+**The mask is the garment's length.** The tags say what it is made of and the
+mask says where it stops, and of the two the mask is the one that decides
+ニーハイ from ハイソックス. Nothing in the prompt has to change to move the sock
+top up or down the leg -- redraw the line. A 40px transition and a 12px one both
+work; the crisp one gives a slightly more definite boundary and shipped.
+
+Kept: `ykprone-nh2k-prone-1886970040`, 2048x1368, stroke 1.399 per 1000px. Grey
+tights over hip and thigh, white thigh-highs from mid-thigh to the toes, one
+pass, no post-processing.
+
+Open, and inherited: the thin white line across the backdrop beside the knee is
+still there, and no welt band is drawn at the sock top -- the boundary is a
+colour change, not a hem. `zettai ryouiki` is not available to ask for it, since
+that names bare thigh above the sock and there is none.

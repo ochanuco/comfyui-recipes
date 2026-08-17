@@ -3500,3 +3500,27 @@ than the garment category.
 Kept: `rf-boss-straps`, 979797979 at 2048x2048. The tights read weaker on this
 render than on the one before it; the straps landed, the grey above the welt did
 not, and that trade has not been chased.
+
+### No buttons on the dress, and one guard is the whole fix (2026-08-17)
+
+The official design has a plain ribbed front -- ribbon, beads, frills, no
+buttons -- and the renders had been drawing a button placket down the centre.
+Nothing in the prompt asks for one; it arrives from the cardigan, or from the
+garment being read as a shirt dress. Nothing to substitute, so a guard.
+
+One, two and four guards, three seeds each. **All three remove the buttons**,
+which makes this the cheapest of the three to choose:
+
+| | negative | result |
+|---|----------|--------|
+| **Z1** | `(buttons:1.4)` | **kept.** buttons gone, nothing else moves |
+| Z2 | + `(buttoned shirt:1.35)` | buttons gone, **rabbit silhouette on the chair back** |
+| Z3 | + `(shirt:1.4), (placket:1.35)` | buttons gone, same intruder |
+
+Third time stacking guards has cost something here, and the first time the cost
+was an intruder rather than the palette -- the same backdrop rabbit this pose's
+ancestors fought through a dozen renders, arriving with the stack rather than
+with any one tag. Worth recording that the punishment is not always the same
+shape; it was saturation twice and composition this time.
+
+Kept: `rf-boss-nobtn`, 979797979 at 2048x2048.

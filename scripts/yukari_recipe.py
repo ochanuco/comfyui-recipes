@@ -788,7 +788,24 @@ def negative(pose: str) -> str:
         # of which cost more: easing `mature female` to 1.15 gives back some of
         # the adult read this pose exists for, and `(small breasts:1.35)` in the
         # positive grows the block by a tag and lands flatter than asked.
-        return NEGATIVE.replace("(large breasts:1.25)", "(large breasts:1.5)")
+        #
+        # And no buttons. Her dress has none -- ribbed front, ribbon and beads,
+        # and that is all -- but nothing in the prompt asks for them either;
+        # they arrive from the cardigan, or from the garment being read as a
+        # shirt dress. Nothing to substitute, so this is a guard, and it is one
+        # guard on purpose.
+        #
+        # Measured at one, two and four. All three remove the buttons. Two and
+        # four also drew a rabbit silhouette onto the chair back on 979797979 --
+        # the same backdrop intruder this pose's ancestors fought, arriving with
+        # the stack rather than with the tag. Third time guard-stacking has cost
+        # something here, and the first time the cost was an intruder rather
+        # than the palette.
+        #
+        # In front of NEGATIVE, which is where `nape` puts its own and the order
+        # the approved render was drawn in.
+        return "(buttons:1.4), " + NEGATIVE.replace(
+            "(large breasts:1.25)", "(large breasts:1.5)")
     if pose != "lap":
         return NEGATIVE
     # A head resting in her lap looks up at her, so the guard against low angles

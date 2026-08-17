@@ -3903,3 +3903,43 @@ Kept: `v7pale2k-prone-1886970040`, spliced into `positive()` and verified to
 reproduce from `--pose prone --seed 1886970040 --hires 2048` -- the prompt the
 recipe now builds is byte-identical to the one that drew it. The hand needed no
 fix on this render; the fist came out clean unaided.
+
+### 「タイツになってないな…スパッツだ…」: the boundary was the garment (2026-08-17)
+
+Easing the grey pair did not fix the spats read, it recoloured it. The rear came
+back as a smooth plum shape with the frilled hem above it and the welt band
+below -- the same fitted short garment, now in the dress's colour. The previous
+entry's fix was wrong in the way a fix can be wrong while every measurement
+under it is right: it removed the grey, and the grey was never the subject.
+
+**Two layers cannot be drawn from behind without one of them being shorts.**
+Whichever layer covers the buttock has to end somewhere, and a fitted shape that
+ends in a hem, above legs of a different colour, is a pair of bike shorts. That
+is what the eye is reading: not the colour, not the tag, the boundary. The pale
+thighhighs and the grey pantyhose were both drawn exactly as asked.
+
+So the fix is one garment, and the pantyhose is the one to keep -- it is the
+layer that reaches the hip:
+
+| arm | rear | legs | verdict |
+|-----|------|------|---------|
+| grey kept, socks eased | dress hem | warm brown-grey | reads as tights, wrong colour |
+| `pale purple pantyhose`, socks eased | dress hem | pale lavender | **kept** |
+| + `(white pantyhose:1.2)` alongside | -- | -- | composition re-rolled |
+
+Two things fall out of that table. The colour has to travel with the surviving
+garment: leaving `grey pantyhose` in place and raising `(lavender tint:1.5)`
+gets tights that land warm brown-grey, against a negative that bans brown
+legwear. And **a swap inside an existing span keeps the composition where an
+addition beside it does not** -- the colour word changed freely, the extra tag
+re-rolled the picture. That sharpens the rule from the previous entry: it is not
+that weights are safe and edits are not, it is that the token count is part of
+what a fixed seed is holding on to.
+
+The cost is the layering this recipe spent a whole session measuring -- pale
+thighhighs over grey tights, welt band, the lot. From behind it was never
+visible, and every other pose keeps it. Spliced per-pose in `positive()`.
+
+Kept: `ykprone-tights-prone-1886970040`, 2048x1368, stroke 1.242 per 1000px.
+Legs, hips and feet are one pale garment with no hem in it. Both hands came out
+as clean fists unaided, so the hand fix did not have to be redone.

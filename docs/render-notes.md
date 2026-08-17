@@ -4043,3 +4043,53 @@ pass, which removes every speck and costs nothing that is a garment.
 
 Kept: `ykprone-slim-final.png`, 2048x1368, stroke 1.255 per 1000px, through the
 same three steps as the entry above.
+
+### Regions beat tags: knee-highs over tights in one pass (2026-08-17)
+
+The previous entry concluded that this model cannot draw knee-highs over tights,
+and that was true of the prompt. It is not true of the picture. The two garments
+occupy different parts of the frame, and ComfyUI's stock `ConditioningSetMask`
+conditions different parts of the frame separately, so the argument stops being
+lexical and the tags stop competing.
+
+`scripts/yk_prone_legwear.py`, three conditionings:
+
+    base    the prone prompt with the legwear block cut out,
+            masked to everything OUTSIDE the two regions
+    thigh   the same prompt + grey pantyhose, over hip and thigh
+    calf    the same prompt + white knee-highs, over the raised lower legs
+
+**Three things had to be right, and each was a render.**
+
+1. **A region prompt must carry the whole prompt, not just its garment.**
+   Fragments of five tags measured nothing at strength 1.0, 2.0 and 3.0. The
+   base describes the entire picture; a fragment cannot outvote it.
+2. **The base must be masked to the complement.** This is the one that mattered.
+   Left unmasked it still describes the thigh, and averaging a prompt that says
+   nothing about legwear with one that does lands halfway: the tights came out
+   at 236 and 242 grey-white at strength 2.5, 3.5 and 4.0 alike -- present, and
+   too pale to read. Masked out with `MaskComposite` + `InvertMask`, the thigh
+   lands at **134,131,134** against this recipe's own `grey pantyhose` measured
+   at 135,127,128. The colour is not approximated, it is the same colour.
+3. **`set_cond_area: "mask bounds"` is unusable.** Colour blocks and torn
+   geometry. `"default"` throughout.
+
+The diagnostic that unstuck it is worth copying: when the regions had no visible
+effect, the region prompts were swapped for absurd ones -- black pantyhose on
+the thigh, RED socks on the calves. The socks came out red exactly inside the
+mask. That separated "the wiring is dead" from "the request is too weak", and it
+was the second. **Ask a masked region for something outrageous before concluding
+that masking does not work.**
+
+Strength 1.0 and 1.5 both land it; 1.0 is cleaner and is the default.
+
+Kept: `ykprone-reg2k-prone-1886970040`, 2048x1368, stroke 1.391 per 1000px.
+Grey tights hip to knee, white knee-highs knee to toe, over them, from one
+`--hires 2048` command and no post-processing at all. The three-step recolour
+route in the entry above still works and is now the fallback, not the recipe.
+
+Open: a thin white line crosses the backdrop beside the knee, which is the
+region boundary printing itself. `recolor_bg.py` is the existing answer to a
+backdrop this recipe does not control. And the masks in `assets/` belong to seed
+1886970040 -- on any other seed they are wrong, and the honest way to get one is
+to render it first and cut new masks from it.

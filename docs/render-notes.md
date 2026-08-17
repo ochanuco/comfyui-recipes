@@ -4164,3 +4164,49 @@ mid-thigh to the toes.
 Open: the tights band is subtle at print size -- pale grey between a purple hem
 and a white sock, and the eye can read it as shadow. Widening it means moving
 one of the two lines, which is a mask edit and not a prompt edit.
+
+### The socks' own design, which the regional rewrite had quietly dropped (2026-08-17)
+
+「タイツの色とニーハイの色・模様は覚えてます？？」. The record says, and every
+entry above it was built on:
+
+| | design | measured |
+|---|--------|----------|
+| tights | grey, opaque | `#877f80` = 135,127,128 |
+| ニーハイ | **very pale purple**, not white; **vertical knit ribbing** the length of the leg; a **purple welt band** at the top | `(ribbed legwear:1.35)` brings the rib back and the welt returns with it |
+
+The regional rewrite asked its sock region for `(white thighhighs:1.8),
+(white over-kneehighs:1.6), (thighhighs:1.5)` -- plain, white, smooth. Three
+tags, and all three of them wrong about the garment. Rewriting a prompt into a
+new mechanism is where settled detail goes missing, because the new thing is
+built to test the mechanism and the detail is not what is being watched.
+
+Corrected to `(very pale purple thighhighs:1.8), (ribbed legwear:1.5),
+(lavender tint:1.3)`. Three tags again, deliberately: at five the coat sprawled
+over the hip and the dress went missing, so **the token-count rule that governs
+the global block governs a region too.**
+
+One thing the regions buy that no global prompt could: `opaque pantyhose` lives
+in the tights region and nowhere else. That tag is what the `boss` session
+caught flattening the socks' knit when both garments shared one prompt. Split
+into regions, the smooth face belongs to the tights and the rib belongs to the
+socks, and neither has to be the other's surface.
+
+Rendered: `ykprone-rib2k-prone-1886970040`, 2048x1368, stroke 1.289 per 1000px.
+Ribbing the length of the sock, welt band at the top, pale purple.
+
+**Not settled, and worth being plain about.** The grey tights band between the
+hem and the sock top will not co-exist with the corrected socks. Six attempts on
+this seed: with `dark grey`/`charcoal` in the region it draws a dark blob at the
+hip; without them it is not drawn at all; at 1.4x region weight it vanishes, at
+1.8x it blobs; shortening the sock to expose more thigh turned the whole leg
+grey and ribbed instead. The shipped `ykprone-dr2k` has the band and plain white
+socks; this render has the design and no band. Both are in the tree.
+
+Also learned the hard way: **masks do not move with the picture.** After several
+prompt changes the committed masks no longer sat on the anatomy they were cut
+from -- the tights band ended up under the sock and the dress mask over bare
+skin. Re-cutting from the current render is a real step in the loop, not a
+one-off setup, and the re-cut has to exclude the backdrop explicitly (it drifts,
+and on one render it came within tolerance of the sock colour and turned a leg
+mask into a full-width stripe).

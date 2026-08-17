@@ -3585,3 +3585,28 @@ and a guard is a deletion. A first pass gets to rearrange the composition around
 the same guard, and it does.
 
 Kept: `eyeEc`, 2048x2048, chained onto `88b01d73`.
+
+### Corrections go on in one pass, not in a stack (2026-08-17)
+
+Reducing the chest further was first tried by chaining a fourth pass onto
+`eyeEc`, which already had three. It worked and **the palette went with it**:
+the gaming chair drifted from purple-and-black to magenta and the linework
+lightened, on all three tag variants alike. The drift belongs to the pass, not
+to what was asked of it.
+
+Going back to `88b01d73` and putting the eye guard and the stronger chest tags
+into **one** pass gives the same corrections with the chair still purple.
+
+**Each pass takes a little colour and line with it, so the count is the cost.**
+Corrections discovered separately should be re-applied together from the last
+approved render, not stacked in the order they were found.
+
+Also fixed, and it nearly cost this comparison: `chain_pass` allocated node ids
+20-23 as constants. Chaining onto a graph that was itself chained overwrote the
+previous pass instead of extending it -- the second chain would have silently
+redrawn the same picture. Ids are now allocated above whatever the graph already
+uses. Fixed ids worked exactly once, which is the number of times a fixed id
+works.
+
+Kept: `one-d60` -- `88b01d73` plus a single pass at 0.60 carrying
+`(small breasts:1.6)`, `(large breasts:1.8)` and the eye guard.

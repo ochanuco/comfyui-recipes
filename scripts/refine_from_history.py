@@ -55,27 +55,38 @@ def last_decode(graph):
 
 
 def chain_pass(base, size, denoise, prefix, prompt=None):
-    """Append one more image-space pass onto whatever the graph already ends in."""
+    """Append one more image-space pass onto whatever the graph already ends in.
+
+    Node ids are allocated above whatever the graph already uses, so this can be
+    applied to a render that was itself produced this way. Fixed ids worked
+    exactly once: chaining onto a chained graph silently overwrote the previous
+    pass and drew the same picture again.
+    """
     g = json.loads(json.dumps(base))
+    n = max(int(k) for k in g) + 1
+    scale, encode, sample, decode = str(n), str(n + 1), str(n + 2), str(n + 3)
     pos, neg = ["6", 0], ["7", 0]
     if prompt:
-        g["16"] = {"class_type": "CLIPTextEncode",
-                   "inputs": {"clip": ["4", 1], "text": prompt[0]}}
-        g["17"] = {"class_type": "CLIPTextEncode",
-                   "inputs": {"clip": ["4", 1], "text": prompt[1]}}
-        pos, neg = ["16", 0], ["17", 0]
+        p_pos, p_neg = str(n + 4), str(n + 5)
+        g[p_pos] = {"class_type": "CLIPTextEncode",
+                    "inputs": {"clip": ["4", 1], "text": prompt[0]}}
+        g[p_neg] = {"class_type": "CLIPTextEncode",
+                    "inputs": {"clip": ["4", 1], "text": prompt[1]}}
+        pos, neg = [p_pos, 0], [p_neg, 0]
     tail = last_decode(g)
-    g["20"] = {"class_type": "ImageScale", "inputs": {
+    g[scale] = {"class_type": "ImageScale", "inputs": {
         "image": [tail, 0], "upscale_method": "lanczos",
         "width": size, "height": size, "crop": "disabled"}}
-    g["21"] = {"class_type": "VAEEncode", "inputs": {"pixels": ["20", 0], "vae": ["4", 2]}}
-    g["22"] = {"class_type": "KSampler", "inputs": {
+    g[encode] = {"class_type": "VAEEncode",
+                 "inputs": {"pixels": [scale, 0], "vae": ["4", 2]}}
+    g[sample] = {"class_type": "KSampler", "inputs": {
         "model": ["4", 0], "positive": pos, "negative": neg,
-        "latent_image": ["21", 0], "seed": g["3"]["inputs"]["seed"],
+        "latent_image": [encode, 0], "seed": g["3"]["inputs"]["seed"],
         "steps": 30, "cfg": 5.0, "sampler_name": "dpmpp_2m",
         "scheduler": "karras", "denoise": denoise}}
-    g["23"] = {"class_type": "VAEDecode", "inputs": {"samples": ["22", 0], "vae": ["4", 2]}}
-    g["9"]["inputs"]["images"] = ["23", 0]
+    g[decode] = {"class_type": "VAEDecode",
+                 "inputs": {"samples": [sample, 0], "vae": ["4", 2]}}
+    g["9"]["inputs"]["images"] = [decode, 0]
     g["9"]["inputs"]["filename_prefix"] = prefix
     return g
 

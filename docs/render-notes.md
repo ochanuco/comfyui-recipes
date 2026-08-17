@@ -4363,6 +4363,86 @@ them:
 A late `start_at` is what buys it: the prompt sets composition and style over the
 first quarter of the schedule, and the adapter only speaks after that.
 
+**"Style holds" in that table is wrong, and the eye caught it before the tool
+did.** Put those arms beside a control at the same pose and seed and the drawing
+has changed in every one: the tights are airbrushed instead of cel-shaded, and
+the contour is heavier.
+
+| arm | stroke /1000px |
+|-----|----------------|
+| control, no adapter | **2.958** |
+| 0.25 standard, start 0.15 | 3.933 |
+| 0.40 prompt-first, start 0.00 | 3.547 |
+| 0.40 prompt-first, start 0.25 | 3.685 |
+| the reference itself | 1.302 |
+
+20-33% heavier than the control, all of them. Note which way that runs: the
+reference has the *finest* line of anything in the table and the outputs still
+came back coarser than the control, so the adapter is not copying the reference's
+stroke -- it is smearing the sampler's. "Use a flatter reference" is therefore not
+the fix, and the lesson from the first table generalises the other way instead.
+
+`end_at` was 1.0 in every one of those arms. The contour and the flat fills get
+resolved in the *last* steps and the adapter was still speaking through all of
+them. `start_at` protects the composition by handing the prompt the opening of
+the schedule; `end_at` should protect the drawing by handing it the close. The
+plain `IPAdapter` node cannot express that usefully -- `IPAdapterAdvanced` can,
+and also exposes `attn_mask` if the window alone is not enough and the adapter
+has to be confined to the clothes.
+
+## 2026-08-17 -- `/upload/image` blinds the worker for minutes
+
+Cost most of an evening, so it is written down. Symptom: `/prompt` returns 400
+with
+
+    model_path: 'hassaku-il-v22' not in []
+    image - Invalid image file: ykprone-band-final.png
+
+for a model that is on disk and an image that is in `input\`, while
+`/object_info` in the same second lists both. Every graph fails, including ones
+that rendered minutes earlier.
+
+**The cause is `/upload/image`.** For some minutes after an upload the worker
+answers every `/prompt` this way; then it recovers by itself. `/object_info`
+keeps reporting the truth throughout, which is what makes it so confusing.
+
+Three wrong answers came first, and the reason each was wrong is the useful part:
+
+- *A cache gone stale over hours.* Killed by a full restart that changed nothing.
+- *`POST /queue {"clear": true}`.* Every rejected batch did have a clear just
+  before it and every accepted batch did not -- a clean correlation across six
+  batches, and pure coincidence. The clears were mine, and I was running them
+  next to the uploads.
+- *The IPAdapter nodes.* Killed by submitting plain, `IPAdapter` and
+  `IPAdapterAdvanced` graphs alternately, nine in a row: all accepted.
+
+What finally settled it was rebuilding the failing submission inline, one line at
+a time, until only `stage_input` was left. The lesson is that "the same graph
+passes from here and fails from there" means the difference is in the *caller*,
+and bisecting the caller is faster than theorising about the server.
+
+So: don't re-upload an input the worker already holds. Ask
+`/object_info/LoadImage` whether the name is in its list first -- this sweep was
+pushing the same 1.9MB reference on every run for nothing, and paying for it with
+the whole sweep.
+
+The reporting is what makes this expensive: the two nodes named in the error are
+collateral. `input_config: [[], {}]` means ComfyUI could not get INPUT_TYPES at
+validation time at all, so the node it points at is not the node with the
+problem. Confirmed by submitting a LoadImage-only graph with the very same
+filename -- accepted, while the full graph naming it was rejected.
+
+**A headless restart costs you the log.** ComfyUI had been restarted through
+`Invoke-CimMethod Win32_Process Create` to pick up the new nodes, which leaves no
+console and so nothing to read when it misbehaves. Relaunch with the streams
+redirected instead:
+
+    cmd /c cd /d <portable> && .\python_embeded\python.exe -s ComfyUI\main.py ^
+        --listen --windows-standalone-build > comfyui.log 2>&1
+
+Also: `/system_stats` answers well before the server can validate a model path,
+so it is the wrong readiness probe after a restart. Submit a known-good graph.
+
 Not yet answered: whether this actually *stabilises* the costume across poses,
 which is the reason it was installed. That is a measurement -- run the poses with
 and without, and compare `costume_check.py --palette` against their baselines --

@@ -4210,3 +4210,52 @@ skin. Re-cutting from the current render is a real step in the loop, not a
 one-off setup, and the re-cut has to exclude the backdrop explicitly (it drifts,
 and on one render it came within tolerance of the sock colour and turned a leg
 mask into a full-width stripe).
+
+### A costume contract, since the prompt cannot hold one (2026-08-17)
+
+「キャラの服装は強くコードで残したい。ポーズを変えると直ぐブレる」. It cannot be
+held by prompt text -- this session is the evidence, and so is every splice in
+`positive()`: `boss` five, `nape` three, `prone` six. Tags are one argument about
+the whole picture and a new pose re-weights all of them.
+
+The two things that would actually pin it are a **costume LoRA** and
+**IPAdapter**, and both are blocked on the same fact: the Windows worker has
+only the `hassaku-il-v22` diffusers folder. `LoraLoader`, `ControlNetLoader` and
+`CLIPVisionLoader` all return empty lists and no IPAdapter node is installed.
+With no SSH and no SMB, putting anything on that disk needs a command run over
+RDP -- which `scripts/fetch-models-windows.ps1` exists for, and which the repo's
+manifests are already written for (`ComfyUI_IPAdapter_plus` and
+`ip-adapter-plus_sdxl_vit-h.safetensors` are both listed).
+
+So `scripts/costume_check.py`: not prevention, **detection**.
+
+**Prompt side, and it found its own reason to exist.** Each pose's prompt is
+rebuilt from the shared blocks and diffed tag by tag against what `positive()`
+returns; every difference must be declared with a reason. Writing the
+declarations out was the first time the fifteen poses' splices have been in one
+place -- they were written one session at a time, by `.replace()` calls that do
+not know about each other. Fifteen poses, eighteen exceptions.
+
+**And the blocks themselves are fingerprinted.** Comparing poses against the
+shared blocks cannot see a change *to* the shared blocks -- that was tried:
+swapping `black hooded cardigan` for `black hoodie` passed every pose, because
+every pose was compared against the hoodie. A hash of the seven blocks catches
+it. `--accept` prints the new one, for a change that is meant and written down.
+
+**Render side, and absolute floors do not work.** With tolerances wide enough to
+catch a shaded garment, hair satisfies "pale sock" and shading satisfies
+"legwear grey": three renders this project had already rejected all passed. What
+separates them is the share against a render that was *accepted* -- the
+bare-legged arm reads 0.30x of the accepted pale-sock share. So the check is
+relative and per-pose, with the band at 0.4-2.5x, set below the disagreement
+between two accepted renders of one pose (0.49x on skin alone, because one has
+the dress covering more) and above nothing else.
+
+    uv run scripts/costume_check.py                          # all poses + fingerprint
+    uv run scripts/costume_check.py --palette r.png --pose prone
+    uv run scripts/costume_check.py --palette r.png --pose prone --record
+
+What it is not: it measures colour presence, not garment identity. A grey sock
+would pass as grey tights. It is a smoke alarm, and the reason it is worth
+having is that everything it checks is something this project has already got
+wrong at least once.

@@ -22,8 +22,9 @@ They do not have to share a *prompt*, though. They occupy different parts of the
 picture, and ComfyUI conditions parts of the picture separately:
 
     base    the whole prompt with the legwear block removed,
-            masked to everything OUTSIDE the two regions
-    tights  the same prompt plus grey pantyhose, masked over hip and thigh
+            masked to everything OUTSIDE the three regions
+    dress   the same prompt plus the purple dress, masked over the rear
+    tights  the same prompt plus grey pantyhose, a band on the upper thigh
     sock    the same prompt plus white thighhighs, masked from mid-thigh
             down the raised legs to the toes
 
@@ -47,10 +48,11 @@ any other seed:
 1. render the first pass and cut two regions from it by colour -- bare skin for
    the legwear, near-white for the raised legs;
 2. open, dilate by 41px and blur by 20 so they survive the picture moving;
-3. **split them across the thigh at y=470, with a 12px transition.** Everything
-   below that line is tights, everything above it is sock. That line is the sock
-   top, and it is the only thing in this file that decides ニーハイ from
-   ハイソックス -- the tags describe the garment, the mask places it.
+3. **cut them with two lines across the body, 12px of transition each.** At
+   y=430 the sock top: above it sock, below it legwear. At y=620 the hem:
+   below it dress, between the two lines tights. The tags describe the
+   garments, the lines place them, and the lines are what decide ニーハイ from
+   ハイソックス and how much rear the dress covers.
 
 They are specific to seed 1886970040. On any other seed they are wrong, and the
 honest way to get another one is to render it first and cut new masks from it.
@@ -68,13 +70,21 @@ from comfy_host import DEFAULT_HOST, DEFAULT_PORT, stage_input
 
 REPO = Path(__file__).resolve().parent.parent
 INPUT_DIR = REPO / ".local/ComfyUI/input"
-MASKS = {"tights": REPO / "assets/prone-tights-mask.png",
+MASKS = {"dress": REPO / "assets/prone-dress-mask.png",
+         "tights": REPO / "assets/prone-tights-mask.png",
          "sock": REPO / "assets/prone-sock-mask.png"}
 
 # The garment each region adds to the shared prompt. Weighted well above the
 # recipe's usual 1.45 because a region is arguing with nothing -- the base is
 # masked out of it -- and because the pale side of the palette wins ties here.
 REGION = {
+    # The rear is the DRESS's job. Left to the base prompt it came out as a
+    # black band between the hem and the tights, reading as a camisole or a
+    # pair of shorts worn under the one-piece -- 「お尻を隠すのはワンピースです」.
+    # The hem has never answered to length tags (see the module docstring in
+    # yukari_recipe.py); it answers to being given a region.
+    "dress": ("(purple dress:1.9), (dress:1.7), (dress hem:1.5), (frills:1.3), "
+              "(long dress:1.4)"),
     "tights": ("(grey pantyhose:1.9), (dark grey legwear:1.7), "
                "(charcoal pantyhose:1.5), (opaque pantyhose:1.5)"),
     # ニーハイ is `thighhighs`, over the knee. `kneehighs` is ハイソックス and
@@ -83,6 +93,13 @@ REGION = {
     "sock": ("(white thighhighs:1.8), (white over-kneehighs:1.6), "
              "(thighhighs:1.5)"),
 }
+
+# Per-region conditioning strength, multiplied by --strength. The tights band is
+# the thinnest region and sits between two much larger pale ones, so at parity
+# it comes back washed out -- 213,206,215 against the 134,131,134 the same
+# prompt lands when it owns more of the leg. The extra weight is buying back
+# what the neighbours take, not asking for a different colour.
+WEIGHT = {"dress": 1.0, "tights": 1.8, "sock": 1.0}
 
 
 def legwear_block() -> str:
@@ -120,7 +137,8 @@ def build(seed: int, prefix: str, hires: int, strength: float,
                                     "text": f"{base}, {REGION[name]}"}}
         graph[setmask] = {"class_type": "ConditioningSetMask",
                           "inputs": {"conditioning": [encode, 0],
-                                     "mask": [tomask, 0], "strength": strength,
+                                     "mask": [tomask, 0],
+                                     "strength": strength * WEIGHT[name],
                                      "set_cond_area": "default"}}
         graph[combine] = {"class_type": "ConditioningCombine",
                           "inputs": {"conditioning_1": combined,
@@ -129,15 +147,23 @@ def build(seed: int, prefix: str, hires: int, strength: float,
         mask_refs.append([tomask, 0])
         node += 5
 
-    # The base, masked to what the regions do not cover.
-    graph["40"] = {"class_type": "MaskComposite",
-                   "inputs": {"destination": mask_refs[0], "source": mask_refs[1],
-                              "x": 0, "y": 0, "operation": "add"}}
-    graph["41"] = {"class_type": "InvertMask", "inputs": {"mask": ["40", 0]}}
-    graph["42"] = {"class_type": "ConditioningSetMask",
-                   "inputs": {"conditioning": ["6", 0], "mask": ["41", 0],
-                              "strength": 1.0, "set_cond_area": "default"}}
-    graph["24"]["inputs"]["conditioning_1"] = ["42", 0]
+    # The base, masked to what the regions do not cover. Any number of regions:
+    # the masks are added together one at a time and the sum is inverted.
+    union = mask_refs[0]
+    node = 40
+    for ref in mask_refs[1:]:
+        graph[str(node)] = {"class_type": "MaskComposite",
+                            "inputs": {"destination": union, "source": ref,
+                                       "x": 0, "y": 0, "operation": "add"}}
+        union = [str(node), 0]
+        node += 1
+    graph[str(node)] = {"class_type": "InvertMask", "inputs": {"mask": union}}
+    graph[str(node + 1)] = {"class_type": "ConditioningSetMask",
+                            "inputs": {"conditioning": ["6", 0],
+                                       "mask": [str(node), 0], "strength": 1.0,
+                                       "set_cond_area": "default"}}
+    # The first Combine took the unmasked base; hand it the masked one instead.
+    graph["24"]["inputs"]["conditioning_1"] = [str(node + 1), 0]
 
     # Both passes sample against the same regional conditioning; the second one
     # would otherwise redraw the legs from the legwear-less base and undo it.

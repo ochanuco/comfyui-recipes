@@ -3310,3 +3310,34 @@ was made from.
 Contact sheets are the right tool for this and were underused until now: nine
 tiles labelled with their prompt ids answered in one look what nine separate
 reads would have cost. `scripts/contact_sheet.py --glob 'bossfix-*'`.
+
+### The two legwear layers are a contrast, and weight cannot make both appear (2026-08-17)
+
+On 757575757 the legs came out as pale thighhighs with no tights under them.
+Four weights, one variable each, on the off-shoulder base:
+
+| | change | result |
+|---|--------|--------|
+| P1 | `(grey pantyhose:1.45)` -> 1.65 | **whole leg goes grey**, thighhighs gone |
+| Q1 | `(very pale purple thighhighs:1.5)` -> 1.65 | whole leg stays pale, no tights |
+| Q2 | `(thighhighs over pantyhose:1.55)` -> 1.7 | whole leg goes grey |
+| Q3 | `(frills:0.85)` -> 1.25 | dress only: frilled collar, ties and beads return |
+
+**Whichever side is heavier takes the whole leg.** The layering is a contrast
+between two garments and the prompt has no way to ask for a boundary -- it can
+only ask for more of one thing. Even `thighhighs over pantyhose`, which names
+the relation rather than either garment, behaves as a third vote for the grey
+instead of drawing the join. Where the welt band has appeared, it appeared on
+its own.
+
+So the choice on a seed like this is pale thighhighs or grey tights, not both.
+`rf-boss-q4` takes the tights, since that was the half that was missing.
+
+**`(frills:0.85)` was below 1 in a prompt where everything else is 1.3+**, which
+this recipe has twice measured as equivalent to absent -- `hair ornament` and
+`drawstring` had the same disease. At 1.25 the frilled collar, the ribbon ties
+and the beaded cords all come back, and it costs nothing visible. Third time
+the same fix has worked; worth a sweep of the remaining sub-1.0 weights.
+
+Kept: `rf-boss-q4` -- 757575757, off shoulder at 1.3, `(thighhighs over
+pantyhose:1.7)`, `(frills:1.25)`, refined at 2048 through the image-space route.

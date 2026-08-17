@@ -3058,4 +3058,45 @@ seeds of evidence sat next to a pose that had one, and the gap survived every
 later session because the word `chair` looked occupied. Worth a sweep of the
 other `pick/*` tags for the same shape.
 
-Not yet rendered from the recipe: no models are on either machine at present.
+### Rendering it: twelve renders, four blocks, one clean seed (2026-08-17)
+
+Three seeds -- the picks' own 151515151, 111222333, 555666777 -- through four
+variants of the block. Windows worker, hassaku-il-v22, 30 steps, cfg 5.0,
+dpmpp_2m karras, identical to the picks.
+
+| variant | canvas | framing tag | result |
+|---------|--------|-------------|--------|
+| A | 1024x1536 | `(full body:1.4)` | layers collapsed on 151, no crossing on 111 |
+| B | 1024x1536 | `full body` | layers back on 151 |
+| C | 1024x1024 | none | closest to `sip`, front view lost on 2 of 3 |
+| D | 1024x1024 | `full body` | **kept.** 111 clean, 151 three-quarter, 555 lost |
+
+**Two picks disagreed about one substitution and the pessimistic one was
+right.** render-notes recommended `full body` -> `(full body:1.4)` off three
+seeds; `pick/yk-chair-gradient` recorded that exact substitution, alone,
+collapsing the layered legwear into a single gradient stocking and noted it was
+never reproduced. It reproduces. Porting picked the favourable note without
+weighing the unfavourable one, and A is the cost of that.
+
+**Flatness was a framing property, not a style one.** Next to `sip` the chair
+renders had no highlights and no modelling, with the same STYLE and LINE blocks
+in both. The docstring already holds the explanation: stroke is a constant
+1.91px at every canvas here, so a figure drawn small in a tall frame carries a
+line heavy relative to her head and has no pixels left to shade in. `sip` goes
+square and drops `full body` for exactly this. Doing the same to `chair` brought
+the shading back -- the black cardigan models, the hair takes highlights, and
+the thighhigh-over-pantyhose boundary reads without being hunted for.
+
+**The square is paid for out of the framing tags.** `(front view:1.35), facing
+viewer` held on one seed of three; the other two swung to three-quarter or came
+in on the legs. `full body` does not anchor them -- tried present and absent,
+same spread -- which is consistent with it being a distance tag and not a
+direction one. What has not been tried is easing the camera pair upward, or a
+distance tag that is not `full body`.
+
+Kept: `ykchairD-chair-111222333`. Front view, chair whole down to the base and
+armrests, legs crossed, both legwear layers with the purple welt, rabbit hood
+ears up, hands on the armrests. Cropped at the shins, which the square costs.
+
+Nothing above changes a weight. `(crossed legs:1.2)` was never re-tested and
+did not need to be -- it drew two legs on all twelve.

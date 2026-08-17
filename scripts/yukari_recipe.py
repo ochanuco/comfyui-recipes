@@ -519,23 +519,38 @@ POSES = {
     #   the pale thighhighs are pushed out and one dark tights is drawn instead
     #   -- the legwear is the first thing this block spends.
     #
-    #   `(full body:1.4)` and not bare `full body`. Every seed but 151515151 cut
-    #   the feet off at the bottom edge; raising the tag already in the block
-    #   held the whole figure on two of three, which is the same
-    #   substitution-is-free result the chair word had just shown.
+    #   Bare `full body`, NOT `(full body:1.4)`. render-notes recommends the
+    #   raised form off three seeds, and pick/yk-chair-gradient records the same
+    #   substitution alone collapsing the two legwear layers into one stocking.
+    #   Ported with the raised form first and the collapse reproduced on
+    #   151515151; reverting it brought the layers back on that seed. Two picks
+    #   disagreed about one substitution and the unfavourable one was right.
     #
     # One tag had to go to make room for (solo:1.5), which leads every entry
     # here and is worth its slot -- it took clones from five of eight to none.
     # `looking at viewer` is the one dropped, because FACE already supplies it;
     # `lap` omits it for the same reason. Nine tags in, nine tags out.
     #
+    # 1024x1024, where the picks were 2:3. The look was drifting flat next to
+    # `sip` -- no highlights, no modelling -- and that is a framing property, not
+    # a style one. Stroke is a constant 1.91px at every canvas this recipe uses
+    # (see the module docstring), so a figure drawn small carries a line that is
+    # heavy relative to her head and has no pixels left to shade in. The square
+    # puts her back at `sip`'s scale and the shading returns with her.
+    #
+    # NOT SETTLED, one clean seed in three. 111222333 holds the front view with
+    # the chair whole; 151515151 keeps everything but swings to three-quarter;
+    # 555666777 brings the camera in on the legs and loses the composition. The
+    # framing tags are what the square is spending, and `full body` at any
+    # weight does not anchor them -- it was tried both ways here.
+    #
     # Unmeasured here: the picks ran --face moe-far-noeye, and this recipe has
     # one fixed FACE block. The backdrop intruder that owned an earlier chair
     # pose answered only to the face lever, so if it comes back, that is where
-    # it lives -- but the nine-tag runs it was measured against had none.
+    # it lives -- but none of the twelve renders here had one.
     "chair": (
-        "(solo:1.5), (sitting on chair:1.4), (crossed legs:1.2), (full body:1.4), "
-        "(front view:1.35), facing viewer, (gaming chair:1.4), swivel chair, backrest"
+        "(solo:1.5), (sitting on chair:1.4), (crossed legs:1.2), (front view:1.35), "
+        "facing viewer, (gaming chair:1.4), swivel chair, backrest, full body"
     ),
     # A full squat seen from the side, curled forward over her knees with a mug
     # held in both hands at her mouth. Built by substituting into `crouch`'s
@@ -619,10 +634,7 @@ POSES = {
 # at 1024x1280 and drew down to the thighs. 1024x1024 held it.
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          "peace": (1024, 1536),
-         # Stays tall while sip and nape went square: this block carries
-         # (full body:1.4) and was cropping feet at the bottom edge, so the
-         # height is what it is spending.
-         "chair": (1024, 1536),
+         "chair": (1024, 1024),
          "yawn": (1024, 1536), "fall": (1024, 1536),
          "coy": (1024, 1536),
          "lap": (1024, 1536),

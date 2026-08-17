@@ -85,13 +85,38 @@ REGION = {
     # yukari_recipe.py); it answers to being given a region.
     "dress": ("(purple dress:1.9), (dress:1.7), (dress hem:1.5), (frills:1.3), "
               "(long dress:1.4)"),
-    "tights": ("(grey pantyhose:1.9), (dark grey legwear:1.7), "
-               "(charcoal pantyhose:1.5), (opaque pantyhose:1.5)"),
+    # `opaque pantyhose` lives here and ONLY here. It is what keeps the tights a
+    # smooth face, and it is exactly what used to flatten the socks' knit when
+    # the two garments shared one prompt -- the regions let each surface have
+    # its own instruction, which no global block could.
+    # `dark grey` and `charcoal` are out. They were added while the socks were
+    # white and the band had to fight for contrast; against the pale purple
+    # socks the design actually calls for, they draw a dark blob at the hip
+    # rather than tights on a thigh. The weight stays at 1.8 -- the band is thin
+    # and needs it -- but what it is asking for is just grey.
+    "tights": ("(grey pantyhose:1.7), (opaque pantyhose:1.5), "
+               "(lavender tint:1.2)"),
     # ニーハイ is `thighhighs`, over the knee. `kneehighs` is ハイソックス and
     # stops below it -- the first cut of this used that word and the sock top
     # ended up at the hip, which is the spats read in different clothes.
-    "sock": ("(white thighhighs:1.8), (white over-kneehighs:1.6), "
-             "(thighhighs:1.5)"),
+    #
+    # And they are NOT plain white. The design this repo settled and measured:
+    # very pale purple rather than white, vertical knit ribbing the length of
+    # the leg, and a purple welt band at the top. `(ribbed legwear:1.5)` is what
+    # carries both -- measured in the `boss` session, where the welt came back
+    # unasked alongside the ribbing, and where `(vertical-striped legwear)` drew
+    # lines that read as a printed stripe and lost the welt.
+    #
+    # `opaque pantyhose` is what had been flattening that knit, and it is still
+    # in the tights region above. That is the thing a region buys which no
+    # global prompt could: the smooth face belongs to the tights and the rib
+    # belongs to the socks, and they no longer have to be the same surface.
+    # Three tags, the same count the white version had. At five the picture
+    # moved: the coat sprawled over the hip and the dress went missing. A region
+    # is still part of one prompt, and the token-count rule that governs the
+    # global block governs a region too.
+    "sock": ("(very pale purple thighhighs:1.8), (ribbed legwear:1.5), "
+             "(lavender tint:1.3)"),
 }
 
 # Per-region conditioning strength, multiplied by --strength. The tights band is

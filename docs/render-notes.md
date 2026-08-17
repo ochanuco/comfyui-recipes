@@ -4407,33 +4407,67 @@ coarsening the line is not how loudly the adapter speaks but how long: close the
 window and the strength can go up. Don't read the column as monotonic, though --
 end 0.60 scores worse than end 1.00, which is noise at this sample size.
 
-**And it does hold the costume.** The `sip` renders measured against the *prone*
-baseline -- that is, "does this pose wear the approved costume?":
+**It does not hold the costume, and it does not keep the line either.** Both
+halves of that claim were made here on one pose and one sample, and neither
+replicates. Retracted in full; the numbers that killed them are below.
 
-| arm | legwear grey | dress purple | coat black |
-|-----|--------------|--------------|------------|
-| control, no adapter | 1.90% (0.44x) | -- | 10.07% (0.22x) |
-| w 0.40, end 0.45 | 6.07% (1.40x) | 1.38% (0.23x) FAIL | 16.21% (0.35x) |
-| w 0.40, end 0.60 | 6.61% (1.53x) | 1.97% (0.32x) FAIL | 17.31% (0.37x) |
-| **w 0.55, end 0.45** | **4.28% (0.99x)** | **3.53% (0.58x) ok** | 17.46% (0.37x) |
+The claim was built on `sip` renders measured against the *prone* baseline, where
+`legwear grey` went from 0.44x without the adapter to 0.99x with it. **That
+measurement is confounded.** The reference image is `ykprone-band-final.png` --
+itself a prone render. An adapter that pulls the output toward its reference
+pulls it toward prone's baseline by construction. The number was measuring
+"resembles the reference", which is what an adapter does by definition, not
+"wears the approved costume".
 
-The grey tights band -- the thing that kept vanishing all session -- lands at
-0.99x of baseline. Without the adapter it is 0.44x, less than half. The same arm
-wins on both axes: `weight 0.55, start_at 0.25, end_at 0.45` gives a finer line
-than not using the adapter at all *and* the costume it was installed to hold.
+Worse, the confound was avoidable: the same section already said that cross-pose
+shares conflate costume with composition and that only same-pose control-vs-arm
+comparisons carry an argument. The conclusion was then drawn from precisely the
+comparison it had ruled out.
 
-Read the absolute ratios with care. `coat black` fails everywhere and
-`hood lining pink` runs 3-6x, but that is framing, not drift: prone is a
-full-body from above where the coat covers 46% of the figure, sip is a crouch
-that shows less coat and more of the red lining. Cross-pose shares conflate
-costume with composition. What carries the argument is the control-vs-arm
-comparison *at the same pose*, and that is clean -- the adapter moves coat black
-from 0.22x toward baseline too.
+## 2026-08-17 -- the generation test, and a negative result
 
-Worth noting that the eye could not call this one. Side by side, control and all
-three arms have legs that look alike -- pale lavender with a purple band, none of
-them obviously the reference's two layers. The 0.44x-vs-0.99x gap is real and
-invisible, which is the argument for having the tool at all.
+`boss` is the one pose with a baseline of its own, so it is the one comparison
+with no framing confound. Same seed, adapter off and on, at
+`weight 0.55 / start_at 0.25 / end_at 0.45`:
+
+| boss | legwear grey | dress purple | coat black |
+|------|--------------|--------------|------------|
+| off | 0.60% (0.22x) FAIL | 1.47% (0.39x) FAIL | 25.18% (1.08x) ok |
+| on | 0.56% (**0.20x**) FAIL | 8.93% (2.35x) ok | 10.90% (**0.47x**) ok |
+
+The grey tights do not improve -- 0.22x to 0.20x, both failing. `coat black`
+moves *away* from its baseline, 1.08x to 0.47x.
+
+`prone` at seed 1886970040 is the sharpest version of the test, because there the
+reference *is* this pose's own finished render -- the one that took a manual
+recolour and a masked refine to reach. If the adapter can carry a costume at all,
+it can carry it here:
+
+| prone | legwear grey | pale sock |
+|-------|--------------|-----------|
+| off | 1.77% (0.41x) | 9.78% (0.35x) FAIL |
+| on | 1.73% (0.40x) | 7.12% (0.25x) FAIL |
+
+Nothing. 0.41x to 0.40x.
+
+And the line thickens everywhere, so the `sip` result of 2.777 against a control
+of 2.958 does not replicate either:
+
+| pose | off | on |
+|------|-----|-----|
+| boss | 4.173 | 4.548 (+9%) |
+| chair | 3.921 | 4.177 (+7%) |
+| lounge | 2.220 | 2.224 (+0%) |
+| peace | 1.769 | 2.030 (+15%) |
+
+So IPAdapter, on this model at these settings, does not answer the question it
+was installed for. The costume still cannot be held by conditioning; it has to be
+held by weights. That points back at the LoRA route, and the dataset for it is
+the `pick/*` renders that already exist.
+
+Method lesson, more valuable than the result: one pose is not a measurement. Both
+retracted claims came from a single sweep on `sip`, and a four-pose replication
+cost one batch of renders and overturned both.
 
 Still open: `sip` has no baseline of its own (only `prone` and `boss` do), so the
 comparison above borrows prone's and pays for it with the framing caveat. Record

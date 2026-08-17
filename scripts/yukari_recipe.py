@@ -780,21 +780,27 @@ def positive(pose: str) -> str:
         face = face.replace(", looking at viewer", "")
     body = BODY
     if pose == "boss":
-        # Grown up, and both halves of it are substitutions rather than
-        # additions -- the block is saturated and the chair notes are explicit
-        # that adding costs the picture while swapping a word does not.
-        #
-        # `tareme` -> `tsurime`. Drooping eyes are most of what reads young
-        # here, and upturned ones are the same slot pointed the other way; they
-        # also carry the look the smirk wants, so one swap serves both asks.
+        # Grown up, and it is one substitution now, not the two it started as.
         #
         # `petite` -> `mature female`. Direct opposite in the same slot. The
         # rest of BODY -- wide hips, thick thighs, narrow waist -- is already
-        # adult proportion and was only being held down by that one tag.
+        # adult proportion and was only ever being held down by that one tag.
+        #
+        # The face is NOT touched, and why is worth keeping. It was
+        # `tareme` -> `tsurime`, on the reasoning that drooping eyes are most
+        # of what reads young and that upturned ones would carry the smirk as
+        # well -- one swap for both asks. Both halves turned out to be somebody
+        # else's work. Reverting the eyes alone leaves the adult read intact,
+        # so the body swap was doing that; and the smirk went to (smug:1.15)
+        # in the meantime, which retired the other job. What was left was a tag
+        # with nothing to do and a sharpness nobody had asked for.
+        #
+        # `(tsurime:1.1)` is the middle if a trace of it is ever wanted.
+        # Dropping the eye tag outright is not the neutral option it looks
+        # like: it drew a second empty chair into the backdrop.
         #
         # Spliced per-pose, not changed globally: every other pose was settled
-        # against the young face and would move under this.
-        face = face.replace("(tareme:1.3)", "(tsurime:1.3)")
+        # against this BODY and would move under it.
         body = body.replace("(petite:1.2)", "(mature female:1.35)")
     character = CHARACTER
     if pose == "nape":

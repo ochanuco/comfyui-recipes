@@ -3207,3 +3207,33 @@ of two tags in a pair is inert before spending a round on it.
 
 Kept: `rf-boss-calm`, F1 on 555666777 at 2048x2048 through the image-space
 route. Layering unambiguous, expression composed.
+
+### The eye tag had no job left, so it went (2026-08-17)
+
+`(tsurime:1.3)` came in as half of the adult splice and read too sharp. Three
+ways off it, two seeds each, edited into the built graph's positive text so
+every other token stayed byte-identical.
+
+| | change | result |
+|---|--------|--------|
+| G1 | `(tsurime:1.1)` | softer, still upturned |
+| G2 | eye tag deleted | soft, and **a second empty gaming chair in the backdrop** |
+| G3 | back to `(tareme:1.3)` | **kept.** sharpness gone, still adult |
+
+**It was put in to do two jobs and by now neither was its own.** The reasoning
+was that drooping eyes are most of what reads young and that upturned ones
+would carry the smirk as well, so one swap would serve both asks. G3 reverts
+the eyes alone and the adult read does not move, so `petite` -> `mature female`
+was carrying that by itself; and the smirk had already gone to `(smug:1.15)`
+two rounds earlier, which retired the other job. What was left was a tag with
+nothing to do and a sharpness nobody asked for.
+
+**Deleting a tag is not the neutral setting between its two values.** G2 looks
+like it should sit between `tareme` and `tsurime` and instead it opened a hole:
+the backdrop grew a second empty chair, which is the empty-frame failure this
+pose's square canvas is already prone to. An occupied slot is doing work even
+when the work is only holding the slot.
+
+Kept: `rf-boss-soft`, G3 on 555666777 at 2048x2048 through the image-space
+route. `(tsurime:1.1)` is recorded in the splice comment as the middle, if a
+trace of the sharpness is ever wanted back.

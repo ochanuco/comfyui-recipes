@@ -3035,3 +3035,27 @@ resampler has eight times the detail to interpolate between. Paired with
 denoise 0.45 the surfaces come out clean and the linework does not split.
 
 Costs a VAE round trip, which is cheap against another 30 steps.
+
+### The settled chair block was never written down as a pose (2026-08-17)
+
+`yukari_recipe.py` carried a `chair` that went one clean seed in four, while the
+chair block that had been settled three seeds deep lived only in `--pose-text`
+strings inside `pick/yk-chair-151`, `-111` and `-555`. Two different poses under
+one word, and the tested one was the one not in the file.
+
+The two are not variants of each other. What was in the file was `peace` moved
+off the floor onto a chair, keeping the double-V hands; the picks are a
+front-facing gaming chair with the legs crossed and the hands free. Nothing was
+ever kept from the first, so it is gone and `peace` remains the floor version.
+
+Porting it needed one slot. Every `POSES` entry leads with `(solo:1.5)`, which
+the `--pose-text` form had no reason to carry, and the block must stay at nine.
+`looking at viewer` is what came out, because `FACE` already supplies it — the
+same reason `lap` omits it. No weight was retuned and nothing was re-rendered.
+
+**A measurement that lives only in a tag message is not in the recipe.** Three
+seeds of evidence sat next to a pose that had one, and the gap survived every
+later session because the word `chair` looked occupied. Worth a sweep of the
+other `pick/*` tags for the same shape.
+
+Not yet rendered from the recipe: no models are on either machine at present.

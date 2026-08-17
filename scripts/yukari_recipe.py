@@ -319,27 +319,6 @@ POSES = {
         "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
         "(half-closed eyes:1.3), full body"
     ),
-    # `peace` off the floor and onto a chair. `sitting on chair` is not a tag --
-    # its wiki says to use `sitting` + `on chair` -- so it is the two of them.
-    # Nine tags, matching `peace`, with yokozuwari and `legs to the side`
-    # swapped out for the pair.
-    #
-    # NOT SETTLED. One of four seeds is clean where `peace` was seven of seven:
-    #
-    #   111222333   clean -- chair drawn, socks over tights on both legs
-    #   555666777   layered correctly, but two rabbit plushies appear and the
-    #               camera drops low onto her thighs
-    #   737373737   layering gone; the purple dress is replaced by a long black
-    #               hoodie dress
-    #   3409564303  three chibi clones around her, with (solo:1.5) leading
-    #
-    # `sitting` has form for the low angle -- three of four renders once before.
-    # Busy hands stopped it that time and mostly do here.
-    #
-    # The clones and the props are the new thing, and the guess is empty frame:
-    # a figure seated on a chair fills less of a 2:3 canvas than one on the
-    # floor, and what is left over gets filled. Untested. A tighter framing than
-    # `full body` is the obvious thing to try.
     # Stretching and yawning, looked down on. The pose text comes from
     # pick/yk-yawn-full, which was settled on the older queue_dq3 recipe against
     # the same base and sampler, and carries two measured constraints:
@@ -508,10 +487,55 @@ POSES = {
         # rejection was true of that block, not of the tags.
         "(picking up:1.3), (from above:1.2), (smug:1.2), full body"
     ),
+    # Sitting on a gaming chair with her legs crossed, facing front.
+    #
+    # This block is not new here. It is the one kept as pick/yk-chair-151,
+    # pick/yk-chair-111 and pick/yk-chair-555 -- three seeds, settled on the
+    # older queue_dq3 recipe against this same base, and passed as --pose-text
+    # rather than ever being written down as a pose. Porting it in is the whole
+    # change; every weight below was measured there and none of it was re-run.
+    #
+    # What it replaces was `peace` moved off the floor and onto a chair
+    # (`sitting` + `on chair` + the double-V hands). That went one clean seed in
+    # four -- rabbit plushies, a low camera on the thighs, the dress swapped for
+    # a hoodie, and three chibi clones -- and nothing was ever picked from it.
+    # The floor version is still there as `peace`, seven seeds of seven.
+    #
+    # Four measurements this block carries, all of them costly:
+    #
+    #   `(crossed legs:1.2)`, NOT 1.35. At 1.35 the model draws the crossing
+    #   rather than the legs and a third leg appears. Banning it -- (extra
+    #   legs:1.6), (three legs:1.5) -- did not help, because the weight was the
+    #   problem and not the absence of a ban.
+    #
+    #   The chair is one word. Asked for as a five-tag block -- (gaming
+    #   chair:1.45), racing seat, (high backrest:1.3), headrest, armrest -- it
+    #   returned a full-frame noise field, and so did this block plus `leaning
+    #   back, hand on own knee`. Substituting (office chair:1.35) for (gaming
+    #   chair:1.4) at the same tag count drew a proper racing seat instead, and
+    #   threw in a controller nothing had asked for.
+    #
+    #   Nine tags, and the ninth is load-bearing in both directions. At twelve
+    #   the pale thighhighs are pushed out and one dark tights is drawn instead
+    #   -- the legwear is the first thing this block spends.
+    #
+    #   `(full body:1.4)` and not bare `full body`. Every seed but 151515151 cut
+    #   the feet off at the bottom edge; raising the tag already in the block
+    #   held the whole figure on two of three, which is the same
+    #   substitution-is-free result the chair word had just shown.
+    #
+    # One tag had to go to make room for (solo:1.5), which leads every entry
+    # here and is worth its slot -- it took clones from five of eight to none.
+    # `looking at viewer` is the one dropped, because FACE already supplies it;
+    # `lap` omits it for the same reason. Nine tags in, nine tags out.
+    #
+    # Unmeasured here: the picks ran --face moe-far-noeye, and this recipe has
+    # one fixed FACE block. The backdrop intruder that owned an earlier chair
+    # pose answered only to the face lever, so if it comes back, that is where
+    # it lives -- but the nine-tag runs it was measured against had none.
     "chair": (
-        "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "
-        "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
-        "(half-closed eyes:1.3), full body"
+        "(solo:1.5), (sitting on chair:1.4), (crossed legs:1.2), (full body:1.4), "
+        "(front view:1.35), facing viewer, (gaming chair:1.4), swivel chair, backrest"
     ),
     # A full squat seen from the side, curled forward over her knees with a mug
     # held in both hands at her mouth. Built by substituting into `crouch`'s
@@ -594,7 +618,11 @@ POSES = {
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
 # at 1024x1280 and drew down to the thighs. 1024x1024 held it.
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
-         "peace": (1024, 1536), "chair": (1024, 1536),
+         "peace": (1024, 1536),
+         # Stays tall while sip and nape went square: this block carries
+         # (full body:1.4) and was cropping feet at the bottom edge, so the
+         # height is what it is spending.
+         "chair": (1024, 1536),
          "yawn": (1024, 1536), "fall": (1024, 1536),
          "coy": (1024, 1536),
          "lap": (1024, 1536),

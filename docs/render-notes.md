@@ -3378,3 +3378,35 @@ right tags for a picture nobody asked for.
 for this pose -- drop that one line to get the hood back.
 
 Kept: `rf-boss-rib`, 757575757 at 2048x2048.
+
+### `mature female` was also paying for a chest (2026-08-17)
+
+Yukari is not built that way, and `boss` had drifted there. Same cause as the
+dress: `(mature female:1.35)` brings an adult chest with it. One tag, two costs,
+and both of them found upstream of the thing that changed rather than at it.
+
+`(large breasts:1.25)` was already in NEGATIVE and simply being outvoted. Three
+ways down, one variable each:
+
+| | change | result |
+|---|--------|--------|
+| U1 | negative `(large breasts:1.25)` -> 1.5 | **kept.** modest without being flat, nothing else moves |
+| U2 | `(mature female:1.35)` -> 1.15 | works, and gives back the adult read this pose exists for |
+| U3 | `(small breasts:1.35)` added to the positive | works, grows the block by a tag, lands flatter than asked |
+
+**Raise the guard that is there rather than adding a neighbour.** This recipe
+has wrecked its own palette twice by stacking duplicate guards -- five of them
+once, four another time, mean saturation 25 -> 105-163 -- so a weight on an
+existing negative is the cheap move and a fourth guard is the expensive one.
+U1 changes no tag count on either side.
+
+That `mature female` has now cost the dress and the chest, and been the right
+answer both times when left alone, is worth remembering: it is the tag this pose
+is built on and the tag most of its defects trace back to. Fix downstream of it,
+not by weakening it.
+
+Kept: `rf-boss-bust`, 757575757 at 2048x2048 -- and this is the render that has
+everything asked for over the session: the seated geometry, the lower leg only
+slightly bent, the ribbed thighhighs with their welt band, the frilled collar
+and ribbon ties, the composed rather than gloating smirk, and the adult read
+without the chest that was coming with it.

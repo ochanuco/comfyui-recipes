@@ -773,6 +773,22 @@ def negative(pose: str) -> str:
             "(character sheet:1.4), (multiple views:1.4), reference sheet, "
             "turnaround, (undressing:1.4), topless, (bare back:1.3), "
         ) + NEGATIVE
+    if pose == "boss":
+        # `(mature female:1.35)` brings a fuller chest with it, the same way it
+        # brought a longer dress -- one tag, two costs, and both of them found
+        # by looking upstream rather than at the thing that changed.
+        #
+        # The guard for it is already in NEGATIVE at 1.25 and was simply being
+        # outvoted, so it gets the weight instead of a neighbour: this recipe
+        # has wrecked its palette twice by stacking duplicate guards, once with
+        # five of them and once with four. Raising the one that is already
+        # there costs nothing and no tag is added.
+        #
+        # Measured against two alternatives, both of which also worked and both
+        # of which cost more: easing `mature female` to 1.15 gives back some of
+        # the adult read this pose exists for, and `(small breasts:1.35)` in the
+        # positive grows the block by a tag and lands flatter than asked.
+        return NEGATIVE.replace("(large breasts:1.25)", "(large breasts:1.5)")
     if pose != "lap":
         return NEGATIVE
     # A head resting in her lap looks up at her, so the guard against low angles

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Post finished renders to a Discord webhook: job id, filename, image.
+"""Post finished renders to a Discord webhook: job id, filename, size, image.
 
 Watches ComfyUI's history rather than hooking any one queueing script. Those
 scripts return as soon as the prompt is accepted, so none of them is in a
@@ -83,12 +83,32 @@ def images_of(entry: dict) -> list[dict]:
     return images
 
 
+def dimensions(path: Path) -> tuple[int, int] | None:
+    """Width and height, read out of the PNG header.
+
+    Straight from IHDR rather than through PIL: this script is stdlib-only and
+    posting a render should not be the thing that makes the client environment
+    need an image library. Everything ComfyUI's SaveImage writes is a PNG, and
+    anything that is not simply posts without the size.
+    """
+    with path.open("rb") as handle:
+        head = handle.read(24)
+    if len(head) < 24 or head[:8] != b"\x89PNG\r\n\x1a\n" or head[12:16] != b"IHDR":
+        return None
+    return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
+
+
 def post(url: str, job: str, path: Path) -> int:
     """Multipart POST of one image. Returns the HTTP status."""
     boundary = uuid.uuid4().hex
-    payload = json.dumps(
-        {"content": f"**JOB ID** `{job}`\n**file** `{path.name}`"}
-    )
+    # The size matters more than it looks: this project sweeps at 1024 and
+    # prints at 2048, and the two are indistinguishable in a Discord thumbnail.
+    # Without it the channel is a pile of pictures that cannot be told apart.
+    size = dimensions(path)
+    lines = [f"**JOB ID** `{job}`", f"**file** `{path.name}`"]
+    if size:
+        lines.append(f"**size** `{size[0]}x{size[1]}` · `{path.stat().st_size / 1e6:.1f} MB`")
+    payload = json.dumps({"content": "\n".join(lines)})
     ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     parts = [
         f'--{boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\n'

@@ -3237,3 +3237,41 @@ when the work is only holding the slot.
 Kept: `rf-boss-soft`, G3 on 555666777 at 2048x2048 through the image-space
 route. `(tsurime:1.1)` is recorded in the splice comment as the middle, if a
 trace of the sharpness is ever wanted back.
+
+### Feet at head height on a chair: twelve levers, and the seed was the tool (2026-08-17)
+
+`boss` was built on 555666777, where her feet come up level with her head. No
+chair supports that. Four families of fix, twelve renders, two seeds each:
+
+| | attempt | result |
+|---|--------|--------|
+| H1-H3 | `feet on floor` -- bare and at 1.35, from two donor slots | nothing moved |
+| J0 | `crossed legs` deleted outright | **knees still up** |
+| J1-J2 | `(sitting on chair:1.6)` against `(crossed legs:1.05)` | nothing moved |
+| K1-K2 | `(feet up:1.45), (legs up:1.4), (knees up:1.35)` in the negative, alone and with the positive | nothing moved |
+
+**J0 is the one that settles it.** Deleting the crossing left the knees exactly
+where they were, so the crossing was never lifting them -- which rules out the
+obvious culprit and, with it, every fix aimed at the crossing. The raised legs
+are the composition, decided in the first pass, and the composition on this seed
+is the same one that made `chair` fail on it: camera in, low, on the legs.
+
+**Why `feet on floor` was never going to work.** It asks for both feet, and
+`crossed legs` puts one of them in the air -- a tag arguing with the pose,
+which this recipe has measured as inert more than once. The negative form is
+the version that does not contradict anything, and it did nothing either.
+
+`1886970040` and `2557902837` seat her properly on the identical block. The
+nape rule holds: when a defect survives this many prompt levers, stop
+diagnosing and change tools. Here the tool was the seed, and one sweep of the
+remaining `SWEEP_SEEDS` found two.
+
+**Ground contact is not reachable on this canvas at all**, independently of the
+seed. The square crops at the shins, so the floor is never in frame; the most
+the pose can do is send the feet downward out of it. A planted foot needs the
+floor visible, which needs the camera back, which is the tall canvas this pose
+gave up in order to get its shading. That is a real trade and not a bug.
+
+Kept: `rf-boss-1886` (1886970040, upright, hands on the armrests, both lower
+legs going down) and `rf-boss-seated` (2557902837, reclined, and the only one of
+the two with the legwear layering unambiguous). Neither shows a foot on a floor.

@@ -568,6 +568,25 @@ POSES = {
     # for `(light smile:1.3)` the face arrives in roughly the same place and
     # takes a stocking off her foot on the way, and easing
     # `half-closed eyes` to 1.15 alongside it changed nothing visible at all.
+    # SEED MATTERS MORE THAN THE BLOCK HERE. On 555666777 -- the render this
+    # pose was built on -- her feet come up to head height, which no chair
+    # supports. That is a property of the composition and not of any tag:
+    # `feet on floor` was tried in two donor slots and both weighted and bare,
+    # `crossed legs` was deleted outright and the knees stayed up regardless,
+    # the sitting was raised to 1.6 against the crossing at 1.05, and
+    # (feet up:1.45), (legs up:1.4), (knees up:1.35) went into the negative
+    # alone and alongside the positive. Twelve renders, nothing moved.
+    #
+    # 1886970040 and 2557902837 seat her properly with the same block, so use
+    # those. The nape session's rule applies: when a defect survives that many
+    # prompt levers, stop diagnosing and change tools -- and the tool here is
+    # the seed.
+    #
+    # Ground contact is not available at all on this canvas. The square crops
+    # at the shins, so the floor is never in frame; the best the pose can do is
+    # send the feet downward out of it. Showing a foot planted needs the floor,
+    # which needs the camera back, which is the tall canvas this pose gave up
+    # to get its shading.
     "boss": (
         "(solo:1.5), (sitting on chair:1.4), (crossed legs:1.2), (smug:1.15), "
         "(half-closed eyes:1.3), (gaming chair:1.4), swivel chair, backrest, "

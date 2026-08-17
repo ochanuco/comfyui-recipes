@@ -562,8 +562,14 @@ POSES = {
     # collected; the pair that replaces them is the one `lounge`, `peace` and
     # `invite` all already carry, at the weights they carry it at. Nine in,
     # nine out.
+    # `(smug:1.15)`, not 1.4. At 1.4 it is gloating; at 1.15 it is composed, and
+    # the chin lift and the head-spine-hip arc that `sip` measured `smug` doing
+    # both survive the drop. The weight is the lever and the tag is not: swapped
+    # for `(light smile:1.3)` the face arrives in roughly the same place and
+    # takes a stocking off her foot on the way, and easing
+    # `half-closed eyes` to 1.15 alongside it changed nothing visible at all.
     "boss": (
-        "(solo:1.5), (sitting on chair:1.4), (crossed legs:1.2), (smug:1.4), "
+        "(solo:1.5), (sitting on chair:1.4), (crossed legs:1.2), (smug:1.15), "
         "(half-closed eyes:1.3), (gaming chair:1.4), swivel chair, backrest, "
         "full body"
     ),

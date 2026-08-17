@@ -3174,3 +3174,36 @@ unambiguous at print size: welt band, grey pantyhose, pale thighhighs over.
 Open: the backdrop splits into a grey block and white on 555666777, in the first
 pass, so the second does not touch it. `recolor_bg.py` is the existing answer to
 a backdrop this recipe does not control.
+
+### Dialling the smirk down: the weight is the lever, the tag is not (2026-08-17)
+
+`boss` at `(smug:1.4)` was gloating rather than self-assured. Three ways down
+from it, two seeds each, everything else held identical by overriding the one
+`POSES` entry in memory rather than editing between runs.
+
+| | change from E2 | result |
+|---|---------------|--------|
+| F1 | `(smug:1.15)` | **kept.** composed, chin still up, arc intact |
+| F2 | `smug` -> `(light smile:1.3)` | similar face, and **one foot loses its stocking** |
+| F3 | `(smug:1.15)` + `(half-closed eyes:1.15)` | indistinguishable from F1 |
+
+**Lowering the weight kept what the tag was structurally doing.** `sip` records
+`smug` holding her chin up so head, spine and hip land on one arc -- it is
+posture as much as expression, which is why easing it reads as composure while
+swapping it out would have cost the bearing. F1 keeps the lift and loses only
+the gloat. The hand at her chin, which came free at 1.4, does not survive the
+drop; it belonged to the stronger reading.
+
+**F2 is a counter-example to "substituting a word costs nothing."** That rule
+was measured on the chair noun and it does not generalise: swapping `smug` for
+`light smile` at the same tag count reached roughly the same face and took a
+stocking off her foot and changed the hood on the way. Same count is not the
+same thing as same cost -- what a tag holds elsewhere in the picture goes with
+it.
+
+**`half-closed eyes` was not carrying the swagger.** F3 eased it as well and
+changed nothing visible on either seed, so it stays at 1.3. Worth knowing which
+of two tags in a pair is inert before spending a round on it.
+
+Kept: `rf-boss-calm`, F1 on 555666777 at 2048x2048 through the image-space
+route. Layering unambiguous, expression composed.

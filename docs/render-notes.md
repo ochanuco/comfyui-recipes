@@ -3610,3 +3610,39 @@ works.
 
 Kept: `one-d60` -- `88b01d73` plus a single pass at 0.60 carrying
 `(small breasts:1.6)`, `(large breasts:1.8)` and the eye guard.
+
+### Thinning the line: it is the denoise, and going bigger does nothing (2026-08-17)
+
+`scripts/stroke_width.py` exists now. This file has been quoting stroke figures
+since the beginning -- 1.91px, 3.82, "the line does not respond to tags" -- with
+no tool behind any of them, so none could be re-checked. Median dark-run length,
+horizontal and vertical, runs over `--max-run` dropped as fills.
+
+The first thing it says is that the refine pass was already thinning the line
+and nobody knew:
+
+| render | canvas | median | per 1000px |
+|--------|--------|--------|------------|
+| first pass | 1024 | 3.00px | 2.93 |
+| refined at 0.60 | 2048 | 4.00px | 1.95 |
+| **refined at 0.65** | 2048 | **3.00px** | **1.46** |
+| refined at 0.70 | 2048 | 3.00px | 1.46 |
+| refined at 0.60, 3072 | 3072 | 6.00px | 1.95 |
+| the same, downscaled to 2048 | 2048 | 4.00px | 1.95 |
+
+A straight upscale would have taken 3px to 6px; it lands at 4, so the second
+pass redraws contours finer than it inherits them.
+
+**Going bigger does nothing, and that is a limit on an existing rule.** The
+docstring says line width is roughly constant in pixels and resolution is the
+reliable way to thin it. True of first passes, and false here: 3072 draws 6px
+where 2048 draws 4, the same 1.95 normalised, so the stroke scales with the
+canvas and the downscale gives it all back. **Denoise is the lever on a refine
+pass; resolution is the lever on a first pass.**
+
+**0.65 is the whole gain.** 0.70 measures identically and costs content -- the
+chest ribbon slid to the waist and a seam appeared across the dress that the
+design does not have. Same line, worse picture, which is the invention curve
+already recorded for denoise arriving on top of the line curve.
+
+Kept: `ln-d65`.

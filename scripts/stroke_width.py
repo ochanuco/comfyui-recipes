@@ -50,14 +50,18 @@ def measure(path: Path, threshold: int, max_run: int) -> dict:
     longest = max(image.size)
     if not len(lengths):
         return {"file": path.name, "size": image.size, "n": 0}
+    # The median is an integer count and lands on 3 or 4 with nothing between,
+    # which is too coarse to compare two renders of the same picture. The mean
+    # moves continuously and is what the normalised figure is built from.
     return {
         "file": path.name,
         "size": image.size,
         "n": len(lengths),
         "median": float(np.median(lengths)),
+        "mean": float(np.mean(lengths)),
         "p90": float(np.percentile(lengths, 90)),
-        # The comparable number: stroke per 1000px of long edge.
-        "norm": float(np.median(lengths)) * 1000.0 / longest,
+        # The comparable number: mean stroke per 1000px of long edge.
+        "norm": float(np.mean(lengths)) * 1000.0 / longest,
     }
 
 
@@ -70,14 +74,14 @@ def main() -> None:
                         help="runs longer than this are fills, not lines")
     args = parser.parse_args()
 
-    print(f"{'file':<34} {'canvas':>11} {'median':>7} {'p90':>6} {'per 1000px':>11}")
+    print(f"{'file':<34} {'canvas':>11} {'median':>7} {'mean':>6} {'p90':>6} {'per 1000px':>11}")
     for path in args.paths:
         r = measure(path, args.threshold, args.max_run)
         if not r["n"]:
             print(f"{r['file']:<34} {'x'.join(map(str, r['size'])):>11}  no lineart found")
             continue
         print(f"{r['file']:<34} {'x'.join(map(str, r['size'])):>11} "
-              f"{r['median']:>7.2f} {r['p90']:>6.1f} {r['norm']:>11.2f}")
+              f"{r['median']:>7.2f} {r['mean']:>6.2f} {r['p90']:>6.1f} {r['norm']:>11.3f}")
 
 
 if __name__ == "__main__":

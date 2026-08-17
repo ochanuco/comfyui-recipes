@@ -3672,3 +3672,39 @@ was never asked before the negative was pushed twice.
 Stroke held at 1.46 per 1000px, so the finer line survives the change.
 
 Kept: `eyes2Gb`.
+
+### Correction: the median was too coarse and the line barely moved (2026-08-17)
+
+The two entries above are wrong where they quote line width, and the tool built
+to stop exactly this kind of error is what produced them.
+
+`stroke_width.py` reported the **median** dark-run length. On these renders that
+is an integer landing on 3 or 4 with nothing between, so "0.65 thins the line by
+25%" was the metric stepping down one whole count, and "0.70 measures
+identically" was two different distributions sharing a median. Re-measured with
+the mean, which moves continuously:
+
+| render | per 1000px, median-based (wrong) | mean-based |
+|--------|---------------------------------|------------|
+| first pass, 1024 | 2.93 | 3.818 |
+| refined 0.60 | 1.95 | 2.248 |
+| refined 0.65 | 1.46 | **2.083** |
+| refined 0.70 | 1.46 | 2.252 |
+| 0.65 + `(large eyes:1.55)` | 1.95 | 2.272 |
+| 0.65 + three guards | 1.95 | 2.575 |
+
+What survives: **the refine pass is the whole effect**, 3.818 to 2.248, a 41%
+thinner line relative to the figure. What does not: **denoise is worth about 7%
+between 0.60 and 0.65 and nothing at all at 0.70.** There is no meaningful line
+lever left in the second pass; the one that mattered was already switched on.
+
+Two smaller things fall out of the honest numbers. Raising `(large eyes:1.55)`
+gives back the 7%, so the eye and the line are competing for the same redraw.
+And the three-guard stack thickens the line to 2.575 -- above even the 0.60
+baseline -- which is a cost of stacking that the coarse metric had hidden
+entirely.
+
+**A tool built to check an assertion is only as good as its statistic**, and a
+median over small integers is not a measurement, it is a vote between two
+values. The mean is now the normalised figure and the median is kept beside it
+as a reminder.

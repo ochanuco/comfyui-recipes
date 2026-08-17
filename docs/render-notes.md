@@ -4390,6 +4390,31 @@ plain `IPAdapter` node cannot express that usefully -- `IPAdapterAdvanced` can,
 and also exposes `attn_mask` if the window alone is not enough and the adapter
 has to be confined to the clothes.
 
+**It was the window.** Same pose, same seed, `linear`, `start_at` 0.25:
+
+| arm | stroke /1000px | vs control |
+|-----|----------------|------------|
+| control, no adapter | 2.958 | -- |
+| w 0.55, end 0.45 | **2.777** | -6%, *finer* than the control |
+| w 0.40, end 0.45 | 3.377 | +14% |
+| w 0.40, end 0.60 | 3.936 | +33% |
+| w 0.40, end 1.00 (previous sweep) | 3.685 | +25% |
+
+Flat fills and the die-cut edge are back in all three; the airbrushed tights are
+gone. The surprise is that **raising the weight lowered the stroke** -- 0.40 at
+end 0.45 measures 3.377 and 0.55 at the same end measures 2.777. So what was
+coarsening the line is not how loudly the adapter speaks but how long: close the
+window and the strength can go up. Don't read the column as monotonic, though --
+end 0.60 scores worse than end 1.00, which is noise at this sample size.
+
+What this does *not* show is the costume holding. Control and all three arms have
+legs that cannot be told apart -- pale lavender with a purple band, none of them
+the reference's two layers of grey tights under ribbed pale-purple thighhighs.
+Measuring that needs `costume_check.py --palette` against a baseline, and `sip`
+has none: only `prone` and `boss` do. So the state is "settings exist that use
+the adapter without wrecking the drawing", and the question it was installed for
+is still open.
+
 ## 2026-08-17 -- `/upload/image` blinds the worker for minutes
 
 Cost most of an evening, so it is written down. Symptom: `/prompt` returns 400
@@ -4402,29 +4427,40 @@ for a model that is on disk and an image that is in `input\`, while
 `/object_info` in the same second lists both. Every graph fails, including ones
 that rendered minutes earlier.
 
-**The cause is `/upload/image`.** For some minutes after an upload the worker
-answers every `/prompt` this way; then it recovers by itself. `/object_info`
-keeps reporting the truth throughout, which is what makes it so confusing.
-
-Three wrong answers came first, and the reason each was wrong is the useful part:
+**The cause is still unknown.** Four explanations were proposed and all four
+died, which is the useful content of this section:
 
 - *A cache gone stale over hours.* Killed by a full restart that changed nothing.
 - *`POST /queue {"clear": true}`.* Every rejected batch did have a clear just
   before it and every accepted batch did not -- a clean correlation across six
-  batches, and pure coincidence. The clears were mine, and I was running them
-  next to the uploads.
+  batches, and coincidence.
 - *The IPAdapter nodes.* Killed by submitting plain, `IPAdapter` and
   `IPAdapterAdvanced` graphs alternately, nine in a row: all accepted.
+- *`/upload/image`.* This one survived a bisection of the caller down to the
+  single differing line, and then died anyway: a later run that uploaded nothing
+  at all was rejected for ten minutes straight while inline submissions of the
+  same graph, in the same minutes, were accepted every time.
 
-What finally settled it was rebuilding the failing submission inline, one line at
-a time, until only `stage_input` was left. The lesson is that "the same graph
-passes from here and fails from there" means the difference is in the *caller*,
-and bisecting the caller is faster than theorising about the server.
+The only reproducible statement left is about the caller, not the server: the
+graph is rejected when submitted from `.local/ip_end.py` and accepted when the
+identical graph is submitted inline. That is not an explanation, and it is
+recorded here as an open question rather than a finding.
 
-So: don't re-upload an input the worker already holds. Ask
-`/object_info/LoadImage` whether the name is in its list first -- this sweep was
-pushing the same 1.9MB reference on every run for nothing, and paying for it with
-the whole sweep.
+Two practical rules did come out of it:
+
+- **Don't re-upload an input the worker already holds.** Independent of cause,
+  the sweep was pushing the same 1.9MB reference on every run for nothing.
+- **Don't gate on the listing, and never fall back to uploading.** The image list
+  flaps within seconds while the worker is in this state -- a curl found the name
+  and a check one second later did not -- so a "is it there? no -> upload" guard
+  is unreliable in both directions and feeds the very state it guards against.
+  Two sweeps were lost to that loop.
+
+And one warning about the fix I reached for: **a retry loop that swallows the
+error makes a stuck run look like a working one.** The sweep sat in a 40-attempt
+loop printing nothing while the worker was accepting everything else; from
+outside it just looked slow. Retries should report each failure, not only the
+last.
 
 The reporting is what makes this expensive: the two nodes named in the error are
 collateral. `input_config: [[], {}]` means ComfyUI could not get INPUT_TYPES at

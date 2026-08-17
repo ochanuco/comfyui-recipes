@@ -3275,3 +3275,38 @@ gave up in order to get its shading. That is a real trade and not a bug.
 Kept: `rf-boss-1886` (1886970040, upright, hands on the armrests, both lower
 legs going down) and `rf-boss-seated` (2557902837, reclined, and the only one of
 the two with the legwear layering unambiguous). Neither shows a foot on a floor.
+
+### The adult body was wearing a different dress (2026-08-17)
+
+`boss` kept drawing a long pale button-front shirt dress instead of the purple
+bodice, on most seeds. It reads as a seed lottery and it is not one.
+
+**Reverting `(mature female:1.35)` to `(petite:1.2)` brought the purple bodice
+straight back**, on the first seed tried and with nothing else changed. The
+adult body tag was recruiting `(oversized shirt:1.3)` out of CHARACTER -- two
+tags that agree with each other and outvote the dress.
+
+Reverting is not available: the adult read is the point of the pose. So the
+competing garment goes instead, spliced per-pose like the rest of `boss`:
+
+    character = CHARACTER.replace("(oversized shirt:1.3), ", "")
+
+Nine seeds under the fix and the bodice is back on almost all of them.
+`sleeves past wrists` stays -- CHARACTER measured that one as what boxes the
+coat out, and it was never part of this.
+
+**Two fixes that looked equivalent were not.** Adding `(off shoulder:1.3)`
+reaches a similar silhouette and takes the rabbit hood off her head, which the
+module docstring rules out in as many words: deleting the hood costs more
+identity than it buys. Same apparent result, and one of them is a documented
+no-go.
+
+**Not every seed recovers.** 757575757 -- chosen for its leg geometry, the lower
+leg only slightly bent with the foot going down -- keeps the button-front
+version through both the `oversized shirt` removal and the off-shoulder route.
+121212121 has the same leg read and the correct dress, and is what `rf-boss-121`
+was made from.
+
+Contact sheets are the right tool for this and were underused until now: nine
+tiles labelled with their prompt ids answered in one look what nine separate
+reads would have cost. `scripts/contact_sheet.py --glob 'bossfix-*'`.

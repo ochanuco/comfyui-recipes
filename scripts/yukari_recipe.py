@@ -821,7 +821,20 @@ def positive(pose: str) -> str:
         # Spliced per-pose, not changed globally: every other pose was settled
         # against this BODY and would move under it.
         body = body.replace("(petite:1.2)", "(mature female:1.35)")
-    character = CHARACTER
+        # And `(oversized shirt:1.3)` comes out, which the adult body made
+        # necessary. `mature female` pulls the costume toward a long pale
+        # button-front shirt dress -- reverting the body swap alone brought the
+        # purple bodice straight back, which is how the cause was found. Since
+        # the adult read is the point of this pose, the competing garment goes
+        # instead: `oversized shirt` is what `mature female` was recruiting, and
+        # dropping it restores the dress on the seeds that had lost it while
+        # keeping the proportions.
+        #
+        # `sleeves past wrists` stays. It is the tag CHARACTER measured as
+        # boxing the coat out, and it was not part of this.
+        character = CHARACTER.replace("(oversized shirt:1.3), ", "")
+    else:
+        character = CHARACTER
     if pose == "nape":
         # The dress ties in a bow at the nape, which only this pose is looking
         # at, and which costs every other pose its coat -- see CHARACTER.

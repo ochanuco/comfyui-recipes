@@ -1021,33 +1021,45 @@ def positive(pose: str) -> str:
             "(thighhighs over pantyhose:1.55)",
             "(thighhighs over pantyhose:1.55), (ribbed legwear:1.35)")
     if pose == "prone":
-        # The grey layer is weighted down to 0.6, and the reason is geometric
-        # rather than lexical. Face down with the rear toward the camera, the
-        # pale thighhighs cover the leg all the way to the hip, so the only grey
-        # left in frame is the buttock: a grey shape with a hem edge, over pale
-        # legs, is a pair of bike shorts. 「スパッツになってる」.
+        # ONE legwear garment, and it is the pantyhose. Face down with the rear
+        # toward the camera, two layers cannot help but read as shorts over
+        # stockings: whichever layer covers the buttock ends in a hem, and a
+        # fitted shape bounded by a hem, above legs of a different colour, is a
+        # pair of bike shorts. 「スパッツになってる」.
         #
-        # Nothing in the prompt says shorts, which is why the lexical route
-        # failed -- there was nothing to outvote. Measured on 1886970040, all
+        # Nothing in the prompt says shorts, which is why the lexical route did
+        # nothing -- there was no tag to outvote. Measured on 1886970040, all
         # unchanged: `(bike shorts:1.4)` in the negative, that plus
-        # `(shorts:1.35)`, `pantyhose` weighted from bare to 1.4, and
-        # `(very pale purple thighhighs)` eased to 1.15. A masked in-place
+        # `(shorts:1.35)`, `pantyhose` weighted from bare to 1.4,
+        # `(very pale purple thighhighs)` eased to 1.15, and a masked in-place
         # refine of the hip at 0.50 and 0.65 -- the route that fixed this same
-        # render's hand an hour earlier -- did not move it either.
+        # render's hand an hour earlier.
         #
-        # What works is having one layer instead of two. At 0.6 the grey stops
-        # competing, the dress hem covers the rear, and the leg is a single pale
-        # garment with a welt band. The opposite arm works as well and is the
-        # alternative if this is ever revisited: easing the three PALE tags
-        # instead gives grey pantyhose the whole leg. It reads correctly and
-        # costs the pale palette, which is why it is not the one here.
+        # Easing the grey pair to 0.6 was the first fix here and only recoloured
+        # the problem: the rear came back as a smooth plum shape with the
+        # frilled hem above it and the welt band below, which is the same
+        # garment in the dress's colour. 「タイツになってないな…スパッツだ…」. The
+        # boundary is the defect, so the fix has to remove one, not move it.
         #
-        # Weight, not deletion, and that is load-bearing. On a fixed seed the
-        # weight changes above all kept the composition; deleting
-        # `(opaque pantyhose:1.3)` re-rolled it, alone and in combination. If a
-        # picked render has to survive a legwear edit, move weights.
-        legwear = (legwear.replace("(grey pantyhose:1.45)", "(grey pantyhose:0.6)")
-                          .replace("(opaque pantyhose:1.3)", "(opaque pantyhose:0.6)"))
+        # The cost is the layering this recipe spent a session measuring --
+        # pale thighhighs over grey tights, welt band and all. From behind it
+        # was never visible. Every other pose keeps it.
+        #
+        # `pale purple` goes in the slot `grey` had, because the colour has to
+        # move with the surviving garment: keeping `grey pantyhose` and raising
+        # `(lavender tint:1.5)` reads correctly as tights and lands warm
+        # brown-grey, against a negative that bans brown legwear. And it is a
+        # swap inside the existing span, not an addition -- adding
+        # `(white pantyhose:1.2)` alongside re-rolled the composition where the
+        # bare swap did not. On a fixed seed, the token count is part of what
+        # the picture is holding on to.
+        legwear = (legwear
+                   .replace("(grey pantyhose:1.45)", "(pale purple pantyhose:1.45)")
+                   .replace("(very pale purple thighhighs:1.5)",
+                            "(very pale purple thighhighs:0.6)")
+                   .replace("(white thighhighs:1.2)", "(white thighhighs:0.6)")
+                   .replace("(thighhighs over pantyhose:1.55)",
+                            "(thighhighs over pantyhose:0.6)"))
     parts = ["best quality, absurdres, 1girl, solo", character, POSES[pose]]
     if full_figure:
         parts.append(legwear)

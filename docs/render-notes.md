@@ -3438,3 +3438,34 @@ Kept: `rf-boss-final`, 979797979 at 2048x2048 -- pale thighhighs, purple welt,
 grey above it, the frilled collar and ties, the modest chest, and the seated
 geometry. Its knit lines are fainter than `343434343`'s, which has the strongest
 ribbing of the nine and a more reclined pose.
+
+### The rib is part of the costume, and it had to be added rather than swapped
+
+Treated as a required element rather than a texture preference, and measured
+across three seeds before shipping this time.
+
+| | change | 979797979 | 343434343 | 2557902837 |
+|---|--------|-----------|-----------|------------|
+| earlier | `opaque pantyhose` -> `ribbed legwear` | rib, **no tights** | rib, no tights | rib, no tights |
+| W1 | `white thighhighs` -> `ribbed legwear` | rib, **legs go mid-purple** | same | same |
+| W2 | `ribbed legwear` **added** | **all four** | all four | all four |
+
+The two substitutions each took something out of the balance the legwear block
+is holding. `opaque pantyhose` is one of three tags on the grey side and
+`white thighhighs` is one of three on the pale side; removing either hands the
+other side something. Adding leaves both intact, and on three seeds nothing was
+pushed out of the block to pay for it.
+
+**This breaks the file's own rule that adding costs the picture, and the rule is
+still right in general** -- it was measured on pose blocks, where the tag count
+is what the composition is spending. The legwear block is not competing for the
+same budget in the same way, or has more slack than nine tags of pose. Worth
+knowing which blocks tolerate growth; this is the first one recorded that does.
+
+Standing suspicion: the legwear is documented as the first thing this pose
+spends. If a later change starts losing thighhighs, this extra tag is where to
+look first.
+
+Kept: `rf-boss-rib2`, 979797979 at 2048x2048. Ribbed pale thighhighs, purple
+welt, grey above it, frilled collar and ties, modest chest, seated with the
+lower leg only slightly bent.

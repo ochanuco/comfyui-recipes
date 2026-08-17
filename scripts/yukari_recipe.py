@@ -871,17 +871,29 @@ def positive(pose: str) -> str:
         character = character.replace(
             "(drawstring:1.4), ",
             "(drawstring:1.4), (halterneck:1.45), (black straps:1.35), ")
-    # NOT spliced, and the attempt is recorded because it looked right and was
-    # not. `(opaque pantyhose:1.3)` was swapped for `(ribbed legwear:1.35)` on
-    # the evidence of one seed, where it did restore the knit lines and the welt
-    # band. Swept over nine seeds it turned out to cost the tights everywhere:
-    # `opaque pantyhose` is one of only three tags holding the grey side up, and
-    # taking it out let the three pale tags win the whole leg. The original
-    # block already draws the ribbing AND both layers on most seeds -- 757575757
-    # is simply a seed that does not.
-    #
-    # One seed is enough to find a lever and never enough to keep one.
     legwear = LEGWEAR
+    if pose == "boss":
+        # The rib is not decoration -- it is what her thighhighs are, and the
+        # block draws it only on some seeds unaided. `(ribbed legwear:1.35)` is
+        # ADDED here rather than substituted, which is against this file's usual
+        # rule and is the point of the note below.
+        #
+        # It was substituted first, for `(opaque pantyhose:1.3)`, on one seed
+        # where that restored the lines. Shipped, it removed the tights on every
+        # seed: `opaque pantyhose` is one of only three tags holding the grey
+        # side up against three pale ones, and breaking that tie hands the pale
+        # side the whole leg. Substituting from the pale side instead
+        # (`white thighhighs`) keeps the tights and costs the pale colour --
+        # the legs come out mid-purple.
+        #
+        # Adding it leaves both sides intact. Measured on 979797979, 343434343
+        # and 2557902837: ribbing, pale colour, welt band and the grey above it,
+        # all three seeds, and nothing pushed out of the block. The legwear is
+        # documented as the first thing this pose spends, so if a later change
+        # starts losing thighhighs, this extra tag is the first suspect.
+        legwear = legwear.replace(
+            "(thighhighs over pantyhose:1.55)",
+            "(thighhighs over pantyhose:1.55), (ribbed legwear:1.35)")
     parts = ["best quality, absurdres, 1girl, solo", character, POSES[pose]]
     if full_figure:
         parts.append(legwear)

@@ -911,6 +911,24 @@ def positive(pose: str) -> str:
     if pose == "nape":
         face = face.replace(", looking at viewer", "")
     body = BODY
+    if pose == "prone":
+        # 「めちゃ下半身太ってしまった…」. BODY's `(wide hips:1.3)` and
+        # `(thick thighs:1.35)` were settled on poses that see her from the front
+        # or the side, where they read as proportion. This pose looks straight at
+        # the rear, foreshortened, so the same two tags land on the largest thing
+        # in the frame and read as bulk.
+        #
+        # Eased rather than deleted, which keeps the framing -- and rather than
+        # pushed further: at 0.6/0.6 with `(petite:1.4)` and
+        # `(narrow waist:1.4)` the figure is slimmer still and a rabbit
+        # silhouette appeared in the backdrop, the same intruder `boss` bought
+        # with its guard stack. Two tags eased is the change that costs nothing.
+        #
+        # `petite` is deliberately not raised. It is the tag `boss` swaps out to
+        # grow her up, so leaning on it here would trade one wrong proportion
+        # for another.
+        body = (body.replace("(wide hips:1.3)", "(wide hips:1.0)")
+                    .replace("(thick thighs:1.35)", "(thick thighs:1.05)"))
     if pose == "boss":
         # Grown up, and it is one substitution now, not the two it started as.
         #

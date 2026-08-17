@@ -85,8 +85,14 @@ def main() -> None:
 
     dist = np.abs(region - ref).max(axis=2)
     luma = region.mean(axis=2)
-    sel = ((dist < args.tolerance) & (luma > args.line_max)).astype(np.float32)
-    sel = cv2.GaussianBlur(sel, (0, 0), 1.0)[..., None]
+    hit = ((dist < args.tolerance) & (luma > args.line_max)).astype(np.uint8)
+    # Opened before it is used. The die-cut white outline is 2/15/24 away from
+    # skin -- outside the tolerance -- but the antialiased pixels along its edge
+    # pass through every value in between, so a raw selection speckles the
+    # outline with repainted dots. One 3x3 opening removes every speck and takes
+    # a pixel off nothing that is a garment.
+    hit = cv2.morphologyEx(hit, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    sel = cv2.GaussianBlur(hit.astype(np.float32), (0, 0), 1.0)[..., None]
 
     painted = (region - ref) * args.contrast + target
     img[y0:y1, x0:x1] = region * (1 - sel) + painted * sel

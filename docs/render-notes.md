@@ -3819,3 +3819,40 @@ did. Both are properties of this seed being the one with the most rear in frame.
 The layering is the one worth chasing if this pose gets another session --
 `4c146593` lost it the same way and the lesson there was that it has to be won
 in the first pass.
+
+### The near hand on the prone print: 0.65 is where the fingers become countable (2026-08-17)
+
+「指の数が怪しい」. On `ykprone2k-prone-1886970040` the hand under her chin drew
+five or six tapering shapes with no knuckles and no clear boundaries -- the
+count is not wrong so much as undecided. The far hand, half behind the sleeve,
+reads as a fist and was left alone.
+
+The route is the one settled on 2026-08-16 and it needed no changes: crop 512
+square around the hand at print resolution, Lanczos to 1024 so the model is
+drawing a hand at a size it can draw, `queue_refine.py --mask` (VAEEncode +
+SetLatentNoiseMask, never the blank encoder), paste back.
+
+The ladder came out the same way it did then, which is the useful part:
+
+| denoise | result |
+|---------|--------|
+| 0.55 | cleaner, better separated, still four-or-five shapes |
+| **0.65** | **a closed fist, three finger backs, unambiguous** |
+
+0.55 polishes what is there and 0.65 re-decides what it is -- "structure changes
+live around 0.70, style-only polish below 0.55" holds on a second, unrelated
+hand. It costs the gesture a little: the loosely curled hand becomes a fist. The
+prompt still says `chin rest` and the picture still shows one.
+
+`inpaint_composite.py` was NOT used, and the reason is worth writing down: it is
+built around a masked region that contains backdrop, and extends the surrounding
+backdrop across the mask by Laplace diffusion. This mask holds skin, sleeve and
+collar and no backdrop at all, so the correction it applies has nothing to act
+on. What a `SetLatentNoiseMask` refine actually leaves behind is the VAE round
+trip's tone nudge, which measured [1, 2, 1] per channel on the ring outside the
+mask -- a constant, subtracted as one, then a 3px feather. Outside the crop the
+output is byte-identical to the print.
+
+Result: `ykprone2k-prone-1886970040-handfix.png`. The crop-and-paste is
+`.local/hand_fix.py`, ad hoc to this render; the reusable half of it is the four
+lines of procedure above.

@@ -721,6 +721,10 @@ POSES = {
     # 0.45 is not the same thing softened; it scribbles the outline instead of
     # drawing it, and 3072 blurs it to a halo. The line that was wanted is 2048
     # at 0.60 specifically.
+    #
+    # The six-seed sweep above predates the legwear splice in `positive()`, so
+    # its "no clothing failures" is about the pose block and not about what the
+    # grey layer was doing behind it.
     "prone": (
         "(solo:1.5), (lying:1.45), (on stomach:1.5), (from above:1.35), "
         "(chin rest:1.35), (feet up:1.3), (smug:1.35), (half-closed eyes:1.3), "
@@ -1016,6 +1020,34 @@ def positive(pose: str) -> str:
         legwear = legwear.replace(
             "(thighhighs over pantyhose:1.55)",
             "(thighhighs over pantyhose:1.55), (ribbed legwear:1.35)")
+    if pose == "prone":
+        # The grey layer is weighted down to 0.6, and the reason is geometric
+        # rather than lexical. Face down with the rear toward the camera, the
+        # pale thighhighs cover the leg all the way to the hip, so the only grey
+        # left in frame is the buttock: a grey shape with a hem edge, over pale
+        # legs, is a pair of bike shorts. 「スパッツになってる」.
+        #
+        # Nothing in the prompt says shorts, which is why the lexical route
+        # failed -- there was nothing to outvote. Measured on 1886970040, all
+        # unchanged: `(bike shorts:1.4)` in the negative, that plus
+        # `(shorts:1.35)`, `pantyhose` weighted from bare to 1.4, and
+        # `(very pale purple thighhighs)` eased to 1.15. A masked in-place
+        # refine of the hip at 0.50 and 0.65 -- the route that fixed this same
+        # render's hand an hour earlier -- did not move it either.
+        #
+        # What works is having one layer instead of two. At 0.6 the grey stops
+        # competing, the dress hem covers the rear, and the leg is a single pale
+        # garment with a welt band. The opposite arm works as well and is the
+        # alternative if this is ever revisited: easing the three PALE tags
+        # instead gives grey pantyhose the whole leg. It reads correctly and
+        # costs the pale palette, which is why it is not the one here.
+        #
+        # Weight, not deletion, and that is load-bearing. On a fixed seed the
+        # weight changes above all kept the composition; deleting
+        # `(opaque pantyhose:1.3)` re-rolled it, alone and in combination. If a
+        # picked render has to survive a legwear edit, move weights.
+        legwear = (legwear.replace("(grey pantyhose:1.45)", "(grey pantyhose:0.6)")
+                          .replace("(opaque pantyhose:1.3)", "(opaque pantyhose:0.6)"))
     parts = ["best quality, absurdres, 1girl, solo", character, POSES[pose]]
     if full_figure:
         parts.append(legwear)

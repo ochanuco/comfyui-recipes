@@ -3856,3 +3856,50 @@ output is byte-identical to the print.
 Result: `ykprone2k-prone-1886970040-handfix.png`. The crop-and-paste is
 `.local/hand_fix.py`, ad hoc to this render; the reusable half of it is the four
 lines of procedure above.
+
+### 「スパッツになってる」: a wrong reading that no tag was making (2026-08-17)
+
+The grey over her rear on the prone print reads as bike shorts: a grey shape
+with a hem edge, sitting over pale legs. It is in the first pass, so the refine
+neither caused it nor can be blamed for it.
+
+**Why the lexical route was never going to work.** Eight attempts on 1886970040,
+all of them leaving the read exactly where it was:
+
+| attempt | result |
+|---------|--------|
+| `(bike shorts:1.4)` in the negative | unchanged |
+| + `(shorts:1.35)` | unchanged |
+| `pantyhose` bare -> `(pantyhose:1.4)` | unchanged |
+| `(very pale purple thighhighs:1.5)` -> 1.15 | unchanged |
+| masked hip refine, 0.50 | unchanged |
+| masked hip refine, 0.65 | unchanged |
+| drop `(opaque pantyhose:1.3)` | composition re-rolled |
+| drop it + ease the socks | composition re-rolled |
+
+Nothing in the prompt says shorts. There is no tag to outvote, no weight to
+lower, and a guard needs something to guard against. **The read is geometric:**
+face down with the rear toward the camera, the pale thighhighs cover the leg to
+the hip, so the only grey left in frame is the buttock, and a grey patch bounded
+by a hem is a garment. The layering is drawn correctly and reads wrongly.
+
+**The refine could not fix it either, and the contrast with the hand is the
+lesson.** The same masked route at the same denoise re-decided that render's
+hand an hour earlier. The hand was a badly drawn version of the right thing; the
+hip is a well drawn version of the wrong thing. A refine cleans a region up. It
+does not reinterpret it.
+
+**What works: one layer, not two.** Easing the grey pair to 0.6 stops it
+competing -- the dress hem covers the rear and the leg is a single pale garment
+with a welt band. The mirror arm works too: easing the three pale tags gives
+grey pantyhose the whole leg, which also reads correctly and costs the pale
+palette this recipe spent a session choosing. The pale arm shipped.
+
+**Weight, not deletion, when a picked composition has to survive.** Four weight
+changes on this seed kept the framing; both deletions re-rolled it. That is the
+rule this file has been missing while it substituted nouns and blamed the noun.
+
+Kept: `v7pale2k-prone-1886970040`, spliced into `positive()` and verified to
+reproduce from `--pose prone --seed 1886970040 --hires 2048` -- the prompt the
+recipe now builds is byte-identical to the one that drew it. The hand needed no
+fix on this render; the fist came out clean unaided.

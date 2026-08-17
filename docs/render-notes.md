@@ -3469,3 +3469,34 @@ look first.
 Kept: `rf-boss-rib2`, 979797979 at 2048x2048. Ribbed pale thighhighs, purple
 welt, grey above it, frilled collar and ties, modest chest, seated with the
 lower leg only slightly bent.
+
+### The halter straps, from the official design (2026-08-17)
+
+Her dress is a halter: the straps cross at the chest, pass over the shoulders
+and tie in a bow behind the neck. It is in the official character sheet and the
+recipe had never drawn it outside `nape`, which splices `(halterneck:1.45),
+(black straps:1.35)` for the same garment seen from behind.
+
+`nape`'s comment says that pair costs every other pose its coat, which is why it
+is spliced there and not global. **`boss` is the one pose that can afford it
+anyway** -- the coat is already off her shoulders by its own splice, so the
+documented cost is one this pose has already paid. Worth looking for: a
+constraint recorded as global may only bind the poses that have not already
+broken it.
+
+Three forms, three seeds each:
+
+| | tags | result |
+|---|------|--------|
+| Y1 | `halterneck` + `black straps` (nape's pair) | straps drawn, cross less definite |
+| **Y2** | **`criss-cross halter` alone** | **kept.** clear cross, composition unmoved |
+| Y3 | all three | clearest straps, and the camera comes in off the body |
+
+Y3 is the tag-count lesson again in miniature: three tags draw the thing best
+and cost the framing, one tag draws it well enough and costs nothing. The single
+tag also names the part the reference is specific about -- the cross -- rather
+than the garment category.
+
+Kept: `rf-boss-straps`, 979797979 at 2048x2048. The tights read weaker on this
+render than on the one before it; the straps landed, the grey above the welt did
+not, and that trade has not been chased.

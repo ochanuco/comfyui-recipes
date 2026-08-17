@@ -837,6 +837,18 @@ def positive(pose: str) -> str:
         # Spliced per-pose, not changed globally: every other pose was settled
         # against this BODY and would move under it.
         body = body.replace("(petite:1.2)", "(mature female:1.35)")
+        # And then say the chest outright, because `mature female` brings one
+        # and the negative could not finish the job alone. `(large breasts)` in
+        # NEGATIVE went 1.25 -> 1.5 -> 1.75 and was still leaving more than
+        # Yukari has; naming `small breasts` positively lands it in one step and
+        # holds on 979797979, 343434343 and 2557902837 alike.
+        #
+        # An addition, and the second block found to tolerate one after the
+        # legwear. Guards were the alternative and this recipe has twice been
+        # punished for stacking those -- the weight route was tried first here
+        # for exactly that reason and simply did not reach.
+        body = body.replace("(narrow waist:1.25)",
+                            "(narrow waist:1.25), (small breasts:1.35)")
         # And `(oversized shirt:1.3)` comes out, which the adult body made
         # necessary. `mature female` pulls the costume toward a long pale
         # button-front shirt dress -- reverting the body swap alone brought the
@@ -861,6 +873,23 @@ def positive(pose: str) -> str:
         # oversight. Drop this line to get the hood and the ears back.
         character = character.replace("open cardigan",
                                       "open cardigan, (off shoulder:1.3)")
+        # The straps. Her dress is a halter that crosses at the chest, goes over
+        # the shoulders and ties in a bow behind the neck -- it is in the
+        # official design and the recipe had never drawn it outside `nape`,
+        # which splices (halterneck:1.45), (black straps:1.35) for the same
+        # garment seen from behind.
+        #
+        # `nape`'s pair is documented as costing every other pose its coat.
+        # That is why this is spliced and not global -- but it is also why this
+        # pose can afford it: the coat is already off the shoulders one line up.
+        #
+        # `(criss-cross halter:1.45)` alone is what shipped. One tag against
+        # nape's two or all three together, and it names the cross specifically,
+        # which is the part the reference is explicit about. The three-tag form
+        # drew the straps most clearly and pulled the camera in off the body;
+        # the single tag draws them and leaves the composition where it was.
+        character = character.replace(
+            "(drawstring:1.4), ", "(drawstring:1.4), (criss-cross halter:1.45), ")
     else:
         character = CHARACTER
     if pose == "nape":

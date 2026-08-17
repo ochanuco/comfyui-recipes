@@ -3785,3 +3785,23 @@ that made it so rather than anything about the pose.
 `--hires` is still the right tool for a square or portrait pose. It is the wrong
 tool for this one, and the test for which is the first-pass stroke, not the
 print size that was wanted.
+
+**Retracted the same day: the pass I measured off is the one that was wanted.**
+The picks came back as the two 2048/0.60 prints for the line -- `50a25cf1`
+(111222333) and `c94fb07a` (555666777) -- and `188c2b27` (1886970040, first
+pass) for the pose. So the settled render is the combination: `--pose prone
+--seed 1886970040 --hires 2048`.
+
+Nothing measured above is wrong. The stroke does go 1.941 -> 1.274, the die-cut
+edge is drawn as a cut in the first pass and as a stroke in the second, and 0.45
+and 3072 really are worse than 2048/0.60. What was wrong is the sentence built
+on top of them: *"the canvas already lands on 1.91, so the second pass has
+nothing to give."* 1.91 is a number `fb-b` happened to measure, and this file
+has quietly promoted it to a target it is not. A thinner, looser line was
+available and preferred, and no measurement here could have said so.
+
+The same mistake as the median, one session apart, in the opposite direction: an
+honest number, and then a judgement smuggled in beside it. Measure the line;
+don't rule on it.
+
+Kept: `ykprone2k-prone-1886970040`, 1536x1024 refined to 2048x1368 at 0.60.

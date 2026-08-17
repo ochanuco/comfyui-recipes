@@ -552,6 +552,21 @@ POSES = {
         "(solo:1.5), (sitting on chair:1.4), (crossed legs:1.2), (front view:1.35), "
         "facing viewer, (gaming chair:1.4), swivel chair, backrest, full body"
     ),
+    # `chair` with the smirk on, and grown up. Built on ykchairD-chair-555666777
+    # (prompt c1629d37), the square render that lost the front view and sank her
+    # into the seat instead -- which is the wrong result for `chair` and the
+    # right starting point for this. Same canvas, same seed family.
+    #
+    # `(front view:1.35), facing viewer` are what pay for the smirk. That seed
+    # never delivered them anyway, so the two tags were being bought and not
+    # collected; the pair that replaces them is the one `lounge`, `peace` and
+    # `invite` all already carry, at the weights they carry it at. Nine in,
+    # nine out.
+    "boss": (
+        "(solo:1.5), (sitting on chair:1.4), (crossed legs:1.2), (smug:1.4), "
+        "(half-closed eyes:1.3), (gaming chair:1.4), swivel chair, backrest, "
+        "full body"
+    ),
     # A full squat seen from the side, curled forward over her knees with a mug
     # held in both hands at her mouth. Built by substituting into `crouch`'s
     # eight slots one at a time, and every slot here was paid for:
@@ -635,6 +650,8 @@ POSES = {
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          "peace": (1024, 1536),
          "chair": (1024, 1024),
+         # Same square as the render it is built on.
+         "boss": (1024, 1024),
          "yawn": (1024, 1536), "fall": (1024, 1536),
          "coy": (1024, 1536),
          "lap": (1024, 1536),
@@ -755,6 +772,24 @@ def positive(pose: str) -> str:
     # it either argues with the pose or spins her back around.
     if pose == "nape":
         face = face.replace(", looking at viewer", "")
+    body = BODY
+    if pose == "boss":
+        # Grown up, and both halves of it are substitutions rather than
+        # additions -- the block is saturated and the chair notes are explicit
+        # that adding costs the picture while swapping a word does not.
+        #
+        # `tareme` -> `tsurime`. Drooping eyes are most of what reads young
+        # here, and upturned ones are the same slot pointed the other way; they
+        # also carry the look the smirk wants, so one swap serves both asks.
+        #
+        # `petite` -> `mature female`. Direct opposite in the same slot. The
+        # rest of BODY -- wide hips, thick thighs, narrow waist -- is already
+        # adult proportion and was only being held down by that one tag.
+        #
+        # Spliced per-pose, not changed globally: every other pose was settled
+        # against the young face and would move under this.
+        face = face.replace("(tareme:1.3)", "(tsurime:1.3)")
+        body = body.replace("(petite:1.2)", "(mature female:1.35)")
     character = CHARACTER
     if pose == "nape":
         # The dress ties in a bow at the nape, which only this pose is looking
@@ -768,7 +803,7 @@ def positive(pose: str) -> str:
     if full_figure:
         parts.append(LEGWEAR)
     parts += [face, SURFACE]
-    parts.append(BODY if full_figure else "(pale skin:1.25)")
+    parts.append(body if full_figure else "(pale skin:1.25)")
     # The coat pulled off the shoulders, which is what uncovers the nape. It
     # rides with the hood rather than joining the pose block: that block is at
     # eight tags and a ninth is where the hair clips broke last time.

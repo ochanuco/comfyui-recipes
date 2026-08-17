@@ -3132,3 +3132,45 @@ region was ambiguous enough to read either way; 2048 resolves it, and resolves
 it against the recipe. The layering has to be won in the first pass or not at
 all. `ykchair-chair-555666777`, variant A on the same seed, has the purple welt
 band and is the better base if the layers are what is wanted.
+
+### `boss`: the smirk, grown up, off the render that failed as `chair` (2026-08-17)
+
+`ykchairD-chair-555666777` (prompt `c1629d37`) is the square render that lost the
+front view and sank her into the seat. That is a failure for `chair` and a
+starting point for something else, so it became its own pose rather than another
+attempt at fixing that seed.
+
+**The framing tags paid for the smirk.** `(front view:1.35), facing viewer` were
+being bought and not collected on this seed -- it never held them across four
+variants -- so they came out and `(smug:1.4), (half-closed eyes:1.3)` went in.
+That pair is not new: `lounge`, `peace` and `invite` all carry it at those
+weights. Nine tags in, nine tags out, and the legwear survived, which is the
+test that matters for this block.
+
+**Adult is two substitutions, spliced per-pose.** Measured separately from the
+smirk, one variant each:
+
+| | change | result |
+|---|--------|--------|
+| E1 | pose block only | smirk lands, face still reads young |
+| E2 | E1 + `tareme`->`tsurime`, `petite`->`mature female` | **kept.** eyes sharpen and lid, proportions lengthen |
+
+Both are one-for-one swaps in slots that were already occupied, which is the
+only kind of change this prompt has room for. `tsurime` earns its slot twice:
+drooping eyes are most of what reads young here, and upturned ones carry the
+smirk as well. The rest of `BODY` -- wide hips, thick thighs, narrow waist --
+was already adult proportion and was being held down by `petite` alone.
+
+Spliced in `positive()` beside `nape`'s, not changed globally: every other pose
+was settled against the young face.
+
+Nothing asked for the hand at her chin on 555666777. It came with the smirk.
+
+Kept: `rf-boss555`, E2 on 555666777 refined to 2048x2048 through image-space
+lanczos at 0.45 -- the pairing measured on the previous render, used here
+without re-testing it. The legwear layering that `4c146593` never had is
+unambiguous at print size: welt band, grey pantyhose, pale thighhighs over.
+
+Open: the backdrop splits into a grey block and white on 555666777, in the first
+pass, so the second does not touch it. `recolor_bg.py` is the existing answer to
+a backdrop this recipe does not control.

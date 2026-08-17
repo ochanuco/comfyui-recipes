@@ -5,14 +5,17 @@ The first pass is taken verbatim from /history, so the composition it decided is
 the composition that gets redrawn -- no reconstruction from the recipe, and no
 chance of a tag-order difference changing the picture.
 """
+import argparse
 import json
-import sys
 import urllib.request
 
-HOST = "192.168.7.253"
-PORT = 8188
-SRC = "4c146593-e261-4b0c-9baa-807ca2be0421"
+from comfy_host import DEFAULT_HOST, DEFAULT_PORT
+
+HOST = DEFAULT_HOST
+PORT = DEFAULT_PORT
 HIRES = 2048
+
+DEFAULT_HIRES = 2048
 
 
 def fetch_prompt(pid):
@@ -79,12 +82,29 @@ def image_route(base, denoise, prefix):
 
 
 if __name__ == "__main__":
-    base = fetch_prompt(SRC)
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("prompt_id", help="a finished prompt id from /history")
+    ap.add_argument("--prefix", default="rf")
+    ap.add_argument("--hires", type=int, default=DEFAULT_HIRES)
+    ap.add_argument("--denoise", type=float, default=0.45)
+    ap.add_argument("--route", choices=("image", "latent"), default="image",
+                    help="image-space lanczos, or the recipe's latent bicubic")
+    ap.add_argument("--host", default=DEFAULT_HOST)
+    ap.add_argument("--port", type=int, default=DEFAULT_PORT)
+    ap.add_argument("--sweep", action="store_true",
+                    help="submit all three measured combinations instead of one")
+    args = ap.parse_args()
+
+    HOST, PORT, HIRES = args.host, args.port, args.hires
+    base = fetch_prompt(args.prompt_id)
     print("first pass:", base["5"]["inputs"], "seed", base["3"]["inputs"]["seed"])
-    print("second pass size:", sizes(base))
-    for name, graph in [
-        ("rf-latent-060", latent_route(base, 0.60, "rf-latent-060")),
-        ("rf-image-045", image_route(base, 0.45, "rf-image-045")),
-        ("rf-image-060", image_route(base, 0.60, "rf-image-060")),
-    ]:
+    print("second pass:", sizes(base))
+    if args.sweep:
+        jobs = [(f"{args.prefix}-latent-060", latent_route(base, 0.60, f"{args.prefix}-latent-060")),
+                (f"{args.prefix}-image-045", image_route(base, 0.45, f"{args.prefix}-image-045")),
+                (f"{args.prefix}-image-060", image_route(base, 0.60, f"{args.prefix}-image-060"))]
+    else:
+        route = image_route if args.route == "image" else latent_route
+        jobs = [(args.prefix, route(base, args.denoise, args.prefix))]
+    for name, graph in jobs:
         print(name, post(graph), flush=True)

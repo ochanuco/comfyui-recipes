@@ -1,24 +1,31 @@
 #!/usr/bin/env python3
-"""`prone` with knee-highs over tights, done by REGION instead of by tag.
+"""`prone` with ニーハイ over tights, done by REGION instead of by tag.
 
     uv run scripts/yk_prone_legwear.py                 # 1536x1024
     uv run scripts/yk_prone_legwear.py --hires 2048    # the print
 
+**ニーハイ is `thighhighs`.** It goes over the knee and ends on the thigh.
+ハイソックス is `kneehighs` and stops below the knee. The first cut of this
+script translated ニーハイ as `kneehighs`, which is the wrong garment, and the
+masks were cut to match it -- so the sock top landed where the leg meets the hip
+and the grey had only the buttock, which is the spats read in different clothes.
+The words matter here more than usual, because the mask is drawn from them.
+
 The problem this exists for is written up in `yukari_recipe.py`'s prone splice
-and in render-notes: **this model has no two-layer construction at knee length.**
-`thighhighs over pantyhose` is the only layering tag it knows and its length is
-in its name; `kneehighs` describes a leg with nothing else on it. Nine
-prompt-side attempts -- length words, three layering phrases, weights walked
-both ways, a bare-leg guard, maximum colour contrast, and a masked refine --
-left the two garments taking turns, never sharing a leg.
+and in render-notes: **the prompt cannot hold two layers of legwear at once.**
+`thighhighs over pantyhose` is the only layering tag the model knows, and asking
+for the sock and the tights as separate tags makes them take turns -- with the
+socks drawn, the thigh comes back as skin. Nine prompt-side attempts, all in
+render-notes, none of them working.
 
 They do not have to share a *prompt*, though. They occupy different parts of the
 picture, and ComfyUI conditions parts of the picture separately:
 
     base    the whole prompt with the legwear block removed,
             masked to everything OUTSIDE the two regions
-    thigh   the same prompt plus grey pantyhose, masked over hip and thigh
-    calf    the same prompt plus white knee-highs, masked over the lower legs
+    tights  the same prompt plus grey pantyhose, masked over hip and thigh
+    sock    the same prompt plus white thighhighs, masked from mid-thigh
+            down the raised legs to the toes
 
 Three measurements are baked into that shape and each cost a render:
 
@@ -33,11 +40,20 @@ Three measurements are baked into that shape and each cost a render:
 - **`set_cond_area: "mask bounds"` is not usable here.** It returned colour
   blocks and torn geometry; `"default"` is what works.
 
-The masks are `assets/prone-thigh-mask.png` and `assets/prone-calf-mask.png`,
-1536x1024, cut by colour from the settled first pass on seed 1886970040 and then
-dilated and blurred hard so they survive the picture moving a little. They are
-specific to that seed. On any other seed they are wrong, and the honest way to
-get another one is to render it first and cut new masks from it.
+The masks are `assets/prone-tights-mask.png` and `assets/prone-sock-mask.png`,
+1536x1024. How they were made, since it is the part that has to be repeated for
+any other seed:
+
+1. render the first pass and cut two regions from it by colour -- bare skin for
+   the legwear, near-white for the raised legs;
+2. open, dilate by 41px and blur by 20 so they survive the picture moving;
+3. **split them across the thigh at y=470, with a 12px transition.** Everything
+   below that line is tights, everything above it is sock. That line is the sock
+   top, and it is the only thing in this file that decides ニーハイ from
+   ハイソックス -- the tags describe the garment, the mask places it.
+
+They are specific to seed 1886970040. On any other seed they are wrong, and the
+honest way to get another one is to render it first and cut new masks from it.
 """
 
 from __future__ import annotations
@@ -52,16 +68,20 @@ from comfy_host import DEFAULT_HOST, DEFAULT_PORT, stage_input
 
 REPO = Path(__file__).resolve().parent.parent
 INPUT_DIR = REPO / ".local/ComfyUI/input"
-MASKS = {"thigh": REPO / "assets/prone-thigh-mask.png",
-         "calf": REPO / "assets/prone-calf-mask.png"}
+MASKS = {"tights": REPO / "assets/prone-tights-mask.png",
+         "sock": REPO / "assets/prone-sock-mask.png"}
 
 # The garment each region adds to the shared prompt. Weighted well above the
 # recipe's usual 1.45 because a region is arguing with nothing -- the base is
 # masked out of it -- and because the pale side of the palette wins ties here.
 REGION = {
-    "thigh": ("(grey pantyhose:1.9), (dark grey legwear:1.7), "
-              "(charcoal pantyhose:1.5), (opaque pantyhose:1.5)"),
-    "calf": "(white kneehighs:1.8), (white socks:1.6), (kneehighs:1.5)",
+    "tights": ("(grey pantyhose:1.9), (dark grey legwear:1.7), "
+               "(charcoal pantyhose:1.5), (opaque pantyhose:1.5)"),
+    # ニーハイ is `thighhighs`, over the knee. `kneehighs` is ハイソックス and
+    # stops below it -- the first cut of this used that word and the sock top
+    # ended up at the hip, which is the spats read in different clothes.
+    "sock": ("(white thighhighs:1.8), (white over-kneehighs:1.6), "
+             "(thighhighs:1.5)"),
 }
 
 

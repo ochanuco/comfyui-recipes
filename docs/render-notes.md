@@ -3035,3 +3035,676 @@ resampler has eight times the detail to interpolate between. Paired with
 denoise 0.45 the surfaces come out clean and the linework does not split.
 
 Costs a VAE round trip, which is cheap against another 30 steps.
+
+### The settled chair block was never written down as a pose (2026-08-17)
+
+`yukari_recipe.py` carried a `chair` that went one clean seed in four, while the
+chair block that had been settled three seeds deep lived only in `--pose-text`
+strings inside `pick/yk-chair-151`, `-111` and `-555`. Two different poses under
+one word, and the tested one was the one not in the file.
+
+The two are not variants of each other. What was in the file was `peace` moved
+off the floor onto a chair, keeping the double-V hands; the picks are a
+front-facing gaming chair with the legs crossed and the hands free. Nothing was
+ever kept from the first, so it is gone and `peace` remains the floor version.
+
+Porting it needed one slot. Every `POSES` entry leads with `(solo:1.5)`, which
+the `--pose-text` form had no reason to carry, and the block must stay at nine.
+`looking at viewer` is what came out, because `FACE` already supplies it — the
+same reason `lap` omits it. No weight was retuned and nothing was re-rendered.
+
+**A measurement that lives only in a tag message is not in the recipe.** Three
+seeds of evidence sat next to a pose that had one, and the gap survived every
+later session because the word `chair` looked occupied. Worth a sweep of the
+other `pick/*` tags for the same shape.
+
+### Rendering it: twelve renders, four blocks, one clean seed (2026-08-17)
+
+Three seeds -- the picks' own 151515151, 111222333, 555666777 -- through four
+variants of the block. Windows worker, hassaku-il-v22, 30 steps, cfg 5.0,
+dpmpp_2m karras, identical to the picks.
+
+| variant | canvas | framing tag | result |
+|---------|--------|-------------|--------|
+| A | 1024x1536 | `(full body:1.4)` | layers collapsed on 151, no crossing on 111 |
+| B | 1024x1536 | `full body` | layers back on 151 |
+| C | 1024x1024 | none | closest to `sip`, front view lost on 2 of 3 |
+| D | 1024x1024 | `full body` | **kept.** 111 clean, 151 three-quarter, 555 lost |
+
+**Two picks disagreed about one substitution and the pessimistic one was
+right.** render-notes recommended `full body` -> `(full body:1.4)` off three
+seeds; `pick/yk-chair-gradient` recorded that exact substitution, alone,
+collapsing the layered legwear into a single gradient stocking and noted it was
+never reproduced. It reproduces. Porting picked the favourable note without
+weighing the unfavourable one, and A is the cost of that.
+
+**Flatness was a framing property, not a style one.** Next to `sip` the chair
+renders had no highlights and no modelling, with the same STYLE and LINE blocks
+in both. The docstring already holds the explanation: stroke is a constant
+1.91px at every canvas here, so a figure drawn small in a tall frame carries a
+line heavy relative to her head and has no pixels left to shade in. `sip` goes
+square and drops `full body` for exactly this. Doing the same to `chair` brought
+the shading back -- the black cardigan models, the hair takes highlights, and
+the thighhigh-over-pantyhose boundary reads without being hunted for.
+
+**The square is paid for out of the framing tags.** `(front view:1.35), facing
+viewer` held on one seed of three; the other two swung to three-quarter or came
+in on the legs. `full body` does not anchor them -- tried present and absent,
+same spread -- which is consistent with it being a distance tag and not a
+direction one. What has not been tried is easing the camera pair upward, or a
+distance tag that is not `full body`.
+
+Kept: `ykchairD-chair-111222333`. Front view, chair whole down to the base and
+armrests, legs crossed, both legwear layers with the purple welt, rabbit hood
+ears up, hands on the armrests. Cropped at the shins, which the square costs.
+
+Nothing above changes a weight. `(crossed legs:1.2)` was never re-tested and
+did not need to be -- it drew two legs on all twelve.
+
+### Refining a chair render: the route decides the surface, the denoise decides the invention (2026-08-17)
+
+`ykchairB-chair-555666777` (prompt `4c146593`) taken to 1368x2048 three ways.
+The first pass was replayed verbatim out of `/history` rather than rebuilt from
+the recipe, so no tag-order difference could move the picture underneath the
+comparison -- `scripts/refine_from_history.py`.
+
+| route | denoise | result |
+|-------|---------|--------|
+| `LatentUpscale` bicubic | 0.60 | most detail, and beads and cords on the dress that the base does not have |
+| `ImageScale` lanczos | 0.60 | detail back, plus gloss on the thighhighs and hair |
+| **`ImageScale` lanczos** | **0.45** | **kept.** flats clean, lineart unsplit, nothing invented |
+
+Two variables, and running all three separates them: **the route decides the
+surface and the denoise decides how much gets invented.** At a matched 0.60 the
+image-space route has cleaner flat fields and adds less; at a matched route,
+0.60 buys detail and pays in gloss. The nape session's pairing -- image-space
+lanczos with 0.45 -- reproduces on a completely different composition, so it is
+a property of the second pass and not of that one picture.
+
+The recipe's `--hires` still only offers the latent route. Adding the other one
+is a real change and is not made here.
+
+**A second pass does not fix the first pass, and this base needed it to.** All
+three refines agree that the thigh above the stocking is bare skin and that the
+grey under the dress is a separate shorts-like garment -- so
+`(thighhighs over pantyhose:1.55)` never landed in `4c146593`. At 1024 the
+region was ambiguous enough to read either way; 2048 resolves it, and resolves
+it against the recipe. The layering has to be won in the first pass or not at
+all. `ykchair-chair-555666777`, variant A on the same seed, has the purple welt
+band and is the better base if the layers are what is wanted.
+
+### `boss`: the smirk, grown up, off the render that failed as `chair` (2026-08-17)
+
+`ykchairD-chair-555666777` (prompt `c1629d37`) is the square render that lost the
+front view and sank her into the seat. That is a failure for `chair` and a
+starting point for something else, so it became its own pose rather than another
+attempt at fixing that seed.
+
+**The framing tags paid for the smirk.** `(front view:1.35), facing viewer` were
+being bought and not collected on this seed -- it never held them across four
+variants -- so they came out and `(smug:1.4), (half-closed eyes:1.3)` went in.
+That pair is not new: `lounge`, `peace` and `invite` all carry it at those
+weights. Nine tags in, nine tags out, and the legwear survived, which is the
+test that matters for this block.
+
+**Adult is two substitutions, spliced per-pose.** Measured separately from the
+smirk, one variant each:
+
+| | change | result |
+|---|--------|--------|
+| E1 | pose block only | smirk lands, face still reads young |
+| E2 | E1 + `tareme`->`tsurime`, `petite`->`mature female` | **kept.** eyes sharpen and lid, proportions lengthen |
+
+Both are one-for-one swaps in slots that were already occupied, which is the
+only kind of change this prompt has room for. `tsurime` earns its slot twice:
+drooping eyes are most of what reads young here, and upturned ones carry the
+smirk as well. The rest of `BODY` -- wide hips, thick thighs, narrow waist --
+was already adult proportion and was being held down by `petite` alone.
+
+Spliced in `positive()` beside `nape`'s, not changed globally: every other pose
+was settled against the young face.
+
+Nothing asked for the hand at her chin on 555666777. It came with the smirk.
+
+Kept: `rf-boss555`, E2 on 555666777 refined to 2048x2048 through image-space
+lanczos at 0.45 -- the pairing measured on the previous render, used here
+without re-testing it. The legwear layering that `4c146593` never had is
+unambiguous at print size: welt band, grey pantyhose, pale thighhighs over.
+
+Open: the backdrop splits into a grey block and white on 555666777, in the first
+pass, so the second does not touch it. `recolor_bg.py` is the existing answer to
+a backdrop this recipe does not control.
+
+### Dialling the smirk down: the weight is the lever, the tag is not (2026-08-17)
+
+`boss` at `(smug:1.4)` was gloating rather than self-assured. Three ways down
+from it, two seeds each, everything else held identical by overriding the one
+`POSES` entry in memory rather than editing between runs.
+
+| | change from E2 | result |
+|---|---------------|--------|
+| F1 | `(smug:1.15)` | **kept.** composed, chin still up, arc intact |
+| F2 | `smug` -> `(light smile:1.3)` | similar face, and **one foot loses its stocking** |
+| F3 | `(smug:1.15)` + `(half-closed eyes:1.15)` | indistinguishable from F1 |
+
+**Lowering the weight kept what the tag was structurally doing.** `sip` records
+`smug` holding her chin up so head, spine and hip land on one arc -- it is
+posture as much as expression, which is why easing it reads as composure while
+swapping it out would have cost the bearing. F1 keeps the lift and loses only
+the gloat. The hand at her chin, which came free at 1.4, does not survive the
+drop; it belonged to the stronger reading.
+
+**F2 is a counter-example to "substituting a word costs nothing."** That rule
+was measured on the chair noun and it does not generalise: swapping `smug` for
+`light smile` at the same tag count reached roughly the same face and took a
+stocking off her foot and changed the hood on the way. Same count is not the
+same thing as same cost -- what a tag holds elsewhere in the picture goes with
+it.
+
+**`half-closed eyes` was not carrying the swagger.** F3 eased it as well and
+changed nothing visible on either seed, so it stays at 1.3. Worth knowing which
+of two tags in a pair is inert before spending a round on it.
+
+Kept: `rf-boss-calm`, F1 on 555666777 at 2048x2048 through the image-space
+route. Layering unambiguous, expression composed.
+
+### The eye tag had no job left, so it went (2026-08-17)
+
+`(tsurime:1.3)` came in as half of the adult splice and read too sharp. Three
+ways off it, two seeds each, edited into the built graph's positive text so
+every other token stayed byte-identical.
+
+| | change | result |
+|---|--------|--------|
+| G1 | `(tsurime:1.1)` | softer, still upturned |
+| G2 | eye tag deleted | soft, and **a second empty gaming chair in the backdrop** |
+| G3 | back to `(tareme:1.3)` | **kept.** sharpness gone, still adult |
+
+**It was put in to do two jobs and by now neither was its own.** The reasoning
+was that drooping eyes are most of what reads young and that upturned ones
+would carry the smirk as well, so one swap would serve both asks. G3 reverts
+the eyes alone and the adult read does not move, so `petite` -> `mature female`
+was carrying that by itself; and the smirk had already gone to `(smug:1.15)`
+two rounds earlier, which retired the other job. What was left was a tag with
+nothing to do and a sharpness nobody asked for.
+
+**Deleting a tag is not the neutral setting between its two values.** G2 looks
+like it should sit between `tareme` and `tsurime` and instead it opened a hole:
+the backdrop grew a second empty chair, which is the empty-frame failure this
+pose's square canvas is already prone to. An occupied slot is doing work even
+when the work is only holding the slot.
+
+Kept: `rf-boss-soft`, G3 on 555666777 at 2048x2048 through the image-space
+route. `(tsurime:1.1)` is recorded in the splice comment as the middle, if a
+trace of the sharpness is ever wanted back.
+
+### Feet at head height on a chair: twelve levers, and the seed was the tool (2026-08-17)
+
+`boss` was built on 555666777, where her feet come up level with her head. No
+chair supports that. Four families of fix, twelve renders, two seeds each:
+
+| | attempt | result |
+|---|--------|--------|
+| H1-H3 | `feet on floor` -- bare and at 1.35, from two donor slots | nothing moved |
+| J0 | `crossed legs` deleted outright | **knees still up** |
+| J1-J2 | `(sitting on chair:1.6)` against `(crossed legs:1.05)` | nothing moved |
+| K1-K2 | `(feet up:1.45), (legs up:1.4), (knees up:1.35)` in the negative, alone and with the positive | nothing moved |
+
+**J0 is the one that settles it.** Deleting the crossing left the knees exactly
+where they were, so the crossing was never lifting them -- which rules out the
+obvious culprit and, with it, every fix aimed at the crossing. The raised legs
+are the composition, decided in the first pass, and the composition on this seed
+is the same one that made `chair` fail on it: camera in, low, on the legs.
+
+**Why `feet on floor` was never going to work.** It asks for both feet, and
+`crossed legs` puts one of them in the air -- a tag arguing with the pose,
+which this recipe has measured as inert more than once. The negative form is
+the version that does not contradict anything, and it did nothing either.
+
+`1886970040` and `2557902837` seat her properly on the identical block. The
+nape rule holds: when a defect survives this many prompt levers, stop
+diagnosing and change tools. Here the tool was the seed, and one sweep of the
+remaining `SWEEP_SEEDS` found two.
+
+**Ground contact is not reachable on this canvas at all**, independently of the
+seed. The square crops at the shins, so the floor is never in frame; the most
+the pose can do is send the feet downward out of it. A planted foot needs the
+floor visible, which needs the camera back, which is the tall canvas this pose
+gave up in order to get its shading. That is a real trade and not a bug.
+
+Kept: `rf-boss-1886` (1886970040, upright, hands on the armrests, both lower
+legs going down) and `rf-boss-seated` (2557902837, reclined, and the only one of
+the two with the legwear layering unambiguous). Neither shows a foot on a floor.
+
+### The adult body was wearing a different dress (2026-08-17)
+
+`boss` kept drawing a long pale button-front shirt dress instead of the purple
+bodice, on most seeds. It reads as a seed lottery and it is not one.
+
+**Reverting `(mature female:1.35)` to `(petite:1.2)` brought the purple bodice
+straight back**, on the first seed tried and with nothing else changed. The
+adult body tag was recruiting `(oversized shirt:1.3)` out of CHARACTER -- two
+tags that agree with each other and outvote the dress.
+
+Reverting is not available: the adult read is the point of the pose. So the
+competing garment goes instead, spliced per-pose like the rest of `boss`:
+
+    character = CHARACTER.replace("(oversized shirt:1.3), ", "")
+
+Nine seeds under the fix and the bodice is back on almost all of them.
+`sleeves past wrists` stays -- CHARACTER measured that one as what boxes the
+coat out, and it was never part of this.
+
+**Two fixes that looked equivalent were not.** Adding `(off shoulder:1.3)`
+reaches a similar silhouette and takes the rabbit hood off her head, which the
+module docstring rules out in as many words: deleting the hood costs more
+identity than it buys. Same apparent result, and one of them is a documented
+no-go.
+
+**Not every seed recovers.** 757575757 -- chosen for its leg geometry, the lower
+leg only slightly bent with the foot going down -- keeps the button-front
+version through both the `oversized shirt` removal and the off-shoulder route.
+121212121 has the same leg read and the correct dress, and is what `rf-boss-121`
+was made from.
+
+Contact sheets are the right tool for this and were underused until now: nine
+tiles labelled with their prompt ids answered in one look what nine separate
+reads would have cost. `scripts/contact_sheet.py --glob 'bossfix-*'`.
+
+### The two legwear layers are a contrast, and weight cannot make both appear (2026-08-17)
+
+On 757575757 the legs came out as pale thighhighs with no tights under them.
+Four weights, one variable each, on the off-shoulder base:
+
+| | change | result |
+|---|--------|--------|
+| P1 | `(grey pantyhose:1.45)` -> 1.65 | **whole leg goes grey**, thighhighs gone |
+| Q1 | `(very pale purple thighhighs:1.5)` -> 1.65 | whole leg stays pale, no tights |
+| Q2 | `(thighhighs over pantyhose:1.55)` -> 1.7 | whole leg goes grey |
+| Q3 | `(frills:0.85)` -> 1.25 | dress only: frilled collar, ties and beads return |
+
+**Whichever side is heavier takes the whole leg.** The layering is a contrast
+between two garments and the prompt has no way to ask for a boundary -- it can
+only ask for more of one thing. Even `thighhighs over pantyhose`, which names
+the relation rather than either garment, behaves as a third vote for the grey
+instead of drawing the join. Where the welt band has appeared, it appeared on
+its own.
+
+So the choice on a seed like this is pale thighhighs or grey tights, not both.
+`rf-boss-q4` takes the tights, since that was the half that was missing.
+
+**`(frills:0.85)` was below 1 in a prompt where everything else is 1.3+**, which
+this recipe has twice measured as equivalent to absent -- `hair ornament` and
+`drawstring` had the same disease. At 1.25 the frilled collar, the ribbon ties
+and the beaded cords all come back, and it costs nothing visible. Third time
+the same fix has worked; worth a sweep of the remaining sub-1.0 weights.
+
+Kept: `rf-boss-q4` -- 757575757, off shoulder at 1.3, `(thighhighs over
+pantyhose:1.7)`, `(frills:1.25)`, refined at 2048 through the image-space route.
+
+### `opaque pantyhose` was flattening the knit (2026-08-17)
+
+The vertical ribbing on the thighhighs, and the purple welt band with it, had
+gone from the recent `boss` renders. Both are present on `bossfix-boss-343434343`
+and absent from everything built on 757575757.
+
+**The tag was describing the opposite surface.** `(opaque pantyhose:1.3)` names
+a smooth unbroken face -- it is in LEGWEAR to stop the tights rendering sheer --
+and it takes the thighhighs' texture down with it. Swapped one-for-one for
+`(ribbed legwear:1.35)` the lines come straight back, and the welt band returns
+unasked alongside them.
+
+| | slot | result |
+|---|------|--------|
+| T1 | `(ribbed legwear:1.35)` | **kept.** knit lines the length of the leg, welt band back |
+| T2 | `(vertical-striped legwear:1.35)` | lines, but they read as a printed stripe and the welt is lost |
+| T3 | `off shoulder` removed instead | no change -- the shoulders were never involved |
+
+T3 is the one that matters for the diagnosis. The obvious suspect was
+`off shoulder`, since the flattening appeared in the same renders it did;
+removing it changed nothing, which left the legwear block as the only place to
+look.
+
+**Three tags in this recipe have now been found describing the opposite of what
+was wanted, and all three were doing it quietly** -- `sitting on floor`
+extending the legs, `feet on floor` contradicting the crossing, and now
+`opaque pantyhose` flattening the knit. None of them are wrong tags. They are
+right tags for a picture nobody asked for.
+
+`boss` now splices three things out of the shared blocks: `oversized shirt`
+(the dress), `(frills:0.85)` -> 1.25 (the collar and ties), and
+`(opaque pantyhose:1.3)` -> `(ribbed legwear:1.35)` (the knit). Plus
+`(off shoulder:1.3)`, which costs the rabbit hood and is a deliberate exception
+for this pose -- drop that one line to get the hood back.
+
+Kept: `rf-boss-rib`, 757575757 at 2048x2048.
+
+### `mature female` was also paying for a chest (2026-08-17)
+
+Yukari is not built that way, and `boss` had drifted there. Same cause as the
+dress: `(mature female:1.35)` brings an adult chest with it. One tag, two costs,
+and both of them found upstream of the thing that changed rather than at it.
+
+`(large breasts:1.25)` was already in NEGATIVE and simply being outvoted. Three
+ways down, one variable each:
+
+| | change | result |
+|---|--------|--------|
+| U1 | negative `(large breasts:1.25)` -> 1.5 | **kept.** modest without being flat, nothing else moves |
+| U2 | `(mature female:1.35)` -> 1.15 | works, and gives back the adult read this pose exists for |
+| U3 | `(small breasts:1.35)` added to the positive | works, grows the block by a tag, lands flatter than asked |
+
+**Raise the guard that is there rather than adding a neighbour.** This recipe
+has wrecked its own palette twice by stacking duplicate guards -- five of them
+once, four another time, mean saturation 25 -> 105-163 -- so a weight on an
+existing negative is the cheap move and a fourth guard is the expensive one.
+U1 changes no tag count on either side.
+
+That `mature female` has now cost the dress and the chest, and been the right
+answer both times when left alone, is worth remembering: it is the tag this pose
+is built on and the tag most of its defects trace back to. Fix downstream of it,
+not by weakening it.
+
+Kept: `rf-boss-bust`, 757575757 at 2048x2048 -- and this is the render that has
+everything asked for over the session: the seated geometry, the lower leg only
+slightly bent, the ribbed thighhighs with their welt band, the frilled collar
+and ribbon ties, the composed rather than gloating smirk, and the adult read
+without the chest that was coming with it.
+
+### Correction: the ribbed-legwear splice was wrong, and one seed is why (2026-08-17)
+
+The entry above claims `(opaque pantyhose:1.3)` flattens the knit. On 757575757
+it does, and swapping it for `(ribbed legwear:1.35)` restored the lines and the
+welt band there. Shipped on that evidence, it then removed the tights.
+
+**`opaque pantyhose` is one of only three tags holding the grey side up** --
+`(grey pantyhose:1.45)`, `pantyhose`, and it. Against three pale tags the sides
+were even; taking it out let the pale side win the whole leg, which is the same
+winner-takes-all behaviour measured two entries above. The fix for one defect
+was the cause of another, and the connection was already written down.
+
+Swept over nine seeds with the original block restored, the ribbing AND both
+layers appear together on most of them -- `202020202`, `2557902837`,
+`343434343`, `454545454`, `535353535`, `979797979`. Nothing needed changing.
+757575757 is simply a seed that does not draw them, and three sessions were
+spent making the recipe worse to make that one seed better.
+
+**One seed is enough to find a lever and never enough to keep one.** Every
+finding in this file that has held up was measured across at least three; this
+one was measured across one and shipped. The splice is reverted and the comment
+left in `positive()` so the same trade is not made again.
+
+Kept: `rf-boss-final`, 979797979 at 2048x2048 -- pale thighhighs, purple welt,
+grey above it, the frilled collar and ties, the modest chest, and the seated
+geometry. Its knit lines are fainter than `343434343`'s, which has the strongest
+ribbing of the nine and a more reclined pose.
+
+### The rib is part of the costume, and it had to be added rather than swapped
+
+Treated as a required element rather than a texture preference, and measured
+across three seeds before shipping this time.
+
+| | change | 979797979 | 343434343 | 2557902837 |
+|---|--------|-----------|-----------|------------|
+| earlier | `opaque pantyhose` -> `ribbed legwear` | rib, **no tights** | rib, no tights | rib, no tights |
+| W1 | `white thighhighs` -> `ribbed legwear` | rib, **legs go mid-purple** | same | same |
+| W2 | `ribbed legwear` **added** | **all four** | all four | all four |
+
+The two substitutions each took something out of the balance the legwear block
+is holding. `opaque pantyhose` is one of three tags on the grey side and
+`white thighhighs` is one of three on the pale side; removing either hands the
+other side something. Adding leaves both intact, and on three seeds nothing was
+pushed out of the block to pay for it.
+
+**This breaks the file's own rule that adding costs the picture, and the rule is
+still right in general** -- it was measured on pose blocks, where the tag count
+is what the composition is spending. The legwear block is not competing for the
+same budget in the same way, or has more slack than nine tags of pose. Worth
+knowing which blocks tolerate growth; this is the first one recorded that does.
+
+Standing suspicion: the legwear is documented as the first thing this pose
+spends. If a later change starts losing thighhighs, this extra tag is where to
+look first.
+
+Kept: `rf-boss-rib2`, 979797979 at 2048x2048. Ribbed pale thighhighs, purple
+welt, grey above it, frilled collar and ties, modest chest, seated with the
+lower leg only slightly bent.
+
+### The halter straps, from the official design (2026-08-17)
+
+Her dress is a halter: the straps cross at the chest, pass over the shoulders
+and tie in a bow behind the neck. It is in the official character sheet and the
+recipe had never drawn it outside `nape`, which splices `(halterneck:1.45),
+(black straps:1.35)` for the same garment seen from behind.
+
+`nape`'s comment says that pair costs every other pose its coat, which is why it
+is spliced there and not global. **`boss` is the one pose that can afford it
+anyway** -- the coat is already off her shoulders by its own splice, so the
+documented cost is one this pose has already paid. Worth looking for: a
+constraint recorded as global may only bind the poses that have not already
+broken it.
+
+Three forms, three seeds each:
+
+| | tags | result |
+|---|------|--------|
+| Y1 | `halterneck` + `black straps` (nape's pair) | straps drawn, cross less definite |
+| **Y2** | **`criss-cross halter` alone** | **kept.** clear cross, composition unmoved |
+| Y3 | all three | clearest straps, and the camera comes in off the body |
+
+Y3 is the tag-count lesson again in miniature: three tags draw the thing best
+and cost the framing, one tag draws it well enough and costs nothing. The single
+tag also names the part the reference is specific about -- the cross -- rather
+than the garment category.
+
+Kept: `rf-boss-straps`, 979797979 at 2048x2048. The tights read weaker on this
+render than on the one before it; the straps landed, the grey above the welt did
+not, and that trade has not been chased.
+
+### No buttons on the dress, and one guard is the whole fix (2026-08-17)
+
+The official design has a plain ribbed front -- ribbon, beads, frills, no
+buttons -- and the renders had been drawing a button placket down the centre.
+Nothing in the prompt asks for one; it arrives from the cardigan, or from the
+garment being read as a shirt dress. Nothing to substitute, so a guard.
+
+One, two and four guards, three seeds each. **All three remove the buttons**,
+which makes this the cheapest of the three to choose:
+
+| | negative | result |
+|---|----------|--------|
+| **Z1** | `(buttons:1.4)` | **kept.** buttons gone, nothing else moves |
+| Z2 | + `(buttoned shirt:1.35)` | buttons gone, **rabbit silhouette on the chair back** |
+| Z3 | + `(shirt:1.4), (placket:1.35)` | buttons gone, same intruder |
+
+Third time stacking guards has cost something here, and the first time the cost
+was an intruder rather than the palette -- the same backdrop rabbit this pose's
+ancestors fought through a dozen renders, arriving with the stack rather than
+with any one tag. Worth recording that the punishment is not always the same
+shape; it was saturation twice and composition this time.
+
+Kept: `rf-boss-nobtn`, 979797979 at 2048x2048.
+
+### A cheap pass deletes; it does not add (2026-08-17)
+
+`rf-boss-rib2` (prompt `88b01d73`) was the render whose shading was accepted, and
+it predates three corrections: no buttons, the halter straps, the smaller chest.
+Rather than re-render and lose the shading, a third pass was chained onto it --
+its own two passes replayed verbatim from `/history`, the prompt re-encoded from
+the current recipe, image-space lanczos at 2048.
+
+| denoise | buttons removed | straps drawn | chest | shading |
+|---------|-----------------|--------------|-------|---------|
+| 0.35 | **yes** | barely a suggestion | partly down | intact |
+| 0.50 | yes | faint | down | intact |
+| **0.60** | **yes** | **drawn properly** | **down** | **intact** |
+
+**Removing something the prompt now forbids is nearly free. Drawing something
+the base does not contain costs real denoise.** 0.35 was enough to take a button
+placket off a garment and nowhere near enough to put straps onto a bare chest,
+and the gap between those two is the whole finding. A guard reaches down into a
+cheap pass; a positive tag needs the pass to be expensive enough to redraw the
+region.
+
+0.60 was the level at which the straps landed, and the shading survived it --
+which is not obvious, since 0.60 on a *first* pass is the denoise that was
+measured inventing dress details two sessions ago. A late pass over a settled
+picture tolerates more denoise than an early one over a rough one.
+
+3072 was tried and abandoned: not wanted, and slow enough that the run was
+interrupted. 2048 is the print size.
+
+`scripts/refine_from_history.py --chain --pose boss --denoise 0.60` reproduces
+it. Kept: `th-2048-d60`.
+
+### Open the eyes: the tag is not gradual, and the guard is not portable (2026-08-17)
+
+`(half-closed eyes:1.3)` was half of the smirk pair. Once `smug` came down to
+1.15 the lids were the only thing still reading as attitude rather than
+composure, so they came out. Three forms, chained onto `88b01d73` at 0.60:
+
+| | change | result |
+|---|--------|--------|
+| Ea | `(half-closed eyes:1.1)` | still lidded |
+| Eb | tag removed | more open |
+| **Ec** | removed + `(half-closed eyes:1.4), (closed eyes:1.4)` in the negative | **open, iris visible** |
+
+Ea confirms what F3 measured and reframes it. Easing the weight does nothing
+because **the tag is not gradual** -- present or absent is the whole range it
+has. Two sessions apart, the same null result meant something different once the
+question changed from "how much" to "at all".
+
+**And the guard does not port back.** Ec is safe chained onto a settled picture
+and unsafe from scratch: run from the recipe it stacks with the buttons guard
+and 979797979 grows a second chair with a rabbit face on it -- the same intruder,
+the fourth time stacking has summoned something. So the recipe carries only the
+removal, and the guard pair is documented for the chain.
+
+That split follows from the pass-depth finding: a late pass only gets to delete,
+and a guard is a deletion. A first pass gets to rearrange the composition around
+the same guard, and it does.
+
+Kept: `eyeEc`, 2048x2048, chained onto `88b01d73`.
+
+### Corrections go on in one pass, not in a stack (2026-08-17)
+
+Reducing the chest further was first tried by chaining a fourth pass onto
+`eyeEc`, which already had three. It worked and **the palette went with it**:
+the gaming chair drifted from purple-and-black to magenta and the linework
+lightened, on all three tag variants alike. The drift belongs to the pass, not
+to what was asked of it.
+
+Going back to `88b01d73` and putting the eye guard and the stronger chest tags
+into **one** pass gives the same corrections with the chair still purple.
+
+**Each pass takes a little colour and line with it, so the count is the cost.**
+Corrections discovered separately should be re-applied together from the last
+approved render, not stacked in the order they were found.
+
+Also fixed, and it nearly cost this comparison: `chain_pass` allocated node ids
+20-23 as constants. Chaining onto a graph that was itself chained overwrote the
+previous pass instead of extending it -- the second chain would have silently
+redrawn the same picture. Ids are now allocated above whatever the graph already
+uses. Fixed ids worked exactly once, which is the number of times a fixed id
+works.
+
+Kept: `one-d60` -- `88b01d73` plus a single pass at 0.60 carrying
+`(small breasts:1.6)`, `(large breasts:1.8)` and the eye guard.
+
+### Thinning the line: it is the denoise, and going bigger does nothing (2026-08-17)
+
+`scripts/stroke_width.py` exists now. This file has been quoting stroke figures
+since the beginning -- 1.91px, 3.82, "the line does not respond to tags" -- with
+no tool behind any of them, so none could be re-checked. Median dark-run length,
+horizontal and vertical, runs over `--max-run` dropped as fills.
+
+The first thing it says is that the refine pass was already thinning the line
+and nobody knew:
+
+| render | canvas | median | per 1000px |
+|--------|--------|--------|------------|
+| first pass | 1024 | 3.00px | 2.93 |
+| refined at 0.60 | 2048 | 4.00px | 1.95 |
+| **refined at 0.65** | 2048 | **3.00px** | **1.46** |
+| refined at 0.70 | 2048 | 3.00px | 1.46 |
+| refined at 0.60, 3072 | 3072 | 6.00px | 1.95 |
+| the same, downscaled to 2048 | 2048 | 4.00px | 1.95 |
+
+A straight upscale would have taken 3px to 6px; it lands at 4, so the second
+pass redraws contours finer than it inherits them.
+
+**Going bigger does nothing, and that is a limit on an existing rule.** The
+docstring says line width is roughly constant in pixels and resolution is the
+reliable way to thin it. True of first passes, and false here: 3072 draws 6px
+where 2048 draws 4, the same 1.95 normalised, so the stroke scales with the
+canvas and the downscale gives it all back. **Denoise is the lever on a refine
+pass; resolution is the lever on a first pass.**
+
+**0.65 is the whole gain.** 0.70 measures identically and costs content -- the
+chest ribbon slid to the waist and a seam appeared across the dress that the
+design does not have. Same line, worse picture, which is the invention curve
+already recorded for denoise arriving on top of the line curve.
+
+Kept: `ln-d65`.
+
+### Opening the eyes further: say it, do not ban it harder (2026-08-17)
+
+One pass from `88b01d73` at 0.65 again, three ways:
+
+| | change | result |
+|---|--------|--------|
+| Ga | guard to 1.65 + `(narrowed eyes:1.4)` | open, and **the backdrop goes mottled** |
+| **Gb** | `(large eyes:1.3)` -> 1.55, guard unchanged | **kept.** open, backdrop clean |
+| Gc | both | open, backdrop mostly clean |
+
+**"Guards are cheap in a late pass" needs a correction: cheap, not free.** That
+was written two entries ago on a chain that carried one guard pair. Carrying
+three in the same pass mottles the backdrop -- so stacking is punished at every
+pass depth, and what a late pass buys is a discount rather than an exemption.
+Fifth distinct cost recorded for stacking: saturation, saturation, an intruder,
+a second chair, and now backdrop texture.
+
+Gb is also the cheaper move in the other sense. `(large eyes:1.3)` was sitting
+in FACE unraised the whole time, so opening the eyes needed a weight on a tag
+already present rather than a new ban on the tag already banned. The positive
+was never asked before the negative was pushed twice.
+
+Stroke held at 1.46 per 1000px, so the finer line survives the change.
+
+Kept: `eyes2Gb`.
+
+### Correction: the median was too coarse and the line barely moved (2026-08-17)
+
+The two entries above are wrong where they quote line width, and the tool built
+to stop exactly this kind of error is what produced them.
+
+`stroke_width.py` reported the **median** dark-run length. On these renders that
+is an integer landing on 3 or 4 with nothing between, so "0.65 thins the line by
+25%" was the metric stepping down one whole count, and "0.70 measures
+identically" was two different distributions sharing a median. Re-measured with
+the mean, which moves continuously:
+
+| render | per 1000px, median-based (wrong) | mean-based |
+|--------|---------------------------------|------------|
+| first pass, 1024 | 2.93 | 3.818 |
+| refined 0.60 | 1.95 | 2.248 |
+| refined 0.65 | 1.46 | **2.083** |
+| refined 0.70 | 1.46 | 2.252 |
+| 0.65 + `(large eyes:1.55)` | 1.95 | 2.272 |
+| 0.65 + three guards | 1.95 | 2.575 |
+
+What survives: **the refine pass is the whole effect**, 3.818 to 2.248, a 41%
+thinner line relative to the figure. What does not: **denoise is worth about 7%
+between 0.60 and 0.65 and nothing at all at 0.70.** There is no meaningful line
+lever left in the second pass; the one that mattered was already switched on.
+
+Two smaller things fall out of the honest numbers. Raising `(large eyes:1.55)`
+gives back the 7%, so the eye and the line are competing for the same redraw.
+And the three-guard stack thickens the line to 2.575 -- above even the 0.60
+baseline -- which is a cost of stacking that the coarse metric had hidden
+entirely.
+
+**A tool built to check an assertion is only as good as its statistic**, and a
+median over small integers is not a measurement, it is a vote between two
+values. The mean is now the normalised figure and the median is kept beside it
+as a reminder.

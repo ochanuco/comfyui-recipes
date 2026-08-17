@@ -319,27 +319,6 @@ POSES = {
         "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
         "(half-closed eyes:1.3), full body"
     ),
-    # `peace` off the floor and onto a chair. `sitting on chair` is not a tag --
-    # its wiki says to use `sitting` + `on chair` -- so it is the two of them.
-    # Nine tags, matching `peace`, with yokozuwari and `legs to the side`
-    # swapped out for the pair.
-    #
-    # NOT SETTLED. One of four seeds is clean where `peace` was seven of seven:
-    #
-    #   111222333   clean -- chair drawn, socks over tights on both legs
-    #   555666777   layered correctly, but two rabbit plushies appear and the
-    #               camera drops low onto her thighs
-    #   737373737   layering gone; the purple dress is replaced by a long black
-    #               hoodie dress
-    #   3409564303  three chibi clones around her, with (solo:1.5) leading
-    #
-    # `sitting` has form for the low angle -- three of four renders once before.
-    # Busy hands stopped it that time and mostly do here.
-    #
-    # The clones and the props are the new thing, and the guess is empty frame:
-    # a figure seated on a chair fills less of a 2:3 canvas than one on the
-    # floor, and what is left over gets filled. Untested. A tighter framing than
-    # `full body` is the obvious thing to try.
     # Stretching and yawning, looked down on. The pose text comes from
     # pick/yk-yawn-full, which was settled on the older queue_dq3 recipe against
     # the same base and sampler, and carries two measured constraints:
@@ -508,10 +487,122 @@ POSES = {
         # rejection was true of that block, not of the tags.
         "(picking up:1.3), (from above:1.2), (smug:1.2), full body"
     ),
+    # Sitting on a gaming chair with her legs crossed, facing front.
+    #
+    # This block is not new here. It is the one kept as pick/yk-chair-151,
+    # pick/yk-chair-111 and pick/yk-chair-555 -- three seeds, settled on the
+    # older queue_dq3 recipe against this same base, and passed as --pose-text
+    # rather than ever being written down as a pose. Porting it in is the whole
+    # change; every weight below was measured there and none of it was re-run.
+    #
+    # What it replaces was `peace` moved off the floor and onto a chair
+    # (`sitting` + `on chair` + the double-V hands). That went one clean seed in
+    # four -- rabbit plushies, a low camera on the thighs, the dress swapped for
+    # a hoodie, and three chibi clones -- and nothing was ever picked from it.
+    # The floor version is still there as `peace`, seven seeds of seven.
+    #
+    # Four measurements this block carries, all of them costly:
+    #
+    #   `(crossed legs:1.2)`, NOT 1.35. At 1.35 the model draws the crossing
+    #   rather than the legs and a third leg appears. Banning it -- (extra
+    #   legs:1.6), (three legs:1.5) -- did not help, because the weight was the
+    #   problem and not the absence of a ban.
+    #
+    #   The chair is one word. Asked for as a five-tag block -- (gaming
+    #   chair:1.45), racing seat, (high backrest:1.3), headrest, armrest -- it
+    #   returned a full-frame noise field, and so did this block plus `leaning
+    #   back, hand on own knee`. Substituting (office chair:1.35) for (gaming
+    #   chair:1.4) at the same tag count drew a proper racing seat instead, and
+    #   threw in a controller nothing had asked for.
+    #
+    #   Nine tags, and the ninth is load-bearing in both directions. At twelve
+    #   the pale thighhighs are pushed out and one dark tights is drawn instead
+    #   -- the legwear is the first thing this block spends.
+    #
+    #   Bare `full body`, NOT `(full body:1.4)`. render-notes recommends the
+    #   raised form off three seeds, and pick/yk-chair-gradient records the same
+    #   substitution alone collapsing the two legwear layers into one stocking.
+    #   Ported with the raised form first and the collapse reproduced on
+    #   151515151; reverting it brought the layers back on that seed. Two picks
+    #   disagreed about one substitution and the unfavourable one was right.
+    #
+    # One tag had to go to make room for (solo:1.5), which leads every entry
+    # here and is worth its slot -- it took clones from five of eight to none.
+    # `looking at viewer` is the one dropped, because FACE already supplies it;
+    # `lap` omits it for the same reason. Nine tags in, nine tags out.
+    #
+    # 1024x1024, where the picks were 2:3. The look was drifting flat next to
+    # `sip` -- no highlights, no modelling -- and that is a framing property, not
+    # a style one. Stroke is a constant 1.91px at every canvas this recipe uses
+    # (see the module docstring), so a figure drawn small carries a line that is
+    # heavy relative to her head and has no pixels left to shade in. The square
+    # puts her back at `sip`'s scale and the shading returns with her.
+    #
+    # NOT SETTLED, one clean seed in three. 111222333 holds the front view with
+    # the chair whole; 151515151 keeps everything but swings to three-quarter;
+    # 555666777 brings the camera in on the legs and loses the composition. The
+    # framing tags are what the square is spending, and `full body` at any
+    # weight does not anchor them -- it was tried both ways here.
+    #
+    # Unmeasured here: the picks ran --face moe-far-noeye, and this recipe has
+    # one fixed FACE block. The backdrop intruder that owned an earlier chair
+    # pose answered only to the face lever, so if it comes back, that is where
+    # it lives -- but none of the twelve renders here had one.
     "chair": (
-        "(solo:1.5), (sitting:1.35), (on chair:1.3), (double v:1.45), "
-        "(v over eye:1.4), (outstretched arm:1.3), (smug:1.35), "
-        "(half-closed eyes:1.3), full body"
+        "(solo:1.5), (sitting on chair:1.4), (crossed legs:1.2), (front view:1.35), "
+        "facing viewer, (gaming chair:1.4), swivel chair, backrest, full body"
+    ),
+    # `chair` with the smirk on, and grown up. Built on ykchairD-chair-555666777
+    # (prompt c1629d37), the square render that lost the front view and sank her
+    # into the seat instead -- which is the wrong result for `chair` and the
+    # right starting point for this. Same canvas, same seed family.
+    #
+    # `(front view:1.35), facing viewer` are what pay for the smirk. That seed
+    # never delivered them anyway, so the two tags were being bought and not
+    # collected; the pair that replaces them is the one `lounge`, `peace` and
+    # `invite` all already carry, at the weights they carry it at. Nine in,
+    # nine out.
+    # `(smug:1.15)`, not 1.4. At 1.4 it is gloating; at 1.15 it is composed, and
+    # the chin lift and the head-spine-hip arc that `sip` measured `smug` doing
+    # both survive the drop. The weight is the lever and the tag is not: swapped
+    # for `(light smile:1.3)` the face arrives in roughly the same place and
+    # takes a stocking off her foot on the way, and easing
+    # `half-closed eyes` to 1.15 alongside it changed nothing visible at all.
+    # SEED MATTERS MORE THAN THE BLOCK HERE. On 555666777 -- the render this
+    # pose was built on -- her feet come up to head height, which no chair
+    # supports. That is a property of the composition and not of any tag:
+    # `feet on floor` was tried in two donor slots and both weighted and bare,
+    # `crossed legs` was deleted outright and the knees stayed up regardless,
+    # the sitting was raised to 1.6 against the crossing at 1.05, and
+    # (feet up:1.45), (legs up:1.4), (knees up:1.35) went into the negative
+    # alone and alongside the positive. Twelve renders, nothing moved.
+    #
+    # 1886970040 and 2557902837 seat her properly with the same block, so use
+    # those. The nape session's rule applies: when a defect survives that many
+    # prompt levers, stop diagnosing and change tools -- and the tool here is
+    # the seed.
+    #
+    # Ground contact is not available at all on this canvas. The square crops
+    # at the shins, so the floor is never in frame; the best the pose can do is
+    # send the feet downward out of it. Showing a foot planted needs the floor,
+    # which needs the camera back, which is the tall canvas this pose gave up
+    # to get its shading.
+    # `half-closed eyes` is gone and the block is eight. It was half of the
+    # smirk pair every other pose carries, and once `smug` came down to 1.15 the
+    # lids were the only thing still reading as attitude rather than composure.
+    # F3 measured easing it from 1.3 to 1.15 as changing nothing, which was
+    # true and beside the point: the tag is not gradual, it is present or not.
+    #
+    # To open them further on a picture that is already settled, chain a pass
+    # with `(half-closed eyes:1.4), (closed eyes:1.4)` in the negative --
+    # measured, and it opens them fully. Do NOT put that pair in the negative
+    # here: from scratch it stacks with the buttons guard and 979797979 grows a
+    # second chair with a rabbit on it. Guards are cheap in a late pass, which
+    # only gets to delete, and expensive in a first pass, which gets to
+    # rearrange the picture around them.
+    "boss": (
+        "(solo:1.5), (sitting on chair:1.4), (crossed legs:1.2), (smug:1.15), "
+        "(gaming chair:1.4), swivel chair, backrest, full body"
     ),
     # A full squat seen from the side, curled forward over her knees with a mug
     # held in both hands at her mouth. Built by substituting into `crouch`'s
@@ -594,7 +685,10 @@ POSES = {
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
 # at 1024x1280 and drew down to the thighs. 1024x1024 held it.
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
-         "peace": (1024, 1536), "chair": (1024, 1536),
+         "peace": (1024, 1536),
+         "chair": (1024, 1024),
+         # Same square as the render it is built on.
+         "boss": (1024, 1024),
          "yawn": (1024, 1536), "fall": (1024, 1536),
          "coy": (1024, 1536),
          "lap": (1024, 1536),
@@ -691,6 +785,39 @@ def negative(pose: str) -> str:
             "(character sheet:1.4), (multiple views:1.4), reference sheet, "
             "turnaround, (undressing:1.4), topless, (bare back:1.3), "
         ) + NEGATIVE
+    if pose == "boss":
+        # `(mature female:1.35)` brings a fuller chest with it, the same way it
+        # brought a longer dress -- one tag, two costs, and both of them found
+        # by looking upstream rather than at the thing that changed.
+        #
+        # The guard for it is already in NEGATIVE at 1.25 and was simply being
+        # outvoted, so it gets the weight instead of a neighbour: this recipe
+        # has wrecked its palette twice by stacking duplicate guards, once with
+        # five of them and once with four. Raising the one that is already
+        # there costs nothing and no tag is added.
+        #
+        # Measured against two alternatives, both of which also worked and both
+        # of which cost more: easing `mature female` to 1.15 gives back some of
+        # the adult read this pose exists for, and `(small breasts:1.35)` in the
+        # positive grows the block by a tag and lands flatter than asked.
+        #
+        # And no buttons. Her dress has none -- ribbed front, ribbon and beads,
+        # and that is all -- but nothing in the prompt asks for them either;
+        # they arrive from the cardigan, or from the garment being read as a
+        # shirt dress. Nothing to substitute, so this is a guard, and it is one
+        # guard on purpose.
+        #
+        # Measured at one, two and four. All three remove the buttons. Two and
+        # four also drew a rabbit silhouette onto the chair back on 979797979 --
+        # the same backdrop intruder this pose's ancestors fought, arriving with
+        # the stack rather than with the tag. Third time guard-stacking has cost
+        # something here, and the first time the cost was an intruder rather
+        # than the palette.
+        #
+        # In front of NEGATIVE, which is where `nape` puts its own and the order
+        # the approved render was drawn in.
+        return "(buttons:1.4), " + NEGATIVE.replace(
+            "(large breasts:1.25)", "(large breasts:1.5)")
     if pose != "lap":
         return NEGATIVE
     # A head resting in her lap looks up at her, so the guard against low angles
@@ -715,7 +842,85 @@ def positive(pose: str) -> str:
     # it either argues with the pose or spins her back around.
     if pose == "nape":
         face = face.replace(", looking at viewer", "")
-    character = CHARACTER
+    body = BODY
+    if pose == "boss":
+        # Grown up, and it is one substitution now, not the two it started as.
+        #
+        # `petite` -> `mature female`. Direct opposite in the same slot. The
+        # rest of BODY -- wide hips, thick thighs, narrow waist -- is already
+        # adult proportion and was only ever being held down by that one tag.
+        #
+        # The face is NOT touched, and why is worth keeping. It was
+        # `tareme` -> `tsurime`, on the reasoning that drooping eyes are most
+        # of what reads young and that upturned ones would carry the smirk as
+        # well -- one swap for both asks. Both halves turned out to be somebody
+        # else's work. Reverting the eyes alone leaves the adult read intact,
+        # so the body swap was doing that; and the smirk went to (smug:1.15)
+        # in the meantime, which retired the other job. What was left was a tag
+        # with nothing to do and a sharpness nobody had asked for.
+        #
+        # `(tsurime:1.1)` is the middle if a trace of it is ever wanted.
+        # Dropping the eye tag outright is not the neutral option it looks
+        # like: it drew a second empty chair into the backdrop.
+        #
+        # Spliced per-pose, not changed globally: every other pose was settled
+        # against this BODY and would move under it.
+        body = body.replace("(petite:1.2)", "(mature female:1.35)")
+        # And then say the chest outright, because `mature female` brings one
+        # and the negative could not finish the job alone. `(large breasts)` in
+        # NEGATIVE went 1.25 -> 1.5 -> 1.75 and was still leaving more than
+        # Yukari has; naming `small breasts` positively lands it in one step and
+        # holds on 979797979, 343434343 and 2557902837 alike.
+        #
+        # An addition, and the second block found to tolerate one after the
+        # legwear. Guards were the alternative and this recipe has twice been
+        # punished for stacking those -- the weight route was tried first here
+        # for exactly that reason and simply did not reach.
+        body = body.replace("(narrow waist:1.25)",
+                            "(narrow waist:1.25), (small breasts:1.35)")
+        # And `(oversized shirt:1.3)` comes out, which the adult body made
+        # necessary. `mature female` pulls the costume toward a long pale
+        # button-front shirt dress -- reverting the body swap alone brought the
+        # purple bodice straight back, which is how the cause was found. Since
+        # the adult read is the point of this pose, the competing garment goes
+        # instead: `oversized shirt` is what `mature female` was recruiting, and
+        # dropping it restores the dress on the seeds that had lost it while
+        # keeping the proportions.
+        #
+        # `sleeves past wrists` stays. It is the tag CHARACTER measured as
+        # boxing the coat out, and it was not part of this.
+        character = CHARACTER.replace("(oversized shirt:1.3), ", "")
+        # `(frills:0.85)` -> 1.25. Below 1 in a prompt where everything else is
+        # 1.3+, which is the third time that has meant "absent" here -- see
+        # `hair ornament` and `drawstring` in CHARACTER. Raised, the frilled
+        # collar, the ribbon ties and the beaded cords all come back, and
+        # nothing measurable is paid for them.
+        character = character.replace("(frills:0.85)", "(frills:1.25)")
+        # The coat off her shoulders. This is the render that was approved for
+        # the pose, and it costs the rabbit hood -- which the module docstring
+        # rules out in general and which is a deliberate exception here, not an
+        # oversight. Drop this line to get the hood and the ears back.
+        character = character.replace("open cardigan",
+                                      "open cardigan, (off shoulder:1.3)")
+        # The straps. Her dress is a halter that crosses at the chest, goes over
+        # the shoulders and ties in a bow behind the neck -- it is in the
+        # official design and the recipe had never drawn it outside `nape`,
+        # which splices (halterneck:1.45), (black straps:1.35) for the same
+        # garment seen from behind.
+        #
+        # `nape`'s pair is documented as costing every other pose its coat.
+        # That is why this is spliced and not global -- but it is also why this
+        # pose can afford it: the coat is already off the shoulders one line up.
+        #
+        # `(criss-cross halter:1.45)` alone is what shipped. One tag against
+        # nape's two or all three together, and it names the cross specifically,
+        # which is the part the reference is explicit about. The three-tag form
+        # drew the straps most clearly and pulled the camera in off the body;
+        # the single tag draws them and leaves the composition where it was.
+        character = character.replace(
+            "(drawstring:1.4), ", "(drawstring:1.4), (criss-cross halter:1.45), ")
+    else:
+        character = CHARACTER
     if pose == "nape":
         # The dress ties in a bow at the nape, which only this pose is looking
         # at, and which costs every other pose its coat -- see CHARACTER.
@@ -724,11 +929,34 @@ def positive(pose: str) -> str:
         character = character.replace(
             "(drawstring:1.4), ",
             "(drawstring:1.4), (halterneck:1.45), (black straps:1.35), ")
+    legwear = LEGWEAR
+    if pose == "boss":
+        # The rib is not decoration -- it is what her thighhighs are, and the
+        # block draws it only on some seeds unaided. `(ribbed legwear:1.35)` is
+        # ADDED here rather than substituted, which is against this file's usual
+        # rule and is the point of the note below.
+        #
+        # It was substituted first, for `(opaque pantyhose:1.3)`, on one seed
+        # where that restored the lines. Shipped, it removed the tights on every
+        # seed: `opaque pantyhose` is one of only three tags holding the grey
+        # side up against three pale ones, and breaking that tie hands the pale
+        # side the whole leg. Substituting from the pale side instead
+        # (`white thighhighs`) keeps the tights and costs the pale colour --
+        # the legs come out mid-purple.
+        #
+        # Adding it leaves both sides intact. Measured on 979797979, 343434343
+        # and 2557902837: ribbing, pale colour, welt band and the grey above it,
+        # all three seeds, and nothing pushed out of the block. The legwear is
+        # documented as the first thing this pose spends, so if a later change
+        # starts losing thighhighs, this extra tag is the first suspect.
+        legwear = legwear.replace(
+            "(thighhighs over pantyhose:1.55)",
+            "(thighhighs over pantyhose:1.55), (ribbed legwear:1.35)")
     parts = ["best quality, absurdres, 1girl, solo", character, POSES[pose]]
     if full_figure:
-        parts.append(LEGWEAR)
+        parts.append(legwear)
     parts += [face, SURFACE]
-    parts.append(BODY if full_figure else "(pale skin:1.25)")
+    parts.append(body if full_figure else "(pale skin:1.25)")
     # The coat pulled off the shoulders, which is what uncovers the nape. It
     # rides with the hood rather than joining the pose block: that block is at
     # eight tags and a ninth is where the hair clips broke last time.

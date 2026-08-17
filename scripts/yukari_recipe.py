@@ -710,12 +710,17 @@ POSES = {
     # tag most likely to buy the overhead rear view that the portrait canvas
     # drew on its own (see SIZES).
     #
-    # DO NOT `--hires` this one. The second pass is a line-thinner, and this
-    # canvas already lands on the recipe's 1.91 in one pass: 2048 at 0.60 and
-    # 0.45 and 3072 at 0.60 measure 1.27, 1.45 and 0.98 per 1000px, and all
-    # three lose the die-cut white outline -- doubled, scribbled and blurred to
-    # a halo respectively. It is finished at sweep size, which nothing else here
-    # is.
+    # `--hires 2048` at the default denoise, and that is a correction. The
+    # measurements are unchanged -- the second pass takes the stroke from 1.941
+    # per 1000px to 1.274 and redraws the die-cut edge as a stroke rather than a
+    # cut -- but "this canvas already lands on 1.91, so the pass has nothing to
+    # give" was a conclusion drawn from a number, and the thinner, looser line
+    # is the one that was picked. 1.91 is what `fb-b` measured, not a target the
+    # recipe is aiming at.
+    #
+    # 0.45 is not the same thing softened; it scribbles the outline instead of
+    # drawing it, and 3072 blurs it to a halo. The line that was wanted is 2048
+    # at 0.60 specifically.
     "prone": (
         "(solo:1.5), (lying:1.45), (on stomach:1.5), (from above:1.35), "
         "(chin rest:1.35), (feet up:1.3), (smug:1.35), (half-closed eyes:1.3), "

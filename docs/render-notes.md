@@ -3524,3 +3524,35 @@ with any one tag. Worth recording that the punishment is not always the same
 shape; it was saturation twice and composition this time.
 
 Kept: `rf-boss-nobtn`, 979797979 at 2048x2048.
+
+### A cheap pass deletes; it does not add (2026-08-17)
+
+`rf-boss-rib2` (prompt `88b01d73`) was the render whose shading was accepted, and
+it predates three corrections: no buttons, the halter straps, the smaller chest.
+Rather than re-render and lose the shading, a third pass was chained onto it --
+its own two passes replayed verbatim from `/history`, the prompt re-encoded from
+the current recipe, image-space lanczos at 2048.
+
+| denoise | buttons removed | straps drawn | chest | shading |
+|---------|-----------------|--------------|-------|---------|
+| 0.35 | **yes** | barely a suggestion | partly down | intact |
+| 0.50 | yes | faint | down | intact |
+| **0.60** | **yes** | **drawn properly** | **down** | **intact** |
+
+**Removing something the prompt now forbids is nearly free. Drawing something
+the base does not contain costs real denoise.** 0.35 was enough to take a button
+placket off a garment and nowhere near enough to put straps onto a bare chest,
+and the gap between those two is the whole finding. A guard reaches down into a
+cheap pass; a positive tag needs the pass to be expensive enough to redraw the
+region.
+
+0.60 was the level at which the straps landed, and the shading survived it --
+which is not obvious, since 0.60 on a *first* pass is the denoise that was
+measured inventing dress details two sessions ago. A late pass over a settled
+picture tolerates more denoise than an early one over a rough one.
+
+3072 was tried and abandoned: not wanted, and slow enough that the run was
+interrupted. 2048 is the print size.
+
+`scripts/refine_from_history.py --chain --pose boss --denoise 0.60` reproduces
+it. Kept: `th-2048-d60`.

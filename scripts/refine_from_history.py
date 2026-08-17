@@ -1,9 +1,24 @@
 #!/usr/bin/env python3
-"""Refine one already-rendered prompt by replaying its exact graph plus a second pass.
+"""Refine one already-rendered prompt by replaying its exact graph plus another pass.
 
-The first pass is taken verbatim from /history, so the composition it decided is
-the composition that gets redrawn -- no reconstruction from the recipe, and no
-chance of a tag-order difference changing the picture.
+The earlier passes are taken verbatim from /history, so the composition they
+decided is the composition that gets redrawn -- no reconstruction from the
+recipe, and no chance of a tag-order difference changing the picture.
+
+    refine_from_history.py <prompt_id>                       # second pass, 2048
+    refine_from_history.py <prompt_id> --chain               # append to a refined one
+    refine_from_history.py <prompt_id> --chain --pose boss --denoise 0.60
+
+`--chain` appends onto a render that already has a second pass instead of
+replacing it, and `--pose` re-encodes the prompt from the current recipe rather
+than reusing the stored one -- which is how a picture whose shading was already
+approved takes corrections made to the recipe afterwards.
+
+**A cheap pass deletes; it does not add.** At 0.35 the chained pass removed a
+button placket the recipe had since banned and left newly-added halter straps as
+a faint suggestion. 0.60 drew the straps properly and the approved shading still
+survived. Removing something the prompt now forbids is nearly free; drawing
+something the base does not contain costs real denoise.
 """
 import argparse
 import json
@@ -32,6 +47,37 @@ def post(graph):
     )
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.load(r)["prompt_id"]
+
+
+def last_decode(graph):
+    """The node holding the finished picture: the VAEDecode SaveImage reads."""
+    return graph["9"]["inputs"]["images"][0]
+
+
+def chain_pass(base, size, denoise, prefix, prompt=None):
+    """Append one more image-space pass onto whatever the graph already ends in."""
+    g = json.loads(json.dumps(base))
+    pos, neg = ["6", 0], ["7", 0]
+    if prompt:
+        g["16"] = {"class_type": "CLIPTextEncode",
+                   "inputs": {"clip": ["4", 1], "text": prompt[0]}}
+        g["17"] = {"class_type": "CLIPTextEncode",
+                   "inputs": {"clip": ["4", 1], "text": prompt[1]}}
+        pos, neg = ["16", 0], ["17", 0]
+    tail = last_decode(g)
+    g["20"] = {"class_type": "ImageScale", "inputs": {
+        "image": [tail, 0], "upscale_method": "lanczos",
+        "width": size, "height": size, "crop": "disabled"}}
+    g["21"] = {"class_type": "VAEEncode", "inputs": {"pixels": ["20", 0], "vae": ["4", 2]}}
+    g["22"] = {"class_type": "KSampler", "inputs": {
+        "model": ["4", 0], "positive": pos, "negative": neg,
+        "latent_image": ["21", 0], "seed": g["3"]["inputs"]["seed"],
+        "steps": 30, "cfg": 5.0, "sampler_name": "dpmpp_2m",
+        "scheduler": "karras", "denoise": denoise}}
+    g["23"] = {"class_type": "VAEDecode", "inputs": {"samples": ["22", 0], "vae": ["4", 2]}}
+    g["9"]["inputs"]["images"] = ["23", 0]
+    g["9"]["inputs"]["filename_prefix"] = prefix
+    return g
 
 
 def sizes(base):
@@ -93,13 +139,26 @@ if __name__ == "__main__":
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--sweep", action="store_true",
                     help="submit all three measured combinations instead of one")
+    ap.add_argument("--chain", action="store_true",
+                    help="append a pass onto a render that already has one")
+    ap.add_argument("--pose",
+                    help="with --chain, re-encode the prompt from the current "
+                         "recipe for this pose instead of reusing the stored one")
     args = ap.parse_args()
 
     HOST, PORT, HIRES = args.host, args.port, args.hires
     base = fetch_prompt(args.prompt_id)
     print("first pass:", base["5"]["inputs"], "seed", base["3"]["inputs"]["seed"])
     print("second pass:", sizes(base))
-    if args.sweep:
+    if args.chain:
+        prompt = None
+        if args.pose:
+            import yukari_recipe
+            fresh = yukari_recipe.build(args.pose, base["3"]["inputs"]["seed"], "tmp")
+            prompt = (fresh["6"]["inputs"]["text"], fresh["7"]["inputs"]["text"])
+        jobs = [(args.prefix, chain_pass(base, args.hires, args.denoise,
+                                         args.prefix, prompt))]
+    elif args.sweep:
         jobs = [(f"{args.prefix}-latent-060", latent_route(base, 0.60, f"{args.prefix}-latent-060")),
                 (f"{args.prefix}-image-045", image_route(base, 0.45, f"{args.prefix}-image-045")),
                 (f"{args.prefix}-image-060", image_route(base, 0.60, f"{args.prefix}-image-060"))]

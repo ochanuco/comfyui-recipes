@@ -3943,3 +3943,68 @@ visible, and every other pose keeps it. Spliced per-pose in `positive()`.
 Kept: `ykprone-tights-prone-1886970040`, 2048x1368, stroke 1.242 per 1000px.
 Legs, hips and feet are one pale garment with no hem in it. Both hands came out
 as clean fists unaided, so the hand fix did not have to be redone.
+
+### 「タイツのうえからニーハイ」: the model will not draw two layers at knee length (2026-08-17)
+
+Stated precisely by the user, which is what made it testable: **tights run from
+the hips to the toes, knee-highs run from the knee to the toes, and the
+knee-highs go on over the tights.** Two layers, but with the boundary at the
+knee -- which is exactly why it is not the spats geometry that sank the last two
+attempts.
+
+**Everything the prompt can do was tried, on 1886970040, and none of it works.**
+
+| attempt | thigh | socks |
+|---------|-------|-------|
+| `(white kneehighs:1.45), (kneehighs:1.25)` | bare | correct, at the knee |
+| tights to 1.6/1.45 | tights | gone |
+| tights to 1.7/1.5 | tights | gone |
+| `(kneehighs over pantyhose:1.4)` | bare | at the knee |
+| `(socks over pantyhose:1.5)` | bare | at the knee |
+| `(pantyhose under kneehighs:1.45)` | bare | at the knee |
+| `(bare legs:1.5), (bare thighs:1.45)` negative | bare | at the knee |
+| black socks, pale tights (max contrast) | bare | crisp, at the knee |
+| masked refine of the calves, 0.55 / 0.65 | -- | no boundary drawn |
+
+"Bare" is measured, not judged: with the socks strong enough to be drawn, the
+buttock comes back at 253,240,231 against the cheek's 254,240,230. It is skin.
+
+So the model has exactly one two-layer construction, `thighhighs over pantyhose`
+-- a real tag -- and its length is in its name. `kneehighs` is a tag about a leg
+with nothing else on it, and the two do not compose. The sock side and the
+tights side take turns; they never share a leg.
+
+**What does work is finishing the thigh outside the sampler.** The first pass
+draws the socks correctly and draws the thigh as a well-shaped, well-shaded,
+wrong garment -- which is the case this repo already settled once, on a
+warm-taupe thigh: recolour a wrong-coloured but well-shaped mass before
+re-rolling it. Two new tools, and the whole pose is now three commands:
+
+    uv run scripts/yukari_recipe.py --pose prone --seed 1886970040 --hires 2048
+
+    uv run scripts/recolor_skin.py out/ykprone-prone-1886970040_00001_.png \
+        --box 1400 380 2048 1290 --from-color '#fdf0e7' --tolerance 16 \
+        --color '#877f80' --out grey.png --mask-out grey-mask.png
+
+    # crop 1280,450 768 -> 1024, queue_refine --mask at 0.45, then
+    uv run scripts/paste_refined.py grey.png thigh-refined.png \
+        --box 1280 450 768 --mask grey-mask.png --out final.png
+
+`#877f80` is not a colour anyone picked: it is the grey this recipe's own
+`(grey pantyhose:1.45)` measured at on the render two entries up, so the tights
+keep the palette the session before last chose. Tolerance 16 is the widest that
+catches no sock -- skin and sock are 4/1/22 apart per channel, so 22 is where
+the socks start being repainted too.
+
+`scripts/paste_refined.py` is the general form of the paste both fixes needed,
+and its docstring carries the distinction from `inpaint_composite.py`: that one
+extends BACKDROP across a mask, and a mask holding only figure has none.
+
+Kept: `ykprone-knee-final.png`, 2048x1368, stroke 1.317 per 1000px. Dress hem,
+grey tights over hip and thigh, white knee-highs from the knee over them, feet
+covered. Byte-identical to the print outside the pasted box.
+
+Open, and worth knowing before this is trusted on another seed: the recolour box
+and the refine crop are hand-typed coordinates. They are correct for this render
+and mean nothing on another one. Nothing here is automatic yet -- what is
+persisted is the first pass, the two tools, and this procedure.

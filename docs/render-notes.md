@@ -4008,3 +4008,38 @@ Open, and worth knowing before this is trusted on another seed: the recolour box
 and the refine crop are hand-typed coordinates. They are correct for this render
 and mean nothing on another one. Nothing here is automatic yet -- what is
 persisted is the first pass, the two tools, and this procedure.
+
+### The lower body was the shared BODY block, seen from the one angle it was never tested at (2026-08-17)
+
+「めちゃ下半身太ってしまった…」. `BODY` carries `(wide hips:1.3)` and
+`(thick thighs:1.35)` for every pose in this file, and every one of those poses
+was judged from the front or the side, where the two tags read as proportion.
+`prone` looks straight at the rear, foreshortened, so the same two tags land on
+the largest object in the frame and read as bulk. Nothing about the pose block
+or the legwear was wrong; a global constant met a new camera.
+
+Eased on the same seed, weight-only so the framing survives:
+
+| | wide hips | thick thighs | other | result |
+|---|-----------|--------------|-------|--------|
+| baseline | 1.3 | 1.35 | -- | the complaint |
+| **s1** | **1.0** | **1.05** | -- | **kept.** shape without weight |
+| s2 | 0.8 | 0.85 | `petite` 1.35 | slimmer, and leans on `petite` |
+| s3 | 0.6 | 0.6 | `petite` 1.4, waist 1.4 | slimmest, and **a rabbit appeared in the backdrop** |
+
+s3 is the useful failure. Pushing three body tags at once bought the same
+backdrop intruder `boss` bought by stacking guards -- the fourth time in this
+repo that pushing past what a change needs has summoned something nobody asked
+for. Two tags eased is the whole fix.
+
+`petite` is left alone on purpose: it is the tag `boss` swaps out to grow her
+up, and leaning on it here would trade one wrong proportion for another.
+
+And one tool fix the recolour needed at this size. The die-cut white outline is
+2/15/24 from skin -- outside a tolerance of 16 -- but its antialiased edge
+passes through every value in between, so the selection speckled the outline
+with repainted dots. `recolor_skin.py` now opens the selection with one 3x3
+pass, which removes every speck and costs nothing that is a garment.
+
+Kept: `ykprone-slim-final.png`, 2048x1368, stroke 1.255 per 1000px, through the
+same three steps as the entry above.

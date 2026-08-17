@@ -3760,3 +3760,28 @@ Not measured here, and worth knowing before this pose is pushed: nothing has
 been tried against the tights band, the hood ears (flattened under her on most
 seeds, since she is lying on them), or the feet, which are the part of the
 figure furthest from the camera and the part that comes back least resolved.
+
+**The second pass has nothing to do here, and takes something.** Three prints
+off 555666777, all against the 1536x1024 first pass at 1.941 per 1000px:
+
+| print | stretch | denoise | per 1000px | outline |
+|-------|---------|---------|------------|---------|
+| 2048x1368 | 1.33x | 0.60 | 1.274 | doubled into a sketch |
+| 2048x1368 | 1.33x | 0.45 | 1.454 | scribbled, flat colour lost |
+| 3072x2048 | 2.00x | 0.60 | 0.982 | soft halo, no die-cut edge |
+
+The refine pass is a line-thinner -- `boss` measured it taking 3.818 to 2.248,
+which was the whole point of running it there. But that render's first pass was
+heavy *because the square drew the figure small*, and this one is not: the
+landscape canvas already lands on the recipe's 1.91 in one pass. Applied to a
+line that is already right, the same pass walks it off the target in the only
+direction it knows, and pays for the trip with the die-cut white outline, which
+is drawn as an edge in the first pass and as a stroke in the second.
+
+Kept: `ykprone-prone-555666777` -- the first pass, 1536x1024, no refine. The
+first render in this repo that is finished at sweep size, and it is the canvas
+that made it so rather than anything about the pose.
+
+`--hires` is still the right tool for a square or portrait pose. It is the wrong
+tool for this one, and the test for which is the first-pass stroke, not the
+print size that was wanted.

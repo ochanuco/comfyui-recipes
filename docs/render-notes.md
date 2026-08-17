@@ -3341,3 +3341,40 @@ the same fix has worked; worth a sweep of the remaining sub-1.0 weights.
 
 Kept: `rf-boss-q4` -- 757575757, off shoulder at 1.3, `(thighhighs over
 pantyhose:1.7)`, `(frills:1.25)`, refined at 2048 through the image-space route.
+
+### `opaque pantyhose` was flattening the knit (2026-08-17)
+
+The vertical ribbing on the thighhighs, and the purple welt band with it, had
+gone from the recent `boss` renders. Both are present on `bossfix-boss-343434343`
+and absent from everything built on 757575757.
+
+**The tag was describing the opposite surface.** `(opaque pantyhose:1.3)` names
+a smooth unbroken face -- it is in LEGWEAR to stop the tights rendering sheer --
+and it takes the thighhighs' texture down with it. Swapped one-for-one for
+`(ribbed legwear:1.35)` the lines come straight back, and the welt band returns
+unasked alongside them.
+
+| | slot | result |
+|---|------|--------|
+| T1 | `(ribbed legwear:1.35)` | **kept.** knit lines the length of the leg, welt band back |
+| T2 | `(vertical-striped legwear:1.35)` | lines, but they read as a printed stripe and the welt is lost |
+| T3 | `off shoulder` removed instead | no change -- the shoulders were never involved |
+
+T3 is the one that matters for the diagnosis. The obvious suspect was
+`off shoulder`, since the flattening appeared in the same renders it did;
+removing it changed nothing, which left the legwear block as the only place to
+look.
+
+**Three tags in this recipe have now been found describing the opposite of what
+was wanted, and all three were doing it quietly** -- `sitting on floor`
+extending the legs, `feet on floor` contradicting the crossing, and now
+`opaque pantyhose` flattening the knit. None of them are wrong tags. They are
+right tags for a picture nobody asked for.
+
+`boss` now splices three things out of the shared blocks: `oversized shirt`
+(the dress), `(frills:0.85)` -> 1.25 (the collar and ties), and
+`(opaque pantyhose:1.3)` -> `(ribbed legwear:1.35)` (the knit). Plus
+`(off shoulder:1.3)`, which costs the rabbit hood and is a deliberate exception
+for this pose -- drop that one line to get the hood back.
+
+Kept: `rf-boss-rib`, 757575757 at 2048x2048.

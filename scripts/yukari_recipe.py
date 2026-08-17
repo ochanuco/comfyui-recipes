@@ -833,6 +833,18 @@ def positive(pose: str) -> str:
         # `sleeves past wrists` stays. It is the tag CHARACTER measured as
         # boxing the coat out, and it was not part of this.
         character = CHARACTER.replace("(oversized shirt:1.3), ", "")
+        # `(frills:0.85)` -> 1.25. Below 1 in a prompt where everything else is
+        # 1.3+, which is the third time that has meant "absent" here -- see
+        # `hair ornament` and `drawstring` in CHARACTER. Raised, the frilled
+        # collar, the ribbon ties and the beaded cords all come back, and
+        # nothing measurable is paid for them.
+        character = character.replace("(frills:0.85)", "(frills:1.25)")
+        # The coat off her shoulders. This is the render that was approved for
+        # the pose, and it costs the rabbit hood -- which the module docstring
+        # rules out in general and which is a deliberate exception here, not an
+        # oversight. Drop this line to get the hood and the ears back.
+        character = character.replace("open cardigan",
+                                      "open cardigan, (off shoulder:1.3)")
     else:
         character = CHARACTER
     if pose == "nape":
@@ -843,9 +855,22 @@ def positive(pose: str) -> str:
         character = character.replace(
             "(drawstring:1.4), ",
             "(drawstring:1.4), (halterneck:1.45), (black straps:1.35), ")
+    legwear = LEGWEAR
+    if pose == "boss":
+        # `opaque pantyhose` is what flattens the knit. It names a smooth
+        # unbroken face, which is the opposite of a rib, and it takes the
+        # thighhighs' texture down with it -- the vertical lines and the welt
+        # band both vanish under it. `ribbed legwear` in the same slot brings
+        # both straight back. One-for-one, so the block does not grow.
+        #
+        # Measured against `vertical-striped legwear`, which also draws lines
+        # but reads as a stripe pattern rather than a knit and loses the welt.
+        # And against removing `off shoulder`, which changed nothing here --
+        # the flattening was never the shoulders, it was this tag.
+        legwear = legwear.replace("(opaque pantyhose:1.3)", "(ribbed legwear:1.35)")
     parts = ["best quality, absurdres, 1girl, solo", character, POSES[pose]]
     if full_figure:
-        parts.append(LEGWEAR)
+        parts.append(legwear)
     parts += [face, SURFACE]
     parts.append(body if full_figure else "(pale skin:1.25)")
     # The coat pulled off the shoulders, which is what uncovers the nape. It

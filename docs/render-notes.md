@@ -4407,13 +4407,37 @@ coarsening the line is not how loudly the adapter speaks but how long: close the
 window and the strength can go up. Don't read the column as monotonic, though --
 end 0.60 scores worse than end 1.00, which is noise at this sample size.
 
-What this does *not* show is the costume holding. Control and all three arms have
-legs that cannot be told apart -- pale lavender with a purple band, none of them
-the reference's two layers of grey tights under ribbed pale-purple thighhighs.
-Measuring that needs `costume_check.py --palette` against a baseline, and `sip`
-has none: only `prone` and `boss` do. So the state is "settings exist that use
-the adapter without wrecking the drawing", and the question it was installed for
-is still open.
+**And it does hold the costume.** The `sip` renders measured against the *prone*
+baseline -- that is, "does this pose wear the approved costume?":
+
+| arm | legwear grey | dress purple | coat black |
+|-----|--------------|--------------|------------|
+| control, no adapter | 1.90% (0.44x) | -- | 10.07% (0.22x) |
+| w 0.40, end 0.45 | 6.07% (1.40x) | 1.38% (0.23x) FAIL | 16.21% (0.35x) |
+| w 0.40, end 0.60 | 6.61% (1.53x) | 1.97% (0.32x) FAIL | 17.31% (0.37x) |
+| **w 0.55, end 0.45** | **4.28% (0.99x)** | **3.53% (0.58x) ok** | 17.46% (0.37x) |
+
+The grey tights band -- the thing that kept vanishing all session -- lands at
+0.99x of baseline. Without the adapter it is 0.44x, less than half. The same arm
+wins on both axes: `weight 0.55, start_at 0.25, end_at 0.45` gives a finer line
+than not using the adapter at all *and* the costume it was installed to hold.
+
+Read the absolute ratios with care. `coat black` fails everywhere and
+`hood lining pink` runs 3-6x, but that is framing, not drift: prone is a
+full-body from above where the coat covers 46% of the figure, sip is a crouch
+that shows less coat and more of the red lining. Cross-pose shares conflate
+costume with composition. What carries the argument is the control-vs-arm
+comparison *at the same pose*, and that is clean -- the adapter moves coat black
+from 0.22x toward baseline too.
+
+Worth noting that the eye could not call this one. Side by side, control and all
+three arms have legs that look alike -- pale lavender with a purple band, none of
+them obviously the reference's two layers. The 0.44x-vs-0.99x gap is real and
+invisible, which is the argument for having the tool at all.
+
+Still open: `sip` has no baseline of its own (only `prone` and `boss` do), so the
+comparison above borrows prone's and pays for it with the framing caveat. Record
+baselines per pose from an accepted render and the caveat goes away.
 
 ## 2026-08-17 -- `/upload/image` blinds the worker for minutes
 

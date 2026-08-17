@@ -3100,3 +3100,35 @@ ears up, hands on the armrests. Cropped at the shins, which the square costs.
 
 Nothing above changes a weight. `(crossed legs:1.2)` was never re-tested and
 did not need to be -- it drew two legs on all twelve.
+
+### Refining a chair render: the route decides the surface, the denoise decides the invention (2026-08-17)
+
+`ykchairB-chair-555666777` (prompt `4c146593`) taken to 1368x2048 three ways.
+The first pass was replayed verbatim out of `/history` rather than rebuilt from
+the recipe, so no tag-order difference could move the picture underneath the
+comparison -- `scripts/refine_from_history.py`.
+
+| route | denoise | result |
+|-------|---------|--------|
+| `LatentUpscale` bicubic | 0.60 | most detail, and beads and cords on the dress that the base does not have |
+| `ImageScale` lanczos | 0.60 | detail back, plus gloss on the thighhighs and hair |
+| **`ImageScale` lanczos** | **0.45** | **kept.** flats clean, lineart unsplit, nothing invented |
+
+Two variables, and running all three separates them: **the route decides the
+surface and the denoise decides how much gets invented.** At a matched 0.60 the
+image-space route has cleaner flat fields and adds less; at a matched route,
+0.60 buys detail and pays in gloss. The nape session's pairing -- image-space
+lanczos with 0.45 -- reproduces on a completely different composition, so it is
+a property of the second pass and not of that one picture.
+
+The recipe's `--hires` still only offers the latent route. Adding the other one
+is a real change and is not made here.
+
+**A second pass does not fix the first pass, and this base needed it to.** All
+three refines agree that the thigh above the stocking is bare skin and that the
+grey under the dress is a separate shorts-like garment -- so
+`(thighhighs over pantyhose:1.55)` never landed in `4c146593`. At 1024 the
+region was ambiguous enough to read either way; 2048 resolves it, and resolves
+it against the recipe. The layering has to be won in the first pass or not at
+all. `ykchair-chair-555666777`, variant A on the same seed, has the purple welt
+band and is the better base if the layers are what is wanted.

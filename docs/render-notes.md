@@ -3410,3 +3410,31 @@ everything asked for over the session: the seated geometry, the lower leg only
 slightly bent, the ribbed thighhighs with their welt band, the frilled collar
 and ribbon ties, the composed rather than gloating smirk, and the adult read
 without the chest that was coming with it.
+
+### Correction: the ribbed-legwear splice was wrong, and one seed is why (2026-08-17)
+
+The entry above claims `(opaque pantyhose:1.3)` flattens the knit. On 757575757
+it does, and swapping it for `(ribbed legwear:1.35)` restored the lines and the
+welt band there. Shipped on that evidence, it then removed the tights.
+
+**`opaque pantyhose` is one of only three tags holding the grey side up** --
+`(grey pantyhose:1.45)`, `pantyhose`, and it. Against three pale tags the sides
+were even; taking it out let the pale side win the whole leg, which is the same
+winner-takes-all behaviour measured two entries above. The fix for one defect
+was the cause of another, and the connection was already written down.
+
+Swept over nine seeds with the original block restored, the ribbing AND both
+layers appear together on most of them -- `202020202`, `2557902837`,
+`343434343`, `454545454`, `535353535`, `979797979`. Nothing needed changing.
+757575757 is simply a seed that does not draw them, and three sessions were
+spent making the recipe worse to make that one seed better.
+
+**One seed is enough to find a lever and never enough to keep one.** Every
+finding in this file that has held up was measured across at least three; this
+one was measured across one and shipped. The splice is reverted and the comment
+left in `positive()` so the same trade is not made again.
+
+Kept: `rf-boss-final`, 979797979 at 2048x2048 -- pale thighhighs, purple welt,
+grey above it, the frilled collar and ties, the modest chest, and the seated
+geometry. Its knit lines are fainter than `343434343`'s, which has the strongest
+ribbing of the nine and a more reclined pose.

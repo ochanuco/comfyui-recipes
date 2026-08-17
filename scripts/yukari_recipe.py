@@ -871,19 +871,17 @@ def positive(pose: str) -> str:
         character = character.replace(
             "(drawstring:1.4), ",
             "(drawstring:1.4), (halterneck:1.45), (black straps:1.35), ")
+    # NOT spliced, and the attempt is recorded because it looked right and was
+    # not. `(opaque pantyhose:1.3)` was swapped for `(ribbed legwear:1.35)` on
+    # the evidence of one seed, where it did restore the knit lines and the welt
+    # band. Swept over nine seeds it turned out to cost the tights everywhere:
+    # `opaque pantyhose` is one of only three tags holding the grey side up, and
+    # taking it out let the three pale tags win the whole leg. The original
+    # block already draws the ribbing AND both layers on most seeds -- 757575757
+    # is simply a seed that does not.
+    #
+    # One seed is enough to find a lever and never enough to keep one.
     legwear = LEGWEAR
-    if pose == "boss":
-        # `opaque pantyhose` is what flattens the knit. It names a smooth
-        # unbroken face, which is the opposite of a rib, and it takes the
-        # thighhighs' texture down with it -- the vertical lines and the welt
-        # band both vanish under it. `ribbed legwear` in the same slot brings
-        # both straight back. One-for-one, so the block does not grow.
-        #
-        # Measured against `vertical-striped legwear`, which also draws lines
-        # but reads as a stripe pattern rather than a knit and loses the welt.
-        # And against removing `off shoulder`, which changed nothing here --
-        # the flattening was never the shoulders, it was this tag.
-        legwear = legwear.replace("(opaque pantyhose:1.3)", "(ribbed legwear:1.35)")
     parts = ["best quality, absurdres, 1girl, solo", character, POSES[pose]]
     if full_figure:
         parts.append(legwear)

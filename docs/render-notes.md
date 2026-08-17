@@ -3708,3 +3708,80 @@ entirely.
 median over small integers is not a measurement, it is a vote between two
 values. The mean is now the normalised figure and the median is kept beside it
 as a reminder.
+
+### `prone`: face down on the floor, and the first landscape canvas (2026-08-17)
+
+「うつ伏せで寝転んでるゆかりさん」. `lying` and `on stomach` are one unit -- the
+second qualifies the first and is not used alone -- so the posture costs two of
+the eight slots before anything else is asked for. `chin rest` props her on her
+elbows and `feet up` lifts the shins; without that pair the tags describe a body
+face down on the ground rather than someone lying there on purpose. `smug` and
+`half-closed eyes` are the pair `lounge`, `peace`, `invite` and `boss` all carry,
+at the weights they carry it at.
+
+**The canvas is the whole finding.** A body on the floor is longer than it is
+tall and every canvas in this recipe was square or portrait. One seed,
+555666777, three canvases:
+
+| canvas | result | stroke /1000px |
+|--------|--------|----------------|
+| 1024x1024 | cropped at the frame edges, die-cut outline broken | 3.922 |
+| 1024x1536 | drawn diagonally, hips raised toward the top of frame | 1.887 |
+| **1536x1024** | **whole figure, outline intact** | **1.941** |
+
+The square's 3.92 is not a style break, it is the figure being drawn large in a
+frame too small for her: the line is heavy against her rather than against the
+canvas, which is exactly what `stroke/1000px` was built to separate and here
+fails to, because the crop changed the subject's scale as well.
+
+The portrait is the one to remember. Nothing in the prompt asked for a rear
+view -- `from above` is at 1.35, below `nape`'s 1.45 -- and the tall frame
+produced one anyway by giving the hips the top half of the picture. The
+composition this project has thrown work away over can arrive from the canvas
+alone.
+
+This does not violate "1024x1536 is the ceiling for full body". That ceiling is
+a pixel count: 1536x1024 is the same 1.57M pixels turned on its side, not the
+2.46M of 1280x1920 that drew a second figure. Six seeds here, none did.
+
+**Six of six, first try.** `--pose prone --seeds 6`: one girl in all six, face
+down with the chin on the hands and the feet up in all six, no clothing failure
+and no bare skin. `crouch` needed eleven seeds to earn that sentence and `hunt`
+never did. Stroke per 1000px: 1.72, 1.75, 1.94, 1.99, 2.18, 2.20 -- straddling
+the recipe's 1.91. Median is 2.00 on every one of the six and says nothing,
+which is the correction from the previous session doing its job.
+
+737373737 is the loosest and is the one to look at before trusting the block
+further: the hem rides over the hip and the grey tights carry the whole lower
+half of the frame. Covered, and closer to the framing the portrait canvas drew
+by itself than any other seed. 555666777, 111222333 and 2557902837 are clean.
+
+Not measured here, and worth knowing before this pose is pushed: nothing has
+been tried against the tights band, the hood ears (flattened under her on most
+seeds, since she is lying on them), or the feet, which are the part of the
+figure furthest from the camera and the part that comes back least resolved.
+
+**The second pass has nothing to do here, and takes something.** Three prints
+off 555666777, all against the 1536x1024 first pass at 1.941 per 1000px:
+
+| print | stretch | denoise | per 1000px | outline |
+|-------|---------|---------|------------|---------|
+| 2048x1368 | 1.33x | 0.60 | 1.274 | doubled into a sketch |
+| 2048x1368 | 1.33x | 0.45 | 1.454 | scribbled, flat colour lost |
+| 3072x2048 | 2.00x | 0.60 | 0.982 | soft halo, no die-cut edge |
+
+The refine pass is a line-thinner -- `boss` measured it taking 3.818 to 2.248,
+which was the whole point of running it there. But that render's first pass was
+heavy *because the square drew the figure small*, and this one is not: the
+landscape canvas already lands on the recipe's 1.91 in one pass. Applied to a
+line that is already right, the same pass walks it off the target in the only
+direction it knows, and pays for the trip with the die-cut white outline, which
+is drawn as an edge in the first pass and as a stroke in the second.
+
+Kept: `ykprone-prone-555666777` -- the first pass, 1536x1024, no refine. The
+first render in this repo that is finished at sweep size, and it is the canvas
+that made it so rather than anything about the pose.
+
+`--hires` is still the right tool for a square or portrait pose. It is the wrong
+tool for this one, and the test for which is the first-pass stroke, not the
+print size that was wanted.

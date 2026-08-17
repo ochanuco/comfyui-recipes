@@ -1053,11 +1053,37 @@ def positive(pose: str) -> str:
         # `(white pantyhose:1.2)` alongside re-rolled the composition where the
         # bare swap did not. On a fixed seed, the token count is part of what
         # the picture is holding on to.
+        #
+        # ---- and then the ask changed to 「タイツのうえからニーハイ」 ----
+        #
+        # Tights from the hip to the toes, knee-highs from the knee to the toes,
+        # the socks on top. THIS MODEL WILL NOT DRAW THAT IN ONE PASS, and the
+        # measurements are worth keeping because they are all negative:
+        #
+        #   socks at 1.45/1.25   the boundary lands at the knee, correctly, and
+        #                        the thigh comes back at 254,240,230 -- the same
+        #                        warm cream as her cheek. It is skin.
+        #   tights at 1.6/1.7    the socks disappear and it is one garment again
+        #   `kneehighs over pantyhose`, `socks over pantyhose`,
+        #   `pantyhose under kneehighs`     thigh still bare, all three
+        #   `(bare legs:1.5), (bare thighs:1.45)` negative     thigh still bare
+        #   masked refine of the calves, 0.55 and 0.65        no boundary drawn
+        #   black socks against pale tights  socks crisp at the knee, thigh bare
+        #
+        # The only two-layer construction it knows is `thighhighs over pantyhose`
+        # -- a real tag -- and that one puts the boundary on the THIGH, which is
+        # the geometry this pose threw out two entries ago.
+        #
+        # So the prompt draws the socks and the thigh is finished afterwards:
+        # `scripts/recolor_skin.py` turns the bare thigh into tights, and a
+        # masked 0.3 refine makes it drawn rather than pasted. The pose is a
+        # two-step recipe now, and docs/render-notes.md carries the second step.
         legwear = (legwear
                    .replace("(grey pantyhose:1.45)", "(pale purple pantyhose:1.45)")
+                   .replace("(opaque pantyhose:1.3)", "(opaque pantyhose:1.5)")
                    .replace("(very pale purple thighhighs:1.5)",
-                            "(very pale purple thighhighs:0.6)")
-                   .replace("(white thighhighs:1.2)", "(white thighhighs:0.6)")
+                            "(white kneehighs:1.45)")
+                   .replace("(white thighhighs:1.2)", "(kneehighs:1.25)")
                    .replace("(thighhighs over pantyhose:1.55)",
                             "(thighhighs over pantyhose:0.6)"))
     parts = ["best quality, absurdres, 1girl, solo", character, POSES[pose]]

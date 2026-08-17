@@ -4259,3 +4259,58 @@ What it is not: it measures colour presence, not garment identity. A grey sock
 would pass as grey tights. It is a smoke alarm, and the reason it is worth
 having is that everything it checks is something this project has already got
 wrong at least once.
+
+### Both at once: grey tights AND the ribbed pale ニーハイ (2026-08-17)
+
+They would not co-exist in one pass, and the reason turned out to be measurable
+rather than mysterious.
+
+**The band region works; grey specifically loses.** The diagnostic that unstuck
+the regions in the first place worked again: asked for `(red pantyhose:1.9)` the
+band came back red, exactly inside its mask. So the mask is on the anatomy and
+the conditioning reaches it -- what fails is grey against this palette. It is a
+low-saturation neutral sitting between pale purple socks, a purple hem and cream
+skin, and the base prompt says `pale skin`; a small perturbation loses to its
+neighbours. Red survives because it is far from everything.
+
+Pushing the grey harder is not available either: `(dark grey pantyhose:1.9),
+(charcoal legwear:1.7)` on the same mask broke the composition and drew two of
+her -- the fifth time in this repo that overshooting a fix has summoned
+something nobody asked for.
+
+**Masked negatives work, and did not help here.** A negative can be masked and
+combined exactly like the positive, so the band can forbid `(bare skin:1.6),
+(bare legs:1.5)` while the face keeps its skin. Wired, ran, and the band still
+came back skin. Worth knowing the lever exists; it is not the lever for this.
+
+**Re-cutting the masks each round does not converge.** Cutting them from the
+current render moved the picture, which made them wrong again -- one round put
+the socks bunched at the ankles and the feet bare. The loop oscillates because
+each mask edit is also a conditioning edit.
+
+**What shipped is the deterministic route, on top of the single-pass render that
+already had two of the three right.** `ykprone-rib2k` has the dress over the
+rear and the ribbed pale-purple thighhighs; the band between them was bare skin,
+which is precisely the case `recolor_skin.py` exists for:
+
+    uv run scripts/recolor_skin.py ykprone-rib2k...png \
+        --box 1520 750 1920 1100 --from-color '#fdf2e8' --tolerance 16 \
+        --color '#877f80' --out band-grey.png --mask-out band-grey-mask.png
+    # crop 1280,541 768 -> 1024, queue_refine --mask 0.45, then
+    uv run scripts/paste_refined.py band-grey.png bandgrey-r_00001_.png \
+        --box 1280 541 768 --mask band-grey-mask.png --out final.png
+
+One catch worth recording: `queue_refine.py --from-prompt` cannot read a
+*regional* graph, because the sampler's positive points at a
+`ConditioningCombine` and not at a `CLIPTextEncode`. Pass a plain render's
+prompt id and give the text with `--positive`.
+
+Kept: `ykprone-band-final.png`, 2048x1368, stroke 1.302 per 1000px. Dress over
+the rear, grey tights on hip and thigh, ribbed pale purple thighhighs with their
+welt over them from mid-thigh to the toes.
+
+**And the check earned its keep on its first real change.** `costume_check.py
+--palette` failed it: `legwear grey 4.32% (2.71x of baseline)`. That is the
+intended change -- the grey went from a sliver to a band -- but the tool is
+right that the costume is not what was accepted before, and accepting it is now
+an explicit act (`--record`), not something that happens quietly.

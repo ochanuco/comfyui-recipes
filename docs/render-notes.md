@@ -3556,3 +3556,32 @@ interrupted. 2048 is the print size.
 
 `scripts/refine_from_history.py --chain --pose boss --denoise 0.60` reproduces
 it. Kept: `th-2048-d60`.
+
+### Open the eyes: the tag is not gradual, and the guard is not portable (2026-08-17)
+
+`(half-closed eyes:1.3)` was half of the smirk pair. Once `smug` came down to
+1.15 the lids were the only thing still reading as attitude rather than
+composure, so they came out. Three forms, chained onto `88b01d73` at 0.60:
+
+| | change | result |
+|---|--------|--------|
+| Ea | `(half-closed eyes:1.1)` | still lidded |
+| Eb | tag removed | more open |
+| **Ec** | removed + `(half-closed eyes:1.4), (closed eyes:1.4)` in the negative | **open, iris visible** |
+
+Ea confirms what F3 measured and reframes it. Easing the weight does nothing
+because **the tag is not gradual** -- present or absent is the whole range it
+has. Two sessions apart, the same null result meant something different once the
+question changed from "how much" to "at all".
+
+**And the guard does not port back.** Ec is safe chained onto a settled picture
+and unsafe from scratch: run from the recipe it stacks with the buttons guard
+and 979797979 grows a second chair with a rabbit face on it -- the same intruder,
+the fourth time stacking has summoned something. So the recipe carries only the
+removal, and the guard pair is documented for the chain.
+
+That split follows from the pass-depth finding: a late pass only gets to delete,
+and a guard is a deletion. A first pass gets to rearrange the composition around
+the same guard, and it does.
+
+Kept: `eyeEc`, 2048x2048, chained onto `88b01d73`.

@@ -587,10 +587,22 @@ POSES = {
     # send the feet downward out of it. Showing a foot planted needs the floor,
     # which needs the camera back, which is the tall canvas this pose gave up
     # to get its shading.
+    # `half-closed eyes` is gone and the block is eight. It was half of the
+    # smirk pair every other pose carries, and once `smug` came down to 1.15 the
+    # lids were the only thing still reading as attitude rather than composure.
+    # F3 measured easing it from 1.3 to 1.15 as changing nothing, which was
+    # true and beside the point: the tag is not gradual, it is present or not.
+    #
+    # To open them further on a picture that is already settled, chain a pass
+    # with `(half-closed eyes:1.4), (closed eyes:1.4)` in the negative --
+    # measured, and it opens them fully. Do NOT put that pair in the negative
+    # here: from scratch it stacks with the buttons guard and 979797979 grows a
+    # second chair with a rabbit on it. Guards are cheap in a late pass, which
+    # only gets to delete, and expensive in a first pass, which gets to
+    # rearrange the picture around them.
     "boss": (
         "(solo:1.5), (sitting on chair:1.4), (crossed legs:1.2), (smug:1.15), "
-        "(half-closed eyes:1.3), (gaming chair:1.4), swivel chair, backrest, "
-        "full body"
+        "(gaming chair:1.4), swivel chair, backrest, full body"
     ),
     # A full squat seen from the side, curled forward over her knees with a mug
     # held in both hands at her mouth. Built by substituting into `crouch`'s

@@ -680,6 +680,40 @@ POSES = {
         "(solo:1.55), (from behind:1.45), (from above:1.45), (yokozuwari:1.4), "
         "(nape of neck:1.45), (hair over shoulder:1.35), (head down:1.25), (back focus:1.3)"
     ),
+    # Face down on the floor, chin in her hands, feet swinging up behind her.
+    #
+    # `lying` and `on stomach` are one unit -- the second is a qualifier for the
+    # first and is not used alone -- so the posture costs two slots before
+    # anything else is asked for. `chin rest` props her up on her elbows and
+    # `feet up` lifts the shins; together they are what separates this from a
+    # body face down on the ground. Eight tags after (solo:1.5), which is the
+    # budget every block here is held to.
+    #
+    # The steadiest pose in this file on first measurement. Six seeds, six with
+    # one girl, six lying face down with the chin on the hands and the feet up,
+    # no clothing failures and no bare skin. `crouch` needed eleven seeds to
+    # earn that sentence and `hunt` never did.
+    #
+    # Stroke per 1000px over the six: 1.72 and 1.75 at the fine end, 1.94 and
+    # 1.99 in the middle, 2.18 and 2.20 at the heavy -- straddling the recipe's
+    # 1.91, so nothing here breaks the line. (Median is 2.00 on all six and says
+    # nothing; a median over small integers is a vote, not a measure.)
+    #
+    # 737373737 is the loosest of the six and worth knowing about: the hem rides
+    # up over the hip and the grey tights carry the whole lower half of the
+    # frame. Covered, but it is the seed closest to the rear-forward framing
+    # this project has thrown compositions away over. 555666777, 111222333 and
+    # 2557902837 are the clean ones.
+    #
+    # `from above` is at 1.35 rather than the 1.45 `nape` uses. She is already
+    # horizontal, so the angle only has to look down at her -- raised, it is the
+    # tag most likely to buy the overhead rear view that the portrait canvas
+    # drew on its own (see SIZES).
+    "prone": (
+        "(solo:1.5), (lying:1.45), (on stomach:1.5), (from above:1.35), "
+        "(chin rest:1.35), (feet up:1.3), (smug:1.35), (half-closed eyes:1.3), "
+        "full body"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
@@ -698,7 +732,25 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # block drew her small in a tall empty frame; the square fills.
          "sip": (1024, 1024),
          # Seated and seen from above: head, back and folded legs fill a square.
-         "nape": (1024, 1024)}
+         "nape": (1024, 1024),
+         # The first landscape canvas here, and a body on the floor is what
+         # earns it. Measured against the other two on 555666777:
+         #
+         #   1024x1024  cropped her at the frame edges, broke the die-cut
+         #              outline, and doubled the relative stroke to 3.92 per
+         #              1000px -- the figure is drawn big, so the line is heavy
+         #              against her rather than against the canvas.
+         #   1024x1536  drew her diagonally with the hips raised toward the top
+         #              of the frame. That is the rear-forward composition this
+         #              project has thrown work away over, arriving from the
+         #              canvas rather than from any tag.
+         #   1536x1024  whole figure, outline intact, 1.94 per 1000px.
+         #
+         # It does not violate the docstring's "1024x1536 is the ceiling for
+         # full body". That ceiling is a pixel count -- 1536x1024 is the same
+         # 1.57M pixels turned on its side, not the 2.46M that drew a second
+         # figure -- and none of six seeds here drew one.
+         "prone": (1536, 1024)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "

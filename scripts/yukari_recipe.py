@@ -709,6 +709,13 @@ POSES = {
     # horizontal, so the angle only has to look down at her -- raised, it is the
     # tag most likely to buy the overhead rear view that the portrait canvas
     # drew on its own (see SIZES).
+    #
+    # DO NOT `--hires` this one. The second pass is a line-thinner, and this
+    # canvas already lands on the recipe's 1.91 in one pass: 2048 at 0.60 and
+    # 0.45 and 3072 at 0.60 measure 1.27, 1.45 and 0.98 per 1000px, and all
+    # three lose the die-cut white outline -- doubled, scribbled and blurred to
+    # a halo respectively. It is finished at sweep size, which nothing else here
+    # is.
     "prone": (
         "(solo:1.5), (lying:1.45), (on stomach:1.5), (from above:1.35), "
         "(chin rest:1.35), (feet up:1.3), (smug:1.35), (half-closed eyes:1.3), "

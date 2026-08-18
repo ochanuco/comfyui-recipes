@@ -4541,3 +4541,91 @@ Not yet answered: whether this actually *stabilises* the costume across poses,
 which is the reason it was installed. That is a measurement -- run the poses with
 and without, and compare `costume_check.py --palette` against their baselines --
 and it needs baselines for more than the two poses that have them.
+
+### The lower body on `fuji-d042`: what a mask does to tags, to the line, and to the leg (2026-08-18)
+
+「9cc0d762 の下半身をファインチューニング」. That id is the sock-only pass at
+0.42; the picture under it has a white scribble where the sock's welt should be,
+formless feet, and the grey band at the hip broken into segments. Widening the
+mask to the whole leg and walking the denoise up was the obvious move and it is
+the wrong one, three times over.
+
+**A mask is somewhere for unspent tags to go.** The inherited positive holds
+`(drawstring:1.4)`, `(frills:0.85)` and `(hair ornament:1.4)`, every one of them
+for the hood or the hair. Inside a leg mask none of them has a referent, so the
+sampler spends them on the leg -- white petals and tied bows around the ankle and
+around the hip band -- and **spends them harder at every step up the ladder**:
+
+| denoise, global positive | ankle | hip band |
+|--------------------------|-------|----------|
+| 0.45 | white shapes appear | grey, segmented |
+| 0.55 | petals, larger | one segment turns purple |
+| 0.65 | petals and leaves | two segments purple |
+
+The nape session already recorded the shape of this -- handing a region the full
+`positive()` is asking for the defect inside the region you want fixed -- but it
+recorded it about a tag that *described* the defect. This is the other half: a
+tag that describes nothing in the region does not go unused, it goes somewhere.
+A region-local positive removes the ornament completely at the same denoise.
+
+**A masked refine thickens and darkens the line inside its own mask.** The line
+notes measure whole canvases, which cannot see this at all. `stroke_region.py`
+is the same statistic over two boxes of one picture -- the face the pass never
+touched, and a calf it redrew:
+
+| render | calf/face stroke | calf ink luminance |
+|--------|------------------|--------------------|
+| `sock-fuji`, before any of it | 0.95x | 59.9 |
+| `fuji-d042` | 1.02x | 48.9 |
+| region-local 0.55 | **1.26x** | **35.3** |
+| region-local 0.65 | 1.11x | 41.7 |
+| region-local 0.75 | 0.94x | 54.7 |
+
+「脚だけ線が太い」 is literally true and it is also darker, and the same
+denoise that fixes it is the one that fixes the ankle. Restoring
+`(delicate lines:1.2)`, which the region-local rewrite had dropped, is worth
+3-5% and no more -- 1.26x to 1.22x, 1.11x to 1.05x. **Denoise is the lever,
+again**, and a dropped line tag is not the explanation it looks like.
+
+**And the leg's volume moves against the line.** Per-row width of the right leg,
+which runs clear of the coat, at the row nearest the hip:
+
+| render | y600 | y680 | y760 | calf/face stroke |
+|--------|------|------|------|------------------|
+| `fuji-d042` | 164 | 166 | **229** | 1.02x |
+| 0.65 | 160 | 170 | **225** | 1.17x |
+| 0.70 | 161 | 178 | 201 | 1.04x |
+| 0.75 | 161 | 178 | 198 | 0.93x |
+
+「太ももが細く感じる」, and it is 14% at 0.75. The crossover sits between 0.65
+and 0.70: at 0.70 the thigh is already gone and the line has only just come
+right. **One number on one mask cannot buy both.** `(toned legs:1.2)` raised to
+1.4 does nothing about it -- 198 to 200 -- which is worth knowing, because that
+tag is the recorded carrier of leg volume everywhere else in this file. It
+asserts volume in a first pass; it does not restore volume a refine took away.
+
+**What works is not sampling the thigh.** `.local/cut_calf.py` subtracts the
+dilated thigh mask from the full leg mask; what is not sampled cannot be redrawn
+thin. At 0.75 on that mask: thigh 217, stroke 0.94x, no ankle band, and every
+line of `costume_check.py --palette` passes -- including `legwear grey` at 0.49x,
+which every full-leg region-local pass had pushed to 0.40x and under the floor.
+The grey band at the hip was collateral from a mask reaching further than the
+work did.
+
+Kept: `rl-calf-d075`. The slimming is not gone, it moved up the leg -- y600/y680
+read 142/134 against the base's 164/166 -- and protecting that too means giving
+up the redraw from the knee down.
+
+**Two smaller results, both negative.** The welt band's colour does not answer
+to its weight: 1.4 to 1.7 draws it louder and whiter, never purple. And asking
+for the welt at all is what put a band at the *ankle*, where the design has
+none; 「足首バンドは不要」. It is banned now, and the ban is what removes it --
+0.75 was only ever thinning it.
+
+**One process note, which cost the first ladder.** `--denoise 0.$d` over
+`for d in 045 055 065` passes 0.045, not 0.45. Three renders came back nearly
+identical to their input and, more usefully, nearly identical to *each other*:
+in-mask mean change 3.84, 3.90, 3.97 across a denoise range that should have
+moved it by a third. **A refine that does not respond to its own denoise is a
+mis-passed parameter, not a stubborn picture** -- check `/history` for the value
+the server actually got before diagnosing anything else.

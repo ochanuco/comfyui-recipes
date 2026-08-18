@@ -883,7 +883,7 @@ POSES = {
     "stand": (
         "(solo:1.5), (standing:1.5), (from front:1.3), (own hands together:1.35), "
         "(hands up:1.25), (arched back:1.2), (smug:1.35), (half-closed eyes:1.3), "
-        "(full body:1.45), (black footwear:1.35)"
+        "(full body:1.45), (black footwear:1.35), (wide shot:1.3)"
     ),
 }
 
@@ -922,14 +922,20 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # 1.57M pixels turned on its side, not the 2.46M that drew a second
          # figure -- and none of six seeds here drew one.
          "prone": (1536, 1024),
-         # A standing figure is the wrong shape for 1024x1536: it cropped at
-         # mid-calf on every arm tried there, weighted `full body` included.
+         # Back to 1024x1536, which is where the adopted render was drawn.
          #
-         # 896x1728 is 1.55M pixels against that canvas's 1.57M, so it is inside
-         # the docstring's ceiling -- which `prone` already established is a
-         # pixel count and not an aspect, by spending the same budget landscape.
-         # Measured: the figure ends 15px above the frame with the shoes whole.
-         "stand": (896, 1728)}
+         # 896x1728 was the answer to the crop and it was overtaken:
+         # `(wide shot:1.3)` pulls the camera back far enough that the standard
+         # canvas fits the whole figure and the shoes, so the odd aspect bought
+         # nothing the tag did not.
+         #
+         # What the tag also buys is a SECOND FIGURE. That is accepted here --
+         # see the pose block -- and the width is what controls it: at 768x1536
+         # the same prompt draws one figure on four seeds of four, because there
+         # is no room beside her to put anyone. Both frames are live; which one
+         # to render is a question about the shoes, which the narrower canvas
+         # redraws.
+         "stand": (1024, 1536)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -1059,6 +1065,16 @@ def _negative_base(pose: str) -> str:
         # the approved render was drawn in.
         return "(buttons:1.4), " + NEGATIVE.replace(
             "(large breasts:1.25)", "(large breasts:1.5)")
+    if pose == "stand":
+        # 「靴に柄はいらない」. Naming a shoe drew one and it arrived with a pink
+        # butterfly decal on the outer side. Three tags, and they are three
+        # rather than one because `(logo)` and `(print)` are the generic pair
+        # and the motif itself needed naming to go: with only the generic two
+        # the decal went but the sole came back magenta.
+        #
+        # The ear-like high collar is the part that is WANTED and it survives
+        # all three. Anything added here has to be checked against it.
+        return NEGATIVE + ", (butterfly:1.5), (logo:1.4), (print:1.35)"
     if pose != "lap":
         return NEGATIVE
     # A head resting in her lap looks up at her, so the guard against low angles

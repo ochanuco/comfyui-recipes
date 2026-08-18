@@ -5240,3 +5240,40 @@ u3  (black footwear:1.35) -> (plain black sneakers:1.4)   decal gone, white mids
 ```
 
 All three remove the pattern, so the choice is the sole, not the guard.
+
+### Only one of her (2026-08-18)
+
+「左だけ生成できる？」 Yes, and not by any guard.
+
+```
+v1  + (2girls:1.6), (multiple girls:1.6), (duplicate:1.55), (another person:1.5)
+    the set `lap` uses, naming the second PERSON            two figures
+v2  + (character sheet:1.4), (multiple views:1.4), reference sheet, turnaround
+    the set `nape` uses, naming the LAYOUT, in front of NEGATIVE   two figures
+v3  no guard at all, canvas 1024 -> 768 wide               ONE figure
+```
+
+Then four seeds at 768x1536 — 1886970040, 555666777, 111222333, 2557902837 —
+and all four drew one figure. It is the canvas, not the seed, and not anything
+lexical: **give the frame room beside her and the model puts someone in it.**
+Neither guard set moved it at any of the weights they already carry elsewhere.
+
+The cost is that the narrower canvas redraws the shoe. 768 gave a low-top, and
+asking for the collar back by name (`(black high-top sneakers:1.4)`) gave a
+third shoe again — white-soled, red-accented, not the ear-like pair that was
+agreed to. The approved shoe came with the 1024 frame.
+
+So both frames are live and the choice is about the shoes, not about the
+composition:
+
+- **1024x1536** — the adopted render (6217154d). Two figures; the left one is
+  the keeper and `.local/split_left.py` cuts it at full resolution.
+- **768x1536** — one figure straight out of the sampler, different shoes.
+
+Committed: 1024x1536, `(wide shot:1.3)` in the block, and the decal guards in a
+`stand` branch of `_negative_base`. `positive`, `negative` and the canvas all
+verified byte-identical against 6217154d's own history.
+
+Also seen in the four-seed check, and not chased: 555666777 puts the rabbit hood
+UP, which the recipe rules out globally, and 111222333 and 2557902837 both drew
+backdrop intruders. 1886970040 is the seed this pose has been settled on.

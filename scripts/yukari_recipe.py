@@ -1096,11 +1096,30 @@ def positive(pose: str) -> str:
         # `scripts/recolor_skin.py` turns the bare thigh into tights, and a
         # masked 0.3 refine makes it drawn rather than pasted. The pose is a
         # two-step recipe now, and docs/render-notes.md carries the second step.
+        # The colours are NOT swapped here any more. This block used to turn the
+        # tights pale purple and the socks white -- the inverse of the recorded
+        # costume, which is grey opaque tights under very pale purple ribbed
+        # knee-highs -- and every prone render carried that inversion.
+        #
+        # It was not only a leftover, and that is the part worth knowing before
+        # putting it back: `pale purple pantyhose` gets DRAWN on the thigh and
+        # `grey pantyhose` does not, so the swap was buying thigh coverage as
+        # well as the wrong colour. With the colours right the thigh returns
+        # bare (253,244,236, her cheek's tone) exactly as the measurements below
+        # say, and the two-step finish stops being optional:
+        #
+        #   recolor_skin.py --box <thigh> --color '#877f80' --tolerance 14
+        #   queue_refine.py --mask <its --mask-out> --denoise 0.3
+        #
+        # --tolerance 14, not the default 28: the die-cut outline is 2/15/24
+        # from skin, so 28 repaints the outline too and leaves the box's corner
+        # showing as a rectangle.
+        #
+        # Only the LENGTH substitution belongs to this pose.
         legwear = (legwear
-                   .replace("(grey pantyhose:1.45)", "(pale purple pantyhose:1.45)")
                    .replace("(opaque pantyhose:1.3)", "(opaque pantyhose:1.5)")
                    .replace("(very pale purple thighhighs:1.5)",
-                            "(white kneehighs:1.45)")
+                            "(very pale purple kneehighs:1.45)")
                    .replace("(white thighhighs:1.2)", "(kneehighs:1.25)")
                    .replace("(thighhighs over pantyhose:1.55)",
                             "(thighhighs over pantyhose:0.6)"))

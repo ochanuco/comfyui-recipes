@@ -4629,3 +4629,64 @@ in-mask mean change 3.84, 3.90, 3.97 across a denoise range that should have
 moved it by a third. **A refine that does not respond to its own denoise is a
 mis-passed parameter, not a stubborn picture** -- check `/history` for the value
 the server actually got before diagnosing anything else.
+
+### The prone legs were not fixable, and the skeleton is what replaced them (2026-08-18)
+
+Continuing from the entry above, and ending it: the leg work there was polish on
+a drawing that was wrong underneath, and the whole session's masked passes are
+worth less than the one measurement that should have been taken first.
+
+**Run the pose estimator before deciding a region is fixable.** ComfyUI ships
+`SDPoseKeypointExtractor`/`SDPoseDrawKeypoints`, so no preprocessor node is
+needed -- it wants `Comfy-Org/SDPose :: checkpoints/sdpose_wholebody_fp16` and
+refuses a plain diffusion checkpoint, checking it for a `heatmap_head`. On
+`wide-ink-d025` it found the face and both hands and **no hip, knee or ankle at
+all**, and read a lock of hair as a limb. A whole-body pose model that cannot
+find a hip in a leg is saying the region is not a human shape. That is the
+difference the hand fix already recorded -- badly drawn version of the right
+thing, versus the wrong thing -- and it can be measured in one render instead of
+argued over ten.
+
+What ten passes could not do, in order: three denoise ladders, a region-local
+prompt, `(clean lineart)` with the whole sketch family banned, a 2x crop-and-zoom
+redraw (which removed the rib instead of drawing it), and a geometric widening of
+the thigh. The last one is the clearest: it added 25% to the thigh and the
+complaint came back as 「お尻と太もものつながりが不自然」, because the width was
+never the problem -- **the joint was, and a warp cannot add a joint.**
+
+**The rebuild.** `noob-openpose-fp16` works on `hassaku-il-v22`; the family
+split in `models.md` is about what each net was trained to read, not a checkpoint
+it refuses. The skeleton has to be authored (`.local/pose_author.py`, COCO-18 and
+the standard limb colours) since there is nothing extractable to edit and no node
+accepts `POSE_KEYPOINT` as input. Applied to the FIRST pass only, at strength
+0.8 over 0-80%, then the recipe's own 2048 pass: prone with the feet up means the
+thigh lies along the floor and the shin rises from a bent knee, and stating that
+as three points is what the prompt never could.
+
+Kept: `rb-rough`, `28ad4b59`.
+
+**Two corrections to make about sketch tags and about my own probes.**
+
+`(sketch)`, `(rough sketch)`, `(sketchy)`, `(messy lines)` went into the negative
+to kill the legs' draft feel. They belong in the POSITIVE at 1.1-1.15. Banning
+them took the drawn quality with them and the complaint became 「手書き感がなく
+なった」. **下書き感 and 手書き感 are not the same quality and do not share a
+lever** -- one is uncertainty in the stroke, the other is the hand in it.
+
+And the probes. Three graphs written here by hand came back as shattered mosaic,
+and I read the first as the ControlNet being incompatible, the second as the
+canvas being too large, and the third as the ControlNet again. All three were
+wrong: the recipe's own graph renders cleanly on the same worker with the same
+net at the same size, and splicing the net into *that* graph worked first try.
+**Build from the graph that works, not from a fresh one that ought to.** What
+actually broke the hand-written probes is still unknown, and is written down here
+as unknown.
+
+**Measuring the look, and four metrics that failed.** 「線も発色も良すぎる」 is
+top-decile saturation of the figure, nothing else: mean saturation reads 22.1
+against 21.5 across two renders anyone can tell apart, because the black coat and
+the pale skin swamp it. The top decile reads 35 against 56, and the fraction of
+figure above saturation 60 reads 3.3% against 9.9%. Stroke-width spread,
+runs-per-megapixel and ink fraction all failed to separate drawn from vector
+first -- runs-per-megapixel inverted, since a smaller canvas spends fewer pixels
+per line and counts more of them.

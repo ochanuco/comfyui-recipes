@@ -5846,3 +5846,60 @@ Queued as `yk-flop`:
 
     555666777   08fb27ab    111222333   773e59fe    1886970040  dd78d85d
     737373737   8f46b2d1    2557902837  e939265d    3409564303  71d83693
+
+## `flop` gets the skid, and it gets it without a dive tag (2026-08-19)
+
+「ズサーッとダイブしている感じ」. The pose now reads:
+
+    (solo:1.5), (couch:1.4), (lying:1.45), (on stomach:1.5),
+    (outstretched arms:1.3), (motion lines:1.3), (empty eyes:1.45),
+    (eyebags:1.4), (half-closed eyes:1.35), (open mouth:1.35), full body
+
+**There is no dive tag, and that is the point.** `diving` or `falling` on top of
+`(lying:1.45), (on stomach:1.5)` is precisely the construction `fall` already
+paid for: tripping + falling + fallen down together drew two figures on three
+seeds of three, one still upright and one already on the ground, because they
+are three *moments* and the model resolves a set of moments by giving each one a
+body. Mid-air and landed is two moments.
+
+So one moment was chosen, and 「ズサーッ」 picks it out: the skid, not the leap —
+she is already down and still moving. The motion is then carried the way `fall`
+carries it, by comic convention rather than by a second moment:
+`(motion lines:1.3)`, which that pose records as surviving flat colour, and
+`(outstretched arms:1.3)`, the same tag at the same weight it uses.
+
+`(from above:1.35)` came out. It was borrowed from `prone` for legibility rather
+than chosen, and a top-down camera is the one view that flattens horizontal
+momentum — it worked against the request.
+
+**And the BODY easing came out with it.** One entry above, `flop` was given
+`prone`'s `(wide hips:1.0)`, `(thick thighs:1.05)` on an explicitly geometric
+argument: a body seen from above and from behind is foreshortened, so those tags
+land on the largest thing in frame. Removing `from above` removed the geometry
+that argument rested on, so the splice went back. A splice justified by a
+geometry is not justified once the geometry leaves, and leaving it would have
+put an unexplained deviation from BODY in the file for the next session to
+reconstruct. `costume_check.py` is back to one declared exception for this pose.
+
+Headcount, `.local/_solo.py`, both sweeps:
+
+```
+yk-flop   (static, from above)      6 of 6 ONE
+yk-flop2  (skid, motion lines)      6 of 6 ONE
+```
+
+The trap was avoided by construction rather than survived by luck, but it is
+worth having the number: `seiza` produced 2 of 6 two-body renders earlier today
+on the same recipe and the same seeds, so the measure does report a problem when
+there is one.
+
+One thing to watch that is not the headcount: **the figure reaches the frame
+edge on 5 of 6 static and 4 of 6 skid renders.** `prone` chose 1536x1024 partly
+because it was the canvas that kept "the whole figure, outline intact" — the
+die-cut white outline is part of the approved look and it breaks where the body
+is cut by the frame. A couch takes room that `prone` had to itself. Not acted
+on: for a body sliding across a couch, running out of frame may be exactly
+right, and this is the user's call and not a statistic's.
+
+    yk-flop2   555666777  f13bfa75   111222333  2cc03958   1886970040 be686786
+               737373737  be70eaa8   2557902837 8fdc6d41   3409564303 8094e719

@@ -157,15 +157,12 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"removed": ["closed mouth"],
          "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open"},
     ],
-    # Shares `prone`'s geometry, so it shares `prone`'s easing -- transferred on
-    # the argument, not re-measured.
+    # Back to one departure. It briefly carried `prone`'s hip/thigh easing, on
+    # the argument that it shared `prone`'s from-above geometry; that tag left
+    # the pose when the dive was asked for, and the splice left with it.
     "flop": [
         {"removed": ["closed mouth"],
          "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open"},
-        {"removed": ["(wide hips:1.3)", "(thick thighs:1.35)"],
-         "added": ["(wide hips:1.0)", "(thick thighs:1.05)"],
-         "why": "seen from above and from behind, the same foreshortening "
-                "`prone` eased these two for"},
     ],
     "yawn": [
         {"removed": ["closed mouth"], "why": "a yawn needs the mouth open"},

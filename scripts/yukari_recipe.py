@@ -494,11 +494,30 @@ POSES = {
     # not draw at all, THAT is when `simple background` comes out -- one lever,
     # held in reserve, rather than pre-emptively changing the costume contract.
     #
-    # Ten tags where `prone` has nine. The canvas has the room.
+    # 「ズサーッとダイブしている感じ」, and NO DIVE TAG. This is the trap `fall`
+    # already paid for: tripping + falling + fallen down together drew two
+    # figures on three seeds of three, one still upright and one already on the
+    # ground, because they are three MOMENTS and the model resolved that by
+    # giving each moment a body. `diving` or `falling` on top of (lying:1.45),
+    # (on stomach:1.5) is the same construction -- mid-air and landed at once.
+    #
+    # So one moment is chosen and it is the skid, not the leap: 「ズサーッ」 is
+    # the part where she is already down and still moving. The motion is carried
+    # the way `fall` carries it, by comic convention rather than by a second
+    # moment -- (motion lines:1.3), which that pose records as surviving flat
+    # colour -- and by (outstretched arms:1.3), the arms thrown ahead of her,
+    # which is the same tag at the same weight `fall` uses.
+    #
+    # (from above:1.35) came out to make room and because it works against the
+    # request: a top-down camera is the one view that flattens horizontal
+    # momentum. It was borrowed from `prone` for legibility, not chosen here.
+    #
+    # Eleven tags. `peace` settled the question of whether that number is a
+    # variable -- it is not; what each tag holds is.
     "flop": (
         "(solo:1.5), (couch:1.4), (lying:1.45), (on stomach:1.5), "
-        "(from above:1.35), (empty eyes:1.45), (eyebags:1.4), "
-        "(half-closed eyes:1.35), (open mouth:1.35), full body"
+        "(outstretched arms:1.3), (motion lines:1.3), (empty eyes:1.45), "
+        "(eyebags:1.4), (half-closed eyes:1.35), (open mouth:1.35), full body"
     ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
@@ -1277,7 +1296,7 @@ def positive(pose: str) -> str:
     if pose == "nape":
         face = face.replace(", looking at viewer", "")
     body = BODY
-    if pose in ("prone", "flop"):
+    if pose == "prone":
         # 「めちゃ下半身太ってしまった…」. BODY's `(wide hips:1.3)` and
         # `(thick thighs:1.35)` were settled on poses that see her from the front
         # or the side, where they read as proportion. This pose looks straight at
@@ -1294,13 +1313,13 @@ def positive(pose: str) -> str:
         # grow her up, so leaning on it here would trade one wrong proportion
         # for another.
         #
-        # `flop` gets the same easing, TRANSFERRED and not measured. It was
-        # settled on `prone` and the argument for it is geometric -- a body seen
-        # from above and from behind, foreshortened, puts these two tags on the
-        # largest thing in the frame -- and `flop` shares that geometry exactly,
-        # (lying), (on stomach) and (from above) all being `prone`'s. The
-        # alternative was to ship the pose knowing the complaint it was written
-        # for is likely to recur.
+        # `flop` briefly had this too, transferred on the argument that it saw
+        # her from above and from behind exactly as `prone` does. **It has been
+        # taken back out**, because the tag that argument rested on --
+        # (from above:1.35) -- left `flop` when the dive was asked for. A splice
+        # justified by a geometry is not justified once the geometry goes, and
+        # keeping it would have left an unexplained deviation from BODY that the
+        # next session would have had to reconstruct.
         body = (body.replace("(wide hips:1.3)", "(wide hips:1.0)")
                     .replace("(thick thighs:1.35)", "(thick thighs:1.05)"))
     if pose == "stand":

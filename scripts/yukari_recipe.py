@@ -946,7 +946,15 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # -- but keeping it meant cutting one figure out of two, and a crop
          # while the prompt is still being tuned is banned (see CLAUDE.md). A
          # picture that needs a crop is a prompt that has not solved the problem.
-         "stand": (768, 1536)}
+         # 832x1664, chosen over 768x1536 and 896x1792 by eye. 1.38M pixels,
+         # under the ceiling, and still narrow enough that nobody else fits
+         # beside her -- which is the constraint the width is really carrying.
+         #
+         # It is NOT the same picture at a bigger size. Each of these three
+         # canvases frames her differently: the first pass is where the
+         # composition is decided, so its size is a composition choice and the
+         # pose has to be re-picked when it changes.
+         "stand": (832, 1664)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -1159,6 +1167,30 @@ def positive(pose: str) -> str:
         # for another.
         body = (body.replace("(wide hips:1.3)", "(wide hips:1.0)")
                     .replace("(thick thighs:1.35)", "(thick thighs:1.05)"))
+    if pose == "stand":
+        # 「身長はそれで良い、だが上半身が少し長い。脚の長さに比重をかけてほしい」.
+        #
+        # Measured as the share of figure height below the hem, on 1886970040:
+        # the accepted render is 40.1%, this is 55.7%. Two caveats on that
+        # number -- it is "below the hem" and not an anatomical hip, so a dress
+        # that rides up inflates it, and it moved for both reasons here.
+        #
+        # ADDED as a seventh tag rather than substituted into `(petite:1.2)`,
+        # which is the slot arguing against it and which `boss` swaps out for
+        # exactly that reason. The substitution measured 55.1%, within noise of
+        # this, and was not the one picked.
+        #
+        # The negative route does not work and this is the second time: naming
+        # `(long torso:1.4)` there moved 40.1% to 38.9%, i.e. nothing, and
+        # `prone` had already found `(long legs:1.4)` in the negative did
+        # nothing to thighs that read too long. **One side of this axis is
+        # addressable and it is the positive one.**
+        #
+        # Spliced, not global. Every other pose was settled against this BODY
+        # and would move under it -- the same reason `boss` and `prone` splice
+        # it rather than editing the block.
+        body = body.replace("(pale skin:1.25)",
+                            "(long legs:1.35), (pale skin:1.25)")
     if pose == "boss":
         # Grown up, and it is one substitution now, not the two it started as.
         #

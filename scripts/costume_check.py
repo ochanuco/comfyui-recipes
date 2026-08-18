@@ -83,6 +83,9 @@ def canonical(pose: str) -> list[str]:
 # measurements behind them are in docs/render-notes.md.
 EXCEPTIONS: dict[str, list[dict]] = {
     "stand": [
+        {"added": ["(long legs:1.35)"],
+         "why": "a standing figure reads its own proportions; 40.1% of height "
+                "below the hem to 55.7%"},
         {"added": ["(criss-cross halter:1.45)"],
          "why": "the dress's own crossed straps, taken with the backdrop cost "
                 "known and accepted"},

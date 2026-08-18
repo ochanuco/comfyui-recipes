@@ -5447,3 +5447,44 @@ is darker than its surroundings, and multiplying that back darkens line and
 interior hatching without touching flat fills. On the 2048 render: 39.2 ->
 41.2 -> 46.6 at factor 0.35 / 0.60 / 0.85. It works as a dial, and by 0.85 the
 face carries a grey cast and the picture reads grainy rather than drawn.
+
+## `stand` settles its canvas and its proportions (2026-08-18)
+
+**Canvas: 832x1664**, picked by eye over 768x1536 and 896x1792 (a71d4c57).
+1.38M pixels, under the ceiling, and still narrow enough that nobody else fits
+beside her — which is what the width is really carrying on this pose. All three
+canvases frame her differently, so this was a composition choice and not a
+resolution one.
+
+**Proportions.** 「身長はそれで良い、だが上半身が少し長い。脚の長さに比重を
+かけてほしい」. `.local/proportion.py` measures the share of figure height below
+the hem — head top, hem and sole from the figure mask:
+
+```
+a71d4c57  the accepted render                        40.1%
+c1  BODY + (long legs:1.35)                          55.7%   <- kept
+c2  (petite:1.2) -> (long legs:1.35)                 55.1%
+c3  (long torso:1.4) in the NEGATIVE                 38.9%
+c4  the substitution at 1.45, plus the guard         57.0%
+```
+
+**Only the positive side of this axis is addressable, and that is now twice.**
+`c3` names the defect directly in the negative and moves nothing; `prone` had
+already found `(long legs:1.4)` in the negative did nothing to thighs that read
+too long. Asking for the leg works, forbidding the torso does not.
+
+Kept `c1` — added as a seventh tag rather than substituted into `(petite:1.2)`,
+the slot that argues against it and the one `boss` swaps out for that reason.
+The substitution measured within noise of the addition and was simply not the
+one chosen.
+
+Spliced into `stand`, not edited into `BODY`. Every other pose was settled
+against the current block and would move under it, which is the same reason
+`boss` and `prone` splice their own body changes.
+
+**The measurement's limit, stated because the number looks stronger than it
+is:** it is the share below the HEM, not below an anatomical hip. A dress that
+rides up inflates it, and the dress did ride up in every arm that moved. The
+figure is genuinely longer-legged; it is not 15 points longer-legged.
+
+Verified byte-identical against 963bee1f: positive, negative, canvas.

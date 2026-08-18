@@ -157,13 +157,18 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"removed": ["closed mouth"],
          "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open"},
     ],
-    # Back to one departure. It briefly carried `prone`'s hip/thigh easing, on
-    # the argument that it shared `prone`'s from-above geometry; that tag left
-    # the pose when the dive was asked for, and the splice left with it.
+    # Still one departure, but a different one: the face came back up, so the
+    # `looking at viewer` removal went away and the open mouth arrived. Both
+    # halves of the pose's FACE DOWN / FACE UP switch show up here, and this
+    # entry is how a half-applied switch gets caught -- flipping the pose
+    # without flipping this line fails the check.
+    #
+    # It briefly carried `prone`'s hip/thigh easing too, on the argument that
+    # it shared `prone`'s from-above geometry; that tag left the pose when the
+    # dive was asked for, and the splice left with it.
     "flop": [
-        {"removed": ["looking at viewer"],
-         "why": "her face is in the floor; the instruction has no referent, "
-                "the same reason `nape` drops it"},
+        {"removed": ["closed mouth"],
+         "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open, the same departure `allnighter_full` makes"},
     ],
     "yawn": [
         {"removed": ["closed mouth"], "why": "a yawn needs the mouth open"},

@@ -6103,3 +6103,67 @@ a flag and characterises it.
 
     yk-flop5   555666777  ad53cff6   111222333  b94537db   1886970040 1e189eea
                737373737  82378b10   2557902837 aeafb15d   3409564303 a2859012
+
+## 2026-08-19 — `flop`: the face comes back up, and the skid comes out
+
+「寝転んでるゆかりさん（寝不足放心状態）」. Two axes moved, and they are separate
+axes, which is the point of writing this down rather than calling it one change.
+
+**Face, third move.** The switch is the two edits the pose comment already
+carried, run in the FACE UP direction: `(face down:1.5)` out, `(empty eyes:1.45),
+(eyebags:1.4), (half-closed eyes:1.35), (open mouth:1.35)` in, `looking at
+viewer` restored (i.e. `flop` out of the `nape` list in `positive()`, and into
+`open_mouthed`). `(from above:1.35)` and `chin rest` were left alone again, which
+is now three consecutive rounds where the head has moved and the camera has not.
+`costume_check`'s `flop` entry flipped with it — `looking at viewer` removal out,
+`closed mouth` removal in — and that entry is the thing that would catch a
+half-applied switch, so it is worth keeping the two halves symmetric.
+
+**Motion, first move.** `(motion lines:1.3)` came out. Motion lines are the tag
+that says she is still moving; 放心状態 is already stopped. They were bought for
+「ズサーッ」 and 「ズサーッ」 is not what is being asked for. The paragraph in the
+pose that explains the dive is kept rather than deleted, because the trap it
+records survives the request: a dive or falling tag over `(lying:1.45), (on
+stomach:1.5)` is two moments, and the model settles two moments by drawing two
+bodies. `(outstretched arms:1.3)` stayed — it arrived as the skid's arms, but
+arms thrown out is also just what 寝転ぶ looks like. Second job, not the same job.
+
+Nine tags:
+
+    (solo:1.5), (lying:1.45), (on stomach:1.5), (outstretched arms:1.3),
+    (empty eyes:1.45), (eyebags:1.4), (half-closed eyes:1.35),
+    (open mouth:1.35), full body
+
+### The one question the change could not answer from here, so it was rendered
+
+On her stomach the face is only legible if the head is lifted, and the two tags
+that lift it are the two the pose is on record as not reaching for. On her back
+the face points at the camera for nothing. That is not decidable by argument, so
+`.local/_onback.py` runs the same pose with `(on stomach:1.5)` → `(on back:1.5)`
+and nothing else changed, on the same three seeds.
+
+    yk-flop6    555666777 b89b6f5a   111222333 7a627150   1886970040 8b426633
+    yk-onback   555666777 cf98c8aa   111222333 2ab57f7b   1886970040 c5d355af
+
+`headcount.py --detail`, and this is a report of shapes, not of identities:
+
+    yk-flop6   555666777    2 bodies   165px block, 9.2% of figure, 43.6% frame h
+               111222333    ONE        99.85% in one block
+               1886970040   ONE        99.97% in one block
+    yk-onback  555666777    ONE        99.31% in one block
+               111222333    ONE        99.59% in one block
+               1886970040   ONE        99.98% in one block
+
+**555666777 has now flagged twice in a row on this pose**, across a prompt change
+that removed one tag and added four. Last round it was 334px / 8.3% / 61.7% of
+frame height; this round 165px / 9.2% / 43.6%. The block shrank and dropped, so
+it is not the same mass — but the seed producing a detached mass under two
+different prompts is a property of the seed more than of the prompt, and that is
+the useful thing to have written down. It is one of three either way, it has not
+been opened, and nothing has been changed on account of it. Tuning a prompt
+against a statistic is what the correction two entries up is about.
+
+`on back` consolidating to 99.3–99.98% in a single block on all three seeds is
+not evidence that it is the better picture — a body lying across a landscape
+frame is one wide blob whether or not the face reads, and that is exactly the
+kind of number this file has been wrong with before. The eye decides.

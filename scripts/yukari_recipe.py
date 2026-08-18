@@ -485,16 +485,17 @@ POSES = {
     # her up and arrange her, and this pose is someone who stopped. `smug` goes
     # for the obvious reason.
     #
-    # 「顔見えなくていいよ。床に埋まってて」. The face is down again, and this is
-    # the second time it has moved on this axis, so BOTH ends are written here.
+    # 「顔見えなくていいよ。床に埋まってて」 put the face down; 「寝転んでるゆかり
+    # さん（寝不足放心状態）」 has brought it back up. Third move on this axis,
+    # so BOTH ends stay written here and the switch stays exactly two edits.
     #
-    # FACE DOWN (now): (face down:1.5) in the block, no eye or mouth tags at
+    # FACE DOWN: (face down:1.5) in the block, no eye or mouth tags at
     # all, and `looking at viewer` out of FACE -- `nape`'s departure for `nape`'s
     # reason, an instruction to face a camera she is turned away from. The
     # exhaustion is then the body's job: the face down, the arms thrown ahead,
     # the skid.
     #
-    # FACE UP: (face down:1.5) out; (empty eyes:1.45), (eyebags:1.4),
+    # FACE UP (now): (face down:1.5) out; (empty eyes:1.45), (eyebags:1.4),
     # (half-closed eyes:1.35), (open mouth:1.35) in, and `looking at viewer`
     # restored. The mouth belongs with the eyes -- it was never rejected on its
     # own, it fell with the face, and 放心状態で口が空いてる was approved.
@@ -529,10 +530,25 @@ POSES = {
     # request: a top-down camera is the one view that flattens horizontal
     # momentum. It was borrowed from `prone` for legibility, not chosen here.
     #
-    # Seven tags.
+    # 「寝転んでる」 is not the skid, and (motion lines:1.3) came out with it.
+    # Motion lines are the tag that says she is still moving, and 放心状態 is
+    # the opposite of that -- already stopped, and not getting up. They were
+    # bought for 「ズサーッ」 and 「ズサーッ」 is not what is being asked for now.
+    # The paragraph above is kept rather than deleted because the dive is one
+    # request away, and the trap it records is still true if it comes back: a
+    # dive or falling tag over (lying:1.45), (on stomach:1.5) is two moments,
+    # and the model settles two moments by drawing two bodies.
+    #
+    # (outstretched arms:1.3) stayed. It arrived as the skid's arms, but arms
+    # thrown out is also simply what 寝転ぶ looks like, and it is the tag
+    # holding the difference between flopped and posed. Second job, not the
+    # same job, so it is not a leftover of the dive.
+    #
+    # Nine tags.
     "flop": (
-        "(solo:1.5), (lying:1.45), (on stomach:1.5), (face down:1.5), "
-        "(outstretched arms:1.3), (motion lines:1.3), full body"
+        "(solo:1.5), (lying:1.45), (on stomach:1.5), (outstretched arms:1.3), "
+        "(empty eyes:1.45), (eyebags:1.4), (half-closed eyes:1.35), "
+        "(open mouth:1.35), full body"
     ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
@@ -1303,14 +1319,16 @@ def positive(pose: str) -> str:
     # A yawn, a shout and a vacant stare all need the mouth open; FACE closes it
     # by default. `allnighter` briefly took `small mouth` out too, for the width
     # of an 「イー」 mouth; that mouth is gone and so is the departure.
-    open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full")
+    open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
+                            "flop")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
-    # `flop` has her face in the ground, which is `nape`'s situation: an
-    # instruction to face the camera has no referent and either argues with the
-    # pose or spins her back around.
-    if pose in ("nape", "flop"):
+    # `flop` was in this list while its face was in the ground, for `nape`'s
+    # reason. Its face is up again, so the instruction has a referent again
+    # and FACE keeps it; putting `flop` back here is half of the FACE DOWN
+    # edit and belongs with the other half rather than on its own.
+    if pose == "nape":
         face = face.replace(", looking at viewer", "")
     body = BODY
     if pose == "prone":

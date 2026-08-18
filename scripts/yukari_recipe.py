@@ -148,9 +148,17 @@ CHARACTER = (
     # Naming a halter is apparently read as naming a garment that leaves the
     # shoulders out, and the coat gets out of its way.
     "animal hood, long sleeves, (drawstring:1.4), (purple dress:1.45), short dress, "
-    # Weighted down rather than deleted: the dress is meant to have frill trim,
-    # it just should not be the loudest thing in the lower half.
-    "(frills:0.85), vocaloid, voiceroid, "
+    # 0.85 -> 1.25 (2026-08-18). "Weighted down rather than deleted" was the
+    # intent and 0.85 did not deliver it: below 1 in a prompt where everything
+    # else is 1.3+ has meant ABSENT three times in this file, and this was the
+    # fourth. `boss` had spliced it to 1.25 for a session already and got the
+    # frilled collar, the ribbon ties and the beaded cords back for nothing
+    # measurable -- so the value was proven and simply never promoted.
+    #
+    # 「ワンピースを正しく見直す」. Measured here on 555666777 and 1886970040:
+    # the frilled hem returns, the coat's cord shows its pink bead, the backdrop
+    # stays clean. It is a COSTUME change and therefore every pose.
+    "(frills:1.25), vocaloid, voiceroid, "
     # The oversized silhouette: boxy body, big soft hood, hem at the hip.
     #
     # Neither of these works alone. (oversized shirt:1.35) on its own broke the
@@ -1095,11 +1103,19 @@ def _negative_base(pose: str) -> str:
         # defect has wrecked the palette here twice. These point at three
         # separate things: a decal, a logo, and a colour. Measured together on
         # 1886970040 with the whole list present.
+        # `(buttons:1.4)` in front, which is where `boss` puts its own copy and
+        # the order this was measured in. Her dress has no buttons -- ribbed
+        # front, ribbon and beads, and that is all -- and nothing in the prompt
+        # asks for any; they arrive from the cardigan being read as a shirt.
+        # There is nothing to substitute, so it is a guard, and `boss` already
+        # established that one guard is the whole fix.
+        #
         # The sole guards are NOT here. They go after the legwear ban -- see
         # `negative()` -- because that is the order the picked render was drawn
         # in, and this file has already found that token order changes what
         # comes out.
-        return NEGATIVE + ", (butterfly:1.5), (logo:1.4), (print:1.35)"
+        return ("(buttons:1.4), " + NEGATIVE
+                + ", (butterfly:1.5), (logo:1.4), (print:1.35)")
     if pose != "lap":
         return NEGATIVE
     # A head resting in her lap looks up at her, so the guard against low angles
@@ -1190,12 +1206,12 @@ def positive(pose: str) -> str:
         # `sleeves past wrists` stays. It is the tag CHARACTER measured as
         # boxing the coat out, and it was not part of this.
         character = CHARACTER.replace("(oversized shirt:1.3), ", "")
-        # `(frills:0.85)` -> 1.25. Below 1 in a prompt where everything else is
-        # 1.3+, which is the third time that has meant "absent" here -- see
-        # `hair ornament` and `drawstring` in CHARACTER. Raised, the frilled
-        # collar, the ribbon ties and the beaded cords all come back, and
-        # nothing measurable is paid for them.
-        character = character.replace("(frills:0.85)", "(frills:1.25)")
+        # The frills splice that used to be here is GONE, and not because it
+        # stopped being wanted: CHARACTER carries 1.25 globally now, so the
+        # replacement matched nothing and did nothing. A splice against a block
+        # that no longer contains its needle fails silently, which is the exact
+        # failure this file has a rule about -- so it is deleted rather than
+        # left lying as documentation of a value that moved.
         # The coat off her shoulders. This is the render that was approved for
         # the pose, and it costs the rabbit hood -- which the module docstring
         # rules out in general and which is a deliberate exception here, not an

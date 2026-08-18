@@ -64,7 +64,7 @@ HEAD = "best quality, absurdres, 1girl, solo"
 # docs/render-notes.md what the costume is now. That is the whole mechanism:
 # it does not stop a change, it stops an *unrecorded* one.
 COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "thin")
-COSTUME_FINGERPRINT = "a67b105340c90b52"
+COSTUME_FINGERPRINT = "47b0d089d5a5ec77"
 
 
 def tags(text: str) -> list[str]:
@@ -91,8 +91,6 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"removed": ["(oversized shirt:1.3)"],
          "why": "`mature female` recruits it into a pale button-front shirt "
                 "dress; dropping it restores the purple bodice"},
-        {"removed": ["(frills:0.85)"], "added": ["(frills:1.25)"],
-         "why": "below 1 in a prompt where everything is 1.3+ means absent"},
         {"added": ["(off shoulder:1.3)"],
          "why": "the approved render has the coat off her shoulders; it costs "
                 "the rabbit hood, deliberately"},

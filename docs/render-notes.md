@@ -5324,3 +5324,55 @@ That is five stand-only guards. The rule they look like they are breaking --
 never stack guards -- is about guards that all point at ONE defect, which is
 what wrecked the palette here twice. These point at three: a decal, a logo and
 a colour.
+
+## The ears were already off, and the dress was missing its trim (2026-08-18)
+
+「3da541d2 ベースで頭から耳を外す。ワンピースを正しく見直す」.
+
+### The ears
+
+**Nothing was needed.** Rendering the committed block unchanged at 3da541d2's
+own seed (555666777) drew no ears standing on her head. The hood ears in that
+render belonged to the configuration it was made with — it predates
+`(high tops:1.35)` and the sole guards — and adding those changed the picture
+enough to drop them. Two arms were queued for a defect that had already gone:
+`(rabbit ears:1.5), (animal ears:1.45)` in the negative, and `(hood down:1.25)`
+raised to 1.55. Neither is needed and neither is kept.
+
+The lesson is the cheap one: **render the control.** Four arms went out against
+a render made two prompt-changes ago, and the control would have cost one.
+
+### The dress
+
+Three things this file had already measured and never applied. Two are kept:
+
+- **`(frills:0.85)` -> 1.25, globally.** "Weighted down rather than deleted" was
+  the stated intent and 0.85 did not deliver it — below 1 in a prompt where
+  everything else is 1.3+ has meant *absent* four times here now. `boss` had
+  spliced 1.25 for a session and got the frilled collar, the ribbon ties and the
+  beaded cords back at no measurable cost, so the value was proven and simply
+  never promoted. Measured again on 555666777 and 1886970040: frilled hem back,
+  the coat's cord shows its pink bead, backdrop clean.
+- **`(buttons:1.4)` in `stand`'s negative, in front.** Her dress has no buttons
+  and nothing asks for any; they arrive from the cardigan being read as a shirt.
+  `boss` established one guard is the whole fix, and this is the same guard in
+  the same position.
+
+Dropped: **`(criss-cross halter:1.45)`**. It does draw the crossed chest straps
+of the official design — visibly, on 555666777 — and it brought backdrop
+intruders on **both** seeds tried. That matches what `sip` measured a session
+ago: naming a halter globally is destructive. It stays a `boss`/`nape`
+splice.
+
+Costume fingerprint `a67b105340c90b52` -> **`47b0d089d5a5ec77`**. Every pose
+wears the frills now.
+
+And the splice this broke, exactly as CLAUDE.md warns: `boss` replaced
+`(frills:0.85)` with `(frills:1.25)`, and with the global value raised its
+needle was gone, so the replacement silently did nothing. `costume_check`
+caught it as a declared-but-absent exception rather than a render defect, which
+is the entire reason that file exists. The splice and its `EXCEPTIONS` entry are
+both deleted.
+
+Verified byte-identical against 5949e5e4's own history: positive, negative and
+canvas.

@@ -5594,3 +5594,41 @@ Queued as `yk-allnighter`, six sweep seeds:
 — FACE supplies `(tareme:1.3), (large eyes:1.3), (large iris:1.25)`, which are
 arguing for the opposite, and `expressionless` is the tag to drop first if the
 result reads as a doll rather than as exhausted.
+
+## `allnighter` gets イーの口, and `expressionless` pays for it (2026-08-19)
+
+「イーの口にして」. `(clenched teeth:1.45)` is the tag — teeth pulled back and
+pressed together, which is how the 「い」 mouth shape is drawn. It went in as a
+**swap for `(expressionless:1.3)`**, not as a tenth tag.
+
+The swap is the point. A clenched grimace *is* an expression, so the two tags
+were a straight contradiction, and leaving both in would have moved the argument
+out of the recipe and into the sampler — where it gets settled per seed and
+looks like instability rather than like a decision. `expressionless` was already
+written down in the previous entry as the first tag to drop; the mouth is what
+gave it a reason.
+
+**Two tags come out of FACE here, not one.** Every earlier mouth change in this
+file (`yawn`, `fall`) removes `closed mouth` and stops. This pose also removes
+`small mouth`:
+
+- `closed mouth` forbids the teeth, which is the whole request.
+- `small mouth` forbids the width. It is the more dangerous of the two, because
+  it is not a contradiction the model has to resolve — it is a *description of
+  the same feature* as `clenched teeth`, at a comparable weight, and a
+  description competes where a prohibition merely argues.
+
+Declared in `costume_check.py` as `allnighter`'s second exception. Costume
+fingerprint unchanged (`47b0d089d5a5ec77`).
+
+Queued as `yk-allnighter-ii` on the same six sweep seeds as the first pass, so
+the two are comparable seed by seed:
+
+    555666777   b13aea42    111222333   d3ba3a6f    1886970040  9bedb658
+    737373737   43a7b319    2557902837  1c343a54    3409564303  20856e8a
+
+**Unjudged.** The thing to watch is whether `clenched teeth` drags the face
+toward anger — it is a tag that lives mostly on rage and strain — when what is
+wanted is exhaustion. `(empty eyes:1.45)` and `(eyebags:1.4)` are the two tags
+holding it there, and if it reads as furious rather than fried, the lever is the
+mouth's weight and not theirs.

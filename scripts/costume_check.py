@@ -147,6 +147,9 @@ EXCEPTIONS: dict[str, list[dict]] = {
                      + tags(yk.THIN)),
          "why": "the crop is above all of it, and naming what is out of frame "
                 "is what invites it back in"},
+        {"removed": ["closed mouth", "small mouth"],
+         "why": "\u30a4\u30fc\u306e\u53e3 bares the teeth and pulls them wide; one "
+                "forbids the teeth, the other forbids the width"},
     ],
     "yawn": [
         {"removed": ["closed mouth"], "why": "a yawn needs the mouth open"},

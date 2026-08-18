@@ -413,13 +413,25 @@ POSES = {
     # figure on four seeds of four. Half-closed is also the only version of this
     # that can show an empty eye at all.
     #
+    # 「イーの口にして」. (clenched teeth:1.45) is the tag for it -- teeth pulled
+    # back and pressed together, which is what the 「い」 mouth shape is drawn as.
+    #
+    # SWAPPED for (expressionless:1.3), not added alongside it. The two are a
+    # direct contradiction: a clenched grimace is an expression, and it was
+    # already the tag flagged as the first to drop. Keeping both would have put
+    # the argument inside the prompt and let the sampler settle it.
+    #
+    # It also takes `closed mouth` AND `small mouth` out of FACE -- see
+    # `positive()`. This mouth is neither shut nor small, and `small mouth` is
+    # the one that would quietly win, because it describes the same feature.
+    #
     # Nine tags where `portrait` has seven. The eight-tag ceiling recorded on
     # `yawn` is about the legwear being pushed out of the prompt, and this crop
     # does not carry legwear -- see `positive()`, where it joins `portrait`.
     "allnighter": (
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2), "
         "(face focus:1.3), (empty eyes:1.45), (eyebags:1.4), "
-        "(half-closed eyes:1.35), (expressionless:1.3)"
+        "(half-closed eyes:1.35), (clenched teeth:1.45)"
     ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
@@ -1183,6 +1195,12 @@ def positive(pose: str) -> str:
     # A yawn and a shout both need the mouth open; FACE closes it by default.
     open_mouthed = pose in ("yawn", "fall")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
+    if pose == "allnighter":
+        # 「イーの口」 is teeth bared and pulled wide. `closed mouth` forbids the
+        # teeth and `small mouth` forbids the width, so both come out -- the
+        # second one especially, since it is a description of the same feature
+        # and would compete with the pose tag rather than merely sit beside it.
+        face = face.replace("closed mouth, ", "").replace("small mouth, ", "")
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
     if pose == "nape":

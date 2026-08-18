@@ -4746,6 +4746,31 @@ raised "dark at the top" is the foot and the tag has no way to know which end of
 a leg it is looking at. Flat is closer to the reference than a backwards
 gradient.
 
-Kept: `one-flatblack`, `5494dc66`. The three-step recolour route and
+Kept: **`one-muted`, `6e2c5592`** — one garment, the gradient running purple at
+the thigh to black at the ankle. The three-step recolour route and
 `yk_prone_legwear.py` both still work and are still correct; there is simply
 nothing left for them to hold apart.
+
+**Two corrections to the paragraph above, both mine.** `(gradient legwear:1.4)`
+is IN, not out: I called it inverted against the sheet and dropped it, and the
+purple-at-the-thigh end is the one that was wanted. And `one-flatblack` was
+written up here as the keeper an hour before the picture was actually chosen —
+it is the flat arm of a sweep, not a decision.
+
+**The saturation numbers picked the wrong render, and that is the finding.**
+Asked to take saturation down, six prompt arms failed — `(muted colors)` +
+`(desaturated)`, black at 1.6, greyish purple, dusty purple, a vividness guard —
+and three of them measured *higher* than the render they were meant to improve.
+Then the arm measuring highest of all on my leg-saturation box (75.6 against
+37.7) is the one that was chosen by eye. The box is fixed and the composition
+moves under it, so it was reading dress and coat as often as leg. **A region
+statistic on a fixed box is not a measurement when the thing being measured is
+free to move.** Four metrics failed this way in one session: stroke-width
+spread, runs-per-megapixel, ink fraction, and this. Each time the eye was right
+and the number was answering a different question.
+
+`.local/desat.py` scales HSV saturation and nothing else, so the gradient and
+the line survive it: x0.55 puts the figure at mean 19.4 / p90 44 against the old
+lineage's 22.1 / 35. It is the `recolor_bg.py` bargain — what the recipe does not
+control, decide afterwards — and it is available on the keeper rather than baked
+into it.

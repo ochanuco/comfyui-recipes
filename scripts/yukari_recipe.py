@@ -847,9 +847,18 @@ POSES = {
     # what puts them at the chest rather than at the waist; measured against the
     # same seed without it, which lands them low. That is the ninth tag this
     # file keeps warning about and it is spent here on purpose.
+    #
+    # `(arched back:1.2)` took `head tilt`'s slot rather than being added to it.
+    # It is here because two renders of the same seed differed only in LEGWEAR's
+    # TOKEN ORDER and one of them stood slightly chest-out -- the posture came
+    # from the encoding, not from any tag, so it is not repeatable and had to be
+    # named to be kept. Measured at 1.2 in this slot, at 1.2 alongside `head
+    # tilt` (nine tags) and at 1.35 in this slot; the first is what was picked.
+    # It is a tag that leans pin-up when raised, which is why the range was
+    # swept downward rather than up.
     "stand": (
         "(solo:1.5), (standing:1.5), (from front:1.3), (own hands together:1.35), "
-        "(hands up:1.25), (head tilt:1.2), (smug:1.35), (half-closed eyes:1.3), "
+        "(hands up:1.25), (arched back:1.2), (smug:1.35), (half-closed eyes:1.3), "
         "full body"
     ),
 }

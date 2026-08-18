@@ -5029,3 +5029,16 @@ seed, because the ninth tag is the whole ask.
 
 Picked: `l2h2` on 1886970040 (prompt 9966667b). `positive("stand")` reproduces
 that prompt exactly, which is the check that the settled block is the render.
+
+### and its posture (2026-08-18)
+
+`(arched back:1.2)` in `head tilt`'s slot, at eight tags. Picked over the same
+tag added alongside `head tilt` (nine) and over `(arched back:1.35)` in the same
+slot. Prompt 43ca8a03.
+
+Why it had to be named at all: `l3h1` stood slightly chest-out and `l2h2` did
+not, on the same seed, and those two arms differ **only in LEGWEAR's token
+order**. The posture arrived from the encoding rather than from any tag, so it
+was not reproducible and could not simply be kept. The range was swept downward
+rather than up because `arched back` leans pin-up when raised, and the ask was
+「少し」.

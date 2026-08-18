@@ -17,6 +17,42 @@ Finish on the branch you are on rather than switching under them, then
 fast-forward `main` onto it with `git branch -f main HEAD` — that leaves the
 working tree and their `HEAD` untouched.
 
+## Look things up; do not read them
+
+Three files are more than half this repository — `docs/render-notes.md` (~68k
+tokens), `scripts/queue_dq3.py` (~21k) and `scripts/yukari_recipe.py` (~19k) —
+and all three are exactly what a one-line question tempts you to open whole.
+Opening any of them without a line range is a mistake, not a thorough approach.
+
+```bash
+uv run scripts/atlas.py                    # every script: role, size, one line  (~1.5k)
+uv run scripts/atlas.py notes              # the notes' headings + line numbers   (~2.8k)
+uv run scripts/atlas.py notes <pattern>    # just the sections that match
+uv run scripts/atlas.py find <regex>       # matching lines, each under its heading
+```
+
+`atlas.py` reads the tree every time it runs, so unlike a committed index it
+cannot be stale. Use it first; then `Read` with `offset`/`limit` on the lines it
+gave you.
+
+For what a recipe actually sends, ask the recipe instead of reading it:
+
+```bash
+uv run scripts/yukari_recipe.py --pose prone --print-prompt      # ~0.6k, not 19k
+uv run scripts/queue_dq3.py --job sage --print-prompt            # ~0.9k, not 21k
+uv run scripts/costume_check.py                                  # the blocks, verified
+```
+
+Rough shape of what that saves: the notes' table of contents plus one section is
+about 3.5k tokens against 68k for the file, and a printed prompt is about 900
+against 21k. If you find yourself about to read a file over ~5k tokens to answer
+something narrow, there is probably a command for it — and if there is not,
+adding one to `atlas.py` is cheaper than the read you were about to do.
+
+`scripts/archive/` is fourteen scripts that ran once and are kept as a record.
+Nothing imports them and nothing maintains them; do not read them looking for
+how something works today.
+
 ## Where the GPU is
 
 **ComfyUI does not run on this Mac.** It runs on another machine, and every

@@ -4884,3 +4884,43 @@ same trap. It is left out because the poses approved before it -- portrait,
 peace, boss, lounge -- were approved without it, and folding it into the shared
 blocks would change their look on the quiet. Fixing that means re-approving
 those renders, which is the user's call and not a refactor.
+
+### Token cost is a property of the repo, and it was measured (2026-08-18)
+
+「トークン節約施策を打ってください」. The repo is ~185k tokens of tracked text and
+three files are more than half of it: this one at ~68k, `queue_dq3.py` at ~21k
+and `yukari_recipe.py` at ~19k. Every one of them is what a one-line question
+tempts a session to open whole.
+
+What was done, and what each thing is actually worth:
+
+- **`scripts/atlas.py`** — the map, computed rather than stored. `atlas.py`
+  lists every script with its role, size and its own first docstring line
+  (~1.5k); `atlas.py notes` prints this file's headings with line numbers and
+  per-section sizes (~2.8k against 68k); `atlas.py notes <pattern>` prints just
+  the matching sections; `atlas.py find <regex>` prints matching lines each
+  under the heading it lives beneath. Table of contents plus one section is
+  ~3.5k, a 19x saving on the file.
+- **`--print-prompt` on `queue_dq3.py`**, mirroring the flag `yukari_recipe.py`
+  already had. Read off the built graph rather than reassembled from the
+  blocks, so what it prints is what would be sent. ~900 tokens against ~21k.
+- **`scripts/archive/`** — fourteen scripts moved: nine `yk_*.py` design probes
+  from before the recipe existed, and `style_sweep2`–`6`. Nothing imports them.
+  The live surface went from 50 scripts to 36 and `__main__` from 33 to 19.
+
+The index is deliberately NOT a committed file. A generated index is stale from
+the moment of the next commit, and this repo has already been bitten once this
+week by knowledge that was written down somewhere the next session did not
+look. `atlas.py` re-reads the tree on every run, so it cannot be wrong about it.
+
+What was considered and NOT done: splitting `render-notes.md` and the two big
+recipes into smaller files. The section sizes make the case tempting — one
+section, "Removing baked-in objects", is 97.7k characters on its own, 36% of the
+file — but splitting buys nothing that `--offset`/`--limit` does not already
+buy, and it costs the property that one grep covers everything. The recipes are
+worse candidates still: their value is the commentary sitting next to the tag it
+explains, and the reason to open them is almost always answered by
+`--print-prompt` for a tenth of the tokens.
+
+The general rule, since this will come up again: **the fix for an expensive file
+is a command that answers the question, not a smaller file.**

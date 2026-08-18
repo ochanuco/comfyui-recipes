@@ -1036,6 +1036,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--clip-vision-name", default="CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
     )
     parser.add_argument("--wait", action="store_true", help="poll until the images are written")
+    # Reading this file to find out what a flag combination actually sends is
+    # ~21k tokens of prose and eleven tag presets. This prints the answer.
+    parser.add_argument(
+        "--print-prompt",
+        action="store_true",
+        help="print the positive and negative this would send, and queue nothing",
+    )
     parser.add_argument(
         "--export-workflow",
         help="write the first queued image's UI workflow here instead of the "
@@ -1696,6 +1703,18 @@ def main() -> int:
             path = INPUT_DIR / path.name
         setattr(args, attr, stage_input(path, INPUT_DIR, host=args.host, port=args.port))
     prefix = args.prefix or f"dq3-{args.job}-{args.pose}"
+
+    if args.print_prompt:
+        # Read off the built graph rather than reassembled from the blocks, so
+        # what is printed is what would be sent -- node ids move, the class
+        # does not.
+        graph = build_prompt(args, args.seed if args.seed >= 0 else 0, prefix)
+        texts = [node["inputs"]["text"] for node in graph.values()
+                 if node.get("class_type") == "CLIPTextEncode"]
+        for label, text in zip(("positive", "negative"), texts):
+            print(f"--- {label} ---\n{text}\n")
+        return 0
+
     prompt_ids = []
 
     for index in range(args.count):

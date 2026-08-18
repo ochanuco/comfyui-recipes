@@ -30,6 +30,7 @@ uv run scripts/queue_dq3.py --job sage --count 3
 | `scripts/queue_*.py` | build and queue a graph — txt2img, img2img, Anima, the DQ3 portrait recipe, refinement passes |
 | `scripts/yk_*.py`, `scripts/style_sweep*.py` | narrower sweeps over one variable at a time |
 | `scripts/comfy_host.py` | the local/remote seam every other script imports |
+| `scripts/atlas.py` | what each script is, and the render notes' headings — a map of the repo that is computed, not stored |
 | `scripts/workflow_ui.py` | rebuilds a UI-format ("litegraph") graph from `/object_info`, so a generated PNG reopens on the ComfyUI canvas |
 | `scripts/gen_variants.py` | asks a local ollama model for scene tags and queues one image per variant |
 | post-processing | `recolor_bg.py`, `legcrop.py`, `inpaint_composite.py`, `contact_sheet.py` and friends — plain PIL/numpy, no ComfyUI involved |

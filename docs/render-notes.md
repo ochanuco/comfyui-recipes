@@ -4774,3 +4774,53 @@ the line survive it: x0.55 puts the figure at mean 19.4 / p90 44 against the old
 lineage's 22.1 / 35. It is the `recolor_bg.py` bargain — what the recipe does not
 control, decide afterwards — and it is available on the keeper rather than baked
 into it.
+
+### Measuring 「手書き感」: four statistics that failed and one that works (2026-08-18)
+
+「手書き感は数値パラメータで表現できるの？」. Yes, with three conditions, and
+the four that failed first are what name them.
+
+| statistic | why it failed |
+|-----------|---------------|
+| stroke-width spread (sd/mean) | 0.87-0.98 across renders anyone separates instantly |
+| runs per megapixel | **inverted** -- a smaller canvas spends fewer pixels per line and counts more of them |
+| ink fraction | dominated by whichever garment happens to be black |
+| saturation in a fixed box | the composition moves under the box; it read dress and coat as often as leg |
+
+What works, `scripts/handfeel.py`: **count marks in the figure's interior and
+normalise by the figure's height.** Erode the figure by 25px first -- the
+silhouette's contour is drawn just as firmly in a vector-flat render, and what
+separates the two is what is drawn *inside* the shapes: hair strands, the
+hatching in a coat fold. Count connected components rather than pixels, since it
+is the number of marks the eye reads as drawn.
+
+    cnrecipe (called vector-flat by eye)      72.9
+    wide-ink-d025 (the pencil-feel lineage)  204.1
+    rb-hires (the feel restored)             235.5
+
+Three times the separation, on the pair where the other four moved by under ten
+percent.
+
+**It does not survive a change of canvas, and that is not a flaw in the
+normalisation.** Same seed, same prompt: 1024 reads 36.9, 2048 reads 127.9.
+Dividing by figure height cannot absorb it because a line's width in pixels does
+not scale with the figure -- at 1024 two strokes occupy the pixels one does at
+2048, and merge into a single component. **Compare at one canvas size only.** A
+target band read off 2048 renders is not reachable by tuning a 1024 one, which
+is the practical form of it: 1024 tells you the composition, and the line has to
+be judged after the upscale.
+
+**And the second pass reduces marks; the upscale is what adds them.** Stated
+backwards here an hour ago. At 1024 with no second pass the figure reads 36.9;
+adding a `denoise 0.6` pass at the SAME size takes it to 17.4. The 0.6 pass
+smooths. What raises the count is the upscale splitting strokes that used to
+share pixels, which also explains `one-lanczos` at 35.3 -- resampling the picture
+with lanczos before the pass keeps the strokes merged, where a latent bicubic
+upscale lets them separate.
+
+**No tag reaches it.** Sweeping `(sketch)`/`(rough sketch)`/`(sketch lines)` from
+1.15 to 1.75 gave 127.9, 147.0, 120.2, 122.1 -- a peak at 1.35 and no monotone
+anywhere. The levers that actually moved this number were the upscale route and
+`(muted colors)+(desaturated)` (158.2 to 123.6), both of which were added for
+other reasons entirely. There is no dial; there is a configuration, a render,
+and a measurement.

@@ -5903,3 +5903,62 @@ right, and this is the user's call and not a statistic's.
 
     yk-flop2   555666777  f13bfa75   111222333  2cc03958   1886970040 be686786
                737373737  be70eaa8   2557902837 8fdc6d41   3409564303 8094e719
+
+## The face goes down, and the face block goes with it (2026-08-19)
+
+「顔も伏せてほぼ見えないくらいがいい」.
+
+    (solo:1.5), (couch:1.4), (lying:1.45), (on stomach:1.5),
+    (face down:1.5), (outstretched arms:1.3), (motion lines:1.3), full body
+
+Eight tags, down from eleven. **`(empty eyes:1.45)`, `(eyebags:1.4)`,
+`(half-closed eyes:1.35)` and `(open mouth:1.35)` are all deleted.**
+
+This pose began the session as 「徹夜で目が死んでる」 and has arrived somewhere the
+eyes are not visible, so those four tags now name a feature that is out of
+frame. That is the mistake `portrait` exists to avoid, and this file already
+records the cost in one line: naming what is out of frame is what invites it
+back in. Four tags asking for eyes is the strongest available argument *against*
+burying the face — keeping them out of loyalty to where the pose started would
+have been keeping the one thing most likely to defeat the request.
+
+**The exhaustion is the body's job now**, carried by the face being down, the
+arms thrown ahead and the skid. If it stops reading, the lever is a body tag.
+Adding a face tag back would be undoing this on purpose.
+
+`looking at viewer` comes out of FACE, which is `nape`'s departure and `nape`'s
+reason word for word: turned away from the camera, an instruction to face it has
+no referent and either argues with the pose or spins her back around. `closed
+mouth` stays, so the open-mouth exception is retired and `flop` is back to one
+declared change.
+
+`hair over face` is the reserve lever if `(face down:1.5)` does not bury it, and
+is deliberately held back: it would be a second tag arguing about one feature —
+this session's recurring failure — and it also rewrites the hairstyle CHARACTER
+is holding.
+
+### `_solo.py` said two bodies; a second measurement said furniture
+
+Headcount on the sweep flagged 1886970040. Rather than believe it or discard it,
+the blocks were measured (`.local/_blocks.py`, new — width, area and vertical
+extent per column block, which is what tells a flung arm from a person):
+
+```
+1886970040   block 1   width 84.8%   area 92.9%   vertical extent 90.6%
+             block 2   width 10.3%   area  6.9%   vertical extent 77.7%
+737373737    block 1   width 88.8%   area 99.7%   vertical extent 90.1%   (one block)
+```
+
+The second block is 158px wide and 796px tall — **a 1:5 aspect ratio**, far too
+narrow for a standing figure, which at that height would be two to three times
+as wide. On a pose that now contains furniture by request, a tall narrow object
+at the frame edge is much more likely the couch's back or arm than a person.
+
+Reported as probable furniture, not proven. But this is the sixth time an image
+statistic in this file has said something wrong, and it is the first time the
+answer was to **measure one level deeper instead of choosing whether to believe
+it**. `_solo.py` counts column blocks and cannot distinguish what fills them;
+that is a fixable gap in the tool, not a reason to stop counting.
+
+    yk-flop3   555666777  231cbd94   111222333  f14da3ad   1886970040 2f4e8e52
+               737373737  fe7a7e59   2557902837 46781917   3409564303 7f96f8f1

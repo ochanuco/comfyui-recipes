@@ -494,6 +494,31 @@ POSES = {
     # not draw at all, THAT is when `simple background` comes out -- one lever,
     # held in reserve, rather than pre-emptively changing the costume contract.
     #
+    # 「顔も伏せてほぼ見えないくらいがいい」, and that ends the face block.
+    #
+    # (empty eyes:1.45), (eyebags:1.4), (half-closed eyes:1.35),
+    # (open mouth:1.35) are all GONE. This pose began as 「目が死んでる」 and has
+    # arrived somewhere the eyes are not visible, so those four tags now name a
+    # feature that is out of frame -- which is the same mistake `portrait` is
+    # written to avoid, and this file already says what it costs: naming what is
+    # out of frame is what invites it back in. Four tags asking for eyes is the
+    # strongest possible argument against burying the face.
+    #
+    # **The exhaustion is the body's job now.** It is carried by the face being
+    # down, the arms thrown ahead and the skid. If it stops reading, the lever
+    # is a body tag; adding a face tag back would be undoing this on purpose.
+    #
+    # `looking at viewer` comes out of FACE, exactly as `nape` takes it out and
+    # for the identical reason -- see `positive()`. `closed mouth` STAYS, so the
+    # open-mouth departure is retired and this pose is back to `nape`'s single
+    # one-tag change.
+    #
+    # (face down:1.5) carries it, at `on stomach`'s weight because it is now the
+    # load-bearing request rather than a detail. If it does not bury the face,
+    # `hair over face` is the reserve lever and is deliberately not in yet: it
+    # would be a second tag arguing about the same thing, and it also rewrites
+    # the hairstyle CHARACTER is holding.
+    #
     # 「ズサーッとダイブしている感じ」, and NO DIVE TAG. This is the trap `fall`
     # already paid for: tripping + falling + fallen down together drew two
     # figures on three seeds of three, one still upright and one already on the
@@ -512,12 +537,12 @@ POSES = {
     # request: a top-down camera is the one view that flattens horizontal
     # momentum. It was borrowed from `prone` for legibility, not chosen here.
     #
-    # Eleven tags. `peace` settled the question of whether that number is a
-    # variable -- it is not; what each tag holds is.
+    # Eight tags, down from eleven, and every one of them is now about something
+    # the picture actually shows.
     "flop": (
         "(solo:1.5), (couch:1.4), (lying:1.45), (on stomach:1.5), "
-        "(outstretched arms:1.3), (motion lines:1.3), (empty eyes:1.45), "
-        "(eyebags:1.4), (half-closed eyes:1.35), (open mouth:1.35), full body"
+        "(face down:1.5), (outstretched arms:1.3), (motion lines:1.3), "
+        "full body"
     ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
@@ -1288,12 +1313,14 @@ def positive(pose: str) -> str:
     # A yawn, a shout and a vacant stare all need the mouth open; FACE closes it
     # by default. `allnighter` briefly took `small mouth` out too, for the width
     # of an 「イー」 mouth; that mouth is gone and so is the departure.
-    open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
-                            "flop")
+    open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
-    if pose == "nape":
+    # `flop` buries her face in the couch, which is the same situation `nape`
+    # describes: an instruction to face the camera has no referent and either
+    # argues with the pose or spins her back around.
+    if pose in ("nape", "flop"):
         face = face.replace(", looking at viewer", "")
     body = BODY
     if pose == "prone":

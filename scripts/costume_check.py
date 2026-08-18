@@ -82,6 +82,11 @@ def canonical(pose: str) -> list[str]:
 # for. `added` and `removed` are exact tags. The reasons are one line each; the
 # measurements behind them are in docs/render-notes.md.
 EXCEPTIONS: dict[str, list[dict]] = {
+    "stand": [
+        {"added": ["(criss-cross halter:1.45)"],
+         "why": "the dress's own crossed straps, taken with the backdrop cost "
+                "known and accepted"},
+    ],
     "boss": [
         {"removed": ["(petite:1.2)"], "added": ["(mature female:1.35)"],
          "why": "the pose exists to read grown up; one substitution in one slot"},

@@ -1237,6 +1237,25 @@ def positive(pose: str) -> str:
             "(drawstring:1.4), ", "(drawstring:1.4), (criss-cross halter:1.45), ")
     else:
         character = CHARACTER
+    if pose == "stand":
+        # The dress's own straps: they cross at the chest, go over the shoulders
+        # and tie behind the neck. Official design, and until now only `boss`
+        # and `nape` drew them -- `boss` because its coat is already off the
+        # shoulders, `nape` because it is looking at the knot.
+        #
+        # This pose has neither excuse and the tag was measured as costing
+        # something: backdrop intruders on both seeds it was tried on, which is
+        # the same shape `sip` recorded a session ago when the halter pair was
+        # tried globally. It was dropped on that basis and then chosen anyway --
+        # 355f91cf, picked over the arm without it. The straps are the design and
+        # the backdrop is fixable afterwards; `recolor_bg.py` exists for exactly
+        # that and the backdrop here has never been prompt-stable.
+        #
+        # One tag, not `nape`'s two. `(criss-cross halter:1.45)` names the cross
+        # specifically, which is the part the reference is explicit about, and
+        # `boss` already found the three-tag form pulls the camera in.
+        character = character.replace(
+            "(drawstring:1.4), ", "(drawstring:1.4), (criss-cross halter:1.45), ")
     if pose == "nape":
         # The dress ties in a bow at the nape, which only this pose is looking
         # at, and which costs every other pose its coat -- see CHARACTER.

@@ -5376,3 +5376,74 @@ both deleted.
 
 Verified byte-identical against 5949e5e4's own history: positive, negative and
 canvas.
+
+## 「解像度を上げれば手書き感が上がる」は第2パスでは逆 (2026-08-18)
+
+The expectation was that a bigger render would look more drawn. It looked
+softer instead, and the measurement says that is what the second pass does.
+
+`scripts/handfeel.py`, interior marks per 1000 figure-height, `stand` on
+1886970040:
+
+```
+first pass          768x1536   40.6      stroke 2.619 per 1000px
++ pass at 0.60      768x1536   34.7      2.330      <- same canvas: the pass SMOOTHS
++ pass at 0.60      1024x2048  37.8      1.745
++ pass at 0.65      1024x2048  39.2      1.821
++ pass at 0.70      1024x2048  41.2      1.668
++ pass at 0.65      1536x3072  64.6      1.230
+```
+
+The 1536-canvas pair is the only strictly comparable one — handfeel does not
+survive a change of canvas — and it is the whole story: **40.6 -> 34.7.** The
+pass removed marks. The 2048 numbers rise with denoise monotonically, which is
+the one dial that works here, but they are rising from a floor the pass itself
+created.
+
+Why the upscale did not save it: marks come back when an upscale splits strokes
+that used to share pixels, and this base is 1536 on its long side, so
+`--hires 2048` is a **1.33x** upscale. There is very little splitting to do.
+The prone lineage got its gain from 1024 -> 2048, twice that.
+
+Native-pixel crops of the head agree with the numbers and with the eye: bigger
+is smoother, with gradient shading and a finer line, which is the
+「clean and vivid」 direction this project treats as a regression.
+
+**`--hires 1536` on this pose is not an upscale at all.** The base long side is
+already 1536, so the scale is 1.0 and the pass is a same-size redraw. That is
+the arm that measured 34.7.
+
+### The first pass is the only pass that draws, and its canvas is a composition
+
+So: draw it bigger to begin with. Two arms, same prompt and seed:
+
+```
+832x1664 = 1.38M   44.2 marks   stroke 2.330
+896x1792 = 1.61M   33.1 marks   stroke 2.024
+```
+
+But neither is "the same picture, bigger". 832x1664 reframes to a near-portrait
+with the coat off her shoulders; 896x1792 moves the hands and the crop. **The
+first-pass canvas is a composition variable in this recipe, not a resolution
+knob** — which is already written here as "the canvas decides the composition,
+including how many people are in it", and applies just as much when the count
+stays at one.
+
+### `scripts/line_overlay.py` cannot run on this worker
+
+The repo's own "最後に線を引く" tool is dead against this box: none of the three
+preprocessors it names — `AnimeLineArtPreprocessor`,
+`Manga2Anime_LineArt_Preprocessor`, `LineartStandardPreprocessor` — is
+installed. 886 nodes, no lineart among them.
+
+**`/object_info/<name>` returns HTTP 200 with a body of `{}` for a node that
+does not exist.** It was checked that way first and the check passed for all
+three. Only `/prompt` says so, with `missing_node_type`. Check the body length,
+not the status.
+
+Done locally instead (`.local/line_last.py`, opencv, nothing re-diffused): a
+pixel divided by a blurred copy of its neighbourhood is below 1 exactly where it
+is darker than its surroundings, and multiplying that back darkens line and
+interior hatching without touching flat fills. On the 2048 render: 39.2 ->
+41.2 -> 46.6 at factor 0.35 / 0.60 / 0.85. It works as a dial, and by 0.85 the
+face carries a grey cast and the picture reads grainy rather than drawn.

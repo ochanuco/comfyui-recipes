@@ -5672,3 +5672,58 @@ pulling the mouth wide except `teeth`, it may come back as an ordinary small
 open mouth — an 「あ」 rather than an 「イー」. If the width is gone, the lever is
 `(grin:1.3)`, which is danbooru's horizontal teeth-showing mouth; the reason it
 is not in already is that it means smiling, and the eyes here are dead.
+
+## The denoise direction reverses at 2x — a correction to the 8/18 hires entry (2026-08-19)
+
+`c1b7906d` (`allnighter`, seed 737373737) redrawn at 2048, two arms. Its base is
+1024x1024, so **`--hires 2048` here is a 2.0x upscale** — not the 1.33x that
+「解像度を上げれば手書き感が上がる」は第2パスでは逆 (2026-08-18) was measured on.
+That entry's own explanation says why the distinction matters: marks come back
+when an upscale splits strokes that used to share pixels, and at 1.33x there is
+very little splitting to do. This is a different regime, so it was worth a test
+rather than a citation.
+
+`handfeel.py`, the two 2048 arms only — same canvas, so comparable to each other
+and to nothing else here:
+
+```
++ pass at 0.60   2048x2048   411.5 marks per 1k fig-h
++ pass at 0.70   2048x2048   156.9
+```
+
+**That is the opposite direction.** On `stand` the marks rose monotonically with
+denoise — 37.8 / 39.2 / 41.2 at 0.60 / 0.65 / 0.70 — and it was written down
+there as "the one dial that works here". At 2x on this pose the same dial runs
+backwards and 0.70 costs two thirds of the marks. Neither entry is wrong; the
+earlier one is narrower than it sounds. **Do not carry a denoise recommendation
+across an upscale ratio.**
+
+`stroke_width.py`, same three renders, and this is the half that does not
+improve:
+
+```
+                        mean px    per 1000px
+1024 base                  4.43        4.324
++ pass at 0.60 -> 2048     4.16        2.029
++ pass at 0.70 -> 2048     3.55        1.736
+```
+
+The absolute stroke barely moves while the figure doubles, so the line ends up
+**half as thick relative to her** — which is exactly the "finer line, therefore
+smoother" signature the 8/18 entry called a regression. On this measure the 2x
+upscale behaves like the 1.33x one. So the two statistics disagree: interior
+marks say 0.60 at 2048 is rich, stroke says the line reads finer than the base.
+
+**The first pass is byte-identical, verified rather than assumed.** Compared
+node by node against `c1b7906d`'s own history entry: checkpoint, both CLIP
+encodes, `EmptyLatentImage` and `KSampler` 3 (seed, steps, cfg, denoise) all
+match, and the only differences are the `VAEDecode` rewired to the second
+sampler and the save prefix. The docstring's claim that `--hires` does not
+change the first pass holds for this pose.
+
+Prompt ids: 0.60 `2bd865d8`, 0.70 `38178dcf`.
+
+**Not judged by these numbers.** This repo has now believed and withdrawn five
+image statistics, and two of the three here point opposite ways. Both arms are
+posted; the eye picks. Recorded so that the next session does not re-run the
+sweep, and does not quote the 8/18 denoise direction at a 2x upscale.

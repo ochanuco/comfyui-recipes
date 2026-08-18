@@ -3,6 +3,27 @@
 Read this before the first tool call. It is the stuff that is not in the code
 and costs a session an hour to rediscover.
 
+## What you are working on
+
+A command-line front end for ComfyUI: scripts build a graph, POST it to
+`/prompt`, and pull the result back. There is no web UI here and no custom node
+of its own. **The defaults are the recipe** — a bare `--job` or `--pose` is a
+complete command, and every preset in it was arrived at by rendering.
+
+Two recipes are live, and they do not share code beyond `comfy_host.py`:
+
+- `scripts/yukari_recipe.py` — Yukari. Shared costume blocks plus a pose table;
+  this is where the current work happens.
+- `scripts/queue_dq3.py` — the DQ3 / KanColle / Touhou jobs, `--job` per
+  character.
+
+Everything measured goes in `docs/render-notes.md`, including the measurements
+that came back null and the conclusions that were later wrong. That file is the
+point of the repository; the scripts are how it was produced.
+
+Run everything through `uv run` — the client env is pillow, numpy,
+opencv-python and scipy, and nothing here imports torch.
+
 ## Branch strategy: `main` only
 
 **Work on `main`. Commit to `main`. Do not open a task branch for this repo.**

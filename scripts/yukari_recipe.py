@@ -485,31 +485,31 @@ POSES = {
     # her up and arrange her, and this pose is someone who stopped. `smug` goes
     # for the obvious reason.
     #
-    # 「46781917 ソファーを外して死んだ目に」. The face comes back up.
+    # 「顔見えなくていいよ。床に埋まってて」. The face is down again, and this is
+    # the second time it has moved on this axis, so BOTH ends are written here.
     #
-    # (couch:1.4) and (face down:1.5) are both gone, and the four face tags this
-    # pose deleted one commit ago are back at the weights they were settled on:
-    # (empty eyes:1.45), (eyebags:1.4), (half-closed eyes:1.35),
-    # (open mouth:1.35). `open mouth` returns with them even though only the
-    # eyes were named -- it was never rejected, it was dropped as a consequence
-    # of burying the face, and 放心状態で口が空いてる was asked for and approved
-    # earlier in the same session. Restoring the eyes without it would quietly
-    # keep half of a change that had one cause.
+    # FACE DOWN (now): (face down:1.5) in the block, no eye or mouth tags at
+    # all, and `looking at viewer` out of FACE -- `nape`'s departure for `nape`'s
+    # reason, an instruction to face a camera she is turned away from. The
+    # exhaustion is then the body's job: the face down, the arms thrown ahead,
+    # the skid.
     #
-    # `looking at viewer` goes back into FACE with them.
+    # FACE UP: (face down:1.5) out; (empty eyes:1.45), (eyebags:1.4),
+    # (half-closed eyes:1.35), (open mouth:1.35) in, and `looking at viewer`
+    # restored. The mouth belongs with the eyes -- it was never rejected on its
+    # own, it fell with the face, and 放心状態で口が空いてる was approved.
     #
-    # **`(from above:1.35)` is NOT restored, and neither is `chin rest`.** They
-    # are what `prone` uses to keep a face legible while she is on her stomach,
-    # and the temptation here is obvious. But the picked render (46781917) was
-    # drawn without them, and both are composition tags -- reintroducing one to
-    # solve a face problem would hand back a different picture than the one that
-    # was chosen. `looking at viewer` and three eye tags are the argument for
-    # the head instead. If it stays down, those two are the known levers and
-    # the cost of each is a re-pick.
+    # The two are exclusive and the switch is only ever those two edits. What is
+    # NOT part of it is `(from above:1.35)` or `chin rest`: they are how `prone`
+    # keeps a face legible on her stomach, and reaching for one to lift the head
+    # would hand back a different composition than whichever render was picked.
+    # Both times the face has gone up or down, the camera stayed where it was.
     #
-    # With the couch gone, SURFACE is uncontested again -- the note below about
-    # holding `simple background` in reserve is moot, and she is skidding across
-    # the same flat ground `prone` lies on.
+    # 「床に埋まって」 needs no floor tag. She is already on the ground with the
+    # couch gone, and `floor` or a room would import a scene that argues with
+    # SURFACE's (simple background:1.3), (grey background:1.2) -- which is the
+    # tension the couch carried, now resolved. The burial is (face down:1.5),
+    # at `on stomach`'s weight.
     #
     # 「ズサーッとダイブしている感じ」, and NO DIVE TAG. This is the trap `fall`
     # already paid for: tripping + falling + fallen down together drew two
@@ -529,11 +529,10 @@ POSES = {
     # request: a top-down camera is the one view that flattens horizontal
     # momentum. It was borrowed from `prone` for legibility, not chosen here.
     #
-    # Ten tags.
+    # Seven tags.
     "flop": (
-        "(solo:1.5), (lying:1.45), (on stomach:1.5), (outstretched arms:1.3), "
-        "(motion lines:1.3), (empty eyes:1.45), (eyebags:1.4), "
-        "(half-closed eyes:1.35), (open mouth:1.35), full body"
+        "(solo:1.5), (lying:1.45), (on stomach:1.5), (face down:1.5), "
+        "(outstretched arms:1.3), (motion lines:1.3), full body"
     ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
@@ -1304,12 +1303,14 @@ def positive(pose: str) -> str:
     # A yawn, a shout and a vacant stare all need the mouth open; FACE closes it
     # by default. `allnighter` briefly took `small mouth` out too, for the width
     # of an 「イー」 mouth; that mouth is gone and so is the departure.
-    open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
-                            "flop")
+    open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
-    if pose == "nape":
+    # `flop` has her face in the ground, which is `nape`'s situation: an
+    # instruction to face the camera has no referent and either argues with the
+    # pose or spins her back around.
+    if pose in ("nape", "flop"):
         face = face.replace(", looking at viewer", "")
     body = BODY
     if pose == "prone":

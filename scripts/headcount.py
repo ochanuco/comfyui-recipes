@@ -26,6 +26,14 @@ Filenames are fetched through `/view` -- the worker's disk is not this one.
 one block. It is a smoke alarm for the clone problem this recipe keeps hitting,
 in the direction that matters: it does not miss a second girl standing clear of
 her, which is the failure that has actually occurred here.
+
+A block that clears the floor still has to be READ, and `--detail`'s vertical
+extent is what reads it. An outstretched arm on the ground is wide and flat --
+a small share of the frame's height. A figure is tall for its width whatever it
+is doing. On `flop` 555666777 the detached block was 334x632px, 62% of the
+frame's height at 8.3% of the figure's area, which is figure-shaped and not
+limb-shaped; on the same pose's other seeds every extra block was under 1px
+wide. Neither of those needed the render to be opened.
 """
 
 from __future__ import annotations
@@ -74,6 +82,7 @@ def main() -> None:
         with urllib.request.urlopen(url, timeout=30) as r:
             a = np.asarray(Image.open(io.BytesIO(r.read())).convert("RGB")).astype(float)
         fig, runs = blocks(a)
+        h = fig.shape[0]
         total = fig.sum()
         kept = [(x0, x1) for x0, x1 in runs
                 if fig[:, x0:x1].sum() / total >= args.min_share]
@@ -82,10 +91,13 @@ def main() -> None:
               f"   {len(runs) - n} block(s) below {args.min_share:.0%} ignored")
         if args.detail:
             for x0, x1 in runs:
-                share = fig[:, x0:x1].sum() / total
+                seg = fig[:, x0:x1]
+                share = seg.sum() / total
+                rows = np.where(seg.any(axis=1))[0]
+                tall = (rows[-1] - rows[0]) / h if len(rows) else 0.0
                 mark = " " if (x0, x1) in kept else "x"
                 print(f"   {mark} x {x0:4d}-{x1:4d}  width {x1 - x0:4d}"
-                      f"  {share:6.2%} of figure")
+                      f"  {share:6.2%} of figure  {tall:5.1%} of frame height")
 
 
 if __name__ == "__main__":

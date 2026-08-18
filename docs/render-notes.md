@@ -6044,3 +6044,62 @@ picked one with furniture erased.
                737373737  b3ff7b42   2557902837 fcb4c377   3409564303 3a7c94c5
 
 6 of 6 one girl, `scripts/headcount.py`.
+
+## `flop` puts the face back down, and one seed is probably two of her (2026-08-19)
+
+「顔見えなくていいよ。床に埋まってて」.
+
+    (solo:1.5), (lying:1.45), (on stomach:1.5), (face down:1.5),
+    (outstretched arms:1.3), (motion lines:1.3), full body
+
+Seven tags. This is the previous face-down configuration composed with the
+couchless one — a combination that had not been rendered before, since the face
+went down while the couch was still in and came up when it left.
+
+**The face has now moved twice on this axis, so both ends are written into the
+pose's comment** rather than only the current one. The switch is exactly two
+edits, and nothing else travels with it:
+
+- down: `(face down:1.5)` in, no eye or mouth tags, `looking at viewer` out of
+  FACE (`nape`'s departure, `nape`'s reason)
+- up: `(face down:1.5)` out; `(empty eyes:1.45)`, `(eyebags:1.4)`,
+  `(half-closed eyes:1.35)`, `(open mouth:1.35)` in, `looking at viewer` back
+
+What is **not** part of the switch is `(from above:1.35)` or `chin rest`. They
+are how `prone` keeps a face legible on her stomach and they are the obvious
+reach both times the head needed lifting — but they are composition tags, and
+using one to solve a face problem hands back a different picture than the one
+that was picked. Both times, the camera stayed where it was.
+
+**「床に埋まって」 needs no floor tag.** With the couch gone she is already on the
+ground, and `floor` or a room would import a scene arguing with SURFACE's
+`(simple background:1.3), (grey background:1.2)` — the exact tension the couch
+carried, now resolved. The burial is `(face down:1.5)` at `on stomach`'s weight.
+
+### 555666777 is flagged, and this time the flag survives
+
+`scripts/headcount.py --detail`, which now prints vertical extent because that
+is the number that reads a block:
+
+```
+   555666777   block A   334px wide    8.32% of figure   61.7% of frame height
+               block B  1030px wide   90.88% of figure   85.5% of frame height
+               (six more blocks, all under 21px, filtered)
+```
+
+An outstretched arm on the ground is wide and flat — a small share of the
+frame's height. This block is 334x632, tall for its width, which is
+figure-shaped and not limb-shaped. **Treat 555666777 as probably two of her**,
+with `(solo:1.5)` leading as always.
+
+Not resolved, and not acted on. The render has not been opened — the tool
+reports shape, not identity — and one seed of six is inside this recipe's normal
+range; changing the prompt over it would be tuning against a statistic, which is
+what the correction two entries up is about. The other five are clean.
+
+`headcount.py` gained the vertical-extent column from this, so the discriminator
+lives in the tool rather than in a `.local` script and one call now both raises
+a flag and characterises it.
+
+    yk-flop5   555666777  ad53cff6   111222333  b94537db   1886970040 1e189eea
+               737373737  82378b10   2557902837 aeafb15d   3409564303 a2859012

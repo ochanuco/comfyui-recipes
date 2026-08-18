@@ -4997,6 +4997,12 @@ Three wordings, one seed (1886970040), pose `stand`:
 | `black, PALE PURPLE, gradient, opaque` | purple thigh, black ankle — **kept** |
 | `PALE PURPLE, black, gradient, opaque` | also right-way-up |
 
+> **WRONG, corrected below — see "Naming the colour does not place it".** The
+> table above was never measured. It was inferred from which render was picked,
+> and the pick was made on the hands. Measured afterwards, none of the three
+> arms fixed the direction. The rows are left standing because the wordings
+> were really tried; only the results column is fiction.
+
 Both of the four-tag arms fix it, so token order is not what carries the
 direction here; naming the colour at all is. Black stays first and at 1.5, which
 leaves it the garment's stated colour with the purple as the thing done to one
@@ -5042,3 +5048,43 @@ order**. The posture arrived from the encoding rather than from any tag, so it
 was not reproducible and could not simply be kept. The range was swept downward
 rather than up because `arched back` leans pin-up when raised, and the ask was
 「少し」.
+
+## Naming the colour does not place it (2026-08-18, corrects the entry above)
+
+「グラデーションの向きが逆ですね。足先を黒に。これが治ってない」— said twice,
+the second time about renders that were supposed to have fixed it.
+
+Measured this time instead of inferred. The figure is the non-backdrop,
+non-outline pixels; mean brightness per band down the lower 55% of the frame,
+top to bottom (`.local/leg_direction.py`). Rising = pale at the ankle = wrong
+way up:
+
+```
+l1h1  black, gradient, opaque                  66  56  46  47  64 106
+l2h1  black, PALE PURPLE, gradient, opaque     71  91  98 103 108  79   rising
+l3h1  PALE PURPLE, black, gradient, opaque     64  88  85 100 126  78   rising
+l2h2  same as l2h1, other hand block           41  55  76  92 117  78   rising
+```
+
+So the four-tag block is **not** the fix that was written up an hour earlier,
+and the earlier entry's result column was invented. What the arms actually
+show is that adding a second colour name changes the leg's colour without
+changing where on the leg it goes. `pale purple pantyhose` lands purple ON the
+thigh, exactly as the old finding said — but the black does not move to the
+ankle in exchange; it stays at the top and the ankle goes paler still.
+
+Two things to try next, and the reason each is plausible:
+
+- **`(two-tone legwear:1.4)` is in the NEGATIVE.** It was added to keep a second
+  garment out, and purple-at-the-thigh-black-at-the-ankle *is* a two-tone leg.
+  The ban may be fighting the very split being asked for.
+- **The weights, not the order.** Black is the noun at 1.5 and purple the
+  modifier at 1.35. If the model puts the dominant colour where the garment is
+  widest and best-lit — the thigh — then the fix is to make purple dominant, and
+  the order swap (l3) tested the wrong variable.
+
+A mechanism worth ruling out either way: the dress is purple, and a purple thigh
+against a purple hem has no boundary to draw, so the model may be placing black
+at the top precisely because that is where contrast is needed. If that is what
+is happening, no weighting will fix it and the direction has to be imposed after
+the render, the way the backdrop already is.

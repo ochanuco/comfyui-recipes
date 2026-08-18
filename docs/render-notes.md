@@ -5088,3 +5088,42 @@ against a purple hem has no boundary to draw, so the model may be placing black
 at the top precisely because that is where contrast is needed. If that is what
 is happening, no weighting will fix it and the direction has to be imposed after
 the render, the way the backdrop already is.
+
+### Seven wordings, and then it was done in post (2026-08-18)
+
+Four more arms on 1886970040, measured the same way. Rising = pale at the ankle
+= wrong way up:
+
+```
+g1  PALE PURPLE:1.5 dominant, black:1.35        85 108 111 121 113 130   rising
+g2  g1, (two-tone legwear:1.4) out of NEGATIVE  70 100 109 118 108 123   rising
+g3  committed block, ban lifted only            82 101 104  49  68 158   ankle pale
+g4  no `gradient` word, two colours at 1.45     90 116 117 115 134  96   rising
+```
+
+With the three from the entry above that is **seven wordings**: a second colour
+name, the order of the two names, the weights between them, the ban lifted,
+and the gradient word removed. None of them moves the black to the ankle. This
+is the shape already named in this file — when the tag describing the defect
+does nothing at any weight, the defect is implied by something else — and the
+`two-tone legwear` arms rule out the guard as the thing implying it.
+
+The likeliest mechanism, and it explains every arm: **her dress is purple.** A
+purple thigh under a purple hem has no boundary to draw, so the model puts the
+black where the contrast has to be, which is the top. Nothing in a colour word
+argues with that, which is why no weight reached it.
+
+So it moves to post, which is where the backdrop already lives for the same
+reason. `.local/leg_gradient.py` repaints the legwear-coloured pixels below the
+hem along a purple->black ramp, scaling each pixel by its ratio to its own row's
+mean so the shading and the line survive and only the colour underneath moves.
+On 43ca8a03:
+
+```
+render      82 115  45  56  42 112
+repainted   82  85 100  88  62  48    falling
+```
+
+Not promoted to `scripts/` yet — the hem is a fraction of the frame height
+(0.55) rather than anything found in the image, so it is one pose's number and
+not a tool's.

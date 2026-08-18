@@ -330,7 +330,41 @@ LEGWEAR_LAYERED = (
 # else -- here the pale purple dress and hair, pulling the top of the leg toward
 # them. Take it off afterwards instead, with `.local/desat.py` (HSV S alone, so
 # the gradient and the line survive); x0.55 matches the older palette.
-LEGWEAR = "(black pantyhose:1.5), (gradient legwear:1.4), (opaque pantyhose:1.4)"
+# ---- and then the direction had to be said out loud (2026-08-18) ----
+#
+# 「グラデーションの向きが逆ですね。足先を黒に。これは固定化」. The three-tag
+# block above describes the garment and says nothing about which end is which,
+# and left to itself the model put the black at the THIGH and faded it pale at
+# the ankle -- the exact reverse of the design this comment has asserted since
+# the layering was retired. Six seeds of `stand` all drew it that way, so it was
+# never a seed.
+#
+# There is no directional tag. `gradient legwear` is the only gradient word the
+# model has and it carries no orientation, so the direction has to be bought by
+# naming the colour that goes at the top and letting the black fall to what is
+# left. `pale purple pantyhose` is the tag for that job and it was already
+# measured, one design ago, for exactly this property: it gets DRAWN on the
+# thigh where `grey pantyhose` does not. That finding was recorded as an
+# explanation of an accident -- the wrong colour was buying thigh coverage --
+# and it is now what the block is built on.
+#
+# Measured on 1886970040, three wordings, one seed, `stand`:
+#
+#   black, gradient, opaque                   black thigh, pale ankle (reversed)
+#   black, PALE PURPLE, gradient, opaque      purple thigh, black ankle  <- kept
+#   PALE PURPLE, black, gradient, opaque      also right-way-up, and the whole
+#                                             composition moved -- see `stand`
+#
+# The last two both fix the direction, so order is not what carries it; the
+# colour being named at all is. Black stays first and at 1.5, which keeps it the
+# garment's stated colour with the purple as the thing done to one end of it.
+#
+# FOUR tags, and the comment above says three is what a garment block tolerates
+# here before the coat starts sprawling. The fourth is spent knowingly and this
+# is the note that says so: if the coat starts growing or the dress loses its
+# frills, this tag is the first suspect, ahead of anything a later session adds.
+LEGWEAR = ("(black pantyhose:1.5), (pale purple pantyhose:1.35), "
+           "(gradient legwear:1.4), (opaque pantyhose:1.4)")
 
 # And the second garment banned by name. Not decoration: these are exactly the
 # words the layered recipe spent its weight on, and the model reaches for them
@@ -806,14 +840,17 @@ POSES = {
     # which of them. `(from below:1.35)` is already in NEGATIVE and does half
     # the job from the other side.
     #
-    # `arms behind back` over anything held: nothing in this block should
-    # introduce a prop, since a prop is a second thing to get right and the
-    # point of a standing reference is the costume.
-    #
-    # Untested as of writing -- this is the block as designed, not as measured.
+    # Hands in front at the chest, and nothing held: a prop is a second thing to
+    # get right and the point of a standing reference is the costume. It started
+    # as `(arms behind back:1.3)` -- 「ては出して欲しい。胸あたりに出す感じ」 --
+    # and `own hands together` is the tag for the gesture. `(hands up:1.25)` is
+    # what puts them at the chest rather than at the waist; measured against the
+    # same seed without it, which lands them low. That is the ninth tag this
+    # file keeps warning about and it is spent here on purpose.
     "stand": (
-        "(solo:1.5), (standing:1.5), (from front:1.3), (arms behind back:1.3), "
-        "(head tilt:1.2), (smug:1.35), (half-closed eyes:1.3), full body"
+        "(solo:1.5), (standing:1.5), (from front:1.3), (own hands together:1.35), "
+        "(hands up:1.25), (head tilt:1.2), (smug:1.35), (half-closed eyes:1.3), "
+        "full body"
     ),
 }
 

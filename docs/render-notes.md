@@ -4962,3 +4962,70 @@ First sweep, six seeds, the same set the other poses were settled on
 2557902837, 3409564303. All six rendered; **not yet judged** — the block above
 is as designed, not as measured, and nothing in it should be treated as settled
 until a render is picked.
+
+## The gradient had no direction in it (2026-08-18)
+
+「グラデーションの向きが逆ですね。足先を黒に。これは固定化」.
+
+`LEGWEAR` has asserted since the layering was retired that the garment runs
+*purple at the thigh, black at the ankle* — and it was only ever asserted in the
+comment. The three tags say what the garment is and nothing about which end is
+which, and the model resolved that on its own the other way: black at the thigh,
+fading pale at the ankle. All six seeds of the first `stand` sweep drew it that
+way, so it was not a seed, and it had presumably been that way in every pose
+since the one-garment change.
+
+There is no directional tag to reach for. `gradient legwear` is the only
+gradient word available and it carries no orientation, so the direction has to
+be bought by naming the colour that goes at the top and letting black fall to
+what is left. The tag for it was already in this file's record, filed as the
+explanation of an accident:
+
+> `pale purple pantyhose` gets DRAWN on the thigh and `grey pantyhose` does not.
+> That is why the colours were inverted here for so long without anyone
+> noticing: the wrong colour was buying thigh coverage.
+
+That is now what the block is built on. **A finding recorded as the cause of a
+bug turned out to be the mechanism for the fix** — which is the argument for
+writing down the ones that look like nothing at the time.
+
+Three wordings, one seed (1886970040), pose `stand`:
+
+| block | result |
+|---|---|
+| `black, gradient, opaque` | black thigh, pale ankle — reversed |
+| `black, PALE PURPLE, gradient, opaque` | purple thigh, black ankle — **kept** |
+| `PALE PURPLE, black, gradient, opaque` | also right-way-up |
+
+Both of the four-tag arms fix it, so token order is not what carries the
+direction here; naming the colour at all is. Black stays first and at 1.5, which
+leaves it the garment's stated colour with the purple as the thing done to one
+end of it.
+
+```
+LEGWEAR = "(black pantyhose:1.5), (pale purple pantyhose:1.35), (gradient legwear:1.4), (opaque pantyhose:1.4)"
+```
+
+Costume fingerprint `c8e405b1da502660` → **`a67b105340c90b52`**. This is a
+costume change and therefore every pose in the file, not just `stand`: anything
+rendered before today has the gradient the other way up, and comparisons against
+older renders need to know that.
+
+Four tags in a garment block, where the comment above `LEGWEAR` says three is
+what it tolerates before the coat starts sprawling. Spent knowingly: if the coat
+grows or the dress loses its frills, this tag is the first suspect.
+
+## `stand` settled its hands (2026-08-18)
+
+「ては出して欲しい。胸あたりに出す感じ」. `(arms behind back:1.3)` out,
+`(own hands together:1.35)` in — one for one, the tag for the gesture.
+
+`(hands up:1.25)` is a genuine ninth tag and it is what puts the hands at the
+chest; without it the same seed lands them at the waist. The eight-tag budget
+this file keeps quoting was measured on `yawn`, where a ninth pushed the pale
+thighhighs out of a *layered* block that no longer exists, so it is worth being
+explicit that the budget was not re-measured here — it was overruled, on one
+seed, because the ninth tag is the whole ask.
+
+Picked: `l2h2` on 1886970040 (prompt 9966667b). `positive("stand")` reproduces
+that prompt exactly, which is the check that the settled block is the render.

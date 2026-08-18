@@ -64,7 +64,7 @@ HEAD = "best quality, absurdres, 1girl, solo"
 # docs/render-notes.md what the costume is now. That is the whole mechanism:
 # it does not stop a change, it stops an *unrecorded* one.
 COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "thin")
-COSTUME_FINGERPRINT = "c8e405b1da502660"
+COSTUME_FINGERPRINT = "a67b105340c90b52"
 
 
 def tags(text: str) -> list[str]:

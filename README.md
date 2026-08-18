@@ -7,8 +7,8 @@ to `/prompt`, and pull the result back.
 Two things make it more than a thin API wrapper:
 
 **The defaults are the recipe.** `scripts/queue_dq3.py --job sage` is a complete
-command. Checkpoint, sampler, resolution, LoRA stack, and eleven blocks of tag
-presets are already set to values that took batches of rendering to find, so the
+command. Checkpoint, sampler, resolution, LoRA stack and the tag preset
+blocks are already set to values that took batches of rendering to find, so the
 bare command reproduces the look it was tuned to. Overriding any one of them is
 a normal flag, and `--print-prompt` shows what a given combination would send
 without queueing anything.
@@ -24,26 +24,33 @@ export COMFYUI_HOST=192.168.x.x        # omit for a local ComfyUI
 uv run scripts/queue_dq3.py --job sage --count 3
 ```
 
-## What is here
+## Finding your way
 
-| | |
-|---|---|
-| `scripts/queue_*.py` | build and queue a graph — txt2img, img2img, Anima, the DQ3 portrait recipe, refinement passes |
-| `scripts/yukari_recipe.py` | the Yukari recipe — shared costume blocks plus a pose table, all of it commented with the measurement behind it |
-| `scripts/costume_check.py` | holds those blocks to a contract: hashes them, and fails on a change nobody wrote down |
-| `scripts/comfy_host.py` | the local/remote seam every other script imports |
-| `scripts/atlas.py` | what each script is, and the render notes' headings — a map of the repo that is computed, not stored |
-| `scripts/workflow_ui.py` | rebuilds a UI-format ("litegraph") graph from `/object_info`, so a generated PNG reopens on the ComfyUI canvas |
-| `scripts/gen_variants.py` | asks a local ollama model for scene tags and queues one image per variant |
-| post-processing | `recolor_bg.py`, `legcrop.py`, `inpaint_composite.py`, `contact_sheet.py` and friends — plain PIL/numpy, no ComfyUI involved |
-| `scripts/*.sh` | install, update and launch a ComfyUI on this machine, if you want one here |
-| `scripts/archive/` | fourteen scripts that ran once and are kept as a record, not as tools |
+There is no list of scripts here, and no table of contents for the notes. Both
+are things that have to be maintained, and both are wrong the week after they
+are written. The repository describes itself instead:
+
+```bash
+uv run scripts/atlas.py             # every script: its role, its size, its own first line
+uv run scripts/atlas.py notes       # docs/render-notes.md by heading, with line numbers
+```
+
+`config/`, `docs/`, `manifests/`, `scripts/` and `workflows/` are tracked;
+`.local/` is not, and is where a ComfyUI checkout, the models, the cached
+`input/`/`output/` pair and a session's throwaway scripts live.
+`scripts/archive/` is scripts that answered one question and were kept as a
+record rather than as tools.
+
+[`docs/`](docs/) holds the operating notes — queueing, remote and local install,
+configuration, model provenance. [`docs/render-notes.md`](docs/render-notes.md)
+is the measurements, per character, including the ones that turned out to be
+wrong. It is the point of the repository; the scripts are how it was produced.
 
 ## What it runs on
 
 Python 3.12 and [uv](https://github.com/astral-sh/uv), plus a ComfyUI reachable
-over HTTP — on this machine or another one. The client environment is four
-packages (pillow, numpy, opencv-python, scipy); nothing here imports torch.
+over HTTP — on this machine or another one. The client environment is the
+packages below; nothing here imports torch.
 
 ```bash
 uv venv --python 3.12 .venv
@@ -53,34 +60,6 @@ VIRTUAL_ENV=.venv uv pip install pillow numpy opencv-python scipy
 Models are not included and not downloaded automatically.
 [`docs/models.md`](docs/models.md) lists the exact upstream and SHA256 of every
 model these recipes were tuned against.
-
-## Documentation
-
-| | |
-|---|---|
-| [`docs/queueing.md`](docs/queueing.md) | every kind of job these scripts queue, and what the presets encode |
-| [`docs/remote.md`](docs/remote.md) | driving a ComfyUI on another machine, and getting models onto it |
-| [`docs/local-install.md`](docs/local-install.md) | running ComfyUI on this machine instead |
-| [`docs/configuration.md`](docs/configuration.md) | what is in `config/`, and which files are meant to be edited |
-| [`docs/models.md`](docs/models.md) | where every model came from, with hashes |
-| [`docs/render-notes.md`](docs/render-notes.md) | ~4900 lines of measurements, per character — including the ones that were wrong |
-
-It is a large file and it is meant to be searched rather than read:
-`uv run scripts/atlas.py notes` prints its headings with line numbers and
-per-section sizes, and `atlas.py notes <pattern>` prints only the sections whose
-heading matches.
-
-## Layout
-
-- `config/` — tracked runtime configuration
-- `docs/` — operating notes and measurements
-- `manifests/` — custom-node inventory and model hashes
-- `scripts/` — everything above
-- `scripts/archive/` — the same, for scripts that answered one question and stopped
-- `workflows/` — tracked workflow JSON, API and UI format
-- `.local/` — untracked: a ComfyUI checkout if one exists here, models, the
-  `output/`/`input/` pair `comfy_host.py` caches through, and the one-off probe
-  scripts a session writes on its way to an answer
 
 ## What this is, and what it is not
 

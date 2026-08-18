@@ -856,10 +856,34 @@ POSES = {
     # tilt` (nine tags) and at 1.35 in this slot; the first is what was picked.
     # It is a tag that leans pin-up when raised, which is why the range was
     # swept downward rather than up.
+    #
+    # ---- and then it turned out the legs were not in the frame ----
+    #
+    # `full body` did not hold a standing figure. Measured rather than looked
+    # at: the figure mask ran to the last row of the canvas on every arm, and
+    # the crop was at mid-calf. Two changes, and they are coupled:
+    #
+    #   `(full body:1.45)`        the bare tag was the only thing arguing for
+    #                             the whole figure and it lost to the canvas.
+    #   `(black footwear:1.35)`   at a canvas that DID fit the leg, the model
+    #                             ended it in a rounded stump. Nothing in this
+    #                             prompt had ever named a shoe, so there was no
+    #                             foot to draw. Naming one draws it -- and it is
+    #                             black, which is where the leg is supposed to
+    #                             end anyway.
+    #
+    # Ten tags after (solo:1.5), against the eight this file keeps quoting. The
+    # budget was measured on a seated pose in a frame that fit; a standing
+    # figure spends two tags just staying inside the picture.
+    #
+    # The footwear is an ADDITION TO THE COSTUME, not a framing tag, and it has
+    # not been checked against the official design. If her shoes are wrong, this
+    # is the tag to argue with -- but removing it brings the stumps back, so it
+    # has to be replaced rather than deleted.
     "stand": (
         "(solo:1.5), (standing:1.5), (from front:1.3), (own hands together:1.35), "
         "(hands up:1.25), (arched back:1.2), (smug:1.35), (half-closed eyes:1.3), "
-        "full body"
+        "(full body:1.45), (black footwear:1.35)"
     ),
 }
 
@@ -898,10 +922,14 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # 1.57M pixels turned on its side, not the 2.46M that drew a second
          # figure -- and none of six seeds here drew one.
          "prone": (1536, 1024),
-         # Vertical figure, vertical frame. Same canvas the other full-body
-         # poses use; it is the tallest this recipe is allowed (the docstring's
-         # ceiling) and a standing body is what needs the height.
-         "stand": (1024, 1536)}
+         # A standing figure is the wrong shape for 1024x1536: it cropped at
+         # mid-calf on every arm tried there, weighted `full body` included.
+         #
+         # 896x1728 is 1.55M pixels against that canvas's 1.57M, so it is inside
+         # the docstring's ceiling -- which `prone` already established is a
+         # pixel count and not an aspect, by spending the same budget landscape.
+         # Measured: the figure ends 15px above the frame with the shoes whole.
+         "stand": (896, 1728)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "

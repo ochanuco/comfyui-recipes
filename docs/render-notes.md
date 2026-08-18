@@ -5127,3 +5127,62 @@ repainted   82  85 100  88  62  48    falling
 Not promoted to `scripts/` yet — the hem is a fraction of the frame height
 (0.55) rather than anything found in the image, so it is one pose's number and
 not a tool's.
+
+## The legs were never in the frame (2026-08-18)
+
+Looked at one 20%-tall crop of 43ca8a03 after eleven arms of measuring, and the
+picture answered two questions the numbers had been circling:
+
+- **`stand` cropped at mid-calf.** No ankle, no foot, no toe. The pose was
+  written with a warning that this was the risk and the warning was never
+  checked, so every gradient arm above was arguing about the bottom of a leg
+  that was not in the picture. The post-process ramp was worse than wrong: it
+  ran from a fraction of the frame height to the frame's bottom edge, i.e. from
+  nowhere in particular to a place the foot did not reach.
+- **A rabbit is drawn into the backdrop.** The intruder this repo has fought
+  before, on a pose nobody had inspected yet.
+
+### Framing
+
+Measured as "does the figure mask stop before the canvas does", which is a
+number and not a look:
+
+```
+1024x1536  full body            ends at the last row          cropped
+1024x1536  (full body:1.45)     ends at the last row          cropped
+896x1728   full body            ends at the last row          cropped
+832x1856   full body            ends at the last row, wide    badly cropped
+896x1728   (full body:1.45)     ends 24px up, tapering        fits -- but no feet
+```
+
+896x1728 is 1.55M pixels against 1024x1536's 1.57M, so it is inside the
+docstring's ceiling. `prone` already established that the ceiling is a pixel
+count and not an aspect.
+
+### The stumps, and the tag that fixed two things at once
+
+At the canvas that fit, the legs ended in rounded stumps. **Nothing in this
+prompt has ever named a shoe** — fifteen poses and no footwear tag — so there
+was no foot to draw. `(black footwear:1.35)` draws one, and it is black, which
+is where the leg was supposed to end anyway. Black sneakers with pink laces,
+whole and inside the frame.
+
+That leaves `stand` at ten tags after `(solo:1.5)` against the eight this file
+keeps quoting. The budget was measured on a seated pose in a frame that fit; a
+standing figure spends two tags just staying in the picture. The footwear is an
+**addition to the costume** and has not been checked against the official
+design — if the shoes are wrong it has to be replaced, not deleted, because
+deleting it brings the stumps back.
+
+### And then the gradient, in post, with anchors that exist
+
+`.local/leg_gradient.py` now finds the hem (where the figure narrows out of the
+dress into two legs) and the ankle (the narrowest row above the flare of the
+shoes), and ramps purple->black between them. On t2: hem y=981, ankle y=1512,
+108k pixels repainted, shoes untouched because the ramp arrives at their colour.
+
+One bug worth keeping: the first version excluded "skin" by brightness and hue,
+and the pale band just above the ankle — the exact part the ramp exists to
+darken — is pale and slightly warm. It was masked out and survived as a pink
+cuff above black shoes. Between the hem and the shoes she is wearing the
+garment; there is no skin to protect.

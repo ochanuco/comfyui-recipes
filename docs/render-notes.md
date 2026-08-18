@@ -5962,3 +5962,85 @@ that is a fixable gap in the tool, not a reason to stop counting.
 
     yk-flop3   555666777  231cbd94   111222333  f14da3ad   1886970040 2f4e8e52
                737373737  fe7a7e59   2557902837 46781917   3409564303 7f96f8f1
+
+## CORRECTION: `seiza` did not draw two of her, and `_solo.py` cannot count (2026-08-19)
+
+**The entry 「`allnighter_full` — seiza, and 2 of 6 came back with two of her」
+above is wrong.** Both flagged renders are one girl. Characterised with
+`_blocks.py`:
+
+```
+yk-anf 555666777    block 1  98.6% of figure      block 2  1px wide, 0.0%
+yk-anf 2557902837   block 1  99.7% of figure      block 2  1px wide, 0.0%
+```
+
+A one-pixel sliver at the frame edge, counted as a body. The finding was written
+up as supporting the one part of this file's case against `seiza` that had
+survived an earlier retraction — so a bad number was used to prop up a
+conviction, on the same day the original conviction was withdrawn for being
+built on a misread statistic. That is the sixth and seventh time.
+
+It surfaced because the next sweep was absurd rather than merely plausible.
+`flop` without the couch reported **four bodies on one seed and six on another**,
+and nobody believes six. Measuring those blocks showed 1-4px slivers holding
+0.0-1.3% of the figure — `motion lines`, which is a comic convention drawn as
+separate marks on the backdrop *by definition*. `_solo.py` could never have
+counted a pose that carries them.
+
+The lesson is not "distrust the number". It is that **the flagged case was never
+opened**. `_blocks.py` took one call and would have caught this at the time; the
+2-of-6 was reported instead because it agreed with something already believed. A
+statistic that confirms a prior is exactly the one to characterise.
+
+### `scripts/headcount.py`
+
+`_solo.py` is replaced rather than patched in place, and promoted out of
+`.local/` because three false positives in one session make it load-bearing. A
+block must hold at least `--min-share` (default 2%) of the figure's pixels
+before it counts as a person — area, not width, because a lying figure is wide
+and short and a standing one is narrow and tall. 2% is far under any real second
+figure and far over every false positive seen here. `--detail` prints every
+block with its share, so the next flag can be characterised in the same call
+that raises it.
+
+Re-counted with it: the seiza sweep is 6 of 6 one girl, and so is `flop`.
+
+## `flop` loses the couch and gets its eyes back (2026-08-19)
+
+「46781917 ソファーを外して死んだ目に」.
+
+    (solo:1.5), (lying:1.45), (on stomach:1.5), (outstretched arms:1.3),
+    (motion lines:1.3), (empty eyes:1.45), (eyebags:1.4),
+    (half-closed eyes:1.35), (open mouth:1.35), full body
+
+`(couch:1.4)` and `(face down:1.5)` out; the four face tags deleted one commit
+ago are back at the weights they were settled on, and `looking at viewer`
+returns to FACE with them.
+
+**`(open mouth:1.35)` came back although only the eyes were named.** It was
+never rejected — it was dropped as a consequence of burying the face, and
+放心状態で口が空いてる was asked for and approved earlier in the same session.
+Restoring the eyes alone would have silently kept half of a change that had one
+cause.
+
+**`(from above:1.35)` and `chin rest` stay out.** They are what `prone` uses to
+keep a face legible while she is on her stomach, so the temptation was strong.
+But 46781917 was drawn without them and both are composition tags: reaching for
+one to solve a face problem hands back a different picture than the one that was
+picked. Three eye tags and `looking at viewer` are the argument for the head
+instead. If it stays down, those two are the known levers and the cost of either
+is a re-pick.
+
+With the couch gone SURFACE is uncontested again, and she is skidding across the
+same flat ground `prone` lies on. BODY is untouched — the hip/thigh easing
+belongs to `from above`, which is still absent.
+
+**This is not 46781917 at a new setting.** Removing the couch changes the first
+pass, and the first-pass canvas and contents are where composition is decided;
+seed 2557902837 (`fcb4c377`) is the same seed drawing a new picture, not the
+picked one with furniture erased.
+
+    yk-flop4   555666777  c81b0716   111222333  33bfa9f2   1886970040 6aae4cec
+               737373737  b3ff7b42   2557902837 fcb4c377   3409564303 3a7c94c5
+
+6 of 6 one girl, `scripts/headcount.py`.

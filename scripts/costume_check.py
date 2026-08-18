@@ -161,9 +161,8 @@ EXCEPTIONS: dict[str, list[dict]] = {
     # the argument that it shared `prone`'s from-above geometry; that tag left
     # the pose when the dive was asked for, and the splice left with it.
     "flop": [
-        {"removed": ["looking at viewer"],
-         "why": "her face is in the couch; the instruction has no referent, "
-                "the same reason `nape` drops it"},
+        {"removed": ["closed mouth"],
+         "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open"},
     ],
     "yawn": [
         {"removed": ["closed mouth"], "why": "a yawn needs the mouth open"},

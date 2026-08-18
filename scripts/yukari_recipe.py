@@ -413,25 +413,31 @@ POSES = {
     # figure on four seeds of four. Half-closed is also the only version of this
     # that can show an empty eye at all.
     #
-    # 「イーの口にして」. (clenched teeth:1.45) is the tag for it -- teeth pulled
-    # back and pressed together, which is what the 「い」 mouth shape is drawn as.
+    # 「イーの口」, and then 「食いしばらず少し歯が空いてる感じ」.
+    # (teeth:1.45), (parted lips:1.3) -- both rows drawn, with the lips apart so
+    # there is a gap between them.
     #
-    # SWAPPED for (expressionless:1.3), not added alongside it. The two are a
-    # direct contradiction: a clenched grimace is an expression, and it was
-    # already the tag flagged as the first to drop. Keeping both would have put
-    # the argument inside the prompt and let the sampler settle it.
+    # (clenched teeth:1.45) was the first attempt and is GONE, not lowered.
+    # `clenched` means pressed together; adding a gap tag beside it would have
+    # rebuilt the same contradiction that (expressionless:1.3) was dropped for
+    # one commit earlier, and a weight cannot fix a tag that means the opposite
+    # of the request. It also skewed angry -- the tag lives on rage and strain.
     #
-    # It also takes `closed mouth` AND `small mouth` out of FACE -- see
-    # `positive()`. This mouth is neither shut nor small, and `small mouth` is
-    # the one that would quietly win, because it describes the same feature.
+    # `teeth` is the load-bearing half. `parted lips` alone is a soft, closed
+    # look on danbooru and mostly draws no teeth at all, so it is weighted below
+    # `teeth` and is there only to open the bite.
     #
-    # Nine tags where `portrait` has seven. The eight-tag ceiling recorded on
+    # This pose takes `closed mouth` AND `small mouth` out of FACE -- see
+    # `positive()`. `small mouth` is the dangerous one: it describes the same
+    # feature as these tags rather than merely forbidding something.
+    #
+    # Ten tags where `portrait` has seven. The eight-tag ceiling recorded on
     # `yawn` is about the legwear being pushed out of the prompt, and this crop
     # does not carry legwear -- see `positive()`, where it joins `portrait`.
     "allnighter": (
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2), "
         "(face focus:1.3), (empty eyes:1.45), (eyebags:1.4), "
-        "(half-closed eyes:1.35), (clenched teeth:1.45)"
+        "(half-closed eyes:1.35), (teeth:1.45), (parted lips:1.3)"
     ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
@@ -1196,10 +1202,11 @@ def positive(pose: str) -> str:
     open_mouthed = pose in ("yawn", "fall")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     if pose == "allnighter":
-        # 「イーの口」 is teeth bared and pulled wide. `closed mouth` forbids the
-        # teeth and `small mouth` forbids the width, so both come out -- the
-        # second one especially, since it is a description of the same feature
-        # and would compete with the pose tag rather than merely sit beside it.
+        # This mouth is teeth bared, wide, and slightly open. `closed mouth`
+        # forbids the teeth and the gap; `small mouth` forbids the width. Both
+        # come out -- the second one especially, since it is a description of
+        # the same feature and would compete with the pose tags rather than
+        # merely sit beside them.
         face = face.replace("closed mouth, ", "").replace("small mouth, ", "")
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.

@@ -5632,3 +5632,43 @@ toward anger — it is a tag that lives mostly on rage and strain — when what 
 wanted is exhaustion. `(empty eyes:1.45)` and `(eyebags:1.4)` are the two tags
 holding it there, and if it reads as furious rather than fried, the lever is the
 mouth's weight and not theirs.
+
+## The gap is a different tag, not a lower weight (2026-08-19)
+
+「食いしばらず少し歯が空いてる感じ？」. `(clenched teeth:1.45)` is out — deleted,
+not eased — and the mouth is now:
+
+    (teeth:1.45), (parted lips:1.3)
+
+**A weight cannot fix a tag that means the opposite of the request.** `clenched`
+*is* the teeth being pressed together; there is no value of it that leaves a
+gap. Lowering it to 1.2 and adding `parted lips` beside it would have rebuilt
+exactly the contradiction that `(expressionless:1.3)` was deleted for one commit
+earlier — two tags arguing inside the prompt, settled per seed by the sampler,
+and read afterwards as instability rather than as an undecided recipe. This is
+the second time in two changes that the fix was a deletion.
+
+Which half carries what:
+
+- **`teeth` is load-bearing.** It is what draws both rows and what supplies the
+  horizontal pull that made this an 「イー」 mouth in the first place.
+- **`parted lips` is weighted below it deliberately.** On danbooru it is a soft,
+  closed, mostly teethless look; it is here only to open the bite, and at equal
+  weight it would take the teeth back out.
+
+`clenched teeth` also had a cost that is worth recording even though it is being
+dropped for a different reason: it lives on rage and strain, and it pulled the
+face toward angry when the target is fried. Ten tags now where `portrait` has
+seven; the `yawn` ceiling is about legwear and does not reach this crop.
+
+Queued as `yk-allnighter-iii`, same six seeds again — three passes now
+comparable seed by seed:
+
+    555666777   7e83d4cc    111222333   b5ab47d4    1886970040  4a4971c0
+    737373737   c1b7906d    2557902837  dc0d01e8    3409564303  8e8aabaf
+
+**Unjudged.** The risk this time is the opposite of last time: with nothing
+pulling the mouth wide except `teeth`, it may come back as an ordinary small
+open mouth — an 「あ」 rather than an 「イー」. If the width is gone, the lever is
+`(grin:1.3)`, which is danbooru's horizontal teeth-showing mouth; the reason it
+is not in already is that it means smiling, and the eyes here are dead.

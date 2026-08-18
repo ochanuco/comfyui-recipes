@@ -544,9 +544,22 @@ POSES = {
     # holding the difference between flopped and posed. Second job, not the
     # same job, so it is not a leftover of the dive.
     #
+    # 「寝転んでる」 was rendered both ways on shared seeds and 2ab57f7b -- on
+    # her BACK -- is the one picked, so `(on stomach:1.5)` became
+    # `(on back:1.5)` here and `.local/_onback.py` is spent. The reason it was
+    # worth a render rather than an argument: on her stomach the face is only
+    # legible if the head is lifted, and the two tags that lift it are the two
+    # this pose is on record as not reaching for. On her back it points at the
+    # camera for nothing, and the four exhaustion tags get a face to land on.
+    #
+    # This COUPLES the face switch to the body tag, which it was not before:
+    # FACE DOWN needs `(on stomach:1.5)` back, because there is no face-down on
+    # her back. The switch is now three edits in that direction and two in this
+    # one. It is not two independent axes any more; do not flip half of it.
+    #
     # Nine tags.
     "flop": (
-        "(solo:1.5), (lying:1.45), (on stomach:1.5), (outstretched arms:1.3), "
+        "(solo:1.5), (lying:1.45), (on back:1.5), (outstretched arms:1.3), "
         "(empty eyes:1.45), (eyebags:1.4), (half-closed eyes:1.35), "
         "(open mouth:1.35), full body"
     ),
@@ -1379,6 +1392,26 @@ def positive(pose: str) -> str:
         # Spliced, not global. Every other pose was settled against this BODY
         # and would move under it -- the same reason `boss` and `prone` splice
         # it rather than editing the block.
+        body = body.replace("(pale skin:1.25)",
+                            "(long legs:1.35), (pale skin:1.25)")
+    if pose == "flop":
+        # 「ちょっと胴体が長い」 on 2ab57f7b, which is the same axis `stand`
+        # settled as 「上半身が少し長い。脚の長さに比重をかけてほしい」 and is
+        # answered with the same tag at the same weight, in the same slot.
+        #
+        # Not re-measured, deliberately. `.local/proportion.py` is the metric
+        # that separated `stand`'s arms, and it reads rows: head at the top,
+        # soles at the bottom, hem where the figure narrows into two legs.
+        # She is lying across a landscape frame with her arms thrown out, so
+        # every one of those three assumptions is false here, and a transposed
+        # version would be a new metric wearing a trusted one's name. The
+        # lever is what transfers; the number is not.
+        #
+        # What transfers with it is the negative-side finding, and it is worth
+        # repeating because it is the cheap thing to reach for: naming
+        # `(long torso:1.4)` in the NEGATIVE moved 40.1% to 38.9%, i.e.
+        # nothing, and `prone` found the same for `(long legs:1.4)` there.
+        # One side of this axis is addressable. Ask for the leg.
         body = body.replace("(pale skin:1.25)",
                             "(long legs:1.35), (pale skin:1.25)")
     if pose == "boss":

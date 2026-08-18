@@ -167,6 +167,9 @@ EXCEPTIONS: dict[str, list[dict]] = {
     # it shared `prone`'s from-above geometry; that tag left the pose when the
     # dive was asked for, and the splice left with it.
     "flop": [
+        {"added": ["(long legs:1.35)"],
+         "why": "\u80f4\u4f53\u304c\u9577\u3044 on 2ab57f7b; `stand`'s tag at "
+                "`stand`'s weight, the only side of that axis that moves"},
         {"removed": ["closed mouth"],
          "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open, the same departure `allnighter_full` makes"},
     ],

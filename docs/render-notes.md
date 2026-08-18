@@ -6167,3 +6167,51 @@ against a statistic is what the correction two entries up is about.
 not evidence that it is the better picture — a body lying across a landscape
 frame is one wide blob whether or not the face reads, and that is exactly the
 kind of number this file has been wrong with before. The eye decides.
+
+## 2026-08-19 — `flop` lands on her back, and borrows `stand`'s proportion lever
+
+2ab57f7b — `yk-onback` 111222333 — is the picked render, so **`(on stomach:1.5)`
+became `(on back:1.5)` in the recipe and `.local/_onback.py` is deleted.** The
+probe existed for one question and the question is answered; leaving it in
+`.local` is how a settled decision ends up living outside the blocks, which this
+repo has already paid for once.
+
+The pick also **couples two axes that were independent an hour ago.** The pose's
+FACE DOWN / FACE UP switch was two edits either way; FACE DOWN now additionally
+needs `(on stomach:1.5)` back, because there is no face-down on her back. Three
+edits down, two up. Written into the pose so half a flip is not possible by
+following the comment.
+
+### 「ちょっと胴体が長い」 — the axis `stand` already settled
+
+Same complaint as 「上半身が少し長い。脚の長さに比重をかけてほしい」, and it gets
+the same answer: `(long legs:1.35)` added before `(pale skin:1.25)`, spliced into
+the pose rather than edited into `BODY`, exactly as `stand` does it.
+
+`costume_check` failed on it before it was declared, which is the check doing its
+job — an added tag on a pose is a costume change and now says so.
+
+**Not re-measured, and that is the deliberate part.** `.local/proportion.py` is
+the metric that separated `stand`'s arms cleanly, and it reads rows: head at the
+top, soles at the bottom, hem where the figure narrows into two legs. She is
+lying across a landscape frame with her arms thrown out, so all three assumptions
+are false, and a transposed version would be a new metric wearing a trusted one's
+name. This file has enough of those. The lever transfers; the number does not.
+
+The negative-side finding transfers too, and is repeated here because it is the
+cheap thing to reach for: `(long torso:1.4)` in the NEGATIVE moved 40.1% to
+38.9%, i.e. nothing, and `prone` found the same for `(long legs:1.4)` there.
+**One side of this axis is addressable and it is the positive one.**
+
+    yk-legs135  111222333 ce23f6c5   1886970040 00fac807   737373737 cd1b0a00
+    yk-legs145  111222333 36f29df7   1886970040 bfb80973   737373737 49ef8830
+
+Both weights are out because `stand` kept 1.35 over 1.45 on a difference it
+called noise (55.7% vs 57.0%) — and that judgement was made with a metric that
+does not run here, so there is nothing to call anything noise WITH. The eye picks
+the weight instead of a number borrowed from another pose.
+
+555666777 is off this sweep. It produced a detached figure-shaped mass on two
+consecutive `flop` prompts, and a third of a three-seed proportion comparison is
+too much to spend on a seed that may be drawing two people. 737373737 takes its
+place, from the standard list. `headcount.py`: all six ONE.

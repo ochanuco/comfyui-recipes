@@ -64,7 +64,7 @@ HEAD = "best quality, absurdres, 1girl, solo"
 # docs/render-notes.md what the costume is now. That is the whole mechanism:
 # it does not stop a change, it stops an *unrecorded* one.
 COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "thin")
-COSTUME_FINGERPRINT = "ccf785bcfa21dbdc"
+COSTUME_FINGERPRINT = "c8e405b1da502660"
 
 
 def tags(text: str) -> list[str]:
@@ -100,8 +100,8 @@ EXCEPTIONS: dict[str, list[dict]] = {
          "why": "the dress's own straps, affordable here because the coat is "
                 "already off the shoulders"},
         {"added": ["(ribbed legwear:1.35)"],
-         "why": "the rib is what her thighhighs are; ADDED, not substituted -- "
-                "substituting it removed the tights on every seed"},
+         "why": "the rib outlived the thighhighs it belonged to; ADDED, not "
+                "substituted -- substituting it removed the tights on every seed"},
     ],
     "nape": [
         {"added": ["(halterneck:1.45)", "(black straps:1.35)"],
@@ -115,18 +115,10 @@ EXCEPTIONS: dict[str, list[dict]] = {
                 "argues with the pose or spins her around"},
     ],
     "prone": [
-        {"removed": ["(grey pantyhose:1.45)"], "added": ["(pale purple pantyhose:1.45)"],
-         "why": "one legwear garment seen from behind; the colour has to travel "
-                "with the surviving one or the legs come out taupe"},
-        {"removed": ["(opaque pantyhose:1.3)"], "added": ["(opaque pantyhose:1.5)"],
-         "why": "the smooth face belongs to the tights alone now"},
-        {"removed": ["(very pale purple thighhighs:1.5)"], "added": ["(white kneehighs:1.45)"],
-         "why": "the sock is drawn by region instead; this slot keeps the token "
-                "count the composition is holding on to"},
-        {"removed": ["(white thighhighs:1.2)"], "added": ["(kneehighs:1.25)"],
-         "why": "same slot-keeping. See scripts/yk_prone_legwear.py"},
-        {"removed": ["(thighhighs over pantyhose:1.55)"], "added": ["(thighhighs over pantyhose:0.6)"],
-         "why": "two layers from behind read as shorts over stockings"},
+        # Five legwear entries used to sit here, shortening and recolouring the
+        # second garment. They are gone because the second garment is gone: the
+        # one-pantyhose leg is in LEGWEAR itself, so it is not a departure from
+        # the shared blocks and there is nothing for this pose to declare.
         {"removed": ["(wide hips:1.3)", "(thick thighs:1.35)"],
          "added": ["(wide hips:1.0)", "(thick thighs:1.05)"],
          "why": "BODY was settled on poses seen from the front or the side; "
@@ -158,6 +150,16 @@ PALETTE = [
     ("hood lining pink", (188, 97, 106), 45),
     ("skin", (253, 242, 232), 16),
     ("hair light purple", (222, 214, 238), 22),
+    # STALE, and knowingly so. Both belong to the retired two-garment leg -- the
+    # grey tights and the pale socks over them. The costume is one pantyhose
+    # now, purple at the thigh running to black at the ankle, so neither colour
+    # is a share of anything and the baselines recorded against them describe a
+    # costume that is not built any more.
+    #
+    # Left in rather than guessed at: a gradient is not one RGB with a
+    # tolerance, and the two entries that would replace it have to be measured
+    # off an approved one-tights render, then every pose re-recorded with
+    # --record. Until that happens, --palette is checking the old design.
     ("legwear grey", (135, 127, 128), 26),
     ("pale sock", (243, 236, 250), 16),
 ]

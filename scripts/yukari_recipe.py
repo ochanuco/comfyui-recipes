@@ -24,11 +24,20 @@ Which also means a render the sweep did not produce is not waiting at 2048.
 The arc that 1029384756 refuses to draw at 1024 is refused there too: the
 second pass redraws what the first one decided, it does not reconsider it.
 
-**The tights are grey now, and that is deliberate across every pose.** They were
-black through `pv1` / prompt 37ac6c0d and the `pick/yk-recipe` tag, so `--pose
-peace` no longer reproduces 9d24700e pixel-for-pixel; the tag still points at the
-commit that does. The colour was settled on the invitation pose and then kept
-global rather than split per pose, so the palette is one palette.
+**The leg is ONE garment, and that is deliberate across every pose.** A single
+pantyhose, purple at the thigh running to black at the ankle, with the second
+garment banned by name in the negative. Pale socks over grey tights was this
+repo's own design and it is retired -- `LEGWEAR_LAYERED` keeps its text and its
+measurements, and the note above `LEGWEAR` says what broke it. So `--pose peace`
+no longer reproduces 9d24700e pixel-for-pixel, and neither does anything else
+from the layered lineage; the `pick/yk-recipe` tag still points at the commit
+that does.
+
+Settled on the prone pose and then kept global rather than split per pose,
+because it is the costume and not a framing: the palette is one palette. If a
+future pose wants the layering back, name `LEGWEAR_LAYERED` in a splice and take
+`LEGWEAR_BAN` back out of that pose's negative -- both halves, or the guards
+will delete the garment the splice just asked for.
 
 Then set the backdrop, which the prompt does not control -- it landed on
 #d0d0c0, #a0a0a0 and #909090 across three renders whose only difference was two
@@ -224,7 +233,11 @@ THIN = "(thin lineart:1.3), (fine lines:1.25), (delicate lines:1.2)"
 # What did have to go is the see-through set -- (see-through pantyhose:1.45),
 # (skin visible through pantyhose:1.4) never stayed on the legs and left the
 # dress sheer over her stomach.
-LEGWEAR = (
+# RETIRED, kept whole. Everything below was measured and none of it was wrong;
+# the design it serves is the one that changed. Read it before proposing two
+# garments again -- it is the record of what the layering costs and of the four
+# things that do not move the sock colour.
+LEGWEAR_LAYERED = (
     # grey, not black. `grey pantyhose` is the canonical spelling (`gray_` has no
     # page) and its wiki warns of "considerable overlap" with black and brown --
     # brown is guarded in the negative already.
@@ -282,6 +295,56 @@ LEGWEAR = (
     # block by looking at it.
     "(lavender tint:1.3), "
     "(thighhighs over pantyhose:1.55)"
+)
+
+# ONE garment on the leg, and it is the pantyhose. This is the live block: it is
+# what `positive()` splices into every full-figure pose, and it is a change to
+# the COSTUME rather than to any one pose, which is why it lives here and not in
+# a splice.
+#
+# The official V6 sheet draws one pantyhose. The layered pair above is this
+# repo's own invention, and it held up for a while -- lyC-555666777 put pale
+# socks over grey tights on seven seeds out of seven. What broke it was the
+# prone pose: seen from behind, whichever layer covers the buttock ends in a
+# hem, and a fitted shape bounded by a hem above legs of another colour is a
+# pair of bike shorts. 「スパッツになってる」. Six lexical attempts, a regional
+# conditioning pass and a hand-drawn hem later, the answer was that the model
+# only knows `thighhighs over pantyhose` -- which puts the boundary on the
+# THIGH, the exact geometry the pose threw out.
+#
+# 「タイツ1本にするか」. Abandoned, not deferred. Dropping the second garment
+# removes the boundary, so there is nothing left to hold: no hem to draw, no
+# region to condition, no two greys to keep apart.
+#
+# The gradient is the sheet's own reading and it runs the other way from the
+# tights it replaces -- purple at the thigh, black at the ankle, one surface the
+# whole way. I called that inverted once and dropped `(gradient legwear)` on the
+# strength of it; the purple end is what was wanted.
+#
+# Three tags, which is the count a garment block tolerates here before the coat
+# starts sprawling. Six attempts could not lower the purple end from the prompt
+# -- `(muted colors)`+`(desaturated)` DOUBLED the leg's saturation, 37.7 to
+# 75.6, `(dusty purple)` raised it, and a vividness guard left the mean flat and
+# pushed the peak up. That is the shape the notes name: when the tag describing
+# the defect does nothing at any weight, the defect is implied by something
+# else -- here the pale purple dress and hair, pulling the top of the leg toward
+# them. Take it off afterwards instead, with `.local/desat.py` (HSV S alone, so
+# the gradient and the line survive); x0.55 matches the older palette.
+LEGWEAR = "(black pantyhose:1.5), (gradient legwear:1.4), (opaque pantyhose:1.4)"
+
+# And the second garment banned by name. Not decoration: these are exactly the
+# words the layered recipe spent its weight on, and the model reaches for them
+# on its own -- `thighhighs` alone came back on seeds that asked for none.
+#
+# Six tags is more guards than this file usually allows itself, and the rule it
+# looks like it is breaking is a different one: the palette damage came from
+# stacking guards that all pointed at ONE defect, outvoting each other's
+# neighbours. These six each name a distinct garment. Measured across the
+# one-tights arms with the whole list present -- palette intact, hair violet,
+# backdrop grey, no colour drift.
+LEGWEAR_BAN = (
+    "(thighhighs:1.5), (kneehighs:1.5), (socks:1.45), (over-kneehighs:1.45), "
+    "(two-tone legwear:1.4), (legwear hem:1.3)"
 )
 
 POSES = {
@@ -833,6 +896,16 @@ SWEEP_SEEDS = [555666777, 111222333, 1886970040, 737373737, 2557902837, 34095643
 
 
 def negative(pose: str) -> str:
+    """The negative, plus the legwear ban every full-figure pose now carries."""
+    text = _negative_base(pose)
+    # The portrait crops above the legs, and a guard against a garment that is
+    # out of frame is tokens spent on nothing.
+    if pose == "portrait":
+        return text
+    return text + ", " + LEGWEAR_BAN
+
+
+def _negative_base(pose: str) -> str:
     """The negative, with the poses that need a different one handled here."""
     if pose == "nape":
         # Two guards, both earned by this pose specifically.
@@ -1035,94 +1108,56 @@ def positive(pose: str) -> str:
         # all three seeds, and nothing pushed out of the block. The legwear is
         # documented as the first thing this pose spends, so if a later change
         # starts losing thighhighs, this extra tag is the first suspect.
+        #
+        # The tag it used to be appended to is gone with the second garment --
+        # the rib was her thighhighs' rib. It is kept because the surface it
+        # names survived the garment: one opaque pantyhose can be ribbed too,
+        # and this pose is the one that asks for the texture by name. Appended
+        # to `opaque pantyhose` now, which is the slot in the new block that
+        # describes the fabric rather than its colour.
         legwear = legwear.replace(
-            "(thighhighs over pantyhose:1.55)",
-            "(thighhighs over pantyhose:1.55), (ribbed legwear:1.35)")
-    if pose == "prone":
-        # ONE legwear garment, and it is the pantyhose. Face down with the rear
-        # toward the camera, two layers cannot help but read as shorts over
-        # stockings: whichever layer covers the buttock ends in a hem, and a
-        # fitted shape bounded by a hem, above legs of a different colour, is a
-        # pair of bike shorts. 「スパッツになってる」.
-        #
-        # Nothing in the prompt says shorts, which is why the lexical route did
-        # nothing -- there was no tag to outvote. Measured on 1886970040, all
-        # unchanged: `(bike shorts:1.4)` in the negative, that plus
-        # `(shorts:1.35)`, `pantyhose` weighted from bare to 1.4,
-        # `(very pale purple thighhighs)` eased to 1.15, and a masked in-place
-        # refine of the hip at 0.50 and 0.65 -- the route that fixed this same
-        # render's hand an hour earlier.
-        #
-        # Easing the grey pair to 0.6 was the first fix here and only recoloured
-        # the problem: the rear came back as a smooth plum shape with the
-        # frilled hem above it and the welt band below, which is the same
-        # garment in the dress's colour. 「タイツになってないな…スパッツだ…」. The
-        # boundary is the defect, so the fix has to remove one, not move it.
-        #
-        # The cost is the layering this recipe spent a session measuring --
-        # pale thighhighs over grey tights, welt band and all. From behind it
-        # was never visible. Every other pose keeps it.
-        #
-        # `pale purple` goes in the slot `grey` had, because the colour has to
-        # move with the surviving garment: keeping `grey pantyhose` and raising
-        # `(lavender tint:1.5)` reads correctly as tights and lands warm
-        # brown-grey, against a negative that bans brown legwear. And it is a
-        # swap inside the existing span, not an addition -- adding
-        # `(white pantyhose:1.2)` alongside re-rolled the composition where the
-        # bare swap did not. On a fixed seed, the token count is part of what
-        # the picture is holding on to.
-        #
-        # ---- and then the ask changed to 「タイツのうえからニーハイ」 ----
-        #
-        # Tights from the hip to the toes, knee-highs from the knee to the toes,
-        # the socks on top. THIS MODEL WILL NOT DRAW THAT IN ONE PASS, and the
-        # measurements are worth keeping because they are all negative:
-        #
-        #   socks at 1.45/1.25   the boundary lands at the knee, correctly, and
-        #                        the thigh comes back at 254,240,230 -- the same
-        #                        warm cream as her cheek. It is skin.
-        #   tights at 1.6/1.7    the socks disappear and it is one garment again
-        #   `kneehighs over pantyhose`, `socks over pantyhose`,
-        #   `pantyhose under kneehighs`     thigh still bare, all three
-        #   `(bare legs:1.5), (bare thighs:1.45)` negative     thigh still bare
-        #   masked refine of the calves, 0.55 and 0.65        no boundary drawn
-        #   black socks against pale tights  socks crisp at the knee, thigh bare
-        #
-        # The only two-layer construction it knows is `thighhighs over pantyhose`
-        # -- a real tag -- and that one puts the boundary on the THIGH, which is
-        # the geometry this pose threw out two entries ago.
-        #
-        # So the prompt draws the socks and the thigh is finished afterwards:
-        # `scripts/recolor_skin.py` turns the bare thigh into tights, and a
-        # masked 0.3 refine makes it drawn rather than pasted. The pose is a
-        # two-step recipe now, and docs/render-notes.md carries the second step.
-        # The colours are NOT swapped here any more. This block used to turn the
-        # tights pale purple and the socks white -- the inverse of the recorded
-        # costume, which is grey opaque tights under very pale purple ribbed
-        # knee-highs -- and every prone render carried that inversion.
-        #
-        # It was not only a leftover, and that is the part worth knowing before
-        # putting it back: `pale purple pantyhose` gets DRAWN on the thigh and
-        # `grey pantyhose` does not, so the swap was buying thigh coverage as
-        # well as the wrong colour. With the colours right the thigh returns
-        # bare (253,244,236, her cheek's tone) exactly as the measurements below
-        # say, and the two-step finish stops being optional:
-        #
-        #   recolor_skin.py --box <thigh> --color '#877f80' --tolerance 14
-        #   queue_refine.py --mask <its --mask-out> --denoise 0.3
-        #
-        # --tolerance 14, not the default 28: the die-cut outline is 2/15/24
-        # from skin, so 28 repaints the outline too and leaves the box's corner
-        # showing as a rectangle.
-        #
-        # Only the LENGTH substitution belongs to this pose.
-        legwear = (legwear
-                   .replace("(opaque pantyhose:1.3)", "(opaque pantyhose:1.5)")
-                   .replace("(very pale purple thighhighs:1.5)",
-                            "(very pale purple kneehighs:1.45)")
-                   .replace("(white thighhighs:1.2)", "(kneehighs:1.25)")
-                   .replace("(thighhighs over pantyhose:1.55)",
-                            "(thighhighs over pantyhose:0.6)"))
+            "(opaque pantyhose:1.4)",
+            "(opaque pantyhose:1.4), (ribbed legwear:1.35)")
+    # ---- and then the block itself became one garment ----
+    #
+    # This is where prone spliced its legwear, and the splice is gone: LEGWEAR
+    # is a single pantyhose for every pose now, so there is no second garment
+    # left to shorten, recolour or ease. The fight is kept in the record because
+    # its results are about the MODEL, not about this pose:
+    #
+    #   Two layers seen from behind read as bike shorts, and nothing lexical
+    #   fixes it. Measured on 1886970040, all unchanged: `(bike shorts:1.4)` in
+    #   the negative, that plus `(shorts:1.35)`, `pantyhose` from bare to 1.4,
+    #   `(very pale purple thighhighs)` eased to 1.15, and a masked in-place
+    #   refine of the hip at 0.50 and 0.65 -- the route that fixed this same
+    #   render's hand an hour earlier. Nothing in the prompt says shorts, which
+    #   is why the lexical route did nothing: there was no tag to outvote.
+    #
+    #   Easing the grey pair to 0.6 only recoloured the problem -- a smooth plum
+    #   rear with the frilled hem above and the welt band below, the same
+    #   garment in the dress's colour. The boundary is the defect, so the fix
+    #   has to remove one layer, not move it.
+    #
+    #   Tights to the toes with knee-highs over them, which was the ask for a
+    #   while: THIS MODEL WILL NOT DRAW IT IN ONE PASS.
+    #     socks at 1.45/1.25   boundary at the knee, correctly, and the thigh
+    #                          comes back at 254,240,230 -- her cheek. It is skin.
+    #     tights at 1.6/1.7    the socks disappear; one garment again
+    #     `kneehighs over pantyhose`, `socks over pantyhose`,
+    #     `pantyhose under kneehighs`          thigh still bare, all three
+    #     `(bare legs:1.5), (bare thighs:1.45)` negative    thigh still bare
+    #     masked refine of the calves, 0.55 / 0.65          no boundary drawn
+    #     black socks against pale tights      socks crisp, thigh still bare
+    #   The only two-layer construction it knows is `thighhighs over pantyhose`,
+    #   a real tag, and that one puts the boundary on the THIGH.
+    #
+    #   `pale purple pantyhose` gets DRAWN on the thigh and `grey pantyhose`
+    #   does not. That is why the colours were inverted here for so long without
+    #   anyone noticing: the wrong colour was buying thigh coverage.
+    #
+    # Obsolete with it: the two-step finish (`recolor_skin.py --tolerance 14`
+    # then a masked 0.3 refine) that painted the bare thigh into tights. One
+    # garment covers the leg, so there is no bare thigh to repair.
     parts = ["best quality, absurdres, 1girl, solo", character, POSES[pose]]
     if full_figure:
         parts.append(legwear)

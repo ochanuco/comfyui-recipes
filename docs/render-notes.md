@@ -4824,3 +4824,63 @@ anywhere. The levers that actually moved this number were the upscale route and
 `(muted colors)+(desaturated)` (158.2 to 123.6), both of which were added for
 other reasons entirely. There is no dial; there is a configuration, a render,
 and a measurement.
+
+### The one-garment leg was a decision, not code (2026-08-18)
+
+Another session, running its own pose through `yukari_recipe.positive()`, got
+tights under knee-highs back. Nothing was broken. The decision to drop the
+second garment was recorded in three places -- this file, the session's memory,
+and `.local/onetights3.py` -- and in none of them was it the code that builds
+the prompt. `scripts/yukari_recipe.py` still held the layered pair, and every
+caller that did not know to splice over it got the retired costume.
+
+That is the failure worth naming: a settled design change that lives only in
+prose is a change the next session does not get. The renders that were approved
+this session all reached the one-garment leg by rewriting the block from a
+throwaway script, and the throwaway scripts are in `.local/`, which is not the
+repo.
+
+So it is in the blocks now:
+
+- `LEGWEAR` is `(black pantyhose:1.5), (gradient legwear:1.4),
+  (opaque pantyhose:1.4)`. `LEGWEAR_LAYERED` keeps the old text whole -- the
+  grey-versus-black measurements, the over-kneehighs finding and the note that
+  the sock-length arm was misjudged by a brightness metric are all still worth
+  reading, and none of them were wrong.
+- `LEGWEAR_BAN` -- `thighhighs`, `kneehighs`, `socks`, `over-kneehighs`,
+  `two-tone legwear`, `legwear hem` -- is appended to every full-figure pose's
+  negative. Portrait does not get it; the crop is above the legs and a guard
+  against something out of frame is tokens spent on nothing.
+- Prone's legwear splice is deleted. It was five replacements against tags that
+  no longer exist, which would have silently done nothing. Its comment stays, as
+  the record of what the model will not draw.
+- `boss` appended `(ribbed legwear:1.35)` to `(thighhighs over pantyhose:1.55)`.
+  That anchor is gone; it is appended to `(opaque pantyhose:1.4)` now, the slot
+  in the new block that names the fabric rather than the colour. Same silent
+  no-op otherwise.
+- `yk_prone_legwear.legwear_block()` returns `LEGWEAR` unchanged. The module is
+  the regional route to two garments and the costume has one; it still runs, and
+  it is still the reference for masking a region out of the base conditioning.
+
+Checked rather than assumed: `positive("prone")` plus the sketch-and-muted tail
+now reproduces prompt `6e2c5592` -- the approved render -- string-for-string,
+positive and negative both.
+
+`costume_check.py` did its job and failed on the fingerprint, `ccf785bcfa21dbdc`
+to `c8e405b1da502660`. Accepted here. Its five prone legwear exceptions are gone
+with the splice they described; every pose passes.
+
+What is NOT fixed, and is marked stale in the file rather than guessed at: the
+`PALETTE` entries `legwear grey` and `pale sock` both belong to the retired
+design, and `assets/costume-baseline.json` was recorded against them. A gradient
+is not one RGB with a tolerance, so the replacement has to be measured off an
+approved one-tights render and every pose re-recorded. Until then `--palette` is
+checking a costume that is no longer built.
+
+Still uncodified, and deliberately: the drawn-look tail `(sketch:1.15),
+(rough sketch:1.1), (sketch lines:1.15)` with `(muted colors:1.3),
+(desaturated:1.2)`. Every caller that wants it adds it by hand, which is the
+same trap. It is left out because the poses approved before it -- portrait,
+peace, boss, lounge -- were approved without it, and folding it into the shared
+blocks would change their look on the quiet. Fixing that means re-approving
+those renders, which is the user's call and not a refactor.

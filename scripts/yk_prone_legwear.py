@@ -129,17 +129,16 @@ WEIGHT = {"dress": 1.0, "tights": 1.8, "sock": 1.0}
 
 def legwear_block() -> str:
     """The legwear span `positive('prone')` builds, to cut it back out."""
-    # Tracks the prone splice in yukari_recipe.py, which no longer inverts the
-    # two garments' colours. The guard below turns a drift here into an error
-    # rather than a region silently conditioning on a prompt that is still in
-    # the base.
-    return (yk.LEGWEAR
-            .replace("(opaque pantyhose:1.3)", "(opaque pantyhose:1.5)")
-            .replace("(very pale purple thighhighs:1.5)",
-                     "(very pale purple kneehighs:1.45)")
-            .replace("(white thighhighs:1.2)", "(kneehighs:1.25)")
-            .replace("(thighhighs over pantyhose:1.55)",
-                     "(thighhighs over pantyhose:0.6)"))
+    # There is no splice any more: LEGWEAR is one garment for every pose, and
+    # prone takes it unchanged. Kept as a function rather than inlined because
+    # the callers guard on it -- they cut this span out of the base prompt and
+    # raise if the cut changed nothing, so a drift here is an error rather than
+    # a region silently conditioning on a prompt that is still in the base.
+    #
+    # This whole module is the regional route to two garments, which the costume
+    # no longer has. It runs, and it is a reference for masking a region out of
+    # the base conditioning; it is not the way the legwear is drawn.
+    return yk.LEGWEAR
 
 
 def build(seed: int, prefix: str, hires: int, strength: float,

@@ -413,31 +413,40 @@ POSES = {
     # figure on four seeds of four. Half-closed is also the only version of this
     # that can show an empty eye at all.
     #
-    # 「イーの口」, and then 「食いしばらず少し歯が空いてる感じ」.
-    # (teeth:1.45), (parted lips:1.3) -- both rows drawn, with the lips apart so
-    # there is a gap between them.
+    # 「ちょっと口がキレてるね・・・放心状態感で口が空いてる方が良さそう」.
+    # (open mouth:1.35), and the teeth are gone entirely.
     #
-    # (clenched teeth:1.45) was the first attempt and is GONE, not lowered.
-    # `clenched` means pressed together; adding a gap tag beside it would have
-    # rebuilt the same contradiction that (expressionless:1.3) was dropped for
-    # one commit earlier, and a weight cannot fix a tag that means the opposite
-    # of the request. It also skewed angry -- the tag lives on rage and strain.
+    # THE TEETH WERE THE ANGER. Both attempts at a 「イー」 mouth put teeth in the
+    # frame -- (clenched teeth:1.45) first, then (teeth:1.45), (parted lips:1.3)
+    # -- and the second read as cross too. `clenched teeth` was blamed for it
+    # when it went, on the grounds that the tag lives on rage and strain; that
+    # was half right. Bared teeth carry the strain on their own, whichever tag
+    # asks for them, and no weight on the tag beside them undoes it.
     #
-    # `teeth` is the load-bearing half. `parted lips` alone is a soft, closed
-    # look on danbooru and mostly draws no teeth at all, so it is weighted below
-    # `teeth` and is there only to open the bite.
+    # `parted lips` goes with it rather than staying as the gap. It is one
+    # description of the mouth and `open mouth` is another, and this pose has
+    # now been through two rounds of two tags arguing over the same feature.
     #
-    # This pose takes `closed mouth` AND `small mouth` out of FACE -- see
-    # `positive()`. `small mouth` is the dangerous one: it describes the same
-    # feature as these tags rather than merely forbidding something.
+    # 1.35 and not `fall`'s 1.30: both precedents for an open mouth in this file
+    # have something driving it -- (yawning:1.4) there, (surprised:1.35) there
+    # -- and nothing here does. 放心 is the absence of an expression, so it has
+    # no engine, and the weight is the whole engine. Too wide is a visible,
+    # fixable failure; a mouth that never opens loses the request.
     #
-    # Ten tags where `portrait` has seven. The eight-tag ceiling recorded on
-    # `yawn` is about the legwear being pushed out of the prompt, and this crop
-    # does not carry legwear -- see `positive()`, where it joins `portrait`.
+    # (expressionless:1.3) is deliberately NOT restored, even though 放心 is what
+    # it names. On danbooru it sits on closed neutral mouths, so against
+    # `open mouth` it is a third description of the same feature. The vacancy is
+    # carried by (empty eyes:1.45) and by there being no smile or anger tag at
+    # all -- which is what went wrong when there WAS one.
+    #
+    # Back to nine tags, and back to removing only `closed mouth` from FACE --
+    # the same one-tag departure `yawn` and `fall` make. `small mouth` returns:
+    # it was taken out for the 「イー」 width, and a 放心 mouth is a small
+    # ぽかん one, so the shared block is left alone.
     "allnighter": (
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2), "
         "(face focus:1.3), (empty eyes:1.45), (eyebags:1.4), "
-        "(half-closed eyes:1.35), (teeth:1.45), (parted lips:1.3)"
+        "(half-closed eyes:1.35), (open mouth:1.35)"
     ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
@@ -1198,16 +1207,11 @@ def positive(pose: str) -> str:
     # the portrait crops above them and naming what is out of frame is what
     # invites it back in.
     full_figure = pose not in HEAD_FRAMINGS
-    # A yawn and a shout both need the mouth open; FACE closes it by default.
-    open_mouthed = pose in ("yawn", "fall")
+    # A yawn, a shout and a vacant stare all need the mouth open; FACE closes it
+    # by default. `allnighter` briefly took `small mouth` out too, for the width
+    # of an 「イー」 mouth; that mouth is gone and so is the departure.
+    open_mouthed = pose in ("yawn", "fall", "allnighter")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
-    if pose == "allnighter":
-        # This mouth is teeth bared, wide, and slightly open. `closed mouth`
-        # forbids the teeth and the gap; `small mouth` forbids the width. Both
-        # come out -- the second one especially, since it is a description of
-        # the same feature and would compete with the pose tags rather than
-        # merely sit beside them.
-        face = face.replace("closed mouth, ", "").replace("small mouth, ", "")
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
     if pose == "nape":

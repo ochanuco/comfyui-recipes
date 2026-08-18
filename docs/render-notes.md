@@ -5727,3 +5727,47 @@ Prompt ids: 0.60 `2bd865d8`, 0.70 `38178dcf`.
 image statistics, and two of the three here point opposite ways. Both arms are
 posted; the eye picks. Recorded so that the next session does not re-run the
 sweep, and does not quote the 8/18 denoise direction at a 2x upscale.
+
+## The teeth were the anger, not the tag that asked for them (2026-08-19)
+
+「ちょっと口がキレてるね・・・放心状態感で口が空いてる方が良さそう」. The mouth is now
+`(open mouth:1.35)` and there are **no teeth in the prompt at all**.
+
+This is a correction to the entry above it. When `(clenched teeth:1.45)` was
+dropped, the anger was blamed on that tag specifically — "it lives on rage and
+strain" — and the replacement kept the teeth under a different name,
+`(teeth:1.45), (parted lips:1.3)`. That came back cross as well. **Bared teeth
+carry the strain whichever tag asks for them**, and no weight on the tag beside
+them undoes it. The right read of the first failure was the feature, not the
+vocabulary; it was diagnosed one level too shallow and cost a round.
+
+`parted lips` goes with the teeth rather than staying on as the gap. It
+describes the mouth and so does `open mouth`, and this pose has now spent two
+rounds on two tags arguing over one feature.
+
+**Weighted 1.35, above `fall`'s 1.30, on purpose.** Both existing open mouths in
+this file have something driving them — `(yawning:1.4)` and `(surprised:1.35)`.
+放心 is the *absence* of an expression, so there is no engine behind it and the
+weight is the entire engine. The asymmetry decides it: too wide is visible and
+easy to walk back, a mouth that never opens loses the request outright.
+
+**`(expressionless:1.3)` is deliberately not restored**, even though it names
+exactly what 放心状態 is. On danbooru it sits on closed neutral mouths, so
+against `open mouth` it would be a third description of the same feature — the
+mistake this pose keeps making. The vacancy is carried by `(empty eyes:1.45)`
+and by there being no smile or anger tag at all, which is what went wrong when
+there was one.
+
+**FACE is back to a one-tag departure.** `small mouth` was removed for the
+「イー」 width; that mouth is gone, and a 放心 mouth is a small ぽかん one, so the
+shared block is left alone and `allnighter` now removes only `closed mouth` —
+the same departure `yawn` and `fall` make. Nine tags again.
+
+Queued as `yk-allnighter-iv`, the same six seeds, fourth pass:
+
+    555666777   3a321b69    111222333   c3580a09    1886970040  5ad025d2
+    737373737   c575fc46    2557902837  38773ce2    3409564303  7f3c8e64
+
+The 2048 hires question is unaffected — it replays whatever the first pass drew,
+and the finding above (0.60 over 0.70 at a 2x upscale) is about the pass, not
+about this mouth.

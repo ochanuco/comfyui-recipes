@@ -149,6 +149,21 @@ measured and came back *null*. Append to it; do not tidy it. Findings that
 contradict an earlier entry get a correction written next to them, not a
 deletion — several entries exist only to stop something being retried.
 
+## No crops while the prompt is being tuned
+
+**Do not crop, cut out or repair a render to deliver it.** If a picture needs a
+crop to be acceptable, the prompt has not solved the problem, and the next arm
+gets judged against an image the recipe cannot produce.
+
+This was learned on `stand`: a two-figure render had a good left half, and
+cutting it would have shipped a pose that never draws one figure. What actually
+fixed it was the canvas -- 768 wide leaves no room beside her -- and that was
+only reached because the crop was off the table.
+
+Post-processing that sets a value the prompt cannot hold is a different thing
+and is still fine: `recolor_bg.py` exists because the backdrop is unstable under
+any perturbation. Removing part of the picture is not that.
+
 ## Reading images
 
 Rendered images are expensive in context. **Do not open renders to browse them.**

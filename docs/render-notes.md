@@ -5277,3 +5277,50 @@ verified byte-identical against 6217154d's own history.
 Also seen in the four-seed check, and not chased: 555666777 puts the rabbit hood
 UP, which the recipe rules out globally, and 111222333 and 2557902837 both drew
 backdrop intruders. 1886970040 is the seed this pose has been settled on.
+
+## Crops are banned while the prompt is being tuned (2026-08-18)
+
+「crop系はプロンプト調整段階ではメリットがないので禁止したい」. Written into
+CLAUDE.md as a standing rule, and `.local/split_left.py` is deleted rather than
+promoted.
+
+The reason is visible in this file's own last two entries. A two-figure render
+had a good left half, and cutting it out would have shipped a `stand` that never
+draws one figure while every later arm got judged against a picture the recipe
+cannot produce. **A crop hides the unsolved defect inside an accepted-looking
+result.** What actually solved it was the canvas.
+
+`recolor_bg.py` is not the same thing and is unaffected: it sets a value the
+prompt cannot hold. Removing part of the picture is not that.
+
+## The shoe, at the canvas that draws one of her (2026-08-18)
+
+768x1536 is now the committed frame, so the approved pair from the 1024 render
+is gone and the shoe had to be found again. Four arms, 1886970040, all with
+`(white footwear:1.45), (red footwear:1.4)` in the negative because a pale sole
+arrived uninvited in every earlier attempt:
+
+```
+x1  (black high-top sneakers:1.4)                   high-top, white sole anyway
+x2  (black footwear:1.35), (high tops:1.35)         high-top, black to the ground  <- kept
+x3  (black high-top sneakers:1.4), (black sole:1.35)  white midsole AND a red flash
+x4  (black sneakers:1.4)                            low-top, pale sole
+```
+
+`(black sole:1.35)` in the positive is the interesting failure: describing the
+sole made it worse, adding a red flash the other arms did not have. The guard
+route worked and the description did not, which is the opposite of this file's
+usual preference and is recorded for that reason.
+
+Kept: **x2**, prompt a5c494ef. `positive`, `negative` and the canvas verified
+byte-identical against its own history.
+
+The sole guards sit AFTER the legwear ban, not before it, because that is the
+order the picked render was drawn in — `negative()` appends them, rather than
+`_negative_base` returning them. Token order has already been found to matter
+here, so the tail is reproduced rather than rebuilt.
+
+That is five stand-only guards. The rule they look like they are breaking --
+never stack guards -- is about guards that all point at ONE defect, which is
+what wrecked the palette here twice. These point at three: a decal, a logo and
+a colour.

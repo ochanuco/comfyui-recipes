@@ -883,7 +883,8 @@ POSES = {
     "stand": (
         "(solo:1.5), (standing:1.5), (from front:1.3), (own hands together:1.35), "
         "(hands up:1.25), (arched back:1.2), (smug:1.35), (half-closed eyes:1.3), "
-        "(full body:1.45), (black footwear:1.35), (wide shot:1.3)"
+        "(full body:1.45), (black footwear:1.35), (high tops:1.35), "
+        "(wide shot:1.3)"
     ),
 }
 
@@ -922,20 +923,22 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # 1.57M pixels turned on its side, not the 2.46M that drew a second
          # figure -- and none of six seeds here drew one.
          "prone": (1536, 1024),
-         # Back to 1024x1536, which is where the adopted render was drawn.
+         # 768 wide, and the width is the whole point.
          #
-         # 896x1728 was the answer to the crop and it was overtaken:
-         # `(wide shot:1.3)` pulls the camera back far enough that the standard
-         # canvas fits the whole figure and the shoes, so the odd aspect bought
-         # nothing the tag did not.
+         # `(wide shot:1.3)` is what pulls the camera back far enough to fit the
+         # figure and the shoes -- and at 1024 it also buys a SECOND FIGURE,
+         # every time. Two guard sets that this file already relies on elsewhere
+         # (`lap`'s, naming the person; `nape`'s, naming the layout) did not move
+         # it at the weights they carry there. Narrowing the frame did, on four
+         # seeds of four: give the model room beside her and it puts someone in
+         # it.
          #
-         # What the tag also buys is a SECOND FIGURE. That is accepted here --
-         # see the pose block -- and the width is what controls it: at 768x1536
-         # the same prompt draws one figure on four seeds of four, because there
-         # is no room beside her to put anyone. Both frames are live; which one
-         # to render is a question about the shoes, which the narrower canvas
-         # redraws.
-         "stand": (1024, 1536)}
+         # 1024x1536 is not the fallback it looks like. Its render was better --
+         # the shoes were the approved pair and the narrower canvas redraws them
+         # -- but keeping it meant cutting one figure out of two, and a crop
+         # while the prompt is still being tuned is banned (see CLAUDE.md). A
+         # picture that needs a crop is a prompt that has not solved the problem.
+         "stand": (768, 1536)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -1008,7 +1011,13 @@ def negative(pose: str) -> str:
     # out of frame is tokens spent on nothing.
     if pose == "portrait":
         return text
-    return text + ", " + LEGWEAR_BAN
+    text = text + ", " + LEGWEAR_BAN
+    if pose == "stand":
+        # After the ban, not before it: this is the tail of the negative that
+        # a5c494ef was drawn with, verified against its own history rather than
+        # rebuilt from memory.
+        text += ", (white footwear:1.45), (red footwear:1.4)"
+    return text
 
 
 def _negative_base(pose: str) -> str:
@@ -1073,7 +1082,23 @@ def _negative_base(pose: str) -> str:
         # the decal went but the sole came back magenta.
         #
         # The ear-like high collar is the part that is WANTED and it survives
-        # all three. Anything added here has to be checked against it.
+        # all three.
+        #
+        # The pale sole is the second thing the shoe arrives with, and it is
+        # guarded rather than described because describing it did not work:
+        # `(black sole:1.35)` in the positive left a white midsole and added a
+        # red flash. Two guards, and the shoe that came out is black to the
+        # ground.
+        #
+        # Five stand-only guards is more than this file likes, and the rule they
+        # look like they are breaking is a real one -- stacking guards at ONE
+        # defect has wrecked the palette here twice. These point at three
+        # separate things: a decal, a logo, and a colour. Measured together on
+        # 1886970040 with the whole list present.
+        # The sole guards are NOT here. They go after the legwear ban -- see
+        # `negative()` -- because that is the order the picked render was drawn
+        # in, and this file has already found that token order changes what
+        # comes out.
         return NEGATIVE + ", (butterfly:1.5), (logo:1.4), (print:1.35)"
     if pose != "lap":
         return NEGATIVE

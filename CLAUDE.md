@@ -1,0 +1,101 @@
+# comfyui-recipes — session brief
+
+Read this before the first tool call. It is the stuff that is not in the code
+and costs a session an hour to rediscover.
+
+## Branch strategy: `main` only
+
+**Work on `main`. Commit to `main`. Do not open a task branch for this repo.**
+
+This is a deliberate, standing override of the global "never commit to a
+protected branch" rule — the user has asked for it repeatedly and by name
+(「mainのみで作業してください」). Nothing here is shared, reviewed or deployed;
+a branch only splits the record of what was rendered from the renders.
+
+If you find yourself on another branch, someone else's session put you there.
+Finish on the branch you are on rather than switching under them, then
+fast-forward `main` onto it with `git branch -f main HEAD` — that leaves the
+working tree and their `HEAD` untouched.
+
+## Where the GPU is
+
+**ComfyUI does not run on this Mac.** It runs on another machine, and every
+script reads the address from `scripts/comfy_host.py`, which defaults to
+`127.0.0.1` — so `COMFYUI_HOST` has to be exported or nothing will connect:
+
+```bash
+export COMFYUI_HOST=...                # port 8188 is the default
+```
+
+The address, the ssh alias for a shell on that box, and the checkpoint in use
+are in `CLAUDE.local.md`, which is not tracked. Read it; do not copy what it
+says into anything this repo commits.
+
+`comfy_host.py` is also the filesystem seam: the worker's disk is not this one,
+so outputs come back over `/view` and inputs go up through `/upload/image`. A
+script that opens a local path for a render the worker just made is a bug.
+
+HTTP surface: `/prompt`, `/history/<prompt_id>`, `/queue`, `/view`,
+`/object_info`, `/upload/image`, `/system_stats`.
+
+ComfyUI writes the graph into each output PNG's metadata (`im.info['prompt']`)
+but **not** the prompt_id. When the user names a render by prompt_id, get the
+prompt from `/history/<id>` while the worker still has it.
+
+## Renders reach the user through Discord
+
+`scripts/post_renders.py --interval 20` runs in the background and posts every
+finished render to a webhook. It watches ComfyUI's history, not any queueing
+script, so it catches whatever produced the image. Check it is alive
+(`pgrep -f post_renders`) before telling the user to look at something; if it is
+not, start it, because otherwise the user cannot see any of this.
+
+The webhook is a credential and lives in `.local/discord-webhook` or
+`$DISCORD_WEBHOOK`. Never put it in a tracked file.
+
+## The costume is a contract, not a preference
+
+`scripts/yukari_recipe.py` holds shared blocks — `CHARACTER`, `LEGWEAR`, `BODY`,
+`FACE`, `SURFACE` — that **every pose wears at once**. Editing one changes every
+render this repo has ever approved, which is why `scripts/costume_check.py`
+hashes them and fails on any change it was not told about:
+
+```bash
+uv run scripts/costume_check.py            # fingerprint + per-pose declarations
+uv run scripts/costume_check.py --accept   # the new hash, for a change that is meant
+```
+
+When it fails, nothing is broken — something was changed. Paste the new
+fingerprint, and write in `docs/render-notes.md` what the costume is now.
+
+Two rules that follow from this, both learned the expensive way:
+
+- **A settled design decision that lives only in prose is a decision the next
+  session does not get.** The one-garment leg was agreed, written into the notes
+  and into memory, and applied by throwaway scripts in `.local/` — while
+  `yukari_recipe.LEGWEAR` still built the retired two-layer costume, so another
+  session got tights under knee-highs straight out of the recipe. If a change is
+  settled, put it in the blocks.
+- **Splices are string replacements and fail silently.** A per-pose
+  `legwear.replace("(old tag:1.55)", ...)` against a block that no longer
+  contains that tag does nothing at all and reports nothing. After touching a
+  shared block, check the poses that splice it.
+
+## Working files
+
+`.local/` is untracked (`.gitignore`) and is where one-off probe scripts,
+sweeps and logs go — `uv run .local/foo.py`. It is not the repo: anything worth
+keeping moves into `scripts/` or `docs/render-notes.md`.
+
+`docs/render-notes.md` is the record of what was measured, including what was
+measured and came back *null*. Append to it; do not tidy it. Findings that
+contradict an earlier entry get a correction written next to them, not a
+deletion — several entries exist only to stop something being retried.
+
+## Reading images
+
+Rendered images are expensive in context. **Do not open renders to browse them.**
+Queue, let Discord post, and let the user pick — they name the prompt_id or the
+filename of the one they want, and that is when you look. Measure with numpy
+instead where a number will do, and keep in mind that four of this repo's
+image statistics have already disagreed with the user's eye and lost.

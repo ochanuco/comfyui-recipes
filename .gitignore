@@ -3,3 +3,5 @@
 __pycache__/
 *.pyc
 .DS_Store
+# host addresses, keys and anything else this repo should not carry
+CLAUDE.local.md

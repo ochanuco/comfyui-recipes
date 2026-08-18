@@ -5540,3 +5540,57 @@ what the eye objected to. "微妙" was never established to mean the line.
 drew it. `--pose lap --seed 555666777` reproduces it — canvas, positive and
 negative all byte-identical against its own history entry. The seat is settled
 by the pick, not by the argument that was made for it.
+
+## `allnighter` — 徹夜明けの死んだ目 (2026-08-19)
+
+「徹夜で目が死んでるゆかりさん」. A new pose, and it is a **head framing**, not a
+body pose: the request is about the eyes, and at 1024x1536 the face is about a
+hundred pixels tall. It is `portrait`'s block with the smug swapped out —
+
+    (solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2),
+    (face focus:1.3), (empty eyes:1.45), (eyebags:1.4),
+    (half-closed eyes:1.35), (expressionless:1.3)
+
+at 1024x1024, the square `portrait` needed for the same reason.
+
+Four choices worth writing down before any of it is judged:
+
+- **`empty eyes` is the tag, because `dead eyes` is not one.** The danbooru
+  vocabulary for an eye drawn without a highlight is `empty eyes`; it carries
+  the whole idea and everything else here is supporting it.
+- **`eyebags` is what makes it an all-nighter rather than a mood.** Without it
+  the block describes someone bored.
+- **NOT `(closed eyes)`.** `yawn` measured that at 1.35 and it drew a second
+  figure on four seeds of four. It is also self-defeating: a closed eye cannot
+  show that it is empty. `half-closed eyes` was already `portrait`'s at 1.3 and
+  is raised to 1.35 for the droop.
+- **No desk, no computer, no night.** SURFACE is `(simple background:1.3),
+  (grey background:1.2)` and a scene argues with that contract. The state is
+  carried on her face or it is not carried.
+
+Nine tags where `portrait` has seven. The eight-tag ceiling recorded on `yawn`
+is specifically about the legwear being pushed out of the prompt, and this crop
+does not carry legwear — so it does not apply here.
+
+**`HEAD_FRAMINGS` replaces four `pose == "portrait"` tests.** `portrait` was the
+only cropped pose, so "is this the portrait" and "does this crop above the legs"
+were the same question and the code asked the first one. They are now two
+questions: `negative()` drops `LEGWEAR_BAN` and `positive()` drops `LEGWEAR`,
+`BODY` (bar `pale skin`) and `THIN` for every member of the tuple. Adding a
+head framing without adding it there would have shipped a close-up that names
+pantyhose it cannot show.
+
+Costume fingerprint unchanged (`47b0d089d5a5ec77`) — no shared block was
+touched. `costume_check.py` carries `allnighter` with `portrait`'s one declared
+exception, the same list for the same reason.
+
+Queued as `yk-allnighter`, six sweep seeds:
+
+    555666777   3bb10632    111222333   4aae869f    1886970040  c9ce7788
+    737373737   a1d46a29    2557902837  b524eebf    3409564303  4c0051ef
+
+**Unjudged at time of writing.** The open question is whether `empty eyes` and
+`expressionless` together flatten the face past the point where it is still her
+— FACE supplies `(tareme:1.3), (large eyes:1.3), (large iris:1.25)`, which are
+arguing for the opposite, and `expressionless` is the tag to drop first if the
+result reads as a doll rather than as exhausted.

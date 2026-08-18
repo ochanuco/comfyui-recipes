@@ -140,6 +140,14 @@ EXCEPTIONS: dict[str, list[dict]] = {
          "why": "the crop is above all of it, and naming what is out of frame "
                 "is what invites it back in"},
     ],
+    # The same crop as `portrait`, so the same departure, for the same reason.
+    "allnighter": [
+        {"removed": (tags(yk.LEGWEAR)
+                     + [t for t in tags(yk.BODY) if t != "(pale skin:1.25)"]
+                     + tags(yk.THIN)),
+         "why": "the crop is above all of it, and naming what is out of frame "
+                "is what invites it back in"},
+    ],
     "yawn": [
         {"removed": ["closed mouth"], "why": "a yawn needs the mouth open"},
     ],

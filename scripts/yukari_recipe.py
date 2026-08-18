@@ -398,6 +398,29 @@ POSES = {
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2), "
         "(face focus:1.3), (smug:1.35), (half-closed eyes:1.3)"
     ),
+    # 徹夜明け -- the eyes are dead. Built on `portrait`'s framing rather than on
+    # a body pose, because the request is about the eyes and at 1024x1536 the
+    # face is a hundred pixels tall. `slouching`, `desk`, `computer` were all
+    # considered and left out: the backdrop is (simple background:1.3),
+    # (grey background:1.2) in SURFACE, and a scene fights that contract.
+    #
+    # (empty eyes:1.45) is the tag that does the work -- no highlight, and it is
+    # what the danbooru vocabulary calls dead eyes; `dead eyes` is not a tag.
+    # (eyebags:1.4) is what makes it an all-nighter rather than a mood, and
+    # (half-closed eyes) is already portrait's, raised 1.3 -> 1.35 for the droop.
+    #
+    # NOT (closed eyes): `yawn` measured that at 1.35 and it drew a second
+    # figure on four seeds of four. Half-closed is also the only version of this
+    # that can show an empty eye at all.
+    #
+    # Nine tags where `portrait` has seven. The eight-tag ceiling recorded on
+    # `yawn` is about the legwear being pushed out of the prompt, and this crop
+    # does not carry legwear -- see `positive()`, where it joins `portrait`.
+    "allnighter": (
+        "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2), "
+        "(face focus:1.3), (empty eyes:1.45), (eyebags:1.4), "
+        "(half-closed eyes:1.35), (expressionless:1.3)"
+    ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
     # the eye between the fingers") are both real tags; the gesture is not
@@ -908,6 +931,8 @@ POSES = {
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
 # at 1024x1280 and drew down to the thighs. 1024x1024 held it.
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
+         # Portrait's framing, so portrait's canvas.
+         "allnighter": (1024, 1024),
          "peace": (1024, 1536),
          "chair": (1024, 1024),
          # Same square as the render it is built on.
@@ -964,6 +989,11 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # composition is decided, so its size is a composition choice and the
          # pose has to be re-picked when it changes.
          "stand": (832, 1664)}
+
+# Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
+# and THIN from the positive and the legwear ban from the negative -- naming a
+# garment that is out of frame is what invites it back into the frame.
+HEAD_FRAMINGS = ("portrait", "allnighter")
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -1032,9 +1062,9 @@ SWEEP_SEEDS = [555666777, 111222333, 1886970040, 737373737, 2557902837, 34095643
 def negative(pose: str) -> str:
     """The negative, plus the legwear ban every full-figure pose now carries."""
     text = _negative_base(pose)
-    # The portrait crops above the legs, and a guard against a garment that is
-    # out of frame is tokens spent on nothing.
-    if pose == "portrait":
+    # The head framings crop above the legs, and a guard against a garment that
+    # is out of frame is tokens spent on nothing.
+    if pose in HEAD_FRAMINGS:
         return text
     text = text + ", " + LEGWEAR_BAN
     if pose == "stand":
@@ -1149,7 +1179,7 @@ def positive(pose: str) -> str:
     # The legwear, body and thin-line blocks belong to whole-figure framings;
     # the portrait crops above them and naming what is out of frame is what
     # invites it back in.
-    full_figure = pose != "portrait"
+    full_figure = pose not in HEAD_FRAMINGS
     # A yawn and a shout both need the mouth open; FACE closes it by default.
     open_mouthed = pose in ("yawn", "fall")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE

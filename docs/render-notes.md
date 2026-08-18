@@ -4924,3 +4924,41 @@ explains, and the reason to open them is almost always answered by
 
 The general rule, since this will come up again: **the fix for an expensive file
 is a command that answers the question, not a smaller file.**
+
+## `stand` — the standing pose the file did not have (2026-08-18)
+
+Fifteen poses and not one of them on its feet. `lounge`, `peace` and `nape` sit,
+`prone` and `fall` lie, `sip` and `crouch` squat, `portrait` crops above the
+waist — asked for a 立ち絵, this recipe had nothing to offer, which was worth
+knowing before it was worth fixing.
+
+The block, built to the file's usual budget (eight tags after `(solo:1.5)`,
+`full body` last, no splice against any shared block):
+
+```
+(solo:1.5), (standing:1.5), (from front:1.3), (arms behind back:1.3),
+(head tilt:1.2), (smug:1.35), (half-closed eyes:1.3), full body
+```
+
+Canvas 1024x1536 — the docstring's ceiling for full body, and a vertical figure
+is what the height is for.
+
+Two choices that are reasoning rather than measurement, recorded so the sweep
+that follows can contradict them:
+
+- **`(from front:1.3)` costs a tag on the camera.** Standing is the posture the
+  model has the most other ideas about — three-quarter turns, walking, low
+  angles — and the angle tags are what pick one. `(from below:1.35)` is already
+  in NEGATIVE and works the same seam from the other side.
+- **Hands behind the back, nothing held.** A prop is a second thing to get
+  right, and a standing reference exists to show the costume.
+
+The thing to watch is the crop. A standing body in a 2:3 frame is exactly the
+case `full body` is carrying alone, and the poses that lost their shins here
+lost them to a canvas and not to a tag.
+
+First sweep, six seeds, the same set the other poses were settled on
+(`yk-stand-<seed>_00001_.png`): 555666777, 111222333, 1886970040, 737373737,
+2557902837, 3409564303. All six rendered; **not yet judged** — the block above
+is as designed, not as measured, and nothing in it should be treated as settled
+until a render is picked.

@@ -793,6 +793,28 @@ POSES = {
         "(chin rest:1.35), (feet up:1.3), (smug:1.35), (half-closed eyes:1.3), "
         "full body"
     ),
+    # Standing, facing the camera, hands behind her back -- the plain 立ち絵
+    # this file never had. Every other pose here sits, lies or squats, so this
+    # is the first block whose figure is vertical in a vertical frame, and the
+    # thing to watch on the first sweep is the crop: a standing body at
+    # 1024x1536 is the case `full body` exists for, and the poses that lost
+    # their shins lost them to a canvas rather than to a tag.
+    #
+    # `(from front:1.3)` is here for the same reason `nape` spends a tag on its
+    # angle: standing is the posture the model has the most other ideas about
+    # (three-quarter turns, walking, from below), and this is the one that says
+    # which of them. `(from below:1.35)` is already in NEGATIVE and does half
+    # the job from the other side.
+    #
+    # `arms behind back` over anything held: nothing in this block should
+    # introduce a prop, since a prop is a second thing to get right and the
+    # point of a standing reference is the costume.
+    #
+    # Untested as of writing -- this is the block as designed, not as measured.
+    "stand": (
+        "(solo:1.5), (standing:1.5), (from front:1.3), (arms behind back:1.3), "
+        "(head tilt:1.2), (smug:1.35), (half-closed eyes:1.3), full body"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
@@ -829,7 +851,11 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # full body". That ceiling is a pixel count -- 1536x1024 is the same
          # 1.57M pixels turned on its side, not the 2.46M that drew a second
          # figure -- and none of six seeds here drew one.
-         "prone": (1536, 1024)}
+         "prone": (1536, 1024),
+         # Vertical figure, vertical frame. Same canvas the other full-body
+         # poses use; it is the tallest this recipe is allowed (the docstring's
+         # ceiling) and a standing body is what needs the height.
+         "stand": (1024, 1536)}
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "

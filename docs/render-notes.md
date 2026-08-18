@@ -5771,3 +5771,78 @@ Queued as `yk-allnighter-iv`, the same six seeds, fourth pass:
 The 2048 hires question is unaffected — it replays whatever the first pass drew,
 and the finding above (0.60 over 0.70 at a 2x upscale) is about the pass, not
 about this mouth.
+
+## `allnighter_full` — seiza, and 2 of 6 came back with two of her (2026-08-19)
+
+「c575fc46 全身、正座」. A new pose rather than a size on `allnighter`: that one
+is a 1024x1024 head framing, and this file already records that the first-pass
+canvas is a composition variable and not a resolution knob. The picked close-up
+cannot be enlarged into a full body; it has to be re-picked.
+
+Block, at 1024x1536 — the canvas every seated full body here uses:
+
+    (solo:1.5), (seiza:1.35), (empty eyes:1.45), (eyebags:1.4),
+    (half-closed eyes:1.35), (open mouth:1.35), full body
+
+`seiza` was asked for by name, and this file convicts it twice — 「One tag,
+`seiza`, was behind the drifting art style」 has it taking the line, the backdrop
+flatness and the headcount together. **Most of that was withdrawn earlier today**
+(swapping only the seat in `lap` moved nothing; the stroke number that convicted
+it was read off the wrong statistic). What was never withdrawn is the headcount:
+one seed of that swap drew two of her, and no measurement since had addressed it.
+
+So the sweep was counted. `.local/_solo.py`, column blocks in the figure mask:
+
+```
+555666777    2 bodies     111222333   ONE      1886970040  ONE
+737373737    ONE          2557902837  2 bodies  3409564303  ONE
+```
+
+**2 of 6.** With `(solo:1.5)` leading the block, as everywhere in this file.
+That is the un-withdrawn half of the old conviction showing up on its own, in a
+pose that shares nothing with `invite` but the seat.
+
+Read it as a flag, not a verdict — `_solo.py` counts column blocks, so a raised
+arm or a detached object registers the same as a second girl, and both flagged
+seeds are also marked CROPPED, where the measure is least trustworthy. This repo
+has withdrawn five image statistics. But the direction agrees with the one
+observation about `seiza` that survived, which is worth more than the number is.
+
+The pose is left in the file. If it is picked up again, the seat is the first
+suspect and `yokozuwari` — seven clean seeds — is the swap.
+
+## `flop` — the couch, on `prone`'s geometry (2026-08-19)
+
+「ソファーにダイブしてる姿の方がいいな」, which is a better idea than the seiza
+anyway: 徹夜 is a body that stopped, not one that knelt.
+
+    (solo:1.5), (couch:1.4), (lying:1.45), (on stomach:1.5),
+    (from above:1.35), (empty eyes:1.45), (eyebags:1.4),
+    (half-closed eyes:1.35), (open mouth:1.35), full body
+
+at 1536x1024. Everything structural is `prone`'s and unmodified — the lying
+triple, the landscape canvas, and the measurements behind that canvas are in its
+own note. What comes OUT of `prone` is `chin rest` and `feet up`: both prop her
+up and arrange her, and this is someone who stopped. `couch` is the danbooru
+spelling; `sofa` is an alias to it.
+
+**BODY's easing is transferred, not measured.** `prone` runs `(wide hips:1.3)`
+and `(thick thighs:1.35)` down to 1.0 / 1.05 because a body seen from above and
+behind is foreshortened and those two tags land on the largest thing in frame —
+the 「めちゃ下半身太ってしまった…」 entry. `flop` has `lying`, `on stomach` and
+`from above` all from `prone`, so it is the same geometry and it gets the same
+splice. The alternative was to ship a pose knowing the complaint it was written
+for is likely to recur. Declared in `costume_check.py` as such.
+
+**SURFACE is deliberately NOT spliced.** `(simple background:1.3),
+(grey background:1.2)` is a direct argument against drawing furniture, and the
+temptation was to pre-emptively cut it. A couch on a flat grey field is coherent
+with this recipe's look rather than a compromise with it, and the flat backdrop
+*is* the look. If the couch does not draw, that is when `simple background`
+comes out — one lever held in reserve, rather than changing the costume contract
+before anything has failed.
+
+Queued as `yk-flop`:
+
+    555666777   08fb27ab    111222333   773e59fe    1886970040  dd78d85d
+    737373737   8f46b2d1    2557902837  e939265d    3409564303  71d83693

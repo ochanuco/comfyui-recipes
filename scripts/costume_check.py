@@ -151,6 +151,22 @@ EXCEPTIONS: dict[str, list[dict]] = {
          "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open. `small mouth` was "
                 "briefly removed too, for a wider mouth that is no longer asked for"},
     ],
+    # Full body, so unlike `allnighter` it wears the whole costume; the mouth is
+    # its only departure.
+    "allnighter_full": [
+        {"removed": ["closed mouth"],
+         "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open"},
+    ],
+    # Shares `prone`'s geometry, so it shares `prone`'s easing -- transferred on
+    # the argument, not re-measured.
+    "flop": [
+        {"removed": ["closed mouth"],
+         "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open"},
+        {"removed": ["(wide hips:1.3)", "(thick thighs:1.35)"],
+         "added": ["(wide hips:1.0)", "(thick thighs:1.05)"],
+         "why": "seen from above and from behind, the same foreshortening "
+                "`prone` eased these two for"},
+    ],
     "yawn": [
         {"removed": ["closed mouth"], "why": "a yawn needs the mouth open"},
     ],

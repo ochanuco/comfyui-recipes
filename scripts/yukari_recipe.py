@@ -448,6 +448,58 @@ POSES = {
         "(face focus:1.3), (empty eyes:1.45), (eyebags:1.4), "
         "(half-closed eyes:1.35), (open mouth:1.35)"
     ),
+    # 「c575fc46 全身、正座」. The same face, knelt, at full length.
+    #
+    # It is a NEW POSE and not a size on the old one. `allnighter` is a
+    # 1024x1024 head framing; a full body is a different first pass, and this
+    # file already records that the first-pass canvas is a composition variable
+    # rather than a resolution knob. The render that was picked cannot be
+    # "made bigger" into this -- it has to be re-picked here.
+    #
+    # `seiza` was asked for by name, and this file convicts it twice over: the
+    # 「One tag, `seiza`, was behind the drifting art style」 entry has it taking
+    # the line, the backdrop flatness and the headcount together, and `invite`'s
+    # comment says to keep it out. **Most of that conviction was withdrawn on
+    # 2026-08-19** -- swapping only the seat in `lap` moved nothing, and the
+    # stroke number that convicted it had been read off the wrong statistic.
+    #
+    # What was NOT withdrawn is the headcount: one seed of that swap drew two of
+    # her, and no measurement since has addressed it. So the seat is used, and
+    # the sweep is counted rather than trusted. `(solo:1.5)` leads, as everywhere
+    # else here.
+    #
+    # The face block is carried over unchanged and unweighted-down, even though
+    # a full body spends far fewer pixels on it than the close-up did. Easing
+    # tags that are already fighting for a small feature is how the eyes would
+    # quietly stop reading; if they do not survive at 1024x1536, the answer is
+    # the second pass, not a heavier tag.
+    "allnighter_full": (
+        "(solo:1.5), (seiza:1.35), (empty eyes:1.45), (eyebags:1.4), "
+        "(half-closed eyes:1.35), (open mouth:1.35), full body"
+    ),
+    # 「ソファーにダイブしてる姿の方がいいな」. The all-nighter face, face-planted.
+    #
+    # Built on `prone`, which is this file's only tested lying pose and supplies
+    # (lying:1.45), (on stomach:1.5), (from above:1.35) and its landscape canvas
+    # unchanged. What comes out of it is `chin rest` and `feet up`: both prop
+    # her up and arrange her, and this pose is someone who stopped. `smug` goes
+    # for the obvious reason.
+    #
+    # (couch:1.4) is the danbooru spelling -- `sofa` is an alias to it.
+    #
+    # **SURFACE is deliberately NOT spliced**, though (simple background:1.3),
+    # (grey background:1.2) is a direct argument against drawing furniture. A
+    # couch on a flat grey field is coherent with this recipe's look rather than
+    # a compromise with it, and the flat backdrop is the look. If the couch does
+    # not draw at all, THAT is when `simple background` comes out -- one lever,
+    # held in reserve, rather than pre-emptively changing the costume contract.
+    #
+    # Ten tags where `prone` has nine. The canvas has the room.
+    "flop": (
+        "(solo:1.5), (couch:1.4), (lying:1.45), (on stomach:1.5), "
+        "(from above:1.35), (empty eyes:1.45), (eyebags:1.4), "
+        "(half-closed eyes:1.35), (open mouth:1.35), full body"
+    ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
     # the eye between the fingers") are both real tags; the gesture is not
@@ -960,6 +1012,9 @@ POSES = {
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # Portrait's framing, so portrait's canvas.
          "allnighter": (1024, 1024),
+         # Every seated full body in this file is 1024x1536 and none of them
+         # has argued with it. NOT in HEAD_FRAMINGS: this one wears the legwear.
+         "allnighter_full": (1024, 1536),
          "peace": (1024, 1536),
          "chair": (1024, 1024),
          # Same square as the render it is built on.
@@ -992,6 +1047,10 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # 1.57M pixels turned on its side, not the 2.46M that drew a second
          # figure -- and none of six seeds here drew one.
          "prone": (1536, 1024),
+         # `prone`'s canvas, for `prone`'s reason: a horizontal body, and a
+         # couch is horizontal furniture. The measurements that chose 1536x1024
+         # over the two portrait canvases are in the note above.
+         "flop": (1536, 1024),
          # 768 wide, and the width is the whole point.
          #
          # `(wide shot:1.3)` is what pulls the camera back far enough to fit the
@@ -1210,14 +1269,15 @@ def positive(pose: str) -> str:
     # A yawn, a shout and a vacant stare all need the mouth open; FACE closes it
     # by default. `allnighter` briefly took `small mouth` out too, for the width
     # of an 「イー」 mouth; that mouth is gone and so is the departure.
-    open_mouthed = pose in ("yawn", "fall", "allnighter")
+    open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
+                            "flop")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
     if pose == "nape":
         face = face.replace(", looking at viewer", "")
     body = BODY
-    if pose == "prone":
+    if pose in ("prone", "flop"):
         # 「めちゃ下半身太ってしまった…」. BODY's `(wide hips:1.3)` and
         # `(thick thighs:1.35)` were settled on poses that see her from the front
         # or the side, where they read as proportion. This pose looks straight at
@@ -1233,6 +1293,14 @@ def positive(pose: str) -> str:
         # `petite` is deliberately not raised. It is the tag `boss` swaps out to
         # grow her up, so leaning on it here would trade one wrong proportion
         # for another.
+        #
+        # `flop` gets the same easing, TRANSFERRED and not measured. It was
+        # settled on `prone` and the argument for it is geometric -- a body seen
+        # from above and from behind, foreshortened, puts these two tags on the
+        # largest thing in the frame -- and `flop` shares that geometry exactly,
+        # (lying), (on stomach) and (from above) all being `prone`'s. The
+        # alternative was to ship the pose knowing the complaint it was written
+        # for is likely to recur.
         body = (body.replace("(wide hips:1.3)", "(wide hips:1.0)")
                     .replace("(thick thighs:1.35)", "(thick thighs:1.05)"))
     if pose == "stand":

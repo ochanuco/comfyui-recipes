@@ -487,8 +487,17 @@ POSES = {
     # the latter is for merely offering, and she is doing it.
     #
     # `looking at viewer` already comes from FACE, so it is not repeated here.
+    #
+    # yokozuwari, and it was PICKED, not deduced. The seat was swapped on the
+    # theory that `seiza` was breaking the line here the way it broke it in
+    # `invite` -- see the null in the notes, which says plainly that it was not:
+    # `seiza`, `yokozuwari` and no seat tag at all measured the same. What is
+    # true is only that ls-yz-lap-555666777 (8b51610f) is the render that was
+    # chosen, and yokozuwari is what drew it. Do not restore `seiza` on the
+    # grounds that the line argument fell over; there is no argument for it
+    # either, and this seat has the picked image under it.
     "lap": (
-        "(solo:1.5), (lap pillow:1.35), (pov:1.45), sitting, (seiza:1.25), "
+        "(solo:1.5), (lap pillow:1.35), (pov:1.45), sitting, (yokozuwari:1.25), "
         "(looking down:1.4), (smug:1.4), (hand up:1.25), cowboy shot"
     ),
     # Patting her own thigh, inviting you to put your head on it. One girl.

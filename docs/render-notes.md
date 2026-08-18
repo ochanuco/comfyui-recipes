@@ -5488,3 +5488,55 @@ rides up inflates it, and the dress did ride up in every arm that moved. The
 figure is genuinely longer-legged; it is not 15 points longer-legged.
 
 Verified byte-identical against 963bee1f: positive, negative, canvas.
+
+## `seiza` was not what was wrong with `lap` — and the number that said it was, was read wrong (2026-08-19)
+
+Six `lap` renders came back and the verdict was "どれも微妙". Rather than ask what
+that meant, the line was measured, and `scripts/stroke_width.py` appeared to
+answer at once:
+
+    lap     (seiza)        6 seeds   median 3.00-4.00
+    invite  (yokozuwari)   4 seeds   median 2.00   <- the settled, clean pose
+
+Six of six off, four of four on, and `lap` carries `(seiza:1.25)` — the tag the
+section above convicts of breaking the line, the mottling and the headcount all
+at once, and which `invite`'s own comment says to keep out. It looked like the
+same fix landing on only one of the two poses that were added in the same commit.
+
+**It was not.** Swapping only the seat, three seeds each, changed nothing:
+
+    lap, (seiza:1.25)          median 3-4    mean 3.83 - 5.41
+    lap, (yokozuwari:1.25)     median 3-4    mean 4.32 - 5.24
+    lap, no seat tag at all    median 4      mean 5.11
+    invite, (yokozuwari:1.35)  median 2      mean 3.57 - 4.45
+
+Two separate mistakes produced the false positive, and both are about the tool:
+
+- **The median was read as if it were a measurement.** `stroke_width.py`'s own
+  docstring says it "is an integer count and lands on 3 or 4 with nothing
+  between, which is too coarse to compare two renders" and that the mean is what
+  the normalised figure is built from. The means **overlap**:
+  `lap-737373737` at 3.83 is *finer* than `invite-111222333` at 4.11. The clean
+  3-4 / 2 split was quantisation drawing a line where the data has none.
+- **1.91px is not a threshold this tool can be held to.** Every "1.91px" in this
+  file predates `stroke_width.py` and was measured by hand — the tool exists
+  because those numbers "can be re-checked" by nothing else. Under the tool, the
+  known-good pose reads 2.00 median / 3.57-4.45 mean. Comparing a fresh number
+  to the hand-measured constant is comparing two instruments.
+
+So the difference between `lap` and `invite` is not the seat, and on this
+evidence there may be no line difference at all — `cowboy shot` puts more figure
+in the same canvas than `full body` does, and a bigger figure spends more pixels
+per stroke. `norm` divides by the canvas long edge, which is identical here, so
+it does not absorb that. **`stroke_width.py` cannot compare two framings**, the
+same limitation `handfeel.py` carries about canvases.
+
+This is the fifth image statistic in this repo to be believed and then withdrawn.
+The pattern each time is the same: the number was consulted *instead of* asking
+what the eye objected to. "微妙" was never established to mean the line.
+
+`--pose lap` now says `(yokozuwari:1.25)` anyway, because
+`ls-yz-lap-555666777` (8b51610f) is the render that was picked and that is what
+drew it. `--pose lap --seed 555666777` reproduces it — canvas, positive and
+negative all byte-identical against its own history entry. The seat is settled
+by the pick, not by the argument that was made for it.

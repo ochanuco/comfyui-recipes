@@ -4690,3 +4690,62 @@ figure above saturation 60 reads 3.3% against 9.9%. Stroke-width spread,
 runs-per-megapixel and ink fraction all failed to separate drawn from vector
 first -- runs-per-megapixel inverted, since a smaller canvas spends fewer pixels
 per line and counts more of them.
+
+### Two garments on one leg: abandoned, and what it cost to get there (2026-08-18)
+
+The entry above left the grey tights band open with six failed attempts against
+it. This closes it: **the two-layer costume is dropped.** 「タイツ×ニーハイは
+修正コストが辛い、公式の別デザインでは[V6 sheet]だしタイツ1本にするか」. The
+official V6 sheet draws the leg as one opaque pantyhose, so the layering was
+never load-bearing for the character -- only for this recipe's own history.
+
+Everything below was spent finding that out, and none of it made the two
+garments co-exist.
+
+**The lineart was the answer the whole time, and it took a question to see it.**
+「線画時点でおかしくない?」. Stripping the colour off shows the drawing has
+exactly two garment boundaries, both at the knees, and none anywhere on the
+thigh. Every colour split I put there was therefore an edge with no line under
+it, which is why each one read as a third garment rather than as one ending --
+first as 「スパッツ」, then as 「ハイソックス、タイツ、スパッツ」. **A garment
+edge that the lineart does not draw cannot be created by colouring, at any
+tolerance.** Check the lineart before recolouring a region: `(g < 110)` and look.
+
+**Colour cannot separate anything in this palette.** Three selections failed in
+a row on distances the eye reads as obvious: the pale band and the backdrop are
+10 apart, so restoring "the backdrop" after a repaint put the repainted band
+back; the grey tights sit at luminance 128, under the 150 that `--line-max`
+treats as lineart, so a flood fill saw the whole garment as a barrier; and the
+die-cut outline is inside a 28 tolerance of skin, so the default repaints the
+outline and prints the box's corner as a rectangle. What does work is shape:
+threshold, close, fill holes, largest component for the figure; and connected
+components of "tights-coloured" for a region, where the drawn contour breaks
+connectivity precisely because it is not that colour.
+
+**Regions: the wiring was fine and the request was too weak.** The notes'
+own diagnostic settled it in one render -- ask the masked region for red
+pantyhose, and the thigh came back red exactly inside the mask. So
+`ConditioningSetMask` was working, the base was masked to the complement, and
+grey still lost: raising the region weight from 1.8 to 2.6 and dropping
+`(lavender tint:1.2)` moved 6% of the picture and not the thigh's colour. Grey
+against a pale-purple neighbour is a near-tie in a way red never is. That is the
+sixth attempt's finding restated, not a new one.
+
+**Do not remove the ControlNet to test something else.** Without the skeleton
+this prompt -- which has the legwear block cut out of it for the regions -- rerolls
+to a bust and the legs leave the frame. I read the resulting hair as a thigh and
+measured it. The skeleton is holding the composition, not just the anatomy.
+
+**What shipped.** One garment: `(black pantyhose:1.55), (opaque pantyhose:1.5),
+(matte legwear:1.2)`, with `thighhighs`, `kneehighs`, `socks`, `over-kneehighs`,
+`two-tone legwear` and `legwear hem` banned by name -- those are the words the
+two-layer recipe spent its weight on, and left in they put the second garment
+straight back. `(gradient legwear:1.4)` is OUT although the sheet has one: it
+came out inverted in both colours, dark at the ankle, because with the legs
+raised "dark at the top" is the foot and the tag has no way to know which end of
+a leg it is looking at. Flat is closer to the reference than a backwards
+gradient.
+
+Kept: `one-flatblack`, `5494dc66`. The three-step recolour route and
+`yk_prone_legwear.py` both still work and are still correct; there is simply
+nothing left for them to hold apart.

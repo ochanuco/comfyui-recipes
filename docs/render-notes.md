@@ -5186,3 +5186,57 @@ and the pale band just above the ankle — the exact part the ramp exists to
 darken — is pale and slightly warm. It was masked out and survived as a pink
 cuff above black shoes. Between the hem and the shoes she is wearing the
 garment; there is no skin to protect.
+
+## The gradient direction is ABANDONED (2026-08-18)
+
+「グラデーションの向き直らないね。諦めます」.
+
+Do not retry this. The record of what was tried, so that a later session does
+not spend the afternoon again:
+
+- **Eleven prompt arms.** A second colour name; the order of the two names; the
+  weights between them; `(two-tone legwear:1.4)` lifted out of the negative; the
+  word `gradient` removed entirely; and four framing/canvas arms on top. Not one
+  of them put the black at the bottom of the leg.
+- **Post-processing works and was still not accepted.** `.local/leg_gradient.py`
+  ramps the legwear purple->black between the hem and the ankle and the
+  measurement flips cleanly. It is kept in `.local/` and is not promoted.
+- The likeliest mechanism is written up above: her dress is purple, so a purple
+  thigh under a purple hem has no boundary, and the model puts the black where
+  the contrast is needed — at the top.
+
+The leg ships as the model draws it: dark at the thigh, pale at the ankle, and
+then a black shoe under it.
+
+## `stand` is adopted from a two-figure render (2026-08-18)
+
+Picked: **2a2fc594**, left figure. That render is the committed `stand` block
+plus `(wide shot:1.3)` at 1024x1536 — verified byte-identical against its own
+history rather than assumed, which is a habit this file had to learn today.
+
+It draws **two figures**, side by side, and the left one is the keeper. That is
+normally a defect here and it is being accepted rather than fixed, because
+`wide shot` is also what pulled the camera back far enough to get the whole
+figure and the shoes into a 1024x1536 frame. `.local/split_left.py` finds the
+trough in the column profile between the two bodies and cuts there, at full
+resolution.
+
+The pose that arrived with it is not the one that was settled: hands clasped
+LOW rather than at the chest, head down, no visible arch. `(wide shot:1.3)`
+rewrote the composition. The tags that were measured into the block are still
+in it and are no longer describing what comes out — worth knowing before
+reading the block as a description of the picture.
+
+### The shoes
+
+「靴に柄はいらない。うさぎ耳っぽいスニーカーは同意」. The sneakers carry a pink
+butterfly decal on the outer side; the ear-like high collar is wanted and has to
+survive whatever removes the decal. Three arms, same seed:
+
+```
+u1  + (logo:1.4), (print:1.35) in the negative      decal gone, magenta sole
+u2  + (butterfly:1.5) as well                       decal gone, black with pink trim
+u3  (black footwear:1.35) -> (plain black sneakers:1.4)   decal gone, white midsole
+```
+
+All three remove the pattern, so the choice is the sole, not the guard.

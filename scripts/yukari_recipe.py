@@ -565,13 +565,28 @@ POSES = {
     # folded into the switch above. Face and body are not independent axes on
     # this pose any more; do not flip half of one.
     #
-    # Five tags. It has been as many as nine, and the four it lost were all
-    # expression -- worth noticing, because the small number is not the pose
-    # being under-specified. Body, camera and framing are unchanged from the
-    # picked render.
+    # 「ちょっとドヤ顔（自信ありげな顔）」 is the fourth face state, and it is
+    # the house pair at the house weight -- `(smug:1.35), (half-closed
+    # eyes:1.3)`, which `portrait`, `lounge`, `stand`, `peace` and, closest to
+    # here, `prone` all wear unchanged. `prone` is the argument: also lying,
+    # also full body, and it settled on exactly this pair.
+    #
+    # `smug` is NOT only an expression on this file and that matters for a
+    # figure on her back. `sip` measured it holding her chin up so that head,
+    # spine and hip land on one arc, and `boss` found that easing the weight
+    # keeps that lift while swapping the tag out loses it -- `light smile` at
+    # the same count reached the same face and took a stocking off her foot.
+    # If this reads wrong, move the WEIGHT. 1.4 was gloating on `boss` and
+    # 1.15 composed; `half-closed eyes` has no job left below about 1.2 and
+    # `boss` dropped it there.
+    #
+    # Seven tags. It has been nine and it has been five, and every tag that
+    # has come or gone in those swings was expression -- worth noticing,
+    # because it means the body, camera and framing have not moved since the
+    # picked render, whatever the count says.
     "flop": (
         "(solo:1.5), (lying:1.45), (on back:1.5), (outstretched arms:1.3), "
-        "full body"
+        "(smug:1.35), (half-closed eyes:1.3), full body"
     ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with

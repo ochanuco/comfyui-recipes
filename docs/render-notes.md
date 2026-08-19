@@ -6265,3 +6265,37 @@ mouth` removal, now neither) is the reason it exists.
 
 Five seeds, 555666777 still excluded for the reason in the entry above.
 `headcount.py`: all five ONE.
+
+## 2026-08-19 — `flop` gets the smirk, and the file already had the answer
+
+「ちょっとドヤ顔（自信ありげな顔）」. Fourth face state on this pose, and nothing
+about it needed inventing: `(smug:1.35), (half-closed eyes:1.3)` is the pair
+`portrait`, `lounge`, `stand`, `peace` and `prone` all wear unchanged, and
+`prone` is the one that settles it — also lying, also full body, same pair.
+
+**The reason to reach for the existing pair rather than a new word** is on
+record twice. `smug` is doing posture as well as expression here: `sip` measured
+it holding her chin up so head, spine and hip land on one arc, and `boss`'s F2
+swapped it for `(light smile:1.3)` at the same tag count, reached roughly the
+same face, and **took a stocking off her foot and changed the hood**. Substituting
+a word is not free on this axis. If the smirk reads wrong, the weight is the
+lever — that is the 8/17 heading and it has not been contradicted since.
+
+    yk-smug135   737373737 6759b08f   111222333 6acb5085   2557902837 b90d5cb6
+    yk-smug115   737373737 4b7d646c   111222333 0cbd4322   2557902837 c6fecc34
+
+Both ends rendered because the request carried its own gloss. `boss` calls 1.4
+gloating and 1.15 「composed, chin still up, arc intact」; ドヤ顔 points high and
+（自信ありげな顔）points low, and there is no reading of the phrase that settles
+which. The low arm drops `half-closed eyes` with it rather than holding it as a
+second variable — `boss` F3 measured that tag indistinguishable at that weight
+and dropped it, so two-at-1.35 against one-at-1.15 is the choice the file
+actually offers.
+
+`headcount.py`: all six ONE.
+
+**Worth recording about the pose rather than the face:** this is the fourth
+expression state `flop` has worn — 徹夜, face-down, default, smug — with the body
+tags, the canvas and the camera untouched across all four. The expression axis
+and the pose axis have now been shown independent on this recipe four times, not
+once, which is a stronger claim than the entry above made.

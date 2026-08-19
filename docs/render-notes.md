@@ -6383,3 +6383,74 @@ worth carrying forward — it decides whether a complaint can be answered withou
 losing the render.
 
 `headcount.py`: all four ONE.
+
+## `kick`: a new pose from someone else's picture, and the foot needs two tags
+
+「このような座って片足を前に突き出しているゆかりさん」, with a reference image
+attached — not a render of this recipe. That is the first thing to say about
+everything below: this is the only pose in the file built from an outside
+picture, so nothing here has been measured yet and the block is a first guess.
+What the reference actually shows is a seated figure leaning back with one knee
+folded and the other leg thrust straight at the lens, sole first and nearest to
+camera, the face still legible above it.
+
+Eight slots, the house size:
+
+```
+(solo:1.5), (sitting:1.45), (soles:1.4), (foot focus:1.35),
+(foreshortening:1.3), (knee up:1.25), (leaning back:1.25), (couch:1.2)
+```
+
+**The foot gets two slots and that is deliberate.** `sip` established the rule:
+the thing a composition is built around does not fit in one tag — its mug needed
+`coffee mug` and `holding cup` together, and either alone drew the wrong object
+or put it in the wrong place. Here `soles` names what faces the camera and
+`foot focus` names where the camera looks, and neither is the picture alone.
+
+**`foreshortening` is bought rather than left to the seed**, and it is the slot
+this pose's history most justifies. A leg pointed at the lens either compresses
+or reads as a long leg lying across the frame — and reading too long is the
+failure this recipe has spent the most on. `nape` found that `sitting on floor`
+extends the legs and that a leg extended away from the camera runs the frame;
+`flop` had to have its `long legs` weight bracketed from both sides over two
+rounds. What was the defect in both of those is the subject here, so the tag
+governing it does not get spared.
+
+`knee up` is singular. One folded, one out is the whole asymmetry; `knees up`
+raises both and draws a different picture.
+
+**No footwear guard, as a decision.** `stand` is the only pose in this file that
+names a shoe, so nothing here asks for one — and nothing forbids one either,
+and a shoe sole is a different picture from a pantyhose sole. Guarding it means
+naming a shoe in the negative, and `stand`'s own note records that naming a shoe
+drew one, with a pink butterfly decal on it. Find out whether the guard is
+needed before paying for it.
+
+### The B arm is one tag: `full body`
+
+`foot focus` can walk the camera down to the foot and leave the head out of
+frame, which is this pose's likeliest failure, and `full body` is the
+counterweight every other whole-figure block here carries. It is out of the
+recipe and in the sweep instead, so the ninth slot is bought only if the first
+round loses the face.
+
+    yk-kick        1886970040 ed709125    2557902837 202e6fc0
+    yk-kickfull    1886970040 a03af13b    2557902837 c6bb4795
+
+Single pass, 1024x1536 — every seated whole figure in this file is that canvas,
+and the extended leg goes into depth rather than across the frame, so it buys no
+extra width. Round one is about whether the pose draws at all; the finish comes
+after the composition is picked. Seeds are the two that `chair` found seat her
+properly, and 555666777 is skipped for the reason `flop` skips it.
+
+`headcount.py`: all four ONE.
+
+### Written down before it is needed: the negative already argues with this pose
+
+The shared negative carries `(from below:1.35)`, `(upskirt:1.4)` and `panties`,
+all earned by other poses. A raised leg in a short dress seen from a seated
+camera is close to the angle those guards forbid. Nothing has gone wrong yet and
+nothing has been changed — but if the perspective refuses to arrive, or the leg
+comes down on its own, **that trio is the first suspect and it is upstream in a
+shared block**, not in this pose. Easing it there would touch every render this
+repo has approved, so the fix would have to be a per-pose departure, declared.

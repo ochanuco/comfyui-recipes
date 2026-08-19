@@ -1099,6 +1099,50 @@ POSES = {
         "(full body:1.45), (black footwear:1.35), (high tops:1.35), "
         "(wide shot:1.3)"
     ),
+    # Seated with one leg thrust at the camera, sole first. Built from a
+    # reference the user supplied rather than from a render of this recipe, so
+    # nearly everything below is a first guess and is labelled as one.
+    #
+    # THE FOOT GETS TWO SLOTS, not one. `sip` established that the thing a
+    # composition is built around does not fit in a single tag -- its mug needed
+    # `coffee mug` and `holding cup` together, and either alone drew the wrong
+    # object or put it in the wrong place. The same split applies here: `soles`
+    # names what faces the camera, `foot focus` names where the camera looks.
+    # Neither is the picture on its own.
+    #
+    # `foreshortening` is bought rather than left to the seed, and it is doing
+    # two jobs. A leg pointed at the lens either compresses or reads as a long
+    # leg lying across the frame -- and reading too long is the failure this
+    # recipe has spent the most on. `nape` found that `sitting on floor` extends
+    # the legs and that a leg extended away from the camera runs the frame;
+    # `flop` had to have its `long legs` weight bracketed from both sides. What
+    # was the defect in both of those is the subject here, so the tag that
+    # governs it does not get spared.
+    #
+    # `knee up` is SINGULAR on purpose: one leg folded, one out is the whole
+    # asymmetry. `knees up` raises both and is a different picture.
+    #
+    # `couch` is the cheapest thing that makes `leaning back` mean something --
+    # leaning back against nothing is falling. It is not what was asked for (the
+    # leg was), and it is the first slot to spend if the block needs one.
+    #
+    # NO FOOTWEAR GUARD, and that is a decision rather than an oversight.
+    # `stand` is the only pose in this file that names a shoe, so nothing here
+    # asks for one -- but nothing forbids one either, and a shoe sole is a
+    # different picture from a pantyhose sole. Guarding it means naming a shoe
+    # in the negative, and `stand`'s own note says that naming a shoe drew one.
+    # Find out whether the guard is needed before paying for it.
+    #
+    # `full body` is NOT in the block, and its absence is what the first round
+    # is measuring against. `foot focus` can walk the camera down to the foot
+    # and leave the head out of frame, which is this pose's likeliest failure,
+    # and `full body` is the counterweight every other whole-figure block here
+    # carries. Eight slots is the house size, so the ninth goes in only if the
+    # first round loses the face.
+    "kick": (
+        "(solo:1.5), (sitting:1.45), (soles:1.4), (foot focus:1.35), "
+        "(foreshortening:1.3), (knee up:1.25), (leaning back:1.25), (couch:1.2)"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
@@ -1168,6 +1212,10 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # canvases frames her differently: the first pass is where the
          # composition is decided, so its size is a composition choice and the
          # pose has to be re-picked when it changes.
+         # Every seated whole figure in this file is 1024x1536 and this one has
+         # no reason to argue with it yet: the extended leg goes into depth
+         # rather than across the frame, so it buys no extra width. Untested.
+         "kick": (1024, 1536),
          "stand": (832, 1664)}
 
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)

@@ -1170,7 +1170,13 @@ POSES = {
     # raising the first-pass canvas to give the foot more room is the one
     # escape this file has already measured shut (a second figure at 1280x1920).
     #
-    # TWELVE TAGS, and this file's own note says a pose block breaks around
+    # `(full body:1.4)` was written OUT of this block on the first round, as the
+    # B arm, with the note that `foot focus` can walk the camera down to the foot
+    # and leave the head out. Four seeds then did exactly that, four times out of
+    # four -- and both renders picked before that were on 2557902837, which had
+    # been carrying the framing on its own. It is in now, on fa504c93.
+    #
+    # THIRTEEN TAGS, and this file's own note says a pose block breaks around
     # nine -- `sip` lost its mug and its hair clips to a ninth. It held here.
     # That is a data point and not a licence: the next tag added to this block
     # is on thinner ice than the count suggests, because the four that pushed it
@@ -1178,7 +1184,8 @@ POSES = {
     "kick": (
         "(solo:1.5), (sitting:1.45), (soles:1.4), (foot focus:1.35), "
         "(foreshortening:1.3), (knee up:1.25), (leaning back:1.25), (couch:1.2), "
-        "(smug:1.3), (confident:1.25), (half-closed eyes:1.25), (open mouth:1.35)"
+        "(smug:1.3), (confident:1.25), (half-closed eyes:1.25), (open mouth:1.35), "
+        "(full body:1.4)"
     ),
 }
 

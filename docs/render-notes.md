@@ -6800,3 +6800,57 @@ choice left is the user's: accept it, or move the pose so the sole is not the
 subject.
 
 `headcount.py`: ONE on all four seeds.
+
+## Naming the FEATURE is the lever the count arguments never tried
+
+「指6本な点だけなんとかプロンプトで直してほしい。まじ。」 — reaffirmed after the
+previous round said the tag axis was spent. It was not: everything tried until
+now had talked about the NUMBER. The positive named it and got six; the guards
+forbade a surplus and dissolved the feature. **Nothing had named the feature.**
+
+`toes` is also the only word in this whole argument that is certainly in the
+vocabulary. `five toes` and `extra toes` both behaved exactly like words the
+model does not know — and `extra digits`, which certainly is one, behaved the
+same, which is the evidence that the route and not the spelling was wrong.
+
+`(full body:1.4)` is settled into `POSES["kick"]` first — the counterweight
+written out as round one's B arm, now vindicated by four seeds losing the head
+and by fa504c93 being the picked render. The recipe reproduces that render
+node for node (5, 6, 7, 3, 10, 11 all MATCH), so the arms below differ from it
+by exactly their one lever. Thirteen tags.
+
+    yk-toeA   (toes:1.4)                            pass 1   f9bf9eaa
+    yk-toeB   (toes:1.4) + (extra toes:1.15) neg    pass 1   97ad492e
+    yk-toeC   (extra toes:1.15) neg alone           pass 1   f37392fa
+    yk-toeD   (five toes:1.6)                       pass 1   729db547
+    yk-toeE   (toes:1.4)                            PASS 2   a600673c
+
+**C dissolved the toes again at 1.15.** That closes the guard route at any
+weight: 1.45 and 1.15 fail the same way, so the sledgehammer was not the
+problem — subtraction is. A, B, D and E all draw separated toes.
+
+### E is the only arm that keeps fa504c93
+
+Every other arm edits the pose block, so every other arm edits pass 1, so every
+other arm moves the composition that was just called かなり良い. Prompt-only on a
+topology defect has meant pass 1 all session.
+
+E is the exception, and the reason is the pass rule settled two rounds ago
+rather than an exception to it: **a late pass reaches what it can DRAW and balks
+at what pass 1 has DECIDED**, and `toes` is a feature, not a count — sharpening
+toe separation is a drawing job. Its pass 1 is asserted byte-identical to the
+recipe's, so its composition is fa504c93's exactly.
+
+So the two outcomes are worth different things: if E is right, the count was
+five mushy toes reading as six and it cost nothing. If only A or B is right, the
+count was really six and the composition is the price.
+
+### Not counted here, on purpose
+
+The toes are seen from the top edge rather than the pad side, and this file has
+now lost **eight** image statistics to the user's eye. A ninth, on a count, at an
+angle where separations and shading look alike, is not a bet worth making. What
+is reported above is structural and legible — dissolved versus separated — and
+the count is left to the eye that has won every previous disagreement.
+
+`headcount.py`: ONE on all five.

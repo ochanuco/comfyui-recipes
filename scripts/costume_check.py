@@ -168,9 +168,9 @@ EXCEPTIONS: dict[str, list[dict]] = {
     # it shared `prone`'s from-above geometry; that tag left the pose when the
     # dive was asked for, and the splice left with it.
     "flop": [
-        {"added": ["(long legs:1.45)"],
-         "why": "\u80f4\u4f53\u304c\u9577\u3044 on 2ab57f7b; `stand`'s tag, "
-                "one notch above `stand`'s weight, picked as 49ef8830"},
+        {"added": ["(long legs:1.40)"],
+         "why": "bracketed: no tag reads \u80f4\u4f53\u304c\u9577\u3044, "
+                "1.45 reads \u811a\u304c\u9577\u3059\u304e\u308b; 1.40 is the midpoint"},
     ],
     "yawn": [
         {"removed": ["closed mouth"], "why": "a yawn needs the mouth open"},

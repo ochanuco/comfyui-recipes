@@ -6353,3 +6353,33 @@ tight band and clipped the control's eyes at the band edge, so the band was
 deciding the answer. The third widened it and the mask still spanned every row,
 i.e. it is catching purple in the hair. Three contaminations in one measurement
 that the eye settled in one look. Eighth statistic to lose here.
+
+## 2026-08-19 — `flop`'s leg weight is bracketed from both sides
+
+「ちょっと脚が長すぎる」 at `(long legs:1.45)`. Two rounds ago, with no tag at all,
+the same pose read 「ちょっと胴体が長い」. **The weight is now bracketed and that is
+the durable part of this entry** — whatever is right is strictly inside (0, 1.45),
+and a later session does not get to go back to either end and call it new.
+
+Moved to **1.40**, the midpoint, which is a guess and is labelled as one in the
+splice comment. `yk-legs135b` runs 1.35 beside it:
+
+    yk-legs140    737373737 f8777158    2557902837 f21a863a
+    yk-legs135b   737373737 6a322845    2557902837 b2f1bec1
+
+1.35 is being rendered again rather than ruled out by having lost once. It lost
+against the *opposite* complaint — too little and too much fail in different
+directions, so a loss on the torso side is not a win on the leg side — and it was
+last seen on the 徹夜 face at a single pass. Both arms here carry the settled
+finish, `--hires 2048` with the eye guard on pass 2, so the comparison happens at
+the state the picked render was in.
+
+**Leg length is a first-pass decision and there is no second-pass version of this
+fix.** The eyes had one: `HIRES_NEGATIVE` puts a deletion where only the late
+pass sees it, and the composition survives. 0.60 redraws the picture; it does not
+re-proportion the figure. So every move on this axis costs the picked
+composition and has to be re-picked, and that asymmetry between the two fixes is
+worth carrying forward — it decides whether a complaint can be answered without
+losing the render.
+
+`headcount.py`: all four ONE.

@@ -1442,14 +1442,27 @@ def positive(pose: str) -> str:
         # `(long torso:1.4)` in the NEGATIVE moved 40.1% to 38.9%, i.e.
         # nothing, and `prone` found the same for `(long legs:1.4)` there.
         # One side of this axis is addressable. Ask for the leg.
-        # 1.45, not `stand`'s 1.35. Both were rendered on three shared seeds
-        # because the metric that called them noise-apart on `stand` does not
-        # run on a figure lying across a landscape frame, and 49ef8830 is the
-        # 1.45 render. The two poses genuinely differ here rather than one
-        # being sloppy: `stand` is measuring a vertical figure whose legs are
-        # already the full height of the frame.
+        # **This weight is bracketed from both sides and that is the useful
+        # thing here.** No tag at all drew 「ちょっと胴体が長い」; 1.45 drew
+        # 「ちょっと脚が長すぎる」. Whatever is right is strictly inside that,
+        # so a future session does not get to go back to either end.
+        #
+        # 1.40 is the midpoint and it is a guess, not a measurement. 1.35 was
+        # rendered against 1.45 once and lost -- but that was against the
+        # torso complaint, where too little and too much fail differently, and
+        # it was seen on the 徹夜 face at one pass. It is being rendered again
+        # beside this rather than ruled out by that.
+        #
+        # `stand` sits at 1.35 and is not evidence for this pose. It measures
+        # a vertical figure whose legs already run the full height of the
+        # frame; this one is lying across a landscape one.
+        #
+        # Leg length is decided in the FIRST pass. There is no second-pass
+        # version of this fix the way there was for the eyes -- 0.60 redraws
+        # the picture, it does not re-proportion the figure -- so every move
+        # on this axis costs the picked composition and has to be re-picked.
         body = body.replace("(pale skin:1.25)",
-                            "(long legs:1.45), (pale skin:1.25)")
+                            "(long legs:1.40), (pale skin:1.25)")
     if pose == "boss":
         # Grown up, and it is one substitution now, not the two it started as.
         #

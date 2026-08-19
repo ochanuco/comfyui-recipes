@@ -1238,10 +1238,31 @@ POSES = {
     # floor at this canvas without one -- but a side view is what reads
     # "shoulders still down", so `(from side:1.3)` is the first lever if the
     # camera looks straight down and flattens the failure out of the picture.
+    # ---- 「筋肉がなさすぎて猫背になってしまう」 ----
+    #
+    # The punchline moved. The first block's failure was "she does not come up";
+    # this one's is "she comes up WRONG" -- no core to lift with, so the spine
+    # rounds and the neck does the work. That is a shape, and a shape is
+    # drawable in a way that an absence is not.
+    #
+    # `(slouching:1.4)` took `(sweatdrop:1.3)`'s slot rather than being added to
+    # it. Nine tags is where this file's blocks start losing things, and the
+    # bead was the one tag in here that decorates rather than describes -- the
+    # strain still has `(clenched teeth:1.35)` carrying it.
+    #
+    # ONE tag for the feature. `(hunched over:1.4)` names the same thing and the
+    # pair of them is exactly the shape that cost the toe work its accents; it
+    # is the B arm in `.local/situp_arms.py`, not a second guard here.
+    #
+    # The negative gains `(arched back:1.4)` for this pose, and it is the
+    # load-bearing half of the change: 猫背 has a direct opposite, this model
+    # reaches for it unprompted on anything lying down, and `stand` spends a
+    # positive tag on that arch on purpose. Naming the shape without forbidding
+    # its opposite is half a lever.
     "situp": (
         "(solo:1.5), (lying:1.45), (on back:1.5), (knees up:1.4), "
-        "(hands behind head:1.35), (sit-up:1.3), (clenched teeth:1.35), "
-        "(sweatdrop:1.3), full body"
+        "(hands behind head:1.35), (sit-up:1.3), (slouching:1.4), "
+        "(clenched teeth:1.35), full body"
     ),
 }
 
@@ -1406,6 +1427,11 @@ def negative(pose: str) -> str:
         # flatten the palette, and the costume only needs the gym kept out of
         # it, not argued with.
         text += ", (sportswear:1.45), (gym uniform:1.4), (yoga mat:1.3)"
+        # 猫背's opposite, and the posture this model volunteers for a girl on
+        # her back. `stand` pays a positive tag to GET this arch; here it is
+        # the whole defect. Naming the shape in the positive without forbidding
+        # its opposite is half a lever.
+        text += ", (arched back:1.4), (bridge (pose):1.3)"
     if pose == "stand":
         # After the ban, not before it: this is the tail of the negative that
         # a5c494ef was drawn with, verified against its own history rather than

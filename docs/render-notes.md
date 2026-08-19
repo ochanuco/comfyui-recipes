@@ -7127,3 +7127,44 @@ First sweep, unjudged at the time of writing. **No angle tag is spent yet**:
 `flop` holds a body on the floor at this canvas without one. If the camera looks
 straight down, the failure flattens out of the picture and `(from side:1.3)` is
 the lever — a side view is what reads "shoulders still down".
+
+### 「筋肉がなさすぎて猫背になってしまう」 — the punchline moves from an absence to a shape
+
+The first `situp` block's failure was *she does not come up*. This one's is *she
+comes up wrong*: no core to lift with, so the spine rounds and the neck does the
+work. **A shape is drawable in a way that an absence is not**, which is the more
+useful half of this — the earlier block was asking the model to withhold
+something, and this one asks it to draw something.
+
+`(slouching:1.4)` took `(sweatdrop:1.3)`'s slot rather than joining it. Nine is
+where blocks in this file start losing things, and the bead was the only tag in
+here that decorates rather than describes; the strain still has
+`(clenched teeth:1.35)`.
+
+**The negative is the load-bearing half.** 猫背 has a direct opposite, and it is
+one this model volunteers for a girl on her back — `stand` spends a positive tag
+to *get* that arch. So `situp`'s negative gains
+`(arched back:1.4), (bridge (pose):1.3)`. Naming a shape in the positive without
+forbidding its opposite is half a lever, and this file has the `stand` note
+proving the model has its own opinion about that axis.
+
+One tag for the feature, not two. `(hunched over:1.4)` names the same thing;
+pairing them is the shape that cost the toe work its accents, so it is an arm
+rather than a second guard.
+
+    A  lying, (slouching:1.4)        555666777 75960c2f  111222333 3402549d
+       + (arched back) banned        1886970040 3d932141  737373737 bc8d955c
+    B  lying, (hunched over:1.4)     555666777 e6cddd3e  111222333 7bc3da9c
+                                     1886970040 997bd335
+    C  sitting, given up, 1024x1536  555666777 341d4536  111222333 2c347ca5
+       (slouching:1.45)              1886970040 6b730647
+
+C is the arm worth watching if A and B both come back flat on the floor:
+**`slouching` is a word about an upright spine**, and lying down may leave it
+nothing to grab. If the tag only works seated, that is a null for the lying
+frame and the pose has to get its 猫背 from the composition instead — she gave
+up and is sitting in a heap, rather than mid-rep.
+
+B and C are `.local/situp_arms.py`, which assigns whole `POSES`/`SIZES` entries
+rather than string-splicing them — a splice against a block that has moved
+does nothing and says nothing.

@@ -7221,3 +7221,33 @@ rounds were spent weighting a word the model does not hold.
 F tests the camera, which was flagged as the first lever two rounds ago and not
 taken: a sit-up is legible from the SIDE — bent knees, torso at an angle — and
 close to illegible from above, where it is a girl lying on the floor.
+
+### `situp` settles on the F arm — the camera, which was the first lever and the last one tried
+
+a61a67a8 (seed 1886970040) is the picked render, and it is the arm that added
+`(from side:1.35)`. Its block is now `POSES["situp"]`, verified byte-identical
+to a61a67a8's own graph — `positive()` and `negative()` both compared against
+`/history` rather than rebuilt from memory.
+
+**A sit-up is a silhouette before it is a tag.** Bent knees and a torso at an
+angle read as the exercise from the side, and as a girl lying on the floor from
+anywhere else. No weight on `sit-up` buys that geometry, because the geometry is
+the camera and not the subject — which is why three rounds of weight arguments
+(1.3 → pinned low → 1.5 → moved to the front) moved the reading so little.
+
+The camera was written into this pose's very first note as "the first lever if
+the picture flattens", and then not taken for three rounds. **When a note names
+the lever, take the lever before re-weighting the words.**
+
+Nine tags after `(solo:1.5)`, against the eight quoted throughout this file.
+`kick` held thirteen; the budget is a smell and not a rule, and here the tag
+that pushed it over is the one doing the work.
+
+a61a67a8 was pass 1 only — 7 nodes, 1536x1024, no upscale. The print:
+
+    yk-situp 1886970040 9744c93d   --hires 2048, denoise 0.60
+
+which is `prone`'s settled second pass at the same canvas, for the same reason:
+2048 at 0.60 specifically, since 0.45 scribbles the outline and 3072 blurs it to
+a halo. Pass 1 is unchanged by `--hires`, so this is the picked drawing with
+detail, not a re-roll.

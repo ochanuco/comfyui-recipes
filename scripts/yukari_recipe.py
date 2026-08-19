@@ -1285,10 +1285,23 @@ POSES = {
     #
     # `(yoga mat:1.3)` came OUT of this pose's negative -- see `negative()`. It
     # was aimed at the wardrobe and took the scene with it.
+    # ---- picked: a61a67a8, seed 1886970040, the F arm ----
+    #
+    # `(from side:1.35)` is IN the block, and it is what the pose was missing
+    # for three rounds. It was named as the first lever the day the pose was
+    # written and then not taken, twice, while three rounds of weights argued
+    # about words instead. **A sit-up is a silhouette before it is a tag**:
+    # bent knees and a torso at an angle read as the exercise from the side and
+    # as a girl lying on the floor from anywhere else. No weight on `sit-up`
+    # buys that geometry, because it is the camera and not the subject.
+    #
+    # NINE tags after (solo:1.5), against the eight this file keeps quoting.
+    # `kick` held thirteen and this held nine; the budget is a smell, not a
+    # rule, and the tag that pushed it over is the one doing the work.
     "situp": (
-        "(solo:1.5), (sit-up:1.5), (lying:1.45), (on back:1.4), "
-        "(knees up:1.4), (hands behind head:1.35), (slouching:1.35), "
-        "(clenched teeth:1.35), full body"
+        "(solo:1.5), (sit-up:1.5), (from side:1.35), (lying:1.45), "
+        "(on back:1.4), (knees up:1.4), (hands behind head:1.35), "
+        "(slouching:1.35), (clenched teeth:1.35), full body"
     ),
 }
 

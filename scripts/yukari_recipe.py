@@ -1744,14 +1744,17 @@ HIRES_NEGATIVE = {
     # other. Two things wrong, and this addresses one of them; the second pass
     # itself addresses the other by giving the face more pixels to be drawn in.
     "flop": "(half-closed eyes:1.4), (closed eyes:1.4), ",
-    # `kick` does not have a complaint about its eyes. It gets the guard anyway,
-    # and preemptively rather than speculatively: the same round adds `smug` to
-    # this pose's second pass, `smug` narrowing the lids on its own is the
-    # measured finding directly above, and this pair is the measured answer to
-    # it. Applying a known correction alongside the known cost of the tag that
-    # causes it is not an untested addition -- it is the pair travelling
-    # together. It is on BOTH arms of the weight sweep, so it is not a variable.
-    "kick": "(half-closed eyes:1.4), (closed eyes:1.4), ",
+    # `kick` HAD this guard, preemptively, on the round that gave it `smug`.
+    # **It has been taken back out, and the reason is a direct contradiction.**
+    # 「もうちょっといつものドヤ顔で」 was answered with the pair `stand` carries,
+    # `(smug:1.35), (half-closed eyes:1.3)` -- and `half-closed eyes` is the exact
+    # tag this guard deletes, in the same pass. They cannot both be in pass 2.
+    #
+    # So the two levers for "more smug" are mutually exclusive here, and that is
+    # worth carrying forward: raising the weight is compatible with the eye
+    # guard, and reaching for the pair is not. The guard was bought to undo
+    # `smug`'s lid-narrowing as a side effect; once narrowed lids are the thing
+    # being ASKED for, the side effect was the feature.
 }
 
 # The positive-side sibling, and it exists for a request the negative one cannot
@@ -1776,7 +1779,14 @@ HIRES_NEGATIVE = {
 # where every other pose carries the smirk, and this file has already recorded
 # that token order changes the encoding.
 HIRES_POSITIVE = {
-    "kick": "(smug:1.15)",
+    # 「もうちょっといつものドヤ顔で」 after 1.15 and 1.35 both landed short.
+    # The pair, not a third weight -- this is the lever the previous round named
+    # as next, and it is the one `stand` runs. `boss` dropped the lids only
+    # because at `(smug:1.15)` they were the last thing reading as attitude
+    # rather than composure, which is an argument for keeping them when attitude
+    # is what was asked for. See HIRES_NEGATIVE above: this is why `kick` no
+    # longer carries the eye guard.
+    "kick": "(smug:1.35), (half-closed eyes:1.3)",
 }
 
 

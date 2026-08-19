@@ -6516,3 +6516,57 @@ the same number for the square renders it had only ever been run on, and a
 squash for anything else — found because `kick` is 1024x1536. It now uses the
 same `sizes()` helper the other two routes already used. No behaviour change for
 any square source, so nothing previously measured through it moves.
+
+## The eye guard and the smirk pair cannot both be in pass 2
+
+「もうちょっといつものドヤ顔で」 — 1.15 and 1.35 both landed short, so the answer
+is the lever the previous round already named as next: the pair `stand` carries,
+`(smug:1.35), (half-closed eyes:1.3)`, rather than a third weight.
+
+**That required taking `HIRES_NEGATIVE["kick"]` back out, and the reason is a
+direct contradiction rather than a preference.** That guard is
+`(half-closed eyes:1.4), (closed eyes:1.4)`, and `half-closed eyes` is now in the
+positive of the same pass. It was bought one round earlier to undo `smug`'s
+lid-narrowing as an unwanted side effect; once narrowed lids are the thing being
+asked for, the side effect was the feature all along.
+
+So the two levers for "more smug" are mutually exclusive at this pass:
+
+- **raising the weight** is compatible with the eye guard
+- **reaching for the pair** is not, and removes it
+
+Worth carrying forward, because the guard reads like a fixture once it is in a
+pose's dict and it is not one — it encodes an assumption about which direction
+the lids are wanted in.
+
+## 足の指の数を5に: two routes, one variable
+
+The toes survived the 2048 second pass wrong, so **pixels alone did not fix
+this** — which separates it from the eye defect two rounds ago, where more pixels
+was half the answer. Still a late-pass job: digit count is local detail, not
+structure, and 0.60 already demonstrated it redraws eyes. Putting it in the first
+pass would cost the picked composition for a defect that does not need it.
+
+Both arms carry the new smirk pair, so the route is the only variable:
+
+    yk-toesA   positive  + (five toes:1.3)      2557902837   f2b752b2
+    yk-toesB   negative  + (extra toes:1.45)    2557902837   a6d83313
+
+**A is the positive route on principle.** This file has twice found that only one
+side of an axis is addressable and that it was the positive one — `stand`'s
+proportion work and `prone`'s `(long legs:1.4)` in the negative, both null. Naming
+what is wanted has beaten forbidding what is not, here, repeatedly.
+
+**B is ONE guard and not a stack**, deliberately. Extra/fewer/bad-feet together
+would be three guards pointing at a single defect, which is exactly the shape
+that has wrecked this recipe's palette twice and bought it four backdrop
+intruders. One guard also cannot cover both directions of a count error, and
+that limitation is the price of the rule rather than an oversight.
+
+**Neither tag has been checked against a wiki.** This file's own standard —
+`crouching` and `reaching out` were dropped for having no wiki page — is not met
+by `five toes` or `extra toes`, and there is no way to check it from here. If A
+does nothing at all, an unknown tag is the first suspect, ahead of the route.
+
+First pass untouched on both arms, asserted in the probe rather than assumed.
+`headcount.py`: both ONE.

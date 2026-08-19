@@ -63,19 +63,37 @@ HEAD = "best quality, absurdres, 1girl, solo"
 # `--accept` to print the new value, paste it in, and write down in
 # docs/render-notes.md what the costume is now. That is the whole mechanism:
 # it does not stop a change, it stops an *unrecorded* one.
-COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "thin")
-COSTUME_FINGERPRINT = "47b0d089d5a5ec77"
+COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "thin",
+                  # The second costume is under the same contract as the first.
+                  # It has no approved render behind it yet, which is a reason
+                  # to hash it rather than a reason not to: the fingerprint is
+                  # what makes a later edit to it visible.
+                  "sporty", "sporty_legwear", "sporty_hood")
+# 47b0d089d5a5ec77 -> aa86759a39ffca43 on 2026-08-20. The settled blocks did not
+# change a character: what moved the hash is the second costume joining the list
+# above. The proof it is only that is in the notes -- every pose's prompt and
+# graph under `--costume default` was compared against the previous commit and
+# came back byte-identical.
+COSTUME_FINGERPRINT = "aa86759a39ffca43"
 
 
 def tags(text: str) -> list[str]:
     return [t.strip() for t in text.split(",") if t.strip()]
 
 
-def canonical(pose: str) -> list[str]:
-    """The costume as the shared blocks define it, before any pose splices."""
-    return (tags(HEAD) + tags(yk.CHARACTER) + tags(yk.POSES[pose])
-            + tags(yk.LEGWEAR) + tags(yk.FACE) + tags(yk.SURFACE)
-            + tags(yk.BODY) + tags(yk.HOOD) + tags(yk.THIN))
+def canonical(pose: str, costume: str = "default") -> list[str]:
+    """The costume as the shared blocks define it, before any pose splices.
+
+    `POSES[pose]` raw, NOT `yk.pose_block(pose, costume)`. A costume is allowed
+    to edit the pose's own tags -- `sporty` takes `stand`'s black high tops out
+    because it brings shoes of its own -- and going through `pose_block` here
+    would compare that edit against itself and see nothing. Raw, it reads as a
+    departure and has to be declared like any other.
+    """
+    blocks = yk.COSTUMES[costume]
+    return (tags(HEAD) + tags(blocks["character"]) + tags(yk.POSES[pose])
+            + tags(blocks["legwear"]) + tags(yk.FACE) + tags(yk.SURFACE)
+            + tags(yk.BODY) + tags(blocks["hood"]) + tags(yk.THIN))
 
 
 # Every declared departure from the shared blocks, with the reason it was paid
@@ -86,9 +104,6 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"added": ["(long legs:1.35)"],
          "why": "a standing figure reads its own proportions; 40.1% of height "
                 "below the hem to 55.7%"},
-        {"added": ["(criss-cross halter:1.45)"],
-         "why": "the dress's own crossed straps, taken with the backdrop cost "
-                "known and accepted"},
     ],
     "boss": [
         {"removed": ["(petite:1.2)"], "added": ["(mature female:1.35)"],
@@ -96,23 +111,8 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"added": ["(small breasts:1.35)"],
          "why": "`mature female` brings a chest with it and the negative could "
                 "not finish the job alone"},
-        {"removed": ["(oversized shirt:1.3)"],
-         "why": "`mature female` recruits it into a pale button-front shirt "
-                "dress; dropping it restores the purple bodice"},
-        {"added": ["(off shoulder:1.3)"],
-         "why": "the approved render has the coat off her shoulders; it costs "
-                "the rabbit hood, deliberately"},
-        {"added": ["(criss-cross halter:1.45)"],
-         "why": "the dress's own straps, affordable here because the coat is "
-                "already off the shoulders"},
-        {"added": ["(ribbed legwear:1.35)"],
-         "why": "the rib outlived the thighhighs it belonged to; ADDED, not "
-                "substituted -- substituting it removed the tights on every seed"},
     ],
     "nape": [
-        {"added": ["(halterneck:1.45)", "(black straps:1.35)"],
-         "why": "the bow this pose is looking at; documented as costing every "
-                "other pose its coat, which is why it is spliced"},
         {"added": ["(off shoulder:1.25)"],
          "why": "what uncovers the nape; rides with HOOD rather than joining "
                 "the pose block, which is already at eight tags"},
@@ -130,23 +130,14 @@ EXCEPTIONS: dict[str, list[dict]] = {
          "why": "BODY was settled on poses seen from the front or the side; "
                 "from behind and foreshortened the same tags read as bulk"},
     ],
-    "portrait": [
-        # `(pale skin:1.25)` is the one tag of BODY that stays -- the crop is
-        # above the legs and the hips but not above her skin -- so it is not
-        # listed as removed and not listed as added either.
-        {"removed": (tags(yk.LEGWEAR)
-                     + [t for t in tags(yk.BODY) if t != "(pale skin:1.25)"]
-                     + tags(yk.THIN)),
-         "why": "the crop is above all of it, and naming what is out of frame "
-                "is what invites it back in"},
-    ],
+    # `portrait`, `allnighter` and `dizzy` used to carry a hand-written copy of
+    # the crop removal each. It is generated by `_cropped()` now, because the
+    # legwear it names belongs to the costume and there is more than one.
+    # `(pale skin:1.25)` is the one tag of BODY that stays -- the crop is above
+    # the legs and the hips but not above her skin -- so it is neither removed
+    # nor added.
     # The same crop as `portrait`, so the same departure, for the same reason.
     "allnighter": [
-        {"removed": (tags(yk.LEGWEAR)
-                     + [t for t in tags(yk.BODY) if t != "(pale skin:1.25)"]
-                     + tags(yk.THIN)),
-         "why": "the crop is above all of it, and naming what is out of frame "
-                "is what invites it back in"},
         {"removed": ["closed mouth"],
          "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open. `small mouth` was "
                 "briefly removed too, for a wider mouth that is no longer asked for"},
@@ -154,11 +145,6 @@ EXCEPTIONS: dict[str, list[dict]] = {
     # `allnighter`'s crop and `allnighter`'s two departures, unchanged: what
     # differs between them is inside the pose block, not against the costume.
     "dizzy": [
-        {"removed": (tags(yk.LEGWEAR)
-                     + [t for t in tags(yk.BODY) if t != "(pale skin:1.25)"]
-                     + tags(yk.THIN)),
-         "why": "the crop is above all of it, and naming what is out of frame "
-                "is what invites it back in"},
         {"removed": ["closed mouth"],
          "why": "\u5bdd\u4e0d\u8db3: the mouth hangs open"},
     ],
@@ -200,10 +186,75 @@ EXCEPTIONS: dict[str, list[dict]] = {
     "yawn": [
         {"removed": ["closed mouth"], "why": "a yawn needs the mouth open"},
     ],
+    # A grin is drawn with the teeth showing, and a shut mouth turns it into the
+    # smirk every other pose in this file already has.
+    "hype": [
+        {"removed": ["closed mouth"], "why": "(grin:1.4) shows teeth"},
+    ],
     "fall": [
         {"removed": ["closed mouth"], "why": "she is shouting"},
     ],
 }
+
+# Departures that exist only because a particular costume has the garment being
+# spliced. Under another costume the splice does not run at all -- `positive()`
+# gates them -- so declaring them globally would fail the other way: a
+# declaration that does not describe the built prompt is as wrong as an
+# undeclared change, and this file already fails on both.
+COSTUME_ONLY: dict[str, dict[str, list[dict]]] = {
+    "default": {
+        "stand": [
+            {"added": ["(criss-cross halter:1.45)"],
+             "why": "the dress's own crossed straps, taken with the backdrop "
+                    "cost known and accepted"},
+        ],
+        "boss": [
+            {"removed": ["(oversized shirt:1.3)"],
+             "why": "`mature female` recruits it into a pale button-front shirt "
+                    "dress; dropping it restores the purple bodice"},
+            {"added": ["(off shoulder:1.3)"],
+             "why": "the approved render has the coat off her shoulders; it "
+                    "costs the rabbit hood, deliberately"},
+            {"added": ["(criss-cross halter:1.45)"],
+             "why": "the dress's own straps, affordable here because the coat "
+                    "is already off the shoulders"},
+            {"added": ["(ribbed legwear:1.35)"],
+             "why": "the rib outlived the thighhighs it belonged to; ADDED, "
+                    "not substituted -- substituting it removed the tights"},
+        ],
+        "nape": [
+            {"added": ["(halterneck:1.45)", "(black straps:1.35)"],
+             "why": "the bow this pose is looking at; documented as costing "
+                    "every other pose its coat, which is why it is spliced"},
+        ],
+    },
+    "sporty": {
+        "stand": [
+            {"removed": ["(black footwear:1.35)", "(high tops:1.35)"],
+             "why": "this costume names its own shoes; the pose's pair would "
+                    "be a second one in the same prompt"},
+        ],
+    },
+}
+
+
+def _cropped(costume: str) -> dict:
+    """The head framings' one departure: everything below the crop, removed."""
+    return {"removed": (tags(yk.COSTUMES[costume]["legwear"])
+                        + [t for t in tags(yk.BODY) if t != "(pale skin:1.25)"]
+                        + tags(yk.THIN)),
+            "why": "the crop is above all of it, and naming what is out of "
+                   "frame is what invites it back in"}
+
+
+def declared(pose: str, costume: str) -> list[dict]:
+    """Everything this pose is allowed to differ by, in this costume."""
+    entries = list(EXCEPTIONS.get(pose, []))
+    entries += COSTUME_ONLY.get(costume, {}).get(pose, [])
+    if pose in yk.HEAD_FRAMINGS:
+        entries.append(_cropped(costume))
+    return entries
+
 
 # Every colour the costume is made of, measured off approved renders, with the
 # per-channel tolerance that isolates it.
@@ -244,14 +295,14 @@ def fingerprint() -> str:
     return hashlib.sha256("\n".join(blocks).encode()).hexdigest()[:16]
 
 
-def check_prompt(pose: str) -> list[str]:
+def check_prompt(pose: str, costume: str = "default") -> list[str]:
     """Undeclared differences between the contract and what the recipe builds."""
-    canon, actual = canonical(pose), tags(yk.positive(pose))
+    canon, actual = canonical(pose, costume), tags(yk.positive(pose, costume))
     added = [t for t in actual if t not in canon]
     removed = [t for t in canon if t not in actual]
 
     declared_added, declared_removed = [], []
-    for exc in EXCEPTIONS.get(pose, []):
+    for exc in declared(pose, costume):
         declared_added += exc.get("added", [])
         declared_removed += exc.get("removed", [])
 
@@ -316,6 +367,8 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pose", action="append", default=[],
                     help="check one pose instead of all of them")
+    ap.add_argument("--costume", action="append", default=[],
+                    help="check one costume instead of all of them")
     ap.add_argument("--palette", type=Path, nargs="*", default=None,
                     help="check rendered images against the costume's colours")
     ap.add_argument("--record", action="store_true",
@@ -357,16 +410,21 @@ def main() -> None:
     else:
         print(f"ok   costume blocks  ({got})")
 
-    for pose in args.pose or sorted(yk.POSES):
-        problems = check_prompt(pose)
-        count = len(EXCEPTIONS.get(pose, []))
-        if problems:
-            failed = True
-            print(f"FAIL {pose}  ({count} declared)")
-            for p in problems:
-                print(f"     {p}")
-        else:
-            print(f"ok   {pose}  ({count} declared)")
+    # Every costume, not just the settled one. A second set of clothes doubles
+    # the number of prompts this file is the only record of, and the splices in
+    # `positive()` do not all run under both.
+    for costume in args.costume or sorted(yk.COSTUMES):
+        label = "" if costume == "default" else f"  [{costume}]"
+        for pose in args.pose or sorted(yk.POSES):
+            problems = check_prompt(pose, costume)
+            count = len(declared(pose, costume))
+            if problems:
+                failed = True
+                print(f"FAIL {pose}{label}  ({count} declared)")
+                for p in problems:
+                    print(f"     {p}")
+            else:
+                print(f"ok   {pose}{label}  ({count} declared)")
 
     # THE CONTRACT ONLY EVER COVERED THE FIRST PASS. `check_prompt` reads
     # `yk.positive(pose)`, and `HIRES_POSITIVE` rewrites that text for the second
@@ -382,25 +440,29 @@ def main() -> None:
     # acceptable is that they be invisible.
     hires_poses = sorted(set(getattr(yk, "HIRES_POSITIVE", {}))
                          | set(getattr(yk, "HIRES_NEGATIVE", {})))
-    for pose in hires_poses:
-        if args.pose and pose not in args.pose:
-            continue
-        before = tags(yk.positive(pose))
-        g = yk.build(pose, 1, "tmp", 2048)
-        after = tags(g["6b"]["inputs"]["text"]) if "6b" in g else before
-        gained = [t for t in after if t not in before]
-        lost = [t for t in before if t not in after]
-        banned = tags(getattr(yk, "HIRES_NEGATIVE", {}).get(pose, ""))
-        print(f"     pass 2  {pose}")
-        for label, items in (("+", gained), ("-", lost), ("ban", banned)):
-            if items:
-                print(f"       {label:<3} {', '.join(items)}")
-        costume = set(tags(yk.CHARACTER)) | set(tags(yk.LEGWEAR)) \
-            | set(tags(yk.BODY)) | set(tags(yk.HOOD))
-        worn_off = [t for t in lost if t in costume]
-        if worn_off:
-            failed = True
-            print(f"FAIL {pose}  pass 2 removes costume: {', '.join(worn_off)}")
+    for costume in args.costume or sorted(yk.COSTUMES):
+        blocks = yk.COSTUMES[costume]
+        worn = (set(tags(blocks["character"])) | set(tags(blocks["legwear"]))
+                | set(tags(yk.BODY)) | set(tags(blocks["hood"])))
+        suffix = "" if costume == "default" else f"  [{costume}]"
+        for pose in hires_poses:
+            if args.pose and pose not in args.pose:
+                continue
+            before = tags(yk.positive(pose, costume))
+            g = yk.build(pose, 1, "tmp", 2048, costume=costume)
+            after = tags(g["6b"]["inputs"]["text"]) if "6b" in g else before
+            gained = [t for t in after if t not in before]
+            lost = [t for t in before if t not in after]
+            banned = tags(getattr(yk, "HIRES_NEGATIVE", {}).get(pose, ""))
+            print(f"     pass 2  {pose}{suffix}")
+            for label, items in (("+", gained), ("-", lost), ("ban", banned)):
+                if items:
+                    print(f"       {label:<3} {', '.join(items)}")
+            worn_off = [t for t in lost if t in worn]
+            if worn_off:
+                failed = True
+                print(f"FAIL {pose}{suffix}  pass 2 removes costume: "
+                      f"{', '.join(worn_off)}")
 
     if failed:
         print("\nAn undeclared change is a costume change nobody wrote down.",

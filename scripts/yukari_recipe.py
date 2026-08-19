@@ -11,6 +11,33 @@ vocabulary; the port onto the Hamakaze graph is not part of it.
     uv run scripts/yukari_recipe.py --pose peace       # double v, v over eye
     uv run scripts/yukari_recipe.py --pose invite      # patting her lap, one girl
 
+**There are two costumes now, and `default` is still the settled one.** The
+second is `sporty` -- grey oversized tee, denim shorts, plain black tights,
+white high tops -- and it was added the way it was so that the first one is one
+flag away and unchanged: both hang on the same `IDENTITY`, and `--costume
+default` builds the same prompt and the same graph, tag for tag, as the commit
+before it existed. That was checked across every pose rather than assumed.
+
+    uv run scripts/yukari_recipe.py --pose hype --costume sporty --seeds 6
+
+What a costume owns is three blocks -- character, legwear, hood -- and nothing
+else. FACE, SURFACE, BODY, THIN, every pose and the whole negative are shared,
+which is the claim: what changes is the clothes, not her and not the drawing.
+Two things follow, and both are in the code rather than in this paragraph:
+
+- The garment splices in `positive()` (`open cardigan`, `(drawstring:1.4)`,
+  `(oversized shirt:1.3)`) name tags only the settled costume has, so they are
+  gated on the costume and go through `_splice`, which ASSERTS. A splice that
+  matches nothing does nothing and says nothing; with two costumes in the file
+  that stopped being a hypothetical.
+- Three guards are released under `sporty` and only there: `situp`'s
+  `(sportswear:1.45), (gym uniform:1.4)` (that costume IS a gym kit -- the
+  arched-back guard beside it is about her back and stays), `stand`'s
+  `(white footwear:1.45), (red footwear:1.4)` (its shoes are white), and
+  `(blue tint:1.4)` (denim is blue). `(blue background:1.5)` is NOT released:
+  the backdrop is set afterwards by recolor_bg.py and a blue one in the render
+  is still a defect.
+
 Sweep cheap, then print big. The first pass does not change when `--hires` is
 added -- same seed, same latent, same picture -- so a seed picked at the sweep
 size comes back as the same drawing, only with detail the small render had no
@@ -78,9 +105,25 @@ import urllib.request
 
 from comfy_host import DEFAULT_HOST, DEFAULT_PORT
 
-CHARACTER = (
+# Who she is, as against what she is wearing. Split out of CHARACTER the day a
+# second costume arrived: the garments below are one of two sets now, and this
+# is the half both sets keep. The split moved no text and no token order --
+# `IDENTITY + <garments>` is byte-identical to the CHARACTER that shipped, and
+# costume_check.py's fingerprint is the proof: it did not move when this line
+# was drawn.
+#
+# `hair ornament` carried no weight until the nape renders, where it lost
+# every time -- her clips were missing from a dozen straight. It is not that
+# the tag is wrong, it is that an unweighted tag in a prompt this crowded is
+# indistinguishable from an absent one: everything around it is at 1.3+.
+# Same disease and same fix as `drawstring` in CHARACTER.
+IDENTITY = (
     "yuzuki yukari, (light purple hair:1.25), (short hair with long locks:1.45), "
     "(very long sidelocks:1.3), sidelocks, (purple eyes:1.25), hair between eyes, "
+    "(hair ornament:1.4), "
+)
+
+CHARACTER = IDENTITY + (
         # hooded coat, not hoodie. The hem is the one thing that answered to nothing
     # else: raising (black hoodie) to 1.55 did nothing, (cropped jacket) in the
     # negative did nothing, (oversized clothes) destroyed the costume, and
@@ -110,12 +153,7 @@ CHARACTER = (
     # Tags naming a PART's state pass where tags naming the garment's fit do not.
     # (sleeves past wrists) + (wide sleeves) took the lower back from 54.6% to
     # 78.5% covered, boxed out the body and dropped the hem, at 1.91px.
-    # `hair ornament` carried no weight until the nape renders, where it lost
-    # every time -- her clips were missing from a dozen straight. It is not that
-    # the tag is wrong, it is that an unweighted tag in a prompt this crowded is
-    # indistinguishable from an absent one: everything around it is at 1.3+.
-    # Same disease and same fix as `drawstring` below.
-    "(hair ornament:1.4), (black hooded cardigan:1.45), open cardigan, (rabbit hood:1.55), "
+    "(black hooded cardigan:1.45), open cardigan, (rabbit hood:1.55), "
     # The hem does not respond to length tags. Asked to cover the buttocks, three
     # renders moved bare skin in the upper-leg band 37.4% -> 40.1% -> 38.3%:
     # (medium dress:1.3), then (medium dress:1.45) with (short dress:1.4),
@@ -388,6 +426,81 @@ LEGWEAR_BAN = (
     "(thighhighs:1.5), (kneehighs:1.5), (socks:1.45), (over-kneehighs:1.45), "
     "(two-tone legwear:1.4), (legwear hem:1.3)"
 )
+
+# THE SECOND COSTUME. Everything above this line is the settled one and it does
+# not move: this is another set of garments hung on the same IDENTITY, reached
+# with `--costume sporty`, and the point of building it this way is that the
+# original is one flag away and stays reproducible. Nothing here replaces
+# anything.
+#
+# The reference is a grey oversized tee, denim shorts, plain black tights and
+# white high-top sneakers. Three things it keeps from the settled costume on
+# purpose: IDENTITY whole, ONE garment on the leg, and its shoes named in the
+# costume rather than in a pose -- `stand` is the only pose that names footwear
+# and it has that pair spliced out under this costume; see `pose_block`.
+SPORTY = IDENTITY + (
+    "(grey shirt:1.45), (t-shirt:1.45), (oversized shirt:1.4), short sleeves, "
+    "(denim shorts:1.45), (short shorts:1.25), "
+    "vocaloid, voiceroid, "
+    "(white footwear:1.4), (sneakers:1.45), (high tops:1.3)"
+)
+
+# One garment on the leg, exactly as LEGWEAR is -- the gradient pair is what
+# makes that one purple, and this one is plain. LEGWEAR_BAN still applies: the
+# reference has tights running straight into the shoe with no sock at the
+# ankle, so the six guards that keep a second garment off are as load-bearing
+# here as they are there.
+SPORTY_LEGWEAR = "(black pantyhose:1.5), (opaque pantyhose:1.4)"
+
+# HOOD minus the hood. `(hood down:1.25)` is an instruction about a garment this
+# costume does not have, and naming an absent garment is how it gets drawn.
+SPORTY_HOOD = "(visible hair:1.2), (purple eyes:1.2)"
+
+# The three blocks a costume owns. Everything else -- FACE, SURFACE, BODY, THIN,
+# every pose and the whole negative -- is shared, which is the claim this split
+# is making: what changes between the two is the clothes, not her and not the
+# drawing.
+COSTUMES = {
+    "default": {"character": CHARACTER, "legwear": LEGWEAR, "hood": HOOD},
+    "sporty": {"character": SPORTY, "legwear": SPORTY_LEGWEAR, "hood": SPORTY_HOOD},
+}
+
+
+def _splice(text: str, old: str, new: str, when: bool = True) -> str:
+    """`str.replace`, except that a needle which is not there is an error.
+
+    Every splice in `positive()` is a string replacement against a block, and a
+    replacement that matches nothing does nothing AND SAYS NOTHING. This file
+    has a rule about that failure because it has paid for it twice. With two
+    costumes in the file the odds of a needle going missing went up, so the
+    quiet version is gone.
+
+    `when=False` skips the splice outright, which is the honest way to say "this
+    costume has no such garment" -- as against letting the replacement run and
+    match nothing, which looks identical in the output and means the opposite.
+    """
+    if not when:
+        return text
+    assert old in text, f"splice needle absent: {old!r}"
+    return text.replace(old, new)
+
+
+def pose_block(pose: str, costume: str = "default") -> str:
+    """The pose's own tags, after the costume has had its say about them.
+
+    The poses were all written for the settled costume and one of them names its
+    shoes. `build()` goes through here too: the second pass is spliced in by
+    matching the pose block inside the finished prompt, so both callers have to
+    be looking at the same text or that splice matches nothing.
+    """
+    text = POSES[pose]
+    if pose == "stand" and costume == "sporty":
+        # The only pose that names footwear, and it names the settled costume's
+        # black high tops. SPORTY brings white sneakers; both in one prompt is
+        # asking for two pairs of shoes.
+        text = _splice(text, "(black footwear:1.35), (high tops:1.35), ", "")
+    return text
+
 
 POSES = {
     "lounge": (
@@ -1353,6 +1466,21 @@ POSES = {
         "(on back:1.4), (knees up:1.4), (hands behind head:1.35), "
         "(slouching:1.35), (clenched teeth:1.35), full body"
     ),
+    # Both arms thrown out and down, a V in each hand, weight forward, grinning
+    # with her teeth showing. `peace` is the other double-V pose in this file
+    # and it is a still one -- hands up by the face, one V over an eye. The
+    # difference this pose is for is the body: the arms are away from her and
+    # the shoulders are ahead of the hips.
+    #
+    # Nine tags. `(arms out:1.3)` is what keeps the Vs off her face -- without
+    # it `double v` is drawn at the chin, which is `peace` again. `(grin:1.4)`
+    # is the expression and it is why `hype` joins `open_mouthed` below: FACE
+    # nails the mouth shut and a grin with a shut mouth is a smirk.
+    "hype": (
+        "(solo:1.5), (standing:1.45), (from front:1.3), (leaning forward:1.35), "
+        "(legs apart:1.3), (double v:1.45), (arms out:1.3), (grin:1.4), "
+        "(full body:1.45)"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
@@ -1433,7 +1561,11 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # She is longer here than in either of them -- knees up, elbows out --
          # so the width is doing the same job for the same reason.
          "situp": (1536, 1024),
-         "stand": (832, 1664)}
+         "stand": (832, 1664),
+         # Arms out to the sides need width that `stand`'s 832 does not have,
+         # and the pose is still a whole standing figure, so it takes the
+         # 1024x1536 every other full body in this file is drawn at.
+         "hype": (1024, 1536)}
 
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
 # and THIN from the positive and the legwear ban from the negative -- naming a
@@ -1504,9 +1636,18 @@ NEGATIVE = (
 SWEEP_SEEDS = [555666777, 111222333, 1886970040, 737373737, 2557902837, 3409564303]
 
 
-def negative(pose: str) -> str:
+def negative(pose: str, costume: str = "default") -> str:
     """The negative, plus the legwear ban every full-figure pose now carries."""
     text = _negative_base(pose)
+    if costume == "sporty":
+        # One guard released, and only for this costume. `(blue tint:1.4)` was
+        # aimed at a cast over the whole picture; this costume is asking for
+        # denim, which is blue, so the guard would be arguing with the clothes.
+        #
+        # `(blue background:1.5)` STAYS. The backdrop is not prompt-stable here
+        # and is set afterwards with recolor_bg.py, so a blue one in the render
+        # is a defect even when the delivered picture is going to be cyan.
+        text = _splice(text, "(blue tint:1.4), ", "")
     # The head framings crop above the legs, and a guard against a garment that
     # is out of frame is tokens spent on nothing.
     if pose in HEAD_FRAMINGS:
@@ -1523,13 +1664,20 @@ def negative(pose: str) -> str:
         # FLOOR, not clothing, and it was the one thing in the picture saying
         # the scene is exercise. Banning it helped take 腹筋要素 to zero. The
         # two clothing tags stay; they are what the guard was actually for.
-        text += ", (sportswear:1.45), (gym uniform:1.4)"
+        # Released under `sporty`: that costume IS a casual gym kit, and a
+        # guard against the wardrobe would be a guard against the clothes. The
+        # posture guard below is about her back, not her clothes, and stays.
+        if costume == "default":
+            text += ", (sportswear:1.45), (gym uniform:1.4)"
         # 猫背's opposite, and the posture this model volunteers for a girl on
         # her back. `stand` pays a positive tag to GET this arch; here it is
         # the whole defect. Naming the shape in the positive without forbidding
         # its opposite is half a lever.
         text += ", (arched back:1.4), (bridge (pose):1.3)"
-    if pose == "stand":
+    if pose == "stand" and costume == "default":
+        # Gated on the costume: `sporty`'s shoes ARE white, so this line would
+        # forbid the footwear that costume names.
+        #
         # After the ban, not before it: this is the tail of the negative that
         # a5c494ef was drawn with, verified against its own history rather than
         # rebuilt from memory.
@@ -1637,11 +1785,18 @@ def _negative_base(pose: str) -> str:
     return text + ", (2girls:1.6), (multiple girls:1.6), (duplicate:1.55), (another person:1.5)"
 
 
-def positive(pose: str) -> str:
+def positive(pose: str, costume: str = "default") -> str:
     # The legwear, body and thin-line blocks belong to whole-figure framings;
     # the portrait crops above them and naming what is out of frame is what
     # invites it back in.
     full_figure = pose not in HEAD_FRAMINGS
+    blocks = COSTUMES[costume]
+    # The garment splices further down name tags that only the settled costume
+    # has -- `open cardigan`, `(drawstring:1.4)`, `(oversized shirt:1.3)`. Under
+    # any other costume the needle is absent, and a splice that matches nothing
+    # does nothing and reports nothing. So they are gated on the costume here
+    # and asserted in `_splice`, rather than left to miss quietly.
+    dressed = costume == "default"
     # A yawn, a shout and a vacant stare all need the mouth open; FACE closes it
     # by default. `allnighter` briefly took `small mouth` out too, for the width
     # of an 「イー」 mouth; that mouth is gone and so is the departure.
@@ -1654,8 +1809,11 @@ def positive(pose: str) -> str:
     # `situp` joins them for `(clenched teeth:1.35)`: gritted teeth are drawn
     # with the mouth open, and FACE's `closed mouth` is the tag that turns the
     # strain back into composure.
+    # `hype` is here for `(grin:1.4)`: a grin is drawn with the teeth showing
+    # and FACE's `closed mouth` is what turns it back into a smirk. Same
+    # mechanism as `kick`'s ドヤ顔 and `situp`'s clenched teeth.
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
-                            "dizzy", "kick", "situp")
+                            "dizzy", "kick", "situp", "hype")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
@@ -1755,6 +1913,7 @@ def positive(pose: str) -> str:
         # on this axis costs the picked composition and has to be re-picked.
         body = body.replace("(pale skin:1.25)",
                             "(long legs:1.40), (pale skin:1.25)")
+    character = blocks["character"]
     if pose == "boss":
         # Grown up, and it is one substitution now, not the two it started as.
         #
@@ -1801,7 +1960,7 @@ def positive(pose: str) -> str:
         #
         # `sleeves past wrists` stays. It is the tag CHARACTER measured as
         # boxing the coat out, and it was not part of this.
-        character = CHARACTER.replace("(oversized shirt:1.3), ", "")
+        character = _splice(character, "(oversized shirt:1.3), ", "", dressed)
         # The frills splice that used to be here is GONE, and not because it
         # stopped being wanted: CHARACTER carries 1.25 globally now, so the
         # replacement matched nothing and did nothing. A splice against a block
@@ -1812,8 +1971,8 @@ def positive(pose: str) -> str:
         # the pose, and it costs the rabbit hood -- which the module docstring
         # rules out in general and which is a deliberate exception here, not an
         # oversight. Drop this line to get the hood and the ears back.
-        character = character.replace("open cardigan",
-                                      "open cardigan, (off shoulder:1.3)")
+        character = _splice(character, "open cardigan",
+                            "open cardigan, (off shoulder:1.3)", dressed)
         # The straps. Her dress is a halter that crosses at the chest, goes over
         # the shoulders and ties in a bow behind the neck -- it is in the
         # official design and the recipe had never drawn it outside `nape`,
@@ -1829,11 +1988,11 @@ def positive(pose: str) -> str:
         # which is the part the reference is explicit about. The three-tag form
         # drew the straps most clearly and pulled the camera in off the body;
         # the single tag draws them and leaves the composition where it was.
-        character = character.replace(
-            "(drawstring:1.4), ", "(drawstring:1.4), (criss-cross halter:1.45), ")
-    else:
-        character = CHARACTER
-    if pose == "stand":
+        character = _splice(
+            character,
+            "(drawstring:1.4), ", "(drawstring:1.4), (criss-cross halter:1.45), ",
+            dressed)
+    if pose == "stand" and dressed:
         # The dress's own straps: they cross at the chest, go over the shoulders
         # and tie behind the neck. Official design, and until now only `boss`
         # and `nape` drew them -- `boss` because its coat is already off the
@@ -1850,18 +2009,22 @@ def positive(pose: str) -> str:
         # One tag, not `nape`'s two. `(criss-cross halter:1.45)` names the cross
         # specifically, which is the part the reference is explicit about, and
         # `boss` already found the three-tag form pulls the camera in.
-        character = character.replace(
-            "(drawstring:1.4), ", "(drawstring:1.4), (criss-cross halter:1.45), ")
-    if pose == "nape":
+        character = _splice(
+            character,
+            "(drawstring:1.4), ", "(drawstring:1.4), (criss-cross halter:1.45), ",
+            dressed)
+    if pose == "nape" and dressed:
         # The dress ties in a bow at the nape, which only this pose is looking
         # at, and which costs every other pose its coat -- see CHARACTER.
         # Spliced in beside the coat's cord rather than appended, because that
         # is where they sat in the render this was settled on.
-        character = character.replace(
+        character = _splice(
+            character,
             "(drawstring:1.4), ",
-            "(drawstring:1.4), (halterneck:1.45), (black straps:1.35), ")
-    legwear = LEGWEAR
-    if pose == "boss":
+            "(drawstring:1.4), (halterneck:1.45), (black straps:1.35), ",
+            dressed)
+    legwear = blocks["legwear"]
+    if pose == "boss" and dressed:
         # The rib is not decoration -- it is what her thighhighs are, and the
         # block draws it only on some seeds unaided. `(ribbed legwear:1.35)` is
         # ADDED here rather than substituted, which is against this file's usual
@@ -1930,7 +2093,8 @@ def positive(pose: str) -> str:
     # Obsolete with it: the two-step finish (`recolor_skin.py --tolerance 14`
     # then a masked 0.3 refine) that painted the bare thigh into tights. One
     # garment covers the leg, so there is no bare thigh to repair.
-    parts = ["best quality, absurdres, 1girl, solo", character, POSES[pose]]
+    parts = ["best quality, absurdres, 1girl, solo", character,
+             pose_block(pose, costume)]
     if full_figure:
         parts.append(legwear)
     parts += [face, SURFACE]
@@ -1938,7 +2102,8 @@ def positive(pose: str) -> str:
     # The coat pulled off the shoulders, which is what uncovers the nape. It
     # rides with the hood rather than joining the pose block: that block is at
     # eight tags and a ninth is where the hair clips broke last time.
-    parts.append(f"{HOOD}, (off shoulder:1.25)" if pose == "nape" else HOOD)
+    hood = blocks["hood"]
+    parts.append(f"{hood}, (off shoulder:1.25)" if pose == "nape" else hood)
     if full_figure:
         parts.append(THIN)
     return ", ".join(parts)
@@ -2098,7 +2263,7 @@ HIRES_POSITIVE = {
 
 
 def build(pose: str, seed: int, prefix: str, hires: int = 0,
-          denoise: float | None = None) -> dict:
+          denoise: float | None = None, costume: str = "default") -> dict:
     """The settled graph. `hires` adds a second pass at that square size.
 
     The canvas of the first pass never changes, because that is the pass that
@@ -2115,9 +2280,9 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
         "5": {"class_type": "EmptyLatentImage",
               "inputs": {"batch_size": 1, "width": width, "height": height}},
         "6": {"class_type": "CLIPTextEncode",
-              "inputs": {"clip": ["4", 1], "text": positive(pose)}},
+              "inputs": {"clip": ["4", 1], "text": positive(pose, costume)}},
         "7": {"class_type": "CLIPTextEncode",
-              "inputs": {"clip": ["4", 1], "text": negative(pose)}},
+              "inputs": {"clip": ["4", 1], "text": negative(pose, costume)}},
         "3": {"class_type": "KSampler", "inputs": {
             "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
             "latent_image": ["5", 0], "seed": seed, "steps": 30, "cfg": 5.0,
@@ -2154,8 +2319,11 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
             "sampler_name": "dpmpp_2m", "scheduler": "karras",
             "denoise": HIRES_DENOISE if denoise is None else denoise}}
         if pose in HIRES_POSITIVE:
-            block = POSES[pose]
-            text = positive(pose).replace(
+            # `pose_block`, not `POSES[pose]`: a costume may have edited the
+            # pose's tags, and this splice finds the pose block inside the
+            # finished prompt by matching it.
+            block = pose_block(pose, costume)
+            text = positive(pose, costume).replace(
                 block, block + ", " + HIRES_POSITIVE[pose])
             # A pass cannot say `closed mouth` and `(open mouth:1.35)` at once,
             # and FACE says the first for every pose outside `open_mouthed`.
@@ -2174,7 +2342,7 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
         if pose in HIRES_NEGATIVE:
             graph["7b"] = {"class_type": "CLIPTextEncode", "inputs": {
                 "clip": ["4", 1],
-                "text": HIRES_NEGATIVE[pose] + negative(pose)}}
+                "text": HIRES_NEGATIVE[pose] + negative(pose, costume)}}
             graph["11"]["inputs"]["negative"] = ["7b", 0]
         graph["8"]["inputs"]["samples"] = ["11", 0]
 
@@ -2184,6 +2352,8 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pose", choices=sorted(POSES), default="lounge")
+    parser.add_argument("--costume", choices=sorted(COSTUMES), default="default",
+                        help="which set of clothes; the settled one is `default`")
     parser.add_argument("--seed", type=int, action="append", default=[])
     parser.add_argument("--seeds", type=int, default=0,
                         help="take this many from the fixed sweep list")
@@ -2205,15 +2375,22 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.print_prompt:
-        print(positive(args.pose), "\n\n---\n\n", negative(args.pose))
+        print(positive(args.pose, args.costume), "\n\n---\n\n",
+              negative(args.pose, args.costume))
         return
 
+    # The costume goes in the filename. Two sets of clothes through one pose at
+    # one seed are otherwise two files a letter apart in the output directory,
+    # and the second one is the one nobody can name afterwards.
+    prefix = (args.prefix if args.costume == "default"
+              else f"{args.prefix}-{args.costume}")
     seeds = args.seed or SWEEP_SEEDS[:args.seeds] or [SWEEP_SEEDS[0]]
     for seed in seeds:
         req = urllib.request.Request(
             f"http://{args.host}:{args.port}/prompt",
-            data=json.dumps({"prompt": build(args.pose, seed, args.prefix,
-                                             args.hires, args.hires_denoise)}).encode(),
+            data=json.dumps({"prompt": build(args.pose, seed, prefix,
+                                             args.hires, args.hires_denoise,
+                                             args.costume)}).encode(),
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=30) as resp:

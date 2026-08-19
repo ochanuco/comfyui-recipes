@@ -7389,3 +7389,103 @@ it would ship a different picture than the one that was chosen.
 
 Print: 11bad1ce — `--pose dizzy --seed 737373737 --hires 2048`, the same first
 pass with the second at the default denoise for that upscale.
+
+## A second costume, and `--costume` (2026-08-20)
+
+「ゆかりさんベースで服装やポーズは変化させたい。服装はオリジナルに戻す可能性はある」.
+The reference is a sporty one — grey oversized tee, denim shorts, plain black
+tights, white high tops on a cyan flat backdrop — and the sentence that decided
+the shape of the change is the second one: the original has to still be there.
+
+So nothing was replaced. `CHARACTER` was split into `IDENTITY` (who she is) plus
+its garments, a second set of garments was hung on the same `IDENTITY`, and the
+two are selected with `--costume {default,sporty}`. A costume owns exactly three
+blocks — character, legwear, hood. `FACE`, `SURFACE`, `BODY`, `THIN`, every pose
+and the whole negative are shared, which is the claim being made: what changes
+between them is the clothes, not her and not the drawing.
+
+    SPORTY = IDENTITY + (
+        "(grey shirt:1.45), (t-shirt:1.45), (oversized shirt:1.4), short sleeves, "
+        "(denim shorts:1.45), (short shorts:1.25), "
+        "vocaloid, voiceroid, "
+        "(white footwear:1.4), (sneakers:1.45), (high tops:1.3)")
+    SPORTY_LEGWEAR = "(black pantyhose:1.5), (opaque pantyhose:1.4)"
+    SPORTY_HOOD    = "(visible hair:1.2), (purple eyes:1.2)"
+
+**The split moved nothing.** `IDENTITY + <garments>` is byte-identical to the
+`CHARACTER` that shipped, and this is not an argument, it was checked: every
+pose's positive, negative and full graph (at `--hires 0` and `2048`) under
+`--costume default` was compared against the same functions imported from the
+previous commit, and came back identical for all 22. The fingerprint agreed
+before the new blocks joined the hash — it was still `47b0d089d5a5ec77` after
+the split and moved to `aa86759a39ffca43` only when `SPORTY`, `SPORTY_LEGWEAR`
+and `SPORTY_HOOD` were added to `COSTUME_BLOCKS`. That is the whole reason to
+hash a costume nothing has been approved in yet: the next edit to it is visible.
+
+Three things carried over deliberately rather than by omission:
+
+- **The leg is still ONE garment.** `SPORTY_LEGWEAR` is plain black where
+  `LEGWEAR` is a purple-to-black gradient, and `LEGWEAR_BAN` still applies to
+  both — the reference has tights running straight into the shoe with no sock at
+  the ankle, so the six guards that keep a second garment off are as
+  load-bearing here as they are there.
+- **`(hood down:1.25)` is gone from `SPORTY_HOOD`.** It is an instruction about
+  a garment this costume does not have, and this file's own history says naming
+  an absent garment is how it gets drawn.
+- **The shoes are in the costume, not in a pose.** `stand` is the only pose that
+  names footwear and it names the settled costume's black high tops, so
+  `pose_block()` splices that pair out under `sporty` — declared in
+  `costume_check.py`, not done quietly.
+
+### The splices had to start failing loudly
+
+The garment splices in `positive()` match on `open cardigan`, `(drawstring:1.4)`
+and `(oversized shirt:1.3)`. None of those tags exist in `SPORTY`, so under the
+new costume all four would have matched nothing, done nothing, and reported
+nothing — the exact failure this repo has a written rule about and has now had
+two chances to repeat. `_splice()` replaces `str.replace` for them: it asserts
+the needle is present, and takes a `when` flag so "this costume has no such
+garment" is said outright instead of being indistinguishable from a miss.
+
+`costume_check.py` follows: `EXCEPTIONS` now holds only the departures that are
+costume-independent, `COSTUME_ONLY` holds the ones that exist because a
+particular costume has the garment being spliced, and the check runs over every
+(costume, pose) pair. Head framings' crop removal is generated per costume by
+`_cropped()` — it names the legwear, and there is more than one legwear now.
+
+### Guards released, and the one that was not
+
+Three, all scoped to `sporty` alone:
+
+- `situp`'s `(sportswear:1.45), (gym uniform:1.4)`. The guard exists because an
+  exercise scene is the strongest pull off the settled costume anything here has
+  asked for; this costume *is* a casual gym kit, so the guard would be arguing
+  with the clothes. The `(arched back:1.4), (bridge (pose):1.3)` pair beside it
+  is about her back and stays for both.
+- `stand`'s `(white footwear:1.45), (red footwear:1.4)`. Its shoes are white.
+- `(blue tint:1.4)`, because denim is blue.
+
+**`(blue background:1.5)` was NOT released**, and the reason is worth writing
+down because the delivered picture is meant to be cyan: the backdrop is not
+prompt-stable here and is set afterwards with `recolor_bg.py`, so a blue
+backdrop arriving from the prompt is still a defect, not a head start.
+
+### `hype` — 両手ダブルピース、前傾 (2026-08-20)
+
+    (solo:1.5), (standing:1.45), (from front:1.3), (leaning forward:1.35),
+    (legs apart:1.3), (double v:1.45), (arms out:1.3), (grin:1.4),
+    (full body:1.45)
+
+Nine tags, 1024x1536. `peace` is the other double-V pose in this file and it is
+a still one — hands up by the face, one V over an eye; the difference this pose
+is for is the body, arms away from her and shoulders ahead of the hips.
+`(arms out:1.3)` is what keeps the Vs off her face: without it `double v` is
+drawn at the chin, which is `peace` again. `(grin:1.4)` puts the pose in
+`open_mouthed` — a grin is drawn with teeth showing and `FACE`'s `closed mouth`
+turns it back into the smirk every other pose already has.
+
+The canvas is 1024 wide rather than `stand`'s 832: arms out to the sides need
+the width, and `stand`'s narrow frame was chosen for the opposite problem.
+
+First sweep queued at six seeds — 29d0df4a, 61fd2c81, bb35c89d, c67f05e6,
+3be37c1b, 478fb1d2. Nothing measured yet; unread when this was written.

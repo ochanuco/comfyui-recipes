@@ -7168,3 +7168,56 @@ up and is sitting in a heap, rather than mid-rep.
 B and C are `.local/situp_arms.py`, which assigns whole `POSES`/`SIZES` entries
 rather than string-splicing them — a splice against a block that has moved
 does nothing and says nothing.
+
+### 「腹筋要素が0になった」 — and this file predicted it, in the toe section
+
+The 猫背 round took the exercise out of the picture entirely. The diagnosis is
+already written down, three sections up, from the other direction:
+
+> A guard is a deletion, and what it deleted was the feature rather than the
+> surplus. **Zero is not five.**
+
+There it was a negative tag dissolving the toes. Here it is a *positive* weight
+held down on purpose: `(sit-up:1.3)` was pinned at the bottom of the block with
+a note saying that raising it would draw a successful rep. The failure that
+actually arrived is the one where the exercise is not in the frame at all.
+
+**Do not spend weight defending against a feature's excess before the feature
+has been shown to appear.** A rep drawn too well is a note to write; no rep is
+no picture. This is the second shape of the same error and it is worth naming as
+its own rule, because the first one looked like a negative-side problem and this
+one is nothing to do with the negative.
+
+Three changes, all the same change — weight off the state, onto the action:
+
+    (sit-up:1.5)      raised, and moved to the slot straight after (solo:1.5);
+                      at position six, behind two tags saying she is lying
+                      down, the subject of the picture was a footnote
+    (on back:1.4)     lowered from 1.5 -- a crunch is not flat, and this tag
+                      was saying "resting" louder than anything said "exercise"
+    (slouching:1.35)  eased a notch; it won the last round outright, which is
+                      exactly the problem
+
+**And `(yoga mat:1.3)` came out of the negative.** That guard was written
+against the wardrobe, and a mat is floor, not clothing — it was the one object
+in the picture saying the scene is exercise, and banning it helped take 腹筋要素
+to zero. `(sportswear:1.45), (gym uniform:1.4)` stay; they are what the guard
+was actually for. **A costume guard that names a prop is guarding the wrong
+noun.**
+
+    D  recipe: (sit-up:1.5) first     555666777 e28c0c39  111222333 b9e02c79
+       + mat allowed back             1886970040 51d8fdbf  737373737 3de0954d
+    E  (exercise:1.45) in that slot   555666777 95222725  111222333 0c400781
+                                      1886970040 76c83b7b
+    F  D + (from side:1.35), 9 tags   555666777 8a3d614a  111222333 2f2bdf39
+                                      1886970040 a61a67a8
+
+E is the arm that matters if D still comes back empty: it asks whether this
+model knows the word `sit-up` at all. `exercise` is a large tag and `sit-up` is
+a small one, and **a rare tag at 1.5 is still a rare tag** — if E reads as
+exercise and D does not, the feature never had a lever and the whole first three
+rounds were spent weighting a word the model does not hold.
+
+F tests the camera, which was flagged as the first lever two rounds ago and not
+taken: a sit-up is legible from the SIDE — bent knees, torso at an angle — and
+close to illegible from above, where it is a girl lying on the floor.

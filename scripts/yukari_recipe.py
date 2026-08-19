@@ -1259,9 +1259,35 @@ POSES = {
     # reaches for it unprompted on anything lying down, and `stand` spends a
     # positive tag on that arch on purpose. Naming the shape without forbidding
     # its opposite is half a lever.
+    # ---- 「腹筋要素が0になった」 ----
+    #
+    # And this file has the note that predicted it. The toe work ends with **"a
+    # guard is a deletion, and what it deleted was the feature rather than the
+    # surplus. Zero is not five."** The same mistake, arrived at from the
+    # positive side: `(sit-up:1.3)` was pinned at the BOTTOM of the block on the
+    # argument that raising it would draw a successful rep -- and the failure
+    # mode that actually turned up is the one where the exercise is not in the
+    # picture at all. A rep drawn too well is a note to write; no rep is no
+    # picture. **Do not spend a weight defending against a feature's excess
+    # before the feature has been shown to appear.**
+    #
+    # Three changes, all the same change -- move weight off the state and onto
+    # the action:
+    #
+    #   `(sit-up:1.5)` raised, and moved to the slot straight after (solo:1.5).
+    #                  It is the subject; at position six behind two tags that
+    #                  say she is lying down it was a footnote.
+    #   `(on back:1.4)` lowered from 1.5. A crunch is not flat, and this tag
+    #                  was saying "resting" louder than anything was saying
+    #                  "exercising".
+    #   `(slouching:1.35)` eased a notch, for the same budget reason: it won the
+    #                  last round outright and that is the problem.
+    #
+    # `(yoga mat:1.3)` came OUT of this pose's negative -- see `negative()`. It
+    # was aimed at the wardrobe and took the scene with it.
     "situp": (
-        "(solo:1.5), (lying:1.45), (on back:1.5), (knees up:1.4), "
-        "(hands behind head:1.35), (sit-up:1.3), (slouching:1.4), "
+        "(solo:1.5), (sit-up:1.5), (lying:1.45), (on back:1.4), "
+        "(knees up:1.4), (hands behind head:1.35), (slouching:1.35), "
         "(clenched teeth:1.35), full body"
     ),
 }
@@ -1426,7 +1452,13 @@ def negative(pose: str) -> str:
         # kept short on purpose: this file has twice watched a long guard stack
         # flatten the palette, and the costume only needs the gym kept out of
         # it, not argued with.
-        text += ", (sportswear:1.45), (gym uniform:1.4), (yoga mat:1.3)"
+        # `(yoga mat:1.3)` was here and is deliberately gone. The guard was
+        # written against the wardrobe -- an exercise scene is the strongest
+        # pull off this costume anything here has asked for -- but a mat is
+        # FLOOR, not clothing, and it was the one thing in the picture saying
+        # the scene is exercise. Banning it helped take 腹筋要素 to zero. The
+        # two clothing tags stay; they are what the guard was actually for.
+        text += ", (sportswear:1.45), (gym uniform:1.4)"
         # 猫背's opposite, and the posture this model volunteers for a girl on
         # her back. `stand` pays a positive tag to GET this arch; here it is
         # the whole defect. Naming the shape in the positive without forbidding

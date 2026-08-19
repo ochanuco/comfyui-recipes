@@ -1152,26 +1152,24 @@ POSES = {
     # rounds refusing to pay. It was paid because the expression had been asked
     # for four times and had not arrived once.
     #
-    # 1.55 AND NOT 1.35: at 1.35 the count is right but 「小指が変なところから
-    # 出てるよ」 -- the outer toe splays off the SIDE of the foot instead of
-    # ending the row, on all four seeds, so it was the block and not the seed.
-    # More curl tucks it in, and the axis is monotonic: 1.55 and 1.70 both put
-    # every toe on the row's front edge.
+    # NO TOE TAG IN THIS BLOCK, and the reason is not the toes -- it is the
+    # palette. Measured across the series at seed 111222333, mean saturation of
+    # the figure against the costume's own colours:
     #
-    # 1.70 is NOT taken, and the reason is a failure mode this pose has already
-    # met. At 1.70 the separations shallow out and the row starts reading as one
-    # mass -- which is where `(extra toes:1.45)` and `(extra digits:1.45)` both
-    # ended up. Curl far enough and it dissolves the toes the same way a guard
-    # does. 1.55 keeps them distinct. If the attachment ever reads wrong again,
-    # 1.70 is rendered and is the next step, but it is a step toward that edge.
+    #   13 tags, no toe tag                 sat  52.5   coat 37.7%  hair 5.0%
+    #   + (toes:1.4)                        sat 113.5   coat 20.7%
+    #   + (five toes:1.6)                   sat 187.8   coat  0.2%
+    #   + (toe scrunch:1.35 / 1.55)         sat 196.9 / 198.9   coat 0.1% / 0.0%
     #
-    # `(toe scrunch:1.55)` IS THE TOE FIX, and it is not a count tag. Read the
-    # note below before touching it: eleven levers that argued about the number
-    # failed first, and this one works by changing WHAT IS DRAWN. Curled toes
-    # overlap; a fanned row of five at this angle is the hardest thing in the
-    # frame to draw and the easiest to miscount. `(spread toes:1.35)`, the
-    # opposite treatment, drew long finger-like toes and was worse than any
-    # count tag.
+    # The costume colours do not merely shift, they LEAVE. And it is not the
+    # slot count: dropping back to thirteen and to twelve with the toe tag still
+    # in measured 196.0 and 142.3, so the count was a coincidence of the toe tag
+    # always having been the one added last.
+    #
+    # NEGATIVE toe guards cost nothing at all -- 40.3, 51.0, 47.7, all at or
+    # better than the clean block. So the axis is not "toes"; it is that a
+    # POSITIVE toe tag pulls this prompt somewhere with a different palette,
+    # and subtraction does not.
     #
     # DO NOT GUARD THE TOES. 「指が6本あるねえ」 on the sole that is the nearest
     # thing to the lens, and both sides of the tag axis were spent on it:
@@ -1203,8 +1201,7 @@ POSES = {
     # is on thinner ice than the count suggests, because the four that pushed it
     # past the line were all expression and none of them touched the pose.
     "kick": (
-        "(solo:1.5), (sitting:1.45), (soles:1.4), (toe scrunch:1.55), "
-        "(foot focus:1.35), "
+        "(solo:1.5), (sitting:1.45), (soles:1.4), (foot focus:1.35), "
         "(foreshortening:1.3), (knee up:1.25), (leaning back:1.25), (couch:1.2), "
         "(smug:1.3), (confident:1.25), (half-closed eyes:1.25), (open mouth:1.35), "
         "(full body:1.4)"
@@ -1834,7 +1831,22 @@ HIRES_NEGATIVE = {
     # its negative while asking for `(half-closed eyes:1.25)` in its positive. It
     # SPLIT the two, and this guard had fused them. Forbid the lids all the way
     # shut; ask for them half. One tag banned, not a stack.
-    "kick": "(closed eyes:1.4), ",
+    # 「分厚いタイツってことで足の指先を書かなくてもいいのでは？」 and that
+    # dissolves the whole problem, because the picture it asks for is the one
+    # two guards had ALREADY DRAWN and this file had already written off.
+    # `(extra toes:1.45)` and `(extra digits:1.45)` were both recorded as
+    # failures for "dissolving the toes, leaving a smooth sole with no
+    # separation at all" -- judged against five countable toes, **a criterion
+    # the costume never asked for**. She is in `(opaque pantyhose:1.4)`. A foot
+    # in thick tights has a smooth toe box, and drawing five toes through it was
+    # the error the whole time.
+    #
+    # HERE and not in the pass-1 negative, because this is the shape a late pass
+    # is best at and the argument that built this dict: a guard IS a deletion,
+    # a late pass only gets to delete, and pass 1 stays byte-identical to
+    # fa504c93 -- so the composition and the palette both come through
+    # untouched and pass 2 smooths the toe box off the end.
+    "kick": "(toes:1.4), (extra toes:1.4), (closed eyes:1.4), ",
 }
 
 # The positive-side sibling, and it exists for a request the negative one cannot

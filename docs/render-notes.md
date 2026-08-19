@@ -6955,3 +6955,81 @@ Recorded so it is not retried.
 
 The settled block on two further seeds. Recipe reproduces `yk-toeI` node for
 node.
+
+## The palette breaks on POSITIVE toe tags, and the count criterion was never the costume's
+
+Two findings this round, and the first one is a correction of something asserted
+in this file an hour earlier.
+
+### Correction: it is not the slot count
+
+「カラーリングはおかしい」. Measured at seed 111222333, mean figure saturation
+against the costume's own colours:
+
+    13 tags, no toe tag                sat  52.5   coat 37.7%  hair 5.0%
+    + (toes:1.4)                       sat 113.5   coat 20.7%
+    + (five toes:1.6)                  sat 187.8   coat  0.2%
+    + (toe scrunch:1.35)               sat 196.9   coat  0.1%
+    + (toe scrunch:1.55)               sat 198.9   coat  0.0%
+
+The costume colours do not shift, they LEAVE. **This was first read as the
+fourteenth slot** — three unrelated fourteenth tags breaking it identically is a
+persuasive shape, and `sip`'s ninth slot is the precedent. That read was wrong,
+and the test that killed it was making room:
+
+    13 tags, -(couch:1.2), scrunch kept    sat 196.0
+    13 tags, -(soles:1.4), scrunch kept    sat 196.5
+    12 tags, -both,        scrunch kept    sat 142.3
+
+Deleting slots did not bring it back. The count was a coincidence of the toe tag
+always having been the one added last. **The lever is the toe tag itself.**
+
+And the direction matters: negative toe guards cost nothing.
+
+    (extra toes:1.15) pass 1     sat 40.3   coat 48.4%
+    (extra toes:1.45) pass 1     sat 51.0   coat 24.5%
+    (extra digits:1.45) pass 1   sat 47.7   coat 23.2%
+
+So a POSITIVE toe tag pulls this prompt somewhere with a different palette, and
+subtraction does not. That is why `(toes:1.4)` was mildest at 113.5 and the two
+tags that name a foot's *arrangement* were worst.
+
+### 「分厚いタイツってことで足の指先を書かなくてもいいのでは？」
+
+This dissolves the problem, and the picture it asks for is **one that two guards
+had already drawn and this file had already written off.** `(extra toes:1.45)`
+and `(extra digits:1.45)` were both recorded as failures for "dissolving the
+toes, leaving a smooth sole with no separation at all" — judged against five
+countable toes, **a criterion the costume never asked for.** She is in
+`(opaque pantyhose:1.4)`. A foot in thick tights has a smooth toe box, and
+drawing five toes through it was the error the whole time.
+
+Eleven levers spent arguing about a count, one spent curling them, and the
+answer was that the toes should not be individually drawn at all. **The defect
+was in the acceptance criterion, not in the prompt** — worth more than the tag,
+because nothing in a render tells you the target is wrong.
+
+Settled: `(toe scrunch:1.55)` is out, the block is back to the thirteen that
+drew fa504c93, and the guard went into `HIRES_NEGATIVE["kick"]`:
+
+    "(toes:1.4), (extra toes:1.4), (closed eyes:1.4), "
+
+**In pass 2 and not pass 1**, because this is the shape a late pass is best at
+and the argument that built the dict in the first place: a guard is a deletion,
+a late pass only gets to delete, and pass 1 stays byte-identical to fa504c93 —
+so the picked composition and the clean palette both come through untouched and
+pass 2 smooths the toe box off the end. Verified identical on nodes 5, 6, 7, 3
+and 10.
+
+    yk-smoothR   (toes:1.4), (extra toes:1.4)     111222333  f0a96428
+                                                  1886970040 10cefa69
+    yk-smoothT   the same pair at 1.55            111222333  1ee9fbc9
+
+    f0a96428   sat 35.1   coat 35.4%  hair 10.4%  legwear 13.3%
+    10cefa69   sat 40.9   coat 25.8%  hair  8.4%  legwear  9.9%
+    1ee9fbc9   sat 34.8   coat 35.2%  hair  9.9%  legwear 14.7%
+
+All three back in the approved range, and R and T are indistinguishable — so 1.4
+is enough and the recipe takes it rather than the stronger pair.
+
+`headcount.py`: all three ONE.

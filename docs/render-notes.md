@@ -6658,3 +6658,54 @@ that has already been picked, and the whole argument for `HIRES_POSITIVE` is
 that such corrections are cheap there. It **does** hard-FAIL if pass 2 removes a
 tag belonging to CHARACTER, LEGWEAR, BODY or HOOD. What was unacceptable was
 that any of it could be invisible.
+
+## Verbatim, and still 「表情が穏やかだねえ」 — so it is not the tags
+
+The cluster from 10915a12 was copied word for word and weight for weight, plus
+the guard tail, and the face still reads calm. **That rules out the tag
+vocabulary as the cause**, which is worth as much as a positive result: three
+rounds of this problem have now been spent on which words to use, and the words
+turn out to be right and insufficient.
+
+Two candidates left, and they are not variants of one idea — they fail in
+different places, so one arm each.
+
+    yk-calmA   attention   2557902837   091c42cd
+    yk-calmB   the pass    2557902837   0e7735fc
+
+**A — attention.** `(foot focus:1.35)` and `(foreshortening:1.3)` are in the
+pass-2 positive only because the pose block is carried there whole. Their job is
+composition, and pass 1 has already done it. In pass 2 they decide nothing; they
+spend attention, and what they spend it on is **pointing the camera away from
+the face** while the same text asks for a nuanced expression on it. Dropped from
+pass 2 only, pass 1 asserted untouched.
+
+This is `HIRES_NEGATIVE`'s argument run backwards. That dict exists because a
+subtraction belongs in the pass that can act on it; this is the same claim about
+an addition whose work is finished — **a composition tag should not be re-paid by
+the pass that only refines.** If A wins, that generalises to every pose with a
+camera-direction tag and a second pass, which is most of them.
+
+**B — the pass.** The expression moved to pass 1, where the render it was copied
+from had it. This is the honest test of whether 0.60 can overwrite a face the
+base image has already drawn calm and closed-mouthed. **It costs the
+composition** — same seed, but pass 1 is the pass that decides the picture, and
+that is the trade this pose has refused four times running. It is on the table
+now because the expression has been asked for four times and has not arrived,
+and protecting the composition has started to cost more than it saves.
+
+### If both fail, the next lever is pixels and it is not a crop
+
+Not measured, and stated as reasoning rather than a number: 10915a12 is
+`(upper body:1.45), (portrait:1.25)` at 1024x1280, where the head is a large
+fraction of the frame. `kick` is a whole seated figure at 1024x1536 with a foot
+in the foreground, so the head is a small one — roughly a two-to-three-fold
+difference in linear face size in the pass that decides the expression. The eye
+round two back already found this recipe's threshold from the other side: a face
+about 250px across is where eyes stop matching each other.
+
+Cropping in is not available — that rule is not suspended by a fourth failed
+round. The lever would be a framing tag in pass 1, which changes the pose, and
+that is a different conversation to have deliberately rather than by drift.
+
+`headcount.py`: both ONE.

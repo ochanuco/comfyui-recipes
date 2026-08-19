@@ -6854,3 +6854,62 @@ is reported above is structural and legible — dissolved versus separated — a
 the count is left to the eye that has won every previous disagreement.
 
 `headcount.py`: ONE on all five.
+
+## `(toe scrunch:1.35)` — eleven levers argued about the number; this one changed the drawing
+
+「治らないねえ・・・」 after five arms, on top of four before them. The count had
+been attacked from every side a prompt has:
+
+    (five toes:1.3) / (five toes:1.6)          positive, two weights
+    (extra toes:1.45) / (extra toes:1.15)      negative, two weights
+    (extra digits:1.45)                        negative, a word certainly in
+                                               the vocabulary -- same failure,
+                                               which is what proved the ROUTE
+                                               wrong rather than the spelling
+    (toes:1.4) pass 1 / pass 2 / + soft guard  the feature named instead
+    four alternative seeds
+
+Every one of them asked for **five toes fanned in a row**, which is the hardest
+thing in this frame to draw and the easiest thing to miscount. Curled toes
+overlap instead of fanning, and an overlapping row does not have to be counted
+to read right.
+
+    yk-toeF   (toe scrunch:1.35)        956b3a42   five, countable
+    yk-toeG   (spread toes:1.35)        a95e600b   long finger-like toes, worse
+                                                   than any count tag
+    yk-toeH   (opaque pantyhose:1.0)    8fc338ba   unchanged
+
+**The lesson is the shape of the search, not the tag.** Eleven attempts treated
+this as a quantity to be specified and the twelfth treated it as a structure to
+be chosen. `(spread toes:1.35)` is the control that makes the point: the same
+axis, the opposite direction, and it is worse than doing nothing — so this is
+not "any new tag would have helped".
+
+`(toe scrunch:1.35)` is in `POSES["kick"]` next to `(soles:1.4)`, and the recipe
+reproduces `yk-toeF` node for node. Fourteen tags.
+
+### Null: the toes are not at the dark end of the gradient
+
+Measured before spending renders on it, because the hypothesis was cheap to
+kill: if the toes sat at the black end of `(gradient legwear:1.4)`, every count
+lever would have been arguing about separations that were barely drawn.
+
+    yk-kickfb   figure mean 103.2   toe region 95.4   51.7% of the figure darker
+    yk-toeA     figure mean  73.9   toe region 58.7   61.9% of the figure darker
+
+They sit near the middle. **The hypothesis is false and the three renders it
+would have bought were not spent.** Local contrast in the toe region does run
+lower than the figure's (44.2 vs 51.7, and 35.3 vs 57.3), but a foot is a smooth
+object and low variance is what a smooth object looks like — that is exactly the
+inference that has lost eight times in this file, and it is not being made a
+ninth time.
+
+`(opaque pantyhose:1.0)` was the other upstream suspect — the theory that `soles`
+and `toes` describe bare feet while this foot is inside fabric, so every toe tag
+was describing something not in the picture. Rendered, unchanged, recorded here
+so it is not retried.
+
+    yk-kick   1886970040 8aac2eb9   737373737 767c39a4   2557902837 6e1a9b77
+
+The settled recipe on three further seeds, for a composition to choose from now
+that the foot draws.

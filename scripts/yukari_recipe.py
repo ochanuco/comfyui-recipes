@@ -1152,6 +1152,14 @@ POSES = {
     # rounds refusing to pay. It was paid because the expression had been asked
     # for four times and had not arrived once.
     #
+    # `(toe scrunch:1.35)` IS THE TOE FIX, and it is not a count tag. Read the
+    # note below before touching it: eleven levers that argued about the number
+    # failed first, and this one works by changing WHAT IS DRAWN. Curled toes
+    # overlap; a fanned row of five at this angle is the hardest thing in the
+    # frame to draw and the easiest to miscount. `(spread toes:1.35)`, the
+    # opposite treatment, drew long finger-like toes and was worse than any
+    # count tag.
+    #
     # DO NOT GUARD THE TOES. 「指が6本あるねえ」 on the sole that is the nearest
     # thing to the lens, and both sides of the tag axis were spent on it:
     #
@@ -1182,7 +1190,8 @@ POSES = {
     # is on thinner ice than the count suggests, because the four that pushed it
     # past the line were all expression and none of them touched the pose.
     "kick": (
-        "(solo:1.5), (sitting:1.45), (soles:1.4), (foot focus:1.35), "
+        "(solo:1.5), (sitting:1.45), (soles:1.4), (toe scrunch:1.35), "
+        "(foot focus:1.35), "
         "(foreshortening:1.3), (knee up:1.25), (leaning back:1.25), (couch:1.2), "
         "(smug:1.3), (confident:1.25), (half-closed eyes:1.25), (open mouth:1.35), "
         "(full body:1.4)"

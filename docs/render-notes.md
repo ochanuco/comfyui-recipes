@@ -7323,3 +7323,38 @@ One tag, three settings, seed held at 737373737 so the drawing is comparable
 Unjudged at the time of writing. If 1.7 still does not draw a ring, the answer
 is not more weight on `eyebags` — it is that this crop's flat-colour palette has
 nowhere to put a shadow, and the next lever is the palette and not the word.
+
+### `(eyebags:1.55), (tired:1.3)` is the クマ, and `@_@` at 1.45 is too loud for it
+
+b4629be6 picked: 「最後のがいいけど、目のぐるぐるが強調されすぎて視線誘導されて
+しまう」. Two results in one render.
+
+**The クマ is solved, and it took two tags and not a heavier one.** `eyebags`
+alone at 1.55 is on the sheet as eb155; what reads in b4629be6 is `(tired:1.3)`
+beside it — the shadow is drawn as a dark mass under both eyes instead of a
+stroke. Neither 1.55 nor 1.7 alone got there, so the fix was a second word and
+not more weight on the first, which is the opposite of what the eyebags entry
+above expected. **The palette was never the obstacle**; flat colour had somewhere
+to put the shadow as soon as two tags asked for it.
+
+**And the spiral is now the problem it solved.** At `(@_@:1.45)` it draws as a
+thick near-black stroke on a white sclera — high contrast against a face whose
+whole palette is pale — and the eye takes the picture. This is a composition
+failure and not a drawing one: nothing in the render is wrong, the gaze just
+has nowhere else to go. Note that it is the same 1.45 inherited from
+`empty eyes`, and `empty eyes` is a *subtractive* tag — it takes the highlight
+out. Handing its weight to an *additive* one was never like-for-like, and this
+is the render that shows the difference.
+
+`(dizzy:1.3)` is deliberately left where it is while `@_@` comes down. It argues
+for the state without drawing the stroke, so it is the floor under the swirl:
+if `@_@` at 1.0 loses the spiral entirely, `dizzy` is what keeps the face from
+snapping back to ordinary.
+
+Same seed, same クマ, one weight moving (`.local/dizzy_swirl.py`):
+
+    sw130   (@_@:1.3)     f509ca7b
+    sw115   (@_@:1.15)    e5039e07
+    sw100   (@_@:1.0)     49b3aab4
+
+Unjudged at the time of writing.

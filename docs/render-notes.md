@@ -7292,3 +7292,34 @@ rather than more weight on `@_@`.
 Sweep queued at 1024x1024, six seeds: 555666777 d20e4b3a, 111222333 ac73c275,
 1886970040 10fd38ab, 737373737 54dcff8f, 2557902837 f000b137, 3409564303
 d67a7756. Unjudged at the time of writing.
+
+### `@_@` is a real tag to this model, and `eyebags` is the one that did not land
+
+54dcff8f (seed 737373737) picked on art style — 「絵柄的に近いかな」 — and it
+answers the open question above outright: **`(@_@:1.45)` draws the spiral.**
+Both irises come back as a drawn purple swirl on white, not a hint and not a
+highlight-less iris, so the symbol tag survives the tokenizer and carries the
+feature. `spiral pupils` and a `dizzy`-led block are not needed and are off the
+table. The white sclera around them is `@_@`'s own drawing convention, not
+`empty eyes` leaking back in — that tag is not in this block.
+
+What did **not** land is the クマ. `(eyebags:1.4)` — the weight every exhausted
+pose in this file uses — reads at most as two faint strokes under one eye at
+this crop, and the face reads 「びっくり」 rather than 「寝不足」. The tag is not
+being outvoted by another eye tag here, because the two that used to sit beside
+it both left; it is just quiet. Worth noting against `allnighter`, where the
+same 1.4 was called the tag that "makes it an all-nighter rather than a mood" —
+that judgement was made with `(empty eyes:1.45)` and `(half-closed eyes:1.35)`
+in the frame doing most of the exhaustion. **`eyebags` was never carrying it
+alone, and this is the first render that asks it to.**
+
+One tag, three settings, seed held at 737373737 so the drawing is comparable
+(`.local/dizzy_eyebags.py`):
+
+    eb155        (eyebags:1.55)                 55e9b8fc
+    eb170        (eyebags:1.7)                  6fd02171
+    eb155tired   (eyebags:1.55), (tired:1.3)    b4629be6
+
+Unjudged at the time of writing. If 1.7 still does not draw a ring, the answer
+is not more weight on `eyebags` — it is that this crop's flat-colour palette has
+nowhere to put a shadow, and the next lever is the palette and not the word.

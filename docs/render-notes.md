@@ -6913,3 +6913,45 @@ so it is not retried.
 
 The settled recipe on three further seeds, for a composition to choose from now
 that the foot draws.
+
+## The little toe attaches to the side, and curl is the same axis that fixed the count
+
+「小指が変なところから出てるよ」 — five toes, but the outer one splays off the
+SIDE of the foot instead of ending the row. **Present on all four renders of the
+settled block, so this is the block and not the seed** — the seed sweep already
+did its job earlier and is not the tool twice.
+
+Same axis, because the defect is the same KIND: a structure the model draws
+badly, not a quantity it gets wrong. That distinction is now the whole method
+for this foot.
+
+    yk-toeI   (toe scrunch:1.55)              965a348f   every toe on the row
+    yk-toeJ   (toe scrunch:1.70)              eceb041c   same, separations
+                                                         starting to shallow out
+    yk-toeK   (soles:1.4) -> (soles:1.2)      87e00852   no help
+
+**The axis is monotonic**, which is worth having: more curl tucks the outer toe
+into the row. Three points on it now (1.35, 1.55, 1.70) rather than a pair.
+
+### 1.55 and not 1.70, and the reason is a failure this pose has already met
+
+At 1.70 the separations shallow out and the row begins to read as one mass —
+**which is exactly where `(extra toes:1.45)` and `(extra digits:1.45)` both
+ended up.** Curl far enough and it dissolves the toes the same way a guard does,
+by a completely different mechanism arriving at the same picture. 1.55 keeps
+them distinct while fixing the attachment. 1.70 is rendered and is the next step
+if the attachment ever reads wrong again, but it is a step toward that edge and
+the note in the recipe says so.
+
+### Null: easing `soles` does not move the outer toe
+
+`(soles:1.4)` presents the plantar surface flat to the lens, which is what puts
+the outer toe on screen at its worst angle, so easing it was the other
+structural reading. Eased rather than deleted — `prone` got its win that way,
+and deleting it would lose the pose. It changed nothing about the attachment.
+Recorded so it is not retried.
+
+    yk-kick2   1886970040 c823bbab   737373737 a688fb13
+
+The settled block on two further seeds. Recipe reproduces `yk-toeI` node for
+node.

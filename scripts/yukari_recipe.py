@@ -1152,7 +1152,20 @@ POSES = {
     # rounds refusing to pay. It was paid because the expression had been asked
     # for four times and had not arrived once.
     #
-    # `(toe scrunch:1.35)` IS THE TOE FIX, and it is not a count tag. Read the
+    # 1.55 AND NOT 1.35: at 1.35 the count is right but 「小指が変なところから
+    # 出てるよ」 -- the outer toe splays off the SIDE of the foot instead of
+    # ending the row, on all four seeds, so it was the block and not the seed.
+    # More curl tucks it in, and the axis is monotonic: 1.55 and 1.70 both put
+    # every toe on the row's front edge.
+    #
+    # 1.70 is NOT taken, and the reason is a failure mode this pose has already
+    # met. At 1.70 the separations shallow out and the row starts reading as one
+    # mass -- which is where `(extra toes:1.45)` and `(extra digits:1.45)` both
+    # ended up. Curl far enough and it dissolves the toes the same way a guard
+    # does. 1.55 keeps them distinct. If the attachment ever reads wrong again,
+    # 1.70 is rendered and is the next step, but it is a step toward that edge.
+    #
+    # `(toe scrunch:1.55)` IS THE TOE FIX, and it is not a count tag. Read the
     # note below before touching it: eleven levers that argued about the number
     # failed first, and this one works by changing WHAT IS DRAWN. Curled toes
     # overlap; a fanned row of five at this angle is the hardest thing in the
@@ -1190,7 +1203,7 @@ POSES = {
     # is on thinner ice than the count suggests, because the four that pushed it
     # past the line were all expression and none of them touched the pose.
     "kick": (
-        "(solo:1.5), (sitting:1.45), (soles:1.4), (toe scrunch:1.35), "
+        "(solo:1.5), (sitting:1.45), (soles:1.4), (toe scrunch:1.55), "
         "(foot focus:1.35), "
         "(foreshortening:1.3), (knee up:1.25), (leaning back:1.25), (couch:1.2), "
         "(smug:1.3), (confident:1.25), (half-closed eyes:1.25), (open mouth:1.35), "

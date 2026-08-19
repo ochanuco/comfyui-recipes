@@ -343,6 +343,40 @@ def main() -> None:
         else:
             print(f"ok   {pose}  ({count} declared)")
 
+    # THE CONTRACT ONLY EVER COVERED THE FIRST PASS. `check_prompt` reads
+    # `yk.positive(pose)`, and `HIRES_POSITIVE` rewrites that text for the second
+    # pass afterwards -- so a splice there could take a garment off, or nail a
+    # mouth open, and every line above would still say ok. `kick` found this by
+    # legitimately needing to drop `closed mouth` in pass 2 only; the same
+    # mechanism could drop `(purple dress:1.45)` and nothing would notice.
+    #
+    # Reported rather than enforced, on purpose. A pass-2 departure is not the
+    # same kind of thing as a costume change -- it is a correction applied to a
+    # picture that has already been picked, and the file's whole argument for
+    # `HIRES_POSITIVE` is that such corrections are cheap there. What is NOT
+    # acceptable is that they be invisible.
+    hires_poses = sorted(set(getattr(yk, "HIRES_POSITIVE", {}))
+                         | set(getattr(yk, "HIRES_NEGATIVE", {})))
+    for pose in hires_poses:
+        if args.pose and pose not in args.pose:
+            continue
+        before = tags(yk.positive(pose))
+        g = yk.build(pose, 1, "tmp", 2048)
+        after = tags(g["6b"]["inputs"]["text"]) if "6b" in g else before
+        gained = [t for t in after if t not in before]
+        lost = [t for t in before if t not in after]
+        banned = tags(getattr(yk, "HIRES_NEGATIVE", {}).get(pose, ""))
+        print(f"     pass 2  {pose}")
+        for label, items in (("+", gained), ("-", lost), ("ban", banned)):
+            if items:
+                print(f"       {label:<3} {', '.join(items)}")
+        costume = set(tags(yk.CHARACTER)) | set(tags(yk.LEGWEAR)) \
+            | set(tags(yk.BODY)) | set(tags(yk.HOOD))
+        worn_off = [t for t in lost if t in costume]
+        if worn_off:
+            failed = True
+            print(f"FAIL {pose}  pass 2 removes costume: {', '.join(worn_off)}")
+
     if failed:
         print("\nAn undeclared change is a costume change nobody wrote down.",
               file=sys.stderr)

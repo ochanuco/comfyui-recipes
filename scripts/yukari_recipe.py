@@ -1755,6 +1755,13 @@ HIRES_NEGATIVE = {
     # guard, and reaching for the pair is not. The guard was bought to undo
     # `smug`'s lid-narrowing as a side effect; once narrowed lids are the thing
     # being ASKED for, the side effect was the feature.
+    #
+    # HALF of it is back, and the half is the whole point. 10915a12 -- the render
+    # the user pointed at for 「この頃の表情ですね」 -- bans `(closed eyes:1.4)` in
+    # its negative while asking for `(half-closed eyes:1.25)` in its positive. It
+    # SPLIT the two, and this guard had fused them. Forbid the lids all the way
+    # shut; ask for them half. One tag banned, not a stack.
+    "kick": "(closed eyes:1.4), ",
 }
 
 # The positive-side sibling, and it exists for a request the negative one cannot
@@ -1786,7 +1793,24 @@ HIRES_POSITIVE = {
     # rather than composure, which is an argument for keeping them when attitude
     # is what was asked for. See HIRES_NEGATIVE above: this is why `kick` no
     # longer carries the eye guard.
-    "kick": "(smug:1.35), (half-closed eyes:1.3)",
+    # 「この頃の表情ですね」 with 10915a12 attached -- pl-b-2331520658, an
+    # upper-body portrait from the hoodie era, on a different SURFACE and a
+    # different negative. Its expression cluster is copied here verbatim, and it
+    # says plainly that TWO ROUNDS OF WEIGHT-HUNTING WERE THE WRONG SEARCH:
+    #
+    #   (smug:1.3)              between the 1.15 and 1.35 that both landed short
+    #   (half-closed eyes:1.25) the pair, confirmed, and just under 1.3
+    #   (confident:1.25)        NEVER USED IN THIS RECIPE, and it is literally
+    #                           the word the request was made with (自信ありげ)
+    #   (open mouth:1.35)       the mouth is OPEN, and FACE nails it shut
+    #
+    # The last one is most of the difference. A smirk with a closed mouth is
+    # composure; the same smirk with the mouth open is the ドヤ顔 that had been
+    # asked for three times. No weight on `smug` was ever going to reach it,
+    # because the mouth is a different tag -- and the search stayed on `smug`
+    # for two rounds because that was the tag that had moved last.
+    "kick": ("(smug:1.3), (confident:1.25), (half-closed eyes:1.25), "
+             "(open mouth:1.35)"),
 }
 
 
@@ -1848,10 +1872,21 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
             "denoise": HIRES_DENOISE if denoise is None else denoise}}
         if pose in HIRES_POSITIVE:
             block = POSES[pose]
-            graph["6b"] = {"class_type": "CLIPTextEncode", "inputs": {
-                "clip": ["4", 1],
-                "text": positive(pose).replace(
-                    block, block + ", " + HIRES_POSITIVE[pose])}}
+            text = positive(pose).replace(
+                block, block + ", " + HIRES_POSITIVE[pose])
+            # A pass cannot say `closed mouth` and `(open mouth:1.35)` at once,
+            # and FACE says the first for every pose outside `open_mouthed`.
+            # That list is read by `positive()`, so it applies to BOTH passes --
+            # which is not what a pass-2-only expression wants. Resolved where
+            # the contradiction arises, rather than by adding the pose to a list
+            # that would also open its mouth in the pass that picks the
+            # composition. Asserted, because this file has been bitten by a
+            # `.replace` against a string that no longer contained the target.
+            if "open mouth" in HIRES_POSITIVE[pose]:
+                assert "closed mouth, " in text, pose
+                text = text.replace("closed mouth, ", "")
+            graph["6b"] = {"class_type": "CLIPTextEncode",
+                           "inputs": {"clip": ["4", 1], "text": text}}
             graph["11"]["inputs"]["positive"] = ["6b", 0]
         if pose in HIRES_NEGATIVE:
             graph["7b"] = {"class_type": "CLIPTextEncode", "inputs": {

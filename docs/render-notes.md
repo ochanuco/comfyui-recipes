@@ -6570,3 +6570,91 @@ does nothing at all, an unknown tag is the first suspect, ahead of the route.
 
 First pass untouched on both arms, asserted in the probe rather than assumed.
 `headcount.py`: both ONE.
+
+## The answer was in `/history`, and two rounds of weight-hunting were the wrong search
+
+「この頃の表情ですね」 with `10915a12-b496-47a1-bf35-5b5843986e37` attached —
+`pl-b-2331520658`, an upper-body portrait from the hoodie era, on a different
+SURFACE and a different negative. Its expression cluster:
+
+```
+(smug:1.3), (confident:1.25), (half-closed eyes:1.25), (open mouth:1.35)
+```
+
+and, in the negative, `(clenched teeth:1.4), (wide mouth:1.3), (squinting:1.3),
+(closed eyes:1.4), (angry:1.2)`.
+
+Line by line against what had been tried:
+
+- **`(smug:1.3)` sits between the 1.15 and 1.35 that both landed short.** The
+  weight was never the missing piece, and the midpoint of two failed guesses was
+  not going to be found by continuing to guess.
+- **`(confident:1.25)` has never been used in this recipe** and is literally the
+  word the request was made with — 「自信ありげ」, three rounds ago.
+- **`(open mouth:1.35)`, and this is most of the difference.** A smirk with a
+  closed mouth is composure; the same smirk with the mouth open is the ドヤ顔
+  that had now been asked for three times. FACE nails the mouth shut for every
+  pose outside `open_mouthed`, so **no weight on `smug` was ever going to reach
+  it** — the tag that had to move was not the tag that had moved last.
+
+That last clause is the finding worth keeping. The search stayed on `smug` for
+two rounds because `smug` was what had changed most recently, and the axis that
+was actually wrong had been fixed and invisible since the pose was written.
+**A render the user remembers is a primary source, and this repo can read it:
+`/history/<id>` had the answer the whole time.**
+
+### The eye guard splits, it does not vanish
+
+`kick`'s `HIRES_NEGATIVE` came back — as half of itself. 10915a12 bans
+`(closed eyes:1.4)` while *asking for* `(half-closed eyes:1.25)`. It split the
+two; the guard written here had fused them, which is why it read as
+incompatible with the smirk pair last round. Forbid the lids all the way shut,
+ask for them half. One tag banned, not a stack.
+
+### The mouth is resolved where the contradiction is
+
+`open_mouthed` is read inside `positive()`, so adding `kick` to it would open the
+mouth in the pass that picks the composition too. Instead `build()` strips
+`closed mouth, ` from the pass-2 text when `HIRES_POSITIVE` asks for an open
+mouth — asserted, not silently replaced, because this file has been bitten by a
+`.replace` against a string that no longer contained its target.
+
+    yk-faceA   cluster only                 2557902837   aa99059b
+    yk-faceB   cluster + the 4-guard tail   2557902837   405ad7a0
+
+B carries `(clenched teeth:1.4), (wide mouth:1.3), (squinting:1.3), (angry:1.2)`
+— the rest of what that render was drawn with. Four guards, but four *distinct
+failures of one expression*, which is the LEGWEAR_BAN shape rather than the
+palette-wrecking shape, and it is a late pass where guards are cheap. Four is
+still four, so it is the variable rather than an assumption.
+
+`(five toes:1.3)` rides on both arms and **is not validated** — the toe routes
+have not been judged yet. Constant across the arms, so it cannot decide the
+comparison; it is there so this round does not quietly hand the toes back.
+
+Pass 1 asserted untouched and still saying `closed mouth`. `headcount.py`: both
+ONE.
+
+## The costume contract only ever covered the first pass
+
+Found while doing the above, and it is structural rather than about this pose.
+`check_prompt` reads `yk.positive(pose)`. `HIRES_POSITIVE` rewrites that text
+afterwards, for pass 2. So a splice there could take a garment off and **every
+line of `costume_check` would still print ok** — `kick` found it by legitimately
+needing to drop `closed mouth`, and the same mechanism would drop
+`(purple dress:1.45)` in silence.
+
+`costume_check.py` now prints a `pass 2` section for every pose in either hires
+dict: what it adds, what it removes, what it bans.
+
+    pass 2  kick
+      +   (smug:1.3), (confident:1.25), (half-closed eyes:1.25), (open mouth:1.35)
+      -   closed mouth
+      ban (closed eyes:1.4)
+
+Reported rather than requiring a declaration, on purpose: a pass-2 departure is
+not the same kind of thing as a costume change — it is a correction to a picture
+that has already been picked, and the whole argument for `HIRES_POSITIVE` is
+that such corrections are cheap there. It **does** hard-FAIL if pass 2 removes a
+tag belonging to CHARACTER, LEGWEAR, BODY or HOOD. What was unacceptable was
+that any of it could be invisible.

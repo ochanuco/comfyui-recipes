@@ -6299,3 +6299,57 @@ expression state `flop` has worn — 徹夜, face-down, default, smug — with t
 tags, the canvas and the camera untouched across all four. The expression axis
 and the pose axis have now been shown independent on this recipe four times, not
 once, which is a stronger claim than the entry above made.
+
+## 2026-08-19 — `flop` takes 1.15, and the eyes were two problems with two fixes
+
+4b7d646c — `yk-smug115` 737373737 — is the picked render, so **`flop` follows
+`boss` rather than its neighbour `prone`: `(smug:1.15)` alone, no `half-closed
+eyes`.** The request glossed ドヤ顔 as 自信ありげ and 1.15 is the weight `boss`
+calls composed where 1.4 was gloating. `half-closed eyes` left with the weight
+rather than as a separate choice — `boss` F3 measured it indistinguishable there
+and `boss` Ea then found the tag is not gradual at all. One lever, not two.
+Verified byte-identical against 4b7d646c: positive, negative, canvas, sampler.
+
+### 「目も修正してほしい」 — looked at, because the render was named
+
+Two defects in the picked render, and it is worth separating them because they
+had different causes and different fixes:
+
+1. **The eyes did not match each other.** Different sizes, different tilt,
+   different lash lines. The face is about 250px across in a 1536x1024 frame.
+2. **They were lidded.** `half-closed eyes` is long gone from this pose;
+   `(smug:1.15)` narrows the lids by itself.
+
+**A second pass at 2048 fixes (1). The eye guard fixes (2). Neither fixes both.**
+
+`HIRES_NEGATIVE` is new in `yukari_recipe.py`: a per-pose string prepended to the
+SECOND pass's negative only, through its own `CLIPTextEncode` node `7b`, leaving
+node `7` and therefore the whole first pass untouched. `flop` carries
+`(half-closed eyes:1.4), (closed eyes:1.4)` there — `boss`'s Ec pair.
+
+This is the shape `boss` described and could not use: Ec was measured safe
+chained onto a settled picture and unsafe from scratch, where it stacked with
+that pose's buttons guard and grew a rabbit-faced chair. A guard is a deletion,
+and the pass-depth finding says a late pass only gets to delete while a first
+pass gets to rearrange the composition around it. **Putting the guard where only
+the late pass sees it is what makes it portable**, and it is now in the recipe
+rather than in a chain someone has to remember.
+
+    yk-eyeguard  737373737  043ff116   guard on pass 2
+    yk-noguard   737373737  6c2811ac   control, same pass 2, no guard
+
+At face-crop zoom the two look the same and I said so. **That was a zoom
+artefact.** At eye zoom the difference is not subtle: with the guard the eye is
+tall and round, the whole iris is inside it with pupil and highlights, and there
+is sclera below. Without it the upper lid cuts across the iris and the eye reads
+almond and half-shut. Both are hugely better than the first pass, which is (1)
+being fixed by pixels in both arms.
+
+**Iris-pixel counting was attempted three times and never came out clean**, so it
+is reported as agreement in direction and nothing more: 1020 px against 928 with
+the guard. The first version counted the whole face crop and read the *control*
+higher, because the bottom of that crop is the purple dress. The second used a
+tight band and clipped the control's eyes at the band edge, so the band was
+deciding the answer. The third widened it and the mask still spanned every row,
+i.e. it is catching purple in the hair. Three contaminations in one measurement
+that the eye settled in one look. Eighth statistic to lose here.

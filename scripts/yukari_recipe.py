@@ -565,28 +565,34 @@ POSES = {
     # folded into the switch above. Face and body are not independent axes on
     # this pose any more; do not flip half of one.
     #
-    # 「ちょっとドヤ顔（自信ありげな顔）」 is the fourth face state, and it is
-    # the house pair at the house weight -- `(smug:1.35), (half-closed
-    # eyes:1.3)`, which `portrait`, `lounge`, `stand`, `peace` and, closest to
-    # here, `prone` all wear unchanged. `prone` is the argument: also lying,
-    # also full body, and it settled on exactly this pair.
+    # 「ちょっとドヤ顔（自信ありげな顔）」. The house pair `(smug:1.35),
+    # (half-closed eyes:1.3)` -- what `portrait`, `lounge`, `stand`, `peace`
+    # and `prone` all wear -- was rendered against `boss`'s dialled-down
+    # `(smug:1.15)` alone, and 4b7d646c is the LOW one. So this pose follows
+    # `boss` rather than its neighbour `prone`, which is worth a line: the
+    # request glossed ドヤ顔 as 自信ありげ, and 1.15 is the weight `boss`
+    # describes as composed where 1.4 was gloating.
+    #
+    # `half-closed eyes` left WITH the weight, not as a separate choice.
+    # `boss` F3 measured it indistinguishable at 1.15 and dropped it, and
+    # `boss` then found the tag is not gradual at all -- easing it to 1.1 was
+    # still lidded, so present-or-absent is its whole range. It is one lever,
+    # not two.
     #
     # `smug` is NOT only an expression on this file and that matters for a
     # figure on her back. `sip` measured it holding her chin up so that head,
     # spine and hip land on one arc, and `boss` found that easing the weight
     # keeps that lift while swapping the tag out loses it -- `light smile` at
     # the same count reached the same face and took a stocking off her foot.
-    # If this reads wrong, move the WEIGHT. 1.4 was gloating on `boss` and
-    # 1.15 composed; `half-closed eyes` has no job left below about 1.2 and
-    # `boss` dropped it there.
+    # Move the weight; do not substitute the word.
     #
-    # Seven tags. It has been nine and it has been five, and every tag that
-    # has come or gone in those swings was expression -- worth noticing,
-    # because it means the body, camera and framing have not moved since the
-    # picked render, whatever the count says.
+    # Six tags. It has been nine and it has been five, and every tag that has
+    # come or gone in those swings was expression -- the body, the camera and
+    # the framing have not moved since the on-back pick, whatever the count
+    # says.
     "flop": (
         "(solo:1.5), (lying:1.45), (on back:1.5), (outstretched arms:1.3), "
-        "(smug:1.35), (half-closed eyes:1.3), full body"
+        "(smug:1.15), full body"
     ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
@@ -1652,6 +1658,33 @@ def positive(pose: str) -> str:
 # picture. Anything that computes this value must round it.
 HIRES_DENOISE = 0.60
 
+# Guards that only run on the SECOND pass, prepended to that pass's negative.
+# The first pass keeps the negative it was picked with, byte for byte.
+#
+# This exists because of one measured asymmetry. `boss` found that removing
+# `half-closed eyes` opens the eyes some, and that removal PLUS
+# `(half-closed eyes:1.4), (closed eyes:1.4)` in the negative opens them the
+# rest of the way -- 「open, iris visible」 -- and in the same breath found that
+# the pair is safe chained onto a settled picture and unsafe from scratch: run
+# from the recipe it stacked with that pose's buttons guard and grew a second
+# chair with a rabbit face on it, the fourth intruder this file has bought by
+# stacking guards.
+#
+# The reason the split works is the pass-depth finding: a late pass only gets
+# to delete, and a guard IS a deletion. A first pass gets to rearrange the
+# composition around the same guard, and it does.
+#
+# So a guard whose job is subtraction belongs here rather than in
+# `_negative_base`, where it would be handed to the pass that can act on it.
+HIRES_NEGATIVE = {
+    # 「目も修正してほしい」 on 4b7d646c. `smug` narrows the lids on its own --
+    # `half-closed eyes` is long gone from this pose -- and the face is roughly
+    # 250px across in a 1536x1024 frame, which is where eyes stop matching each
+    # other. Two things wrong, and this addresses one of them; the second pass
+    # itself addresses the other by giving the face more pixels to be drawn in.
+    "flop": "(half-closed eyes:1.4), (closed eyes:1.4), ",
+}
+
 
 def build(pose: str, seed: int, prefix: str, hires: int = 0,
           denoise: float | None = None) -> dict:
@@ -1709,6 +1742,11 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
             "latent_image": ["10", 0], "seed": seed, "steps": 30, "cfg": 5.0,
             "sampler_name": "dpmpp_2m", "scheduler": "karras",
             "denoise": HIRES_DENOISE if denoise is None else denoise}}
+        if pose in HIRES_NEGATIVE:
+            graph["7b"] = {"class_type": "CLIPTextEncode", "inputs": {
+                "clip": ["4", 1],
+                "text": HIRES_NEGATIVE[pose] + negative(pose)}}
+            graph["11"]["inputs"]["negative"] = ["7b", 0]
         graph["8"]["inputs"]["samples"] = ["11", 0]
 
     return graph

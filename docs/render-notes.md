@@ -6454,3 +6454,65 @@ nothing has been changed — but if the perspective refuses to arrive, or the le
 comes down on its own, **that trio is the first suspect and it is upstream in a
 shared block**, not in this pose. Easing it there would touch every render this
 repo has approved, so the fix would have to be a per-pose departure, declared.
+
+## `kick` refines, and the pass boundary splits a tag in half
+
+「202e6fc0 をリファイン。いつもの強気な表情で」 — a finish and an expression, on
+a composition that had just been picked. Those two halves want opposite things
+from the graph, and the round before had just established why: **leg length was
+a first-pass decision with no second-pass version of the fix, and every move on
+that axis costs the picked composition.** Putting `smug` in `POSES["kick"]` would
+have been the same trade for the same reason.
+
+So it went where the eye guard went. `HIRES_POSITIVE` is the positive-side
+sibling of `HIRES_NEGATIVE`, node `6b` to its `7b`, spliced into the pose block
+rather than appended to the whole string because that is where every other pose
+carries the smirk and this file already records that token order changes the
+encoding.
+
+**Addition is affordable in a late pass, but only at 0.60.** The deletion half of
+the pass-depth finding says a late pass gets to delete cheaply; the other half
+was already measured and written in `refine_from_history`'s docstring — at 0.35 a
+chained pass left newly-added halter straps a faint suggestion, and 0.60 drew
+them properly. `HIRES_DENOISE` is 0.60, so the smirk draws.
+
+### What it cannot spend is what makes it safe
+
+`sip` measured that `smug` is not only a face: it lifts the chin and puts head,
+spine and hip on one arc, and that is why `sip` keeps it. A late pass cannot
+re-pose a figure. So this buys the half of `smug` that was asked for and is
+structurally incapable of spending the half that would have moved the leg —
+**the pass boundary splits the tag, and the half that survives is the half that
+was wanted.** That is the general result here, not the weight.
+
+### The eye guard rode along, and is not a variable
+
+`kick` has no complaint about its eyes. It got `HIRES_NEGATIVE["kick"]` anyway,
+on both arms. The reasoning is not speculative: `smug` narrowing the lids on its
+own is the measured finding that `flop` bought this guard for two rounds ago,
+and this round is adding `smug`. Applying a known correction alongside the known
+cost of the tag that causes it is the pair travelling together, not an untested
+addition — and putting it on both arms keeps the sweep to one variable.
+
+    yk-kickA   smug 1.15   2557902837   4f9d232c
+    yk-kickB   smug 1.35   2557902837   ebc93322
+
+First pass verified byte-identical to the picked render — nodes 4, 5, 6, 7 and 3
+all MATCH against `/history/202e6fc0`, checked rather than assumed. `--hires
+2048`. `headcount.py`: both ONE.
+
+1.15 against 1.35 because 「いつもの」 is ambiguous between the two settled
+values in this file: `flop` and `boss` run 1.15 (composed), `stand`, `lap` and
+`invite` run 1.35–1.4 (gloating at the top of that range). 「強気」 could be
+either. **The pair is the next lever, not the third weight** — `stand` carries
+`(smug:1.35), (half-closed eyes:1.3)` together, and `boss` dropped the lids only
+because at 1.15 they were the last thing reading as attitude rather than
+composure.
+
+### Fixed in passing: `chain_pass` squashed to a square
+
+`refine_from_history.chain_pass` scaled to `width: size, height: size`. That is
+the same number for the square renders it had only ever been run on, and a
+squash for anything else — found because `kick` is 1024x1536. It now uses the
+same `sizes()` helper the other two routes already used. No behaviour change for
+any square source, so nothing previously measured through it moves.

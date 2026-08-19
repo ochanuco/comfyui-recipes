@@ -1744,6 +1744,39 @@ HIRES_NEGATIVE = {
     # other. Two things wrong, and this addresses one of them; the second pass
     # itself addresses the other by giving the face more pixels to be drawn in.
     "flop": "(half-closed eyes:1.4), (closed eyes:1.4), ",
+    # `kick` does not have a complaint about its eyes. It gets the guard anyway,
+    # and preemptively rather than speculatively: the same round adds `smug` to
+    # this pose's second pass, `smug` narrowing the lids on its own is the
+    # measured finding directly above, and this pair is the measured answer to
+    # it. Applying a known correction alongside the known cost of the tag that
+    # causes it is not an untested addition -- it is the pair travelling
+    # together. It is on BOTH arms of the weight sweep, so it is not a variable.
+    "kick": "(half-closed eyes:1.4), (closed eyes:1.4), ",
+}
+
+# The positive-side sibling, and it exists for a request the negative one cannot
+# serve: 「リファイン。いつもの強気な表情で」 on 202e6fc0 -- a finish AND an
+# expression, on a composition that had just been picked.
+#
+# The first pass is the pass that decides the composition, so putting `smug`
+# there would have cost the picked render, exactly as the leg weight did the
+# round before. Putting it here does not, and the reason it still works is the
+# other half of the pass-depth finding: a late pass at 0.60 DOES draw things the
+# base does not contain -- `refine_from_history`'s own note measured 0.35
+# leaving new straps a faint suggestion and 0.60 drawing them properly. Addition
+# is not free in a late pass the way deletion is; it is affordable at 0.60.
+#
+# And the thing this loses is the thing that makes it safe. `sip` measured that
+# `smug` does posture as well as face -- it lifts the chin and puts head, spine
+# and hip on one arc -- and a late pass cannot re-pose a figure. So this buys
+# the half of `smug` that was asked for and cannot spend the half that would
+# have moved the leg. **The pass boundary is what splits the tag.**
+#
+# Spliced into the pose block rather than appended to the whole string: that is
+# where every other pose carries the smirk, and this file has already recorded
+# that token order changes the encoding.
+HIRES_POSITIVE = {
+    "kick": "(smug:1.15)",
 }
 
 
@@ -1803,6 +1836,13 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
             "latent_image": ["10", 0], "seed": seed, "steps": 30, "cfg": 5.0,
             "sampler_name": "dpmpp_2m", "scheduler": "karras",
             "denoise": HIRES_DENOISE if denoise is None else denoise}}
+        if pose in HIRES_POSITIVE:
+            block = POSES[pose]
+            graph["6b"] = {"class_type": "CLIPTextEncode", "inputs": {
+                "clip": ["4", 1],
+                "text": positive(pose).replace(
+                    block, block + ", " + HIRES_POSITIVE[pose])}}
+            graph["11"]["inputs"]["positive"] = ["6b", 0]
         if pose in HIRES_NEGATIVE:
             graph["7b"] = {"class_type": "CLIPTextEncode", "inputs": {
                 "clip": ["4", 1],

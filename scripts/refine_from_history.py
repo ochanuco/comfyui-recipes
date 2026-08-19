@@ -74,9 +74,14 @@ def chain_pass(base, size, denoise, prefix, prompt=None):
                     "inputs": {"clip": ["4", 1], "text": prompt[1]}}
         pos, neg = [p_pos, 0], [p_neg, 0]
     tail = last_decode(g)
+    # Aspect, not a square. This read `width: size, height: size`, which is the
+    # same number for the square renders it had only ever been run on and a
+    # squash for anything else -- found when `kick` arrived at 1024x1536. The
+    # sizes() helper is what the other two routes already use.
+    w, h = sizes(g)
     g[scale] = {"class_type": "ImageScale", "inputs": {
         "image": [tail, 0], "upscale_method": "lanczos",
-        "width": size, "height": size, "crop": "disabled"}}
+        "width": w, "height": h, "crop": "disabled"}}
     g[encode] = {"class_type": "VAEEncode",
                  "inputs": {"pixels": [scale, 0], "vae": ["4", 2]}}
     g[sample] = {"class_type": "KSampler", "inputs": {

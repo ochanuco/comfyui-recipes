@@ -6709,3 +6709,94 @@ round. The lever would be a framing tag in pass 1, which changes the pose, and
 that is a different conversation to have deliberately rather than by drift.
 
 `headcount.py`: both ONE.
+
+## The pass was the ceiling: an expression is a decision, not a finish
+
+「表情は2枚目が正しい」 — `yk-calmB`, `0e7735fc`, the arm that put the expression
+in **pass 1**. `HIRES_POSITIVE` lost, and the reason is worth more than the pose:
+
+**A late pass reaches anything it can DRAW and reaches nothing pass 1 has already
+DECIDED.** The straps that `refine_from_history` measured at 0.60 were the first
+kind. A face that the base image has already drawn calm and closed-mouthed is
+the second: the same words, at the same weights, copied verbatim from 10915a12,
+did nothing from pass 2 and worked immediately from pass 1.
+
+That is the general rule this session was groping for from both directions. It
+also explains the earlier result rather than contradicting it — the eye guard
+worked from pass 2 because a guard subtracts, and subtracting a lid is a finish.
+
+Settled into the recipe:
+
+- the cluster moved into `POSES["kick"]`, which is now **twelve tags** against
+  this file's own note that a pose block breaks around nine. It held. That is a
+  data point, not a licence: the four that pushed it past the line were all
+  expression and none touched the pose.
+- `kick` joined `open_mouthed`, and the departure is declared in
+  `costume_check.py` (`removed: closed mouth`). While the expression lived in
+  pass 2 this list was deliberately left alone, because membership would have
+  opened the mouth in the pass that picks the composition.
+- `HIRES_POSITIVE` is empty and stays in the file. The mechanism proved a rule
+  worth keeping in code even with no entries.
+
+The approved render's pass 1 differs from the settled recipe by exactly one tag,
+diffed rather than assumed: `(five toes:1.3)`, retired below.
+
+## Both sides of the tag axis fail on a COUNT, and they fail differently
+
+「指が6本あるねえ」 — the toes, on the sole that is the nearest thing to the lens.
+The hands are not in frame at all, so 指 is unambiguous once looked at.
+
+    positive   (five toes:1.3)      four consecutive renders, including the
+                                    approved one's PASS 1.  Six toes.
+    negative   (extra toes:1.45)    pass 1, where the topology is decided
+               (extra digits:1.45)  pass 1, the generic word as a control
+                                    f69dbc73 / d47e01e7
+
+**Neither guard corrected the count — both dissolved the toes**, leaving a smooth
+sole with no separation at all. A guard is a deletion, and what it deleted was
+the feature rather than the surplus. **Zero is not five.** And the positive side
+did not merely fail: it failed while naming the exact number it was wrong about.
+
+So a count is not the kind of axis this file's "only the positive side is
+addressable" finding was about. That finding came from proportion, which is
+continuous. A count is topology, and neither side of a text prompt addresses it.
+
+Both guards are OUT of the recipe. Shipping one would ship a smooth sole.
+
+## Changing tools did not work either, and it cost the framing
+
+`nape`'s rule — when a defect survives that many prompt levers, stop diagnosing
+and change tools — and the tool for a first-pass structural fact is the seed.
+Raising the first-pass canvas to give the foot more room is the one escape this
+file has already measured shut (a second figure at 1280x1920).
+
+    yk-kickseed   1886970040 e960eefd   737373737 2cb4cf8f
+                  111222333  6792bd20   3409564303 6dea7472
+
+**Four seeds, four wrong counts.** And a second finding arrived uninvited: all
+four put the camera down at the foot and **left the head out of frame**, which is
+exactly the failure predicted when this pose was written. Both renders the user
+has picked were on 2557902837, and that seed was carrying the framing.
+
+So `(full body:1.4)` — the counterweight written out of the block as round one's
+B arm and never judged — finally gets rendered against the approved expression:
+
+    yk-kickfb     1886970040 4aace7ee   737373737 4011a0ec
+                  111222333  fa504c93   3409564303 e9e77538
+
+Not put in the recipe: both picked renders were drawn without it.
+
+### Where the toe count stands, plainly
+
+Every prompt-level lever is spent, and the seed is spent. What remains would be
+repairing the foot — `inpaint_composite.py` exists and would do it — and **that
+is banned by the same rule as cropping**: do not repair a render to deliver it
+while the prompt is being tuned. The rule is not suspended by the count of
+failed rounds; that is what it is for.
+
+The honest position is that this recipe cannot currently draw five toes on a
+sole presented flat to the lens at this size, through opaque pantyhose. The
+choice left is the user's: accept it, or move the pose so the sole is not the
+subject.
+
+`headcount.py`: ONE on all four seeds.

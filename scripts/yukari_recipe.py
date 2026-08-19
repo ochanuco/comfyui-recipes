@@ -1139,9 +1139,46 @@ POSES = {
     # and `full body` is the counterweight every other whole-figure block here
     # carries. Eight slots is the house size, so the ninth goes in only if the
     # first round loses the face.
+    # THE EXPRESSION IS IN PASS 1, and it took four rounds and a losing arm to
+    # earn that sentence. It was in `HIRES_POSITIVE` first, on the reasoning
+    # that a late pass buys the face without the posture -- which is true, and
+    # was not the constraint. Copied verbatim from 10915a12, guard tail and all,
+    # a 0.60 pass could not overwrite a face the base image had already drawn
+    # calm and closed-mouthed. Moved here, the same words work. **A late pass
+    # refines a decision; it does not reverse one, and an expression is a
+    # decision pass 1 makes.**
+    #
+    # It costs the composition, which is exactly what this pose spent four
+    # rounds refusing to pay. It was paid because the expression had been asked
+    # for four times and had not arrived once.
+    #
+    # DO NOT GUARD THE TOES. 「指が6本あるねえ」 on the sole that is the nearest
+    # thing to the lens, and both sides of the tag axis were spent on it:
+    #
+    #   positive  `(five toes:1.3)` rode four consecutive renders. Six toes.
+    #             Naming a number does not count; it failed while the count was
+    #             wrong in the direction it named.
+    #   negative  `(extra toes:1.45)` and `(extra digits:1.45)`, in PASS 1 where
+    #             the topology is decided. Neither corrected the count -- both
+    #             DISSOLVED THE TOES, leaving a smooth sole with no separation
+    #             at all. A guard is a deletion, and what it deleted was the
+    #             feature rather than the surplus. Zero is not five.
+    #
+    # So the tag axis is exhausted, and `nape`'s rule applies: when a defect
+    # survives that many prompt levers, stop diagnosing and change tools. The
+    # tool is the seed -- toe topology is a first-pass structural fact, and
+    # raising the first-pass canvas to give the foot more room is the one
+    # escape this file has already measured shut (a second figure at 1280x1920).
+    #
+    # TWELVE TAGS, and this file's own note says a pose block breaks around
+    # nine -- `sip` lost its mug and its hair clips to a ninth. It held here.
+    # That is a data point and not a licence: the next tag added to this block
+    # is on thinner ice than the count suggests, because the four that pushed it
+    # past the line were all expression and none of them touched the pose.
     "kick": (
         "(solo:1.5), (sitting:1.45), (soles:1.4), (foot focus:1.35), "
-        "(foreshortening:1.3), (knee up:1.25), (leaning back:1.25), (couch:1.2)"
+        "(foreshortening:1.3), (knee up:1.25), (leaning back:1.25), (couch:1.2), "
+        "(smug:1.3), (confident:1.25), (half-closed eyes:1.25), (open mouth:1.35)"
     ),
 }
 
@@ -1411,7 +1448,14 @@ def positive(pose: str) -> str:
     # A yawn, a shout and a vacant stare all need the mouth open; FACE closes it
     # by default. `allnighter` briefly took `small mouth` out too, for the width
     # of an 「イー」 mouth; that mouth is gone and so is the departure.
-    open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full")
+    # `kick` is here because its expression moved to pass 1. While the
+    # expression lived in `HIRES_POSITIVE`, `build()` stripped `closed mouth`
+    # from the second pass only and this list was deliberately not touched --
+    # membership here would have opened the mouth in the pass that picks the
+    # composition too. That pass now carries the expression, so the departure is
+    # real and belongs where the other four are.
+    open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
+                            "kick")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
@@ -1809,8 +1853,11 @@ HIRES_POSITIVE = {
     # asked for three times. No weight on `smug` was ever going to reach it,
     # because the mouth is a different tag -- and the search stayed on `smug`
     # for two rounds because that was the tag that had moved last.
-    "kick": ("(smug:1.3), (confident:1.25), (half-closed eyes:1.25), "
-             "(open mouth:1.35)"),
+    # ...and 「表情は2枚目が正しい」 emptied it again. The cluster is in
+    # `POSES["kick"]` now; see the note there. The mechanism stays, because the
+    # finding it proved is worth having in code: `HIRES_POSITIVE` reaches
+    # anything a late pass can DRAW, and does not reach anything pass 1 has
+    # already DECIDED. A face is the second kind. So is a toe count.
 }
 
 

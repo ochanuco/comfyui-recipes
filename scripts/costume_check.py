@@ -167,6 +167,14 @@ EXCEPTIONS: dict[str, list[dict]] = {
     # It briefly carried `prone`'s hip/thigh easing too, on the argument that
     # it shared `prone`'s from-above geometry; that tag left the pose when the
     # dive was asked for, and the splice left with it.
+    # `kick`'s expression moved into the pose block, which put the pose into
+    # `open_mouthed`. A ドヤ顔 with the mouth shut is composure, and that is
+    # what four rounds of this kept producing.
+    "kick": [
+        {"removed": ["closed mouth"],
+         "why": "(open mouth:1.35) is most of the difference between a smirk "
+                "and a ドヤ顔; the two cannot both be in the prompt"},
+    ],
     "flop": [
         {"added": ["(long legs:1.40)"],
          "why": "bracketed: no tag reads \u80f4\u4f53\u304c\u9577\u3044, "

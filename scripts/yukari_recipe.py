@@ -486,25 +486,33 @@ POSES = {
     # for the obvious reason.
     #
     # 「顔見えなくていいよ。床に埋まってて」 put the face down; 「寝転んでるゆかり
-    # さん（寝不足放心状態）」 has brought it back up. Third move on this axis,
-    # so BOTH ends stay written here and the switch stays exactly two edits.
+    # さん（寝不足放心状態）」 brought it back up; 「いつもの表情に戻して」 has
+    # taken the exhaustion off it. Three states have been live on this pose, so
+    # all three are written out and not just whichever one is current.
     #
-    # FACE DOWN: (face down:1.5) in the block, no eye or mouth tags at
-    # all, and `looking at viewer` out of FACE -- `nape`'s departure for `nape`'s
-    # reason, an instruction to face a camera she is turned away from. The
-    # exhaustion is then the body's job: the face down, the arms thrown ahead,
-    # the skid.
+    # DEFAULT (now): no eye or mouth tags in the block at all, and `flop` in
+    # neither `open_mouthed` nor the `nape` list, so FACE arrives whole --
+    # closed mouth, tareme, looking at viewer. This is the state with the
+    # fewest moving parts rather than a third variant of two: it is what the
+    # pose looks like when it stops arguing with the shared block at all.
     #
-    # FACE UP (now): (face down:1.5) out; (empty eyes:1.45), (eyebags:1.4),
-    # (half-closed eyes:1.35), (open mouth:1.35) in, and `looking at viewer`
-    # restored. The mouth belongs with the eyes -- it was never rejected on its
-    # own, it fell with the face, and 放心状態で口が空いてる was approved.
+    # 徹夜 (exhausted): (empty eyes:1.45), (eyebags:1.4), (half-closed
+    # eyes:1.35), (open mouth:1.35) in the block, and `flop` added to
+    # `open_mouthed` so FACE gives up `closed mouth`. The mouth belongs with
+    # the eyes -- it was never rejected on its own, and 放心状態で口が空いてる
+    # was approved on the way in. Those four tags are the WHOLE of what 徹夜
+    # was on this pose; no body tag ever carried any of it, which is why the
+    # expression could be lifted off without the pose moving.
     #
-    # The two are exclusive and the switch is only ever those two edits. What is
-    # NOT part of it is `(from above:1.35)` or `chin rest`: they are how `prone`
-    # keeps a face legible on her stomach, and reaching for one to lift the head
-    # would hand back a different composition than whichever render was picked.
-    # Both times the face has gone up or down, the camera stayed where it was.
+    # FACE DOWN: (face down:1.5) in the block, no eye or mouth tags, `flop`
+    # back in the `nape` list so `looking at viewer` leaves -- an instruction
+    # to face a camera she is turned away from -- AND `(on back:1.5)` back to
+    # `(on stomach:1.5)`, because there is no face-down on her back.
+    #
+    # In NONE of the three: `(from above:1.35)` or `chin rest`. They are how
+    # `prone` keeps a face legible on her stomach, and reaching for one to move
+    # the head would hand back a different composition than whichever render
+    # was picked. The face has now moved four times and the camera none.
     #
     # 「床に埋まって」 needs no floor tag. She is already on the ground with the
     # couch gone, and `floor` or a room would import a scene that argues with
@@ -552,16 +560,18 @@ POSES = {
     # this pose is on record as not reaching for. On her back it points at the
     # camera for nothing, and the four exhaustion tags get a face to land on.
     #
-    # This COUPLES the face switch to the body tag, which it was not before:
-    # FACE DOWN needs `(on stomach:1.5)` back, because there is no face-down on
-    # her back. The switch is now three edits in that direction and two in this
-    # one. It is not two independent axes any more; do not flip half of it.
+    # This COUPLED the face switch to the body tag, which it had not been
+    # before -- FACE DOWN carries `(on stomach:1.5)` with it now, and that is
+    # folded into the switch above. Face and body are not independent axes on
+    # this pose any more; do not flip half of one.
     #
-    # Nine tags.
+    # Five tags. It has been as many as nine, and the four it lost were all
+    # expression -- worth noticing, because the small number is not the pose
+    # being under-specified. Body, camera and framing are unchanged from the
+    # picked render.
     "flop": (
         "(solo:1.5), (lying:1.45), (on back:1.5), (outstretched arms:1.3), "
-        "(empty eyes:1.45), (eyebags:1.4), (half-closed eyes:1.35), "
-        "(open mouth:1.35), full body"
+        "full body"
     ),
     # Both hands making a V, one held over the eye and one arm thrown out
     # towards the camera. `double v` (42k posts) and `v over eye` (10k, "with
@@ -1332,15 +1342,14 @@ def positive(pose: str) -> str:
     # A yawn, a shout and a vacant stare all need the mouth open; FACE closes it
     # by default. `allnighter` briefly took `small mouth` out too, for the width
     # of an 「イー」 mouth; that mouth is gone and so is the departure.
-    open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
-                            "flop")
+    open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
     # `flop` was in this list while its face was in the ground, for `nape`'s
-    # reason. Its face is up again, so the instruction has a referent again
-    # and FACE keeps it; putting `flop` back here is half of the FACE DOWN
-    # edit and belongs with the other half rather than on its own.
+    # reason. Its face is up, so the instruction has a referent and FACE keeps
+    # it; putting `flop` back here is one part of that pose's FACE DOWN state
+    # and belongs with the rest of it rather than on its own.
     if pose == "nape":
         face = face.replace(", looking at viewer", "")
     body = BODY
@@ -1412,8 +1421,14 @@ def positive(pose: str) -> str:
         # `(long torso:1.4)` in the NEGATIVE moved 40.1% to 38.9%, i.e.
         # nothing, and `prone` found the same for `(long legs:1.4)` there.
         # One side of this axis is addressable. Ask for the leg.
+        # 1.45, not `stand`'s 1.35. Both were rendered on three shared seeds
+        # because the metric that called them noise-apart on `stand` does not
+        # run on a figure lying across a landscape frame, and 49ef8830 is the
+        # 1.45 render. The two poses genuinely differ here rather than one
+        # being sloppy: `stand` is measuring a vertical figure whose legs are
+        # already the full height of the frame.
         body = body.replace("(pale skin:1.25)",
-                            "(long legs:1.35), (pale skin:1.25)")
+                            "(long legs:1.45), (pale skin:1.25)")
     if pose == "boss":
         # Grown up, and it is one substitution now, not the two it started as.
         #

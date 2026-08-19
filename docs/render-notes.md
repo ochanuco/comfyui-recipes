@@ -6215,3 +6215,53 @@ the weight instead of a number borrowed from another pose.
 consecutive `flop` prompts, and a third of a three-seed proportion comparison is
 too much to spend on a seed that may be drawing two people. 737373737 takes its
 place, from the standard list. `headcount.py`: all six ONE.
+
+## 2026-08-19 — `flop` takes 1.45, and gives the exhaustion back
+
+49ef8830 — `yk-legs145` 737373737 — is the picked render, so the splice is
+**`(long legs:1.45)`, one notch above `stand`'s 1.35.** Both were rendered
+because the metric that called them noise-apart on `stand` does not run on a
+figure lying across a landscape frame, and with nothing to call it noise with,
+the eye picked the stronger one. The two poses may genuinely want different
+weights: `stand` is measuring a vertical figure whose legs already run the full
+height of the frame. `.local/_legs145.py` is deleted — the weight lives in the
+recipe now.
+
+### 「いつもの表情に戻して」 — and what that turned out to cost
+
+The four tags came straight back out: `(empty eyes:1.45), (eyebags:1.4),
+(half-closed eyes:1.35), (open mouth:1.35)`, plus `flop` out of `open_mouthed`
+so `FACE` gets `closed mouth` back. Nothing else moved — not the body, not the
+canvas, not the camera.
+
+**That is the finding, and it is worth stating plainly: 徹夜 was entirely in four
+expression tags.** The pose it was requested on has now shed the whole request
+and kept its picture. Body, framing and camera never carried any of it, which is
+why the expression lifted off cleanly instead of taking the composition with it.
+The corollary is the useful half — an expression brief and a pose brief can be
+tuned independently on this recipe, and eight rounds of work on the body were not
+put at risk by dropping the face.
+
+`flop` is five tags now, down from nine, and all four it lost were expression:
+
+    (solo:1.5), (lying:1.45), (on back:1.5), (outstretched arms:1.3), full body
+
+The small number is not the pose being under-specified.
+
+**Three face states have now been live on this pose** — DEFAULT, 徹夜, FACE DOWN
+— so all three are written into the pose comment rather than only the current
+one, with their exact edits. FACE DOWN additionally carries `(on stomach:1.5)`
+since the on-back pick coupled the two axes.
+
+`costume_check` failed twice today on this pose, both times correctly and both
+times on a half-applied face state: once on the added leg tag before it was
+declared, once when the pose dropped `closed mouth` from its removals but the
+declaration still claimed it. That file is doing exactly the job it was written
+for — the churn in `flop`'s entry (a `looking at viewer` removal, then a `closed
+mouth` removal, now neither) is the reason it exists.
+
+    yk-flop7   737373737 7f2c7be7   111222333 29fc3f3e   1886970040 e1fbf846
+               2557902837 3e8d8651  3409564303 a06e0171
+
+Five seeds, 555666777 still excluded for the reason in the entry above.
+`headcount.py`: all five ONE.

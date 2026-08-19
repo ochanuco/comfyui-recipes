@@ -157,21 +157,20 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"removed": ["closed mouth"],
          "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open"},
     ],
-    # Still one departure, but a different one: the face came back up, so the
-    # `looking at viewer` removal went away and the open mouth arrived. Both
-    # halves of the pose's FACE DOWN / FACE UP switch show up here, and this
-    # entry is how a half-applied switch gets caught -- flipping the pose
-    # without flipping this line fails the check.
+    # One departure, and it is no longer a facial one. 「いつもの表情に戻して」
+    # took the exhaustion off, so both the `closed mouth` removal (open mouth)
+    # and, before it, the `looking at viewer` removal (face in the floor) have
+    # come and gone from this entry. That churn is the point: this file is
+    # what catches a pose flipped between its three face states without its
+    # declaration flipped too -- it failed on exactly that, twice, today.
     #
     # It briefly carried `prone`'s hip/thigh easing too, on the argument that
     # it shared `prone`'s from-above geometry; that tag left the pose when the
     # dive was asked for, and the splice left with it.
     "flop": [
-        {"added": ["(long legs:1.35)"],
-         "why": "\u80f4\u4f53\u304c\u9577\u3044 on 2ab57f7b; `stand`'s tag at "
-                "`stand`'s weight, the only side of that axis that moves"},
-        {"removed": ["closed mouth"],
-         "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open, the same departure `allnighter_full` makes"},
+        {"added": ["(long legs:1.45)"],
+         "why": "\u80f4\u4f53\u304c\u9577\u3044 on 2ab57f7b; `stand`'s tag, "
+                "one notch above `stand`'s weight, picked as 49ef8830"},
     ],
     "yawn": [
         {"removed": ["closed mouth"], "why": "a yawn needs the mouth open"},

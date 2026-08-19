@@ -7358,3 +7358,34 @@ Same seed, same クマ, one weight moving (`.local/dizzy_swirl.py`):
     sw100   (@_@:1.0)     49b3aab4
 
 Unjudged at the time of writing.
+
+### `dizzy` settles at `(@_@:1.0)` — and the swirl is not drawn at 1.0
+
+49b3aab4 picked. The block is now in `yukari_recipe.POSES` and the pose is
+settled:
+
+    (solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2),
+    (face focus:1.3), (@_@:1.0), (eyebags:1.55), (tired:1.3),
+    (dizzy:1.3), (open mouth:1.35)
+
+at 1024x1024, seed 737373737. Ten tags — one over `allnighter`'s nine, and the
+extra one is `tired`, the tag that turned out to be doing the work.
+
+**Say plainly what 1.0 costs: the spiral is gone.** Walked 1.45 → 1.3 → 1.15 →
+1.0 on the one seed, and at the picked setting the irises are ordinary purple
+with a small dark pupil — no drawn swirl at all. What `@_@` still contributes is
+the wide flat eye and the white around it; what carries the state is the クマ,
+the droop and the open mouth. So this pose as settled is **寝不足 with dead eyes,
+not ぐるぐる目**, and the original request's ぐるぐる is now held only by
+`(dizzy:1.3)` as a state rather than as a line. The nearest render that still
+draws a visible spiral is e5039e07 at `(@_@:1.15)`; if a later session wants the
+swirl back, that is the setting, and the thing it will cost is the same one that
+got it turned down — the eye takes the picture.
+
+`@_@` is kept in the block at 1.0 rather than deleted, on this file's standing
+rule: it is in the accepted render, and a tag whose named effect measured null
+is not removed on those grounds (the thin-line tags are the precedent). Deleting
+it would ship a different picture than the one that was chosen.
+
+Print: 11bad1ce — `--pose dizzy --seed 737373737 --hires 2048`, the same first
+pass with the second at the default denoise for that upscale.

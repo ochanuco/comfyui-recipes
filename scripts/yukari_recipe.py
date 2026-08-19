@@ -1846,7 +1846,28 @@ HIRES_NEGATIVE = {
     # a late pass only gets to delete, and pass 1 stays byte-identical to
     # fa504c93 -- so the composition and the palette both come through
     # untouched and pass 2 smooths the toe box off the end.
-    "kick": "(toes:1.4), (extra toes:1.4), (closed eyes:1.4), ",
+    # ONE toe guard, not two, and the second one was expensive. 「あとは発色
+    # かな？」 on 1ee9fbc9, which carried `(toes:1.55), (extra toes:1.55)`:
+    #
+    #   fa504c93  no toe guard      sat 52.0   brightest tenth  89.0
+    #   1ee9fbc9  two toe guards    sat 34.4   brightest tenth  52.0
+    #   f60817db  ONE toe guard     sat 60.7   brightest tenth 105.0
+    #
+    # The mean is the smaller half of it: the brightest tenth of the figure went
+    # from 89 to 52, which is every accent in the picture flattening, and that
+    # is what 発色 named. One guard puts it back above the approved render's own
+    # numbers and keeps the smooth toe box, so the second guard bought nothing
+    # and cost the colour.
+    #
+    # Fourth time guard-stacking has cost this recipe something, and the first
+    # time the cost was SATURATION rather than the palette's shares or an
+    # intruder in the backdrop. The rule is not about which target the guards
+    # name -- these two name the same one, which is the shape the rule is about.
+    #
+    # The 1.55 is kept from the picked render even though its partner is gone;
+    # `(toes:1.4)` alone has not been rendered and there is no reason to think
+    # the weight was ever the lever.
+    "kick": "(toes:1.55), (closed eyes:1.4), ",
 }
 
 # The positive-side sibling, and it exists for a request the negative one cannot

@@ -7033,3 +7033,53 @@ All three back in the approved range, and R and T are indistinguishable — so 1
 is enough and the recipe takes it rather than the stronger pair.
 
 `headcount.py`: all three ONE.
+
+## 発色: the second toe guard was the whole cost, and the accents are the measure
+
+「あとは発色かな？」 on 1ee9fbc9. The mean saturation was already known to be
+low; what names the complaint is the **brightest tenth of the figure**, which is
+where a picture's accents live:
+
+    fa504c93   no toe guard                sat 52.0   brightest tenth  89.0
+    1ee9fbc9   (toes:1.55)+(extra toes:1.55) sat 34.4   brightest tenth  52.0
+    f60817db   (toes:1.55) alone           sat 60.7   brightest tenth 105.0
+
+The mean falling by a third is the smaller half of the story. Every accent in
+the picture flattening from 89 to 52 is 発色, and **one guard puts it back above
+the approved render's own numbers while keeping the smooth toe box.** The second
+guard bought nothing and paid for it in colour.
+
+Hue moves with it: 210 clean, 221 under the pair, 210 again with one.
+
+**Fourth time guard-stacking has cost this recipe something, and the first time
+the cost was saturation** rather than the palette's shares or an intruder in the
+backdrop. Worth noting that both guards name the same target — which is exactly
+the shape the rule is about, not a coincidence of having two of them.
+
+### Null: `(vivid colors)` in the second pass does nothing
+
+The obvious counter to a flat picture, run at two weights in `HIRES_POSITIVE`
+against the guard pair still in place:
+
+    0a8ce5f0   pair + (vivid colors:1.25)   sat 37.6   brightest tenth 61.0
+    a4c27b83   pair + (vivid colors:1.40)   sat 37.6   brightest tenth 61.0
+
+Identical to each other to the decimal, and barely off the 34.4 they were
+supposed to fix. **A tag that measures the same at two weights is a tag that is
+not doing anything**, which is how `half-closed eyes` was diagnosed earlier in
+this file — except that one was binary and this one is inert. Do not reach for
+it; remove the guard that flattened the picture instead of adding a tag to argue
+with it.
+
+    yk-kick3   1886970034 d24dea41   2557902837 80870b8c   1886970040 d738a60b
+
+Three further seeds on the settled block. 1886970034 is a mistyped seed, kept
+because it rendered and measures well rather than pretended away.
+
+    d24dea41   sat 72.0   brightest tenth 129.0
+    80870b8c   sat 76.6   brightest tenth 115.0
+    d738a60b   sat 57.9   brightest tenth  91.0
+
+Recipe verified against `yk-colU` node for node, and its pass 1 verified
+byte-identical to fa504c93 — so the picked composition and the restored colour
+are the same graph.

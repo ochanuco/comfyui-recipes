@@ -7521,3 +7521,19 @@ canvas moved into `SIZES` before the print, and the recipe was then diffed
 node-for-node against the render's own graph from `/history` — identical, so
 the picked image is reproducible from the recipe and not only from the
 throwaway in `.local/` that queued it. Print: ddf219a1 at `--hires 2048`.
+
+**Print and delivery.** ddf219a1, `--hires 2048` on the picked first pass ->
+`yk-sporty-hype-1886970040_00002_.png` (1024x2048). Backdrop set afterwards with
+`recolor_bg.py --color '#c7e5e9'`, that value being the median corner colour of
+the reference image the user posted rather than a guess at "cyan".
+
+58.8% repainted, which is above the 45.9% this repo has on record as the point
+where the tool starts eating the figure -- and it is fine here, for a reason the
+share alone cannot show: the ORIGINAL colours under the repainted mask have a
+per-channel std of 0.9/0.9/1.1, range 185-219. That is one flat colour and
+nothing else. The 45.9% case was a tolerance widened until it bit; this one is
+a taller canvas with more backdrop in it. `backdrop_flatness.py` said std 10.46,
+flat, before the tool was reached for.
+
+The share is the wrong number to screen on. The std of what was repainted is the
+right one, and it is cheap.

@@ -1206,6 +1206,43 @@ POSES = {
         "(smug:1.3), (confident:1.25), (half-closed eyes:1.25), (open mouth:1.35), "
         "(full body:1.4)"
     ),
+    # 「腹筋が全くできないゆかりさん」. The joke is a NEGATIVE result -- the
+    # picture has to show the sit-up not happening -- and nothing in this file
+    # has drawn a failed action before. Every other pose here is a state she is
+    # in; this one is an attempt that does not come off, and the whole block is
+    # built around which half of it the model must not complete.
+    #
+    # Four tags set the apparatus and they are the ones flop already proved:
+    # `(lying:1.45), (on back:1.5)` put her down, `(knees up:1.4)` bends the
+    # legs the exercise needs, `(hands behind head:1.35)` is the sit-up's own
+    # arm position and is a 200k-post tag, unlike anything naming the exercise.
+    #
+    # `(sit-up:1.3)` is deliberately the WEAKEST of them. It names the feature
+    # -- without it the four above read as lying down comfortably -- but raised
+    # it is the tag most likely to draw the successful rep, which is the one
+    # picture this pose must not produce. If she comes up off the floor, this
+    # is the weight to lower before touching anything else.
+    #
+    # The strain is `(clenched teeth:1.35)`, and it costs `closed mouth` out of
+    # FACE (declared in costume_check, `open_mouthed` in positive()). A smug
+    # 半目 is this character's default and it is exactly wrong here: composure
+    # reads as a rest, not as a failure. `(sweatdrop:1.3)` over `sweat` on
+    # purpose -- the anime bead is a comic marker, where `sweat` buys wet
+    # shine and this recipe is flat colour.
+    #
+    # Untested, and the two things to watch on the first sweep are the costume
+    # and the camera. A sit-up recruits a gym: the negative carries a
+    # sportswear guard for this pose (see `negative()`), because the costume is
+    # a contract and an exercise scene is the strongest pull away from it this
+    # file has tried. No angle tag is spent yet -- flop holds a body on the
+    # floor at this canvas without one -- but a side view is what reads
+    # "shoulders still down", so `(from side:1.3)` is the first lever if the
+    # camera looks straight down and flattens the failure out of the picture.
+    "situp": (
+        "(solo:1.5), (lying:1.45), (on back:1.5), (knees up:1.4), "
+        "(hands behind head:1.35), (sit-up:1.3), (clenched teeth:1.35), "
+        "(sweatdrop:1.3), full body"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
@@ -1279,6 +1316,11 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # no reason to argue with it yet: the extended leg goes into depth
          # rather than across the frame, so it buys no extra width. Untested.
          "kick": (1024, 1536),
+         # A body on the floor, which is what earned `prone` and `flop` the
+         # landscape canvas; the measurements are in the note above `prone`.
+         # She is longer here than in either of them -- knees up, elbows out --
+         # so the width is doing the same job for the same reason.
+         "situp": (1536, 1024),
          "stand": (832, 1664)}
 
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
@@ -1358,6 +1400,12 @@ def negative(pose: str) -> str:
     if pose in HEAD_FRAMINGS:
         return text
     text = text + ", " + LEGWEAR_BAN
+    if pose == "situp":
+        # The exercise brings its own wardrobe and its own room. Three tags,
+        # kept short on purpose: this file has twice watched a long guard stack
+        # flatten the palette, and the costume only needs the gym kept out of
+        # it, not argued with.
+        text += ", (sportswear:1.45), (gym uniform:1.4), (yoga mat:1.3)"
     if pose == "stand":
         # After the ban, not before it: this is the tail of the negative that
         # a5c494ef was drawn with, verified against its own history rather than
@@ -1480,8 +1528,11 @@ def positive(pose: str) -> str:
     # membership here would have opened the mouth in the pass that picks the
     # composition too. That pass now carries the expression, so the departure is
     # real and belongs where the other four are.
+    # `situp` joins them for `(clenched teeth:1.35)`: gritted teeth are drawn
+    # with the mouth open, and FACE's `closed mouth` is the tag that turns the
+    # strain back into composure.
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
-                            "kick")
+                            "kick", "situp")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.

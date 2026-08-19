@@ -175,6 +175,12 @@ EXCEPTIONS: dict[str, list[dict]] = {
          "why": "(open mouth:1.35) is most of the difference between a smirk "
                 "and a ドヤ顔; the two cannot both be in the prompt"},
     ],
+    # A failed sit-up: gritted teeth, and teeth are drawn with the mouth open.
+    "situp": [
+        {"removed": ["closed mouth"],
+         "why": "(clenched teeth:1.35) is the strain, and a shut mouth turns "
+                "the failure back into a rest"},
+    ],
     "flop": [
         {"added": ["(long legs:1.40)"],
          "why": "bracketed: no tag reads \u80f4\u4f53\u304c\u9577\u3044, "

@@ -7083,3 +7083,47 @@ because it rendered and measures well rather than pretended away.
 Recipe verified against `yk-colU` node for node, and its pass 1 verified
 byte-identical to fa504c93 — so the picked composition and the restored colour
 are the same graph.
+
+## `situp` — the first pose here whose subject is an action NOT completing
+
+「腹筋が全くできないゆかりさん」. Every other block in `POSES` names a state she
+is in — sitting, lying, standing, kicking. This one names an attempt that fails,
+and the picture is only right if the model draws the half of it that does not
+happen: shoulders still on the floor.
+
+Block, on `flop`'s canvas (1536x1024) for `flop`'s reason — a body on the floor,
+and this one is longer than flop with the knees up and the elbows out:
+
+    (solo:1.5), (lying:1.45), (on back:1.5), (knees up:1.4),
+    (hands behind head:1.35), (sit-up:1.3), (clenched teeth:1.35),
+    (sweatdrop:1.3), full body
+
+Eight after `(solo:1.5)`, which is the budget this file keeps quoting.
+
+Three choices are worth stating before any of it is measured, because they are
+what the first sweep tests:
+
+- **`(sit-up:1.3)` is the weakest tag in the block on purpose.** It names the
+  feature — without it the four apparatus tags read as lying down comfortably —
+  but it is also the one tag pulling toward a *successful* rep, which is the one
+  picture this pose must not produce. It is the first weight to lower, not the
+  first to raise.
+- **`(clenched teeth:1.35)` costs `closed mouth` out of FACE**, so `situp` joins
+  `open_mouthed` and declares the removal in `costume_check.py`. The smug 半目
+  this character defaults to is precisely wrong here: composure reads as a rest.
+- **`(sweatdrop:1.3)` over `sweat`.** The anime bead is a comic marker; `sweat`
+  buys wet shine, and this recipe is flat colour.
+
+The negative gains three tags for this pose only —
+`(sportswear:1.45), (gym uniform:1.4), (yoga mat:1.3)`. An exercise scene is the
+strongest pull away from the costume contract anything in this file has asked
+for, and the stack is kept to three because two earlier long guard stacks
+flattened the palette.
+
+    yk-situp   555666777 1e54b47a   111222333 40ecdc95   1886970040 68d1d34b
+               737373737 da1c9c91   2557902837 a8c7ddd0   3409564303 dff8c3cf
+
+First sweep, unjudged at the time of writing. **No angle tag is spent yet**:
+`flop` holds a body on the floor at this canvas without one. If the camera looks
+straight down, the failure flattens out of the picture and `(from side:1.3)` is
+the lever — a side view is what reads "shoulders still down".

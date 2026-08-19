@@ -1562,10 +1562,21 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # so the width is doing the same job for the same reason.
          "situp": (1536, 1024),
          "stand": (832, 1664),
-         # Arms out to the sides need width that `stand`'s 832 does not have,
-         # and the pose is still a whole standing figure, so it takes the
-         # 1024x1536 every other full body in this file is drawn at.
-         "hype": (1024, 1536)}
+         # `stand`'s canvas, and reached the same way `stand` reached it.
+         #
+         # It was 1024x1536 for one sweep, on the reasoning that arms out to the
+         # sides need width. They do not need it from the frame: at 1024 wide
+         # three of six seeds came back with a second figure, and at 832 with
+         # nothing else changed it was one of six. Same six seeds, headcount.py
+         # both times.
+         #
+         # Not a clean result and it should not be read as one -- 3/6 against
+         # 5/6 is not a difference six seeds can settle, and the one render the
+         # narrow canvas lost (555666777) is one the wide canvas had. What
+         # decided it is that this is the SAME lever `stand` was fixed with, for
+         # the same defect: width beside her is room for someone else to stand.
+         # The picked render (28e243ec, seed 1886970040) is drawn at this size.
+         "hype": (832, 1664)}
 
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
 # and THIN from the positive and the legwear ban from the negative -- naming a

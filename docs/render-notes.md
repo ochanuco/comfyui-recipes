@@ -7489,3 +7489,35 @@ the width, and `stand`'s narrow frame was chosen for the opposite problem.
 
 First sweep queued at six seeds — 29d0df4a, 61fd2c81, bb35c89d, c67f05e6,
 3be37c1b, 478fb1d2. Nothing measured yet; unread when this was written.
+
+### The canvas, and the pick — 28e243ec (2026-08-20)
+
+First sweep at 1024x1536, second at 832x1664, same six seeds, nothing else
+changed. `headcount.py` on both:
+
+| seed       | 1024x1536 | 832x1664 |
+| ---------- | --------- | -------- |
+| 555666777  | ONE       | 3 bodies |
+| 111222333  | 2 bodies  | ONE      |
+| 1886970040 | ONE       | ONE      |
+| 737373737  | 3 bodies  | ONE      |
+| 2557902837 | ONE       | ONE      |
+| 3409564303 | 2 bodies  | ONE      |
+
+3/6 clean against 5/6, and **that is not a result six seeds can settle** — the
+narrow canvas also lost a render the wide one had. It is recorded here as the
+weak evidence it is. What actually decided the canvas is that this is the same
+lever `stand` was fixed with, against the same defect: width beside her is room
+for a second person to stand in, and no tag in the negative has ever taken that
+room away. The words were tried there and lost; they were not tried again here.
+
+`3409564303` at 1024 is the clearest reading of the failure and the reason it
+was not dismissed as a statistic: two column blocks at 51% and 46% of the
+figure, each spanning ~90% of the frame height, with an empty vertical band
+between them. One body cannot leave a strip like that.
+
+Picked: **28e243ec**, `--pose hype --costume sporty --seed 1886970040`. The
+canvas moved into `SIZES` before the print, and the recipe was then diffed
+node-for-node against the render's own graph from `/history` — identical, so
+the picked image is reproducible from the recipe and not only from the
+throwaway in `.local/` that queued it. Print: ddf219a1 at `--hires 2048`.

@@ -151,6 +151,17 @@ EXCEPTIONS: dict[str, list[dict]] = {
          "why": "\u653e\u5fc3\u72b6\u614b: the mouth hangs open. `small mouth` was "
                 "briefly removed too, for a wider mouth that is no longer asked for"},
     ],
+    # `allnighter`'s crop and `allnighter`'s two departures, unchanged: what
+    # differs between them is inside the pose block, not against the costume.
+    "dizzy": [
+        {"removed": (tags(yk.LEGWEAR)
+                     + [t for t in tags(yk.BODY) if t != "(pale skin:1.25)"]
+                     + tags(yk.THIN)),
+         "why": "the crop is above all of it, and naming what is out of frame "
+                "is what invites it back in"},
+        {"removed": ["closed mouth"],
+         "why": "\u5bdd\u4e0d\u8db3: the mouth hangs open"},
+    ],
     # Full body, so unlike `allnighter` it wears the whole costume; the mouth is
     # its only departure.
     "allnighter_full": [

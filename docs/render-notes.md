@@ -7251,3 +7251,44 @@ which is `prone`'s settled second pass at the same canvas, for the same reason:
 2048 at 0.60 specifically, since 0.45 scribbles the outline and 3072 blurs it to
 a halo. Pass 1 is unchanged by `--hires`, so this is the picked drawing with
 detail, not a re-roll.
+
+## `dizzy` — 寝不足でぐるぐる目 (2026-08-20)
+
+「寝不足ゆかりさん。目にクマがあってぐるぐる目」. `allnighter`'s crop, `allnighter`'s
+クマ, and the dead eye swapped for a spinning one —
+
+    (solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2),
+    (face focus:1.3), (@_@:1.45), (eyebags:1.4),
+    (dizzy:1.3), (open mouth:1.35)
+
+at 1024x1024, in `HEAD_FRAMINGS`, in `open_mouthed`. Nine tags — the same nine
+`allnighter` spends, because this is a **substitution and not an addition**:
+two tags out, two in, the framing five untouched.
+
+What the substitution rests on:
+
+- **`@_@` is the tag, and it takes `empty eyes`' slot.** ぐるぐる目 is `@_@` on
+  danbooru; `spiral eyes` and `dizzy eyes` are not tags there. `empty eyes` at
+  1.45 and `@_@` are both a single instruction about what is drawn inside the
+  iris, so they cannot both be live — running them together is two drawings of
+  one feature, and 1.45 is the weight that was already proven to carry an eye
+  in this crop.
+- **`half-closed eyes` leaves.** `allnighter` raised it to 1.35 for the droop; a
+  lid at 1.35 covers the exact thing this request is about. The droop is carried
+  by `eyebags` and the open mouth instead.
+- **`(dizzy:1.3)` is support, not the expression.** `@_@` is punctuation and
+  nothing in this file has yet carried a feature on a symbol tag alone. `dizzy`
+  is a real danbooru tag for the same state and is deliberately *under* `@_@`.
+- **`eyebags` stays at 1.4**, the weight it holds in every exhausted pose here.
+  It is the クマ and it is what makes this 寝不足 rather than just startled.
+- **No desk, no night, no motion lines.** Same reason as `allnighter`: SURFACE
+  is `(simple background:1.3), (grey background:1.2)` and a scene argues with it.
+
+The open question is whether `@_@` survives the tokenizer at all — if the sweep
+comes back with ordinary purple irises, the tag was punctuation the model never
+learned, and the next move is `(spiral pupils:1.4)` or a `(dizzy:1.5)` lead
+rather than more weight on `@_@`.
+
+Sweep queued at 1024x1024, six seeds: 555666777 d20e4b3a, 111222333 ac73c275,
+1886970040 10fd38ab, 737373737 54dcff8f, 2557902837 f000b137, 3409564303
+d67a7756. Unjudged at the time of writing.

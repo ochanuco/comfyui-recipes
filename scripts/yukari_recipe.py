@@ -448,6 +448,38 @@ POSES = {
         "(face focus:1.3), (empty eyes:1.45), (eyebags:1.4), "
         "(half-closed eyes:1.35), (open mouth:1.35)"
     ),
+    # 「寝不足ゆかりさん。目にクマがあってぐるぐる目」. `allnighter`'s crop and
+    # `allnighter`'s クマ, with the dead eye swapped for a spinning one.
+    #
+    # It is a SUBSTITUTION and not an addition, which is this file's cheapest
+    # kind of change: the framing five are untouched, `eyebags` stays at the
+    # 1.4 it holds in every exhausted pose here, and the two tags that describe
+    # how the eye is drawn are the two that leave.
+    #
+    # - **`(@_@:1.45)` is the tag.** ぐるぐる目 is `@_@` on danbooru; `spiral
+    #   eyes` and `dizzy eyes` are not tags there. It takes `empty eyes`' weight
+    #   slot almost exactly, because it is doing `empty eyes`' job -- both are a
+    #   single instruction about what is inside the iris, and running them
+    #   together is two drawings of one feature.
+    # - **`half-closed eyes` has to go.** A lid at 1.35 covers the thing the
+    #   request is about. `allnighter` raised it for the droop; here the droop
+    #   is carried by `eyebags` and the mouth, and the eye has to be open to
+    #   show anything at all.
+    # - **`(dizzy:1.3)` supports it.** `@_@` is punctuation, and this file has
+    #   no precedent for a symbol tag carrying a feature on its own. `dizzy` is
+    #   a real danbooru tag for the same state, and it is under `@_@` so it
+    #   argues for the expression without becoming the expression.
+    # - **`(open mouth:1.35)` is kept**, unweighted from `allnighter`. A ぽかん
+    #   mouth is what 寝不足 looks like from the front, and it is the one
+    #   departure from FACE that all three exhausted poses here already make.
+    #
+    # Nine tags, the same nine `allnighter` spends. No desk, no night, no
+    # motion lines: SURFACE is a grey background and the state is on her face.
+    "dizzy": (
+        "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2), "
+        "(face focus:1.3), (@_@:1.45), (eyebags:1.4), "
+        "(dizzy:1.3), (open mouth:1.35)"
+    ),
     # 「c575fc46 全身、正座」. The same face, knelt, at full length.
     #
     # It is a NEW POSE and not a size on the old one. `allnighter` is a
@@ -1310,6 +1342,8 @@ POSES = {
 SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # Portrait's framing, so portrait's canvas.
          "allnighter": (1024, 1024),
+         # `allnighter`'s crop, so `allnighter`'s square.
+         "dizzy": (1024, 1024),
          # Every seated full body in this file is 1024x1536 and none of them
          # has argued with it. NOT in HEAD_FRAMINGS: this one wears the legwear.
          "allnighter_full": (1024, 1536),
@@ -1386,7 +1420,7 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
 # and THIN from the positive and the legwear ban from the negative -- naming a
 # garment that is out of frame is what invites it back into the frame.
-HEAD_FRAMINGS = ("portrait", "allnighter")
+HEAD_FRAMINGS = ("portrait", "allnighter", "dizzy")
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -1603,7 +1637,7 @@ def positive(pose: str) -> str:
     # with the mouth open, and FACE's `closed mouth` is the tag that turns the
     # strain back into composure.
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
-                            "kick", "situp")
+                            "dizzy", "kick", "situp")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.

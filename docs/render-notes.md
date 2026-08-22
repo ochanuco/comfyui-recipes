@@ -8026,3 +8026,31 @@ number was not describing anything anyone could see.
 What the number IS good for is unchanged: comparing two arms of the same pose.
 `pounce`'s 5.8 staircase against its own 2.1 arm was a real difference and the
 eye agreed. Across poses, against a threshold, it has now failed twice.
+
+## Dropped: a head-only ドヤ icon (2026-08-23)
+
+Abandoned before anything was judged -- 18 renders swept, none picked, nothing
+committed to the recipe. Two things came out of it that are worth not
+rediscovering.
+
+**`(portrait:1.5)` asks for shoulders.** Danbooru defines `portrait` as an image
+showing the head AND SHOULDERS. It is the same instruction as
+`(head and shoulders:1.4)`, which sits beside it in `portrait`, `allnighter`,
+`dizzy` and `snarl` -- every head framing in this file names the crop twice. For
+those four that is harmless, because all of them want a collar in frame. For a
+head-only icon it is the tag doing the damage, and it was left in for a whole
+round because it is what every other head crop is built on.
+
+**Banning the body in the negative did nothing.** `(neck:1.35),
+(shoulders:1.4), (upper body:1.4), (body:1.3)` was reported as not working at
+all. Consistent with what this file already knows -- `stand`'s second figure was
+fixed by the canvas after the words lost, and the shorts that could not be
+banned had no tag to outvote -- but worth having as its own line, because the
+body is not a stray defect here, it is what the framing is asking for.
+
+Untested and still open if this is ever picked up: pushing the crop by weight
+(`close-up` 1.6, `face focus` 1.5, no `portrait`), `(head only:1.45)`, and the
+user's own idea, `(yukkuri shiteitte ne:1.3-1.5)` -- a yukkuri IS a head with no
+body, which makes it a third kind of instruction: not forbidding the body, and
+not framing it out, but naming an entity that does not have one. All three were
+rendered and none looked at.

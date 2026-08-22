@@ -7864,3 +7864,44 @@ Picked: 9082bedc, seed 1886970040, diffed node-for-node against the recipe.
 Print: c91d2a66 at `--hires 2048`. **No resample step here**: this canvas is
 832x1664, so 2048 is a 1.23x upscale rather than `pounce`'s 2.0x, and denoise
 0.60 covers it.
+
+## `ride` — ロードバイク (2026-08-22)
+
+    (solo:1.5), (riding bicycle:1.5), (road bicycle:1.45), (bicycle:1.4),
+    (from side:1.4), (leaning forward:1.3), (full body:1.45)
+
+Seven tags, **1536x1024**, swept in `sporty`. Written against the vessel grammar
+`sip` and `straw` worked out, because a bicycle is that problem one size up: an
+object that has to be both in the picture and under her, with a type that has to
+be pinned.
+
+- `(bicycle:1.4)` puts one in frame and does nothing else. That is `holding
+  cup`, and the sweep that trusted an object tag to imply the action found the
+  can at her feet in four of four.
+- `(riding bicycle:1.5)` is this pose's `drinking` -- the tag that says where
+  she is in relation to the object -- and it is weighted above the noun for it.
+- `(road bicycle:1.45)` is the second naming, and here it IS worth the slot,
+  which is the opposite of what `straw` concluded an hour earlier. A paper cup
+  is what the model reaches for unaided; a road bike is not, the default bicycle
+  has flat bars. The two poses do not disagree: the rule is that the second noun
+  is worth a slot exactly when the default vessel is the wrong one.
+
+**The canvas spends the second-figure protection**, knowingly: 832 wide is what
+keeps a second person out of the standing poses, and there is no way to shoot a
+bicycle side-on in a narrow frame. Headcount came back 6/6 ONE anyway, with zero
+sub-2% blocks -- though on this pose that number means very little, because the
+bike is connected to the figure and the mask reads them as one mass.
+
+### Null: circles do not count wheels
+
+Wheels are circles and opencv is in the env, so `cv2.HoughCircles` was tried as
+a way to count bicycles without opening the renders -- 0 wheels no bike, 2 one
+bike, 4 two bikes. It does not work. Over the six seeds, at minDist h/4 and
+radii from 0.12h to 0.40h, it found **5 to 9** wheel-sized circles per render
+with radii from 135 to 408. It is fitting heads, hips and the arcs of the
+backdrop.
+
+Recorded rather than tuned. Tightening `param2` until the count reads 2 would be
+fitting the measurement to a conclusion nobody has looked at yet, and this repo
+has six statistics on file that were real numbers pointed at the wrong referent.
+This is not a seventh; it is the one that was caught before it was believed.

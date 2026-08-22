@@ -7644,3 +7644,54 @@ by looking at it. That is the fifth image statistic in this repo to disagree wit
 the eye and lose, and the pattern in all five is the same: the number is measuring
 something real and it is not measuring the thing it is being read as. Use it to
 sort a sweep, never to reject a render someone has already looked at.
+
+## 「じゃぎってる」 — the fringe was the tool, not the model (2026-08-22)
+
+The `pounce` print came back jagged along every edge, and it was not the render.
+`recolor_bg.py` repaints on a hard threshold, so the ring of pixels that is part
+backdrop and part figure -- antialiasing, plus `(white outline:1.6)` fading into
+whatever was behind it -- fails the test, keeps the ORIGINAL backdrop's hue, and
+is then left sitting against a colour it no longer belongs to.
+
+    ring +1px   25,148 px around the figure, 100.0% closer to the OLD backdrop
+    ring +2px                                 99.9%
+    ring +3px                                 99.9%
+
+**Fix: set inside the mask, SHIFT outside it.** Within `--feather` pixels of the
+mask each pixel moves by the same delta scaled by how much backdrop it looks
+like it holds -- so the pixel keeps its figure component and only its backdrop
+component changes. Setting those pixels instead would paint over the outline.
+
+    hype      1px fringe  9.3% -> 0.3% still old hue
+    roar                 99.4% -> 0.4%
+    pounce              100.0% -> 4.7%
+
+All three re-cut and re-delivered. `--feather 0` is the old behaviour and is
+what everything before this was made with.
+
+**The width is 2 and the ceiling is measured.** Genuine skin -- eroded 5x5, so a
+one-pixel blend cannot qualify as skin -- is untouched at feather 2 and starts
+moving at 3:
+
+    feather 2   0 skin px shifted
+    feather 3   174 px, worst channel move 25
+    feather 4   425 px, worst 25
+
+The first attempt to measure this was wrong in a way worth keeping. Counting
+pixels within 16 of the skin swatch said 14,176 were tinted at feather 2 --
+because the blend between the white outline and the backdrop lands at about
+(239,231,231), which is inside that swatch. The number was real and it was not
+counting skin. Erode before you count.
+
+**Null: the colour ramp cannot separate skin from fringe.** Tightening
+`--feather-tolerance` to buy a wider band was tried and is worse in both
+directions at once -- the fringe comes BACK and the skin does not improve:
+
+    feather 3, tolerance 54   ring2 11.7%  ring3 16.6%  skin 174 px
+    feather 3, tolerance 45   ring2 46.2%  ring3 49.6%  skin 174 px
+    feather 3, tolerance 40   ring2 58.9%  ring3 65.7%  skin 174 px
+
+The skin pixels being caught sit as close to the backdrop as the fringe pixels
+do, so no threshold on colour distance divides them. Spatial width is the only
+lever, and 2 is where it stops. A warm band remains at 3px and is not addressed
+by this change.

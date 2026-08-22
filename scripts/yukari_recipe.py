@@ -2234,6 +2234,33 @@ def positive(pose: str, costume: str = "default") -> str:
         # needed, and d35a67f8 is the render that carries them.
         body = _splice(body, "(petite:1.2)", "(petite:1.4)")
     character = blocks["character"]
+    if pose == "swelter":
+        # 「部屋でジタバタしているので」. She is on the floor of a room, and
+        # SPORTY's white high tops are outdoor shoes; nothing else in the
+        # picture says outside, so the shoes were the one tag arguing with the
+        # setting.
+        #
+        # A SUBSTITUTION IN THE SAME SLOT, not a removal. `no shoes` is a real
+        # tag and it means what is wanted here exactly -- a foot with no shoe on
+        # it, still wearing something -- which is right for a leg in opaque
+        # pantyhose; `barefoot` would ask for the tights to come off too. It
+        # goes where the three footwear tags were because that is the slot the
+        # rest of the costume reads for what is on her feet, and because leaving
+        # the slot empty is what this file means by an unaddressed axis: the
+        # model has drawn sneakers on this pose on every seed so far and has
+        # never been told not to.
+        #
+        # Gated on the costume that HAS shoes. The settled costume never names
+        # footwear on any pose but `stand`, so under `default` there is no
+        # needle and `_splice` would fail loudly rather than quietly -- which is
+        # the point of the gate. That also means a `default` swelter gets no
+        # `no shoes` at all; it has never been rendered, and inventing a slot
+        # for it here would be a guess wearing a measurement's clothes.
+        character = _splice(
+            character,
+            "(white footwear:1.4), (sneakers:1.45), (high tops:1.3)",
+            "(no shoes:1.35)",
+            costume == "sporty")
     if pose == "boss":
         # Grown up, and it is one substitution now, not the two it started as.
         #

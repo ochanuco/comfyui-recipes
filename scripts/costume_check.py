@@ -261,6 +261,14 @@ COSTUME_ONLY: dict[str, dict[str, list[dict]]] = {
         ],
     },
     "sporty": {
+        "swelter": [
+            {"removed": ["(white footwear:1.4)", "(sneakers:1.45)",
+                         "(high tops:1.3)"],
+             "added": ["(no shoes:1.35)"],
+             "why": "\u90e8\u5c4b\u3067\u30b8\u30bf\u30d0\u30bf: the floor is "
+                    "indoors and this costume's high tops are outdoor shoes; one "
+                    "substitution in the slot the costume reads for her feet"},
+        ],
         "stand": [
             {"removed": ["(black footwear:1.35)", "(high tops:1.35)"],
              "why": "this costume names its own shoes; the pose's pair would "

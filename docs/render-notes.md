@@ -8012,3 +8012,17 @@ Delivered as it is, at 56.3% repainted, std 2.5/3.9/3.7 under the mask -- higher
 than the three prints before it but still one flat colour. If the edge reads
 hard, the fix is not another ratio: it is to print LARGER than the delivery size
 and resample DOWN, which is the one antialiasing route this repo has not tried.
+
+**Accepted: 00062a2d**, `--pose swelter --costume sporty --seed 111222333
+--hires 2048`, backdrop `#c7e5e9`. Delivered direct -- no resample step.
+
+And the edge number lost. 26.2% hard-step rows is the worst figure this file has
+recorded, it was put in front of the user with that said plainly, and the render
+was taken as final anyway. **Seventh statistic to disagree with the eye and
+lose.** The supersampling route -- print larger than the delivery size, resample
+down -- stays unbuilt: it was proposed on the strength of this number and the
+number was not describing anything anyone could see.
+
+What the number IS good for is unchanged: comparing two arms of the same pose.
+`pounce`'s 5.8 staircase against its own 2.1 arm was a real difference and the
+eye agreed. Across poses, against a threshold, it has now failed twice.

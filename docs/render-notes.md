@@ -7755,3 +7755,45 @@ fringe while moving 218 skin pixels.
 untouched source, because `(white outline:1.6)` puts a bright ring around the
 figure BY DESIGN. It was measuring the costume. Sixth statistic, same disease as
 the other five: real number, wrong referent.
+
+### 「輪郭の雰囲気とマッチしていない」 — feather 2 was tinting the white outline
+
+The feathered edge shipped at 2px and the next thing back was that the contour
+no longer matched. It was real and it was the tool again: at 2px the shift
+reaches `(white outline:1.6)`, and 61,629 outline pixels went from (248,243,242)
+-- warm white -- to (240,248,248). 8.3% of them stopped reading as brighter than
+the backdrop at all. The die-cut edge had been painted the backdrop's new hue.
+
+    feather 2   1px fringe 6.0% still old hue   outline moved mean 6.4  p90 21
+    feather 1   1px fringe 6.0%                 outline moved mean 3.6  p90 18
+
+**Width 1 is the whole fix**: the same correction for half the disturbance. The
+default moved to 1.
+
+**Two nulls on the same axis, and they are the useful part.** The backdrop
+(223,207,206) and the white outline (248,243,242) are close enough in value that
+nothing colorimetric separates them:
+
+    matte estimate, p = a*bg + (1-a)*fg vs nearest figure   fringe back to 53.2%
+    protect anything brighter than bg by +8 / +14 / +20     fringe back to 69/63/59%
+
+The fringe IS the outline's outer blend. Repainting one without the other is not
+available; only how far in it reaches is.
+
+**A measurement bug worth naming.** The first pass at this said every variant
+left the fringe at 100%, which made no sense against the earlier 4.7%. Cause:
+`scipy.ndimage.binary_dilation(mask, iterations=0)` does not return the mask --
+it iterates to a fixed point, i.e. floods. The 1px ring was being computed as
+`dilation(m,1) & ~flood(m)`, which is empty, so the ring nothing was measured on
+was also the ring nothing was corrected on. Two earlier tables in these notes
+print `nan` in their first row for the same reason; the numbers beside them are
+unaffected.
+
+**Stroke width was checked first and is NOT the cause** -- the ドヤ arms redraw
+the whole picture in pass 2, so the linework was the obvious suspect:
+
+    yk1536 (accepted)  1.673 per 1000px      da  1.716
+    dc                 1.587                 db  1.722
+
+Within 3% of the accepted print. The lines did not move; the colour under them
+did.

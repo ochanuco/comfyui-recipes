@@ -25,6 +25,27 @@ alone tints pale skin (skin sits 35 from a typical backdrop, well inside the
 band), and the spatial band alone tints the outline evenly instead of by
 coverage. `--feather 0` is the old behaviour, and it is what every print
 delivered before 2026-08-22 was made with.
+
+**The width is 1, and 2 was wrong for a reason worth keeping.** This shipped at
+2 first, and 「輪郭の雰囲気とマッチしていない」 came back. It was measured, and it
+was real: at 2 the shift reaches the `(white outline:1.6)` that this recipe
+draws around every figure, and 61,629 outline pixels went from (248,243,242) --
+warm white -- to (240,248,248), cool. The edge that is half the look had been
+tinted the backdrop's new colour.
+
+    feather 2   1px fringe 6.0% still old hue   outline moved mean 6.4  p90 21
+    feather 1   1px fringe 6.0%                 outline moved mean 3.6  p90 18
+
+Same correction, half the damage. **Two other routes were tried and both fail
+the same way**, because the backdrop (223,207,206) and the white outline
+(248,243,242) are close enough in value that nothing colorimetric divides them:
+
+  * A matte estimate -- solve p = a*bg + (1-a)*fg against the nearest figure
+    colour -- put the fringe back to 53.2%.
+  * Protecting anything brighter than the backdrop put it back to 59-69%.
+
+The fringe IS the outline's outer blend. There is no version of this that
+repaints one and not the other; there is only how far in it reaches.
 """
 
 from __future__ import annotations
@@ -62,9 +83,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--feather",
         type=int,
-        default=2,
-        help="how many pixels beyond the mask may be partly shifted; 0 is the "
-             "old hard-edged behaviour",
+        default=1,
+        help="how many pixels beyond the mask may be partly shifted; 1 is "
+             "measured, 2 tints the white outline, 0 is the old hard edge",
     )
     parser.add_argument(
         "--feather-tolerance",

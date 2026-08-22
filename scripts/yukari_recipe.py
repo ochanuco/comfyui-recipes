@@ -1568,6 +1568,34 @@ POSES = {
         "(arms up:1.45), (standing on tiptoes:1.35), " + GAO_FACE + ", "
         "(full body:1.45)"
     ),
+    # ストローで紙コップのドリンク. Built on `sip`'s measurements rather than on
+    # `sip` -- that pose is a side-on squat with a china mug and shares nothing
+    # with this but the fact that something is being drunk.
+    #
+    # Three findings from that pose are load-bearing here:
+    #   `drinking` is what LIFTS the vessel to the mouth. Without it `holding
+    #   cup` puts the cup in her hand and the hand stays down; on one sweep the
+    #   can ended up at her feet in four of four.
+    #   `holding cup` alone draws a paper cup or a can, which is the vessel this
+    #   pose wants -- so the noun is nearly free here where `sip` had to spend a
+    #   slot on `coffee mug` to get china.
+    #   Naming the vessel twice is what pins the type, and is also what drew two
+    #   of them on 1117511306. It was tried here -- `(disposable cup:1.5)`
+    #   beside `holding cup`, four seeds against four without it -- and 9082bedc
+    #   was picked off the arm WITHOUT it. The second noun bought nothing this
+    #   pose needed, so it is gone. `sip` had to spend that slot to get china;
+    #   a paper cup is what this model reaches for unaided.
+    #
+    # `(logo:1.4), (print:1.35)` are already in NEGATIVE, which is why the cup
+    # comes out plain. That is a happy accident of a guard written for her
+    # clothes and it is worth knowing before someone deletes it.
+    #
+    # NOT in `open_mouthed`: FACE's `closed mouth` is correct with a straw --
+    # lips around it, not a shout.
+    "straw": (
+        "(solo:1.5), (standing:1.45), (from front:1.3), (holding cup:1.45), "
+        "(drinking straw:1.55), (drinking:1.3), (full body:1.45)"
+    ),
     # The がおー with the body cropped off it: head and shoulders, both paws up
     # beside her face. `portrait`'s framing exactly, because that framing is
     # settled and this pose has no argument with it.
@@ -1690,7 +1718,11 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          "loom": (832, 1664),
          # `portrait`'s crop, so `portrait`'s square. (portrait:1.5) alone lost
          # to the canvas at 1024x1280 and drew down to the thighs.
-         "snarl": (1024, 1024)}
+         "snarl": (1024, 1024),
+         # A standing full body, so `stand`'s frame and `stand`'s reason. The
+         # cost is that the cup is small in it; if the vessel is what fails, a
+         # square crop is the arm to try before the tags are touched.
+         "straw": (832, 1664)}
 
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
 # and THIN from the positive and the legwear ban from the negative -- naming a

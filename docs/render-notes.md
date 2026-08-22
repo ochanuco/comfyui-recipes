@@ -7828,3 +7828,39 @@ keeping either way: a facial correction in pass 2 costs nothing and does not
 touch the composition, and the stroke measurements above say it does not move
 the linework either. If the ask comes back, start from `dc` -- the がおー has its
 eyes wide and the half-closed pair is the part most likely to be fighting it.
+
+## `straw` — ストローで紙コップのドリンク (2026-08-22)
+
+    (solo:1.5), (standing:1.45), (from front:1.3), (holding cup:1.45),
+    (drinking straw:1.55), (drinking:1.3), (full body:1.45)
+
+Seven tags, 832x1664, swept in `sporty`. Built on `sip`'s measurements rather
+than on `sip` itself -- that pose is a side-on squat with a china mug and shares
+nothing with this but the fact that something is being drunk.
+
+Two of those measurements carried straight over and one was overturned:
+
+- **`drinking` is what lifts the vessel to the mouth.** Kept. `holding cup`
+  places the cup in her hand and says nothing about where the hand goes; the
+  sweep that dropped `drinking` put the can at her feet in four of four.
+- **`holding cup` alone draws a paper cup or a can.** Which is the vessel this
+  pose wants, so the noun came nearly free where `sip` had to spend a slot on
+  `coffee mug` to get china.
+- **Naming the vessel twice was NOT worth it here.** `(disposable cup:1.5)`
+  beside `holding cup` was swept against four seeds without it, and 9082bedc was
+  picked off the arm WITHOUT. The second noun bought nothing this pose needed --
+  it is the tag `sip` had to pay for china, and a paper cup is what the model
+  reaches for unaided. One slot back.
+
+Headcount 4/4 on both arms, 8 of 8 overall. Arms at her sides instead of out is
+apparently worth more than any canvas argument: the がおー family, with arms up
+or out, ran 3-of-6 to 6-of-6 on the same seeds.
+
+The cup comes out plain because `(logo:1.4), (print:1.35)` are already in
+NEGATIVE -- a guard written for her clothes, doing unrelated work. Worth knowing
+before someone deletes it.
+
+Picked: 9082bedc, seed 1886970040, diffed node-for-node against the recipe.
+Print: c91d2a66 at `--hires 2048`. **No resample step here**: this canvas is
+832x1664, so 2048 is a 1.23x upscale rather than `pounce`'s 2.0x, and denoise
+0.60 covers it.

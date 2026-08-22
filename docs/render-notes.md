@@ -8054,3 +8054,42 @@ user's own idea, `(yukkuri shiteitte ne:1.3-1.5)` -- a yukkuri IS a head with no
 body, which makes it a third kind of instruction: not forbidding the body, and
 not framing it out, but naming an entity that does not have one. All three were
 rendered and none looked at.
+
+## A second marker outline, in purple, outside the white one (2026-08-23)
+
+Asked for: the drawing already carries a white marker band around it, and it
+should get a purple one -- Yukari's colour -- along that band's outer edge.
+
+**This is a post-process, not a tag, and the reason is the same one that made
+`recolor_bg.py`.** Danbooru's outline tags name *an* outline; there is no
+vocabulary for two concentric bands at stated widths in a stated colour, and
+`(white outline:1.6)` is already at the weight it needs. A second colour asked
+for by words would drift with the seed exactly the way the backdrop does. So
+`scripts/outline_stroke.py` draws it: the same border flood plus enclosed
+pockets that the repaint uses, a distance transform outward from the figure,
+and a band painted into backdrop pixels only. Nothing under the drawing is
+touched, and nothing is removed -- which is the line this repo draws between
+post-processing that is allowed and a crop that is not.
+
+**Measured on the accepted `swelter` print (`00062a2d`, 2048x1368):** walking
+inward from the backdrop edge, the figure's own white marker is still 90%+
+near-white at 9px in, 80% at 12-15px, and does not fall past 75% until 15. So
+the band the model paints is roughly 15px at 2048 wide -- call it 0.7% of the
+long side -- and a purple stroke of 10-14px sits against it as an equal, 6px as
+an accent. `--width-pct` exists because the number is a share of the print, not
+a constant: the same picture at 1024 wants half of it.
+
+The purple was sampled rather than chosen. The hair's median is `#f6d7fe`, far
+too pale to read against a `#c7e5e9` backdrop; the most saturated tenth of the
+hair -- its shadow and accent side -- is `#b57acb`, and that is a colour already
+in the picture. `#9256b8` is the same hue pushed to marker weight.
+
+The outer edge of the band ramps over one pixel. A hard step against a flat
+backdrop is the exact fringe `recolor_bg.py --feather` was written to stop, and
+it would arrive by the same route.
+
+Order matters: recolour first, then stroke. The stroke finds the backdrop by
+flooding from the corner, so it has to run against the colour that is staying.
+
+Four arms out for a pick: a `#b57acb`/12, b `#9256b8`/12, c `#9256b8`/22,
+d `#9256b8`/6.

@@ -7727,3 +7727,31 @@ on image statistics against the eye is 0-5.
 `docs` note for whoever reprints a square-canvas pose: the rejected idea in the
 `--hires` docstring is splitting the climb into several 1.5x STEPS. Changing the
 single step's ratio is a different lever and it is not covered by that finding.
+
+### Purely bigger: resample, because there is no upscale model (2026-08-22)
+
+7b07fd12 (pounce, 1536, denoise 0.60) was picked and then asked to be made
+larger without redrawing. `--hires` cannot do that -- it is a second diffusion
+pass, which is exactly the thing being avoided -- and the worker has no upscale
+model to do it properly: `UpscaleModelLoader` returns an empty options list, the
+same null `LoraLoader` has. So it is a plain resample, and
+`scripts/upscale_plain.py` is that, with the finding in its docstring.
+
+    rows whose edge is a hard step, no partial pixel at all
+        1536 source            10.9%
+        2048 lanczos            0.9%
+        3072 lanczos            0.0%
+        2048 REDRAWN at 0.60   14.9%   <- the arm this replaces
+    staircase run length       2.2 before, 2.2 after; the resample does not
+                               lengthen the steps, it stops them being steps
+
+Both delivered. Recolour AFTER resampling: feather 2 holds at 2048 and 3072
+(1px fringe 5.5% and 3.2%, no genuine skin moved), and feather 3 at 3072 buys no
+fringe while moving 218 skin pixels.
+
+**A metric to not use again.** A "ringing" count was added to this measurement
+-- rows where a pixel just outside the silhouette is brighter than the backdrop
+-- to catch lanczos overshoot. It reads 39-65% on everything including the
+untouched source, because `(white outline:1.6)` puts a bright ring around the
+figure BY DESIGN. It was measuring the costume. Sixth statistic, same disease as
+the other five: real number, wrong referent.

@@ -7797,3 +7797,34 @@ the whole picture in pass 2, so the linework was the obvious suspect:
 
 Within 3% of the accepted print. The lines did not move; the colour under them
 did.
+
+### 完成 — the delivery path for a square-canvas pose
+
+The accepted `pounce` is three commands, and it is three because each of the
+first two lost an arm to get there. Written down as a path rather than as prose,
+because the middle step is the one a later session would skip:
+
+    uv run scripts/yukari_recipe.py --pose pounce --costume sporty \
+        --seed 1886970040 --hires 1536          # 7b07fd12, NOT --hires 2048
+    uv run scripts/upscale_plain.py <that> --size 2048
+    uv run scripts/recolor_bg.py <that> --color '#c7e5e9'
+
+`--hires 1536` and not 2048 because this pose's canvas is square: 2048 is a 2.0x
+upscale and denoise 0.60 does not cover it (staircase 5.8 against 2.1). The
+pixels come back from a resample instead, which adds no detail and takes the
+aliasing off. `recolor_bg.py` last, at its default feather of 1.
+
+**The ドヤ arms are not in it.** 「表情をもう少しドヤって」 was swept in pass 2 --
+`HIRES_POSITIVE`, so the picked composition survives -- with `kick`'s settled
+smirk cluster:
+
+    da  (smug:1.3), (confident:1.25), (half-closed eyes:1.25)   89a18a8d
+    db  the same at 1.45 / 1.35 / 1.3                           d38b496e
+    dc  (smug:1.4), (confident:1.3), no half-closed eyes        c4722f13
+
+all three banning `(closed eyes:1.4)` in pass 2. None was picked and the recipe
+was not changed, so `pounce` still has no smug tag. The mechanism is worth
+keeping either way: a facial correction in pass 2 costs nothing and does not
+touch the composition, and the stroke measurements above say it does not move
+the linework either. If the ask comes back, start from `dc` -- the がおー has its
+eyes wide and the half-closed pair is the part most likely to be fighting it.

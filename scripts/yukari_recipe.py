@@ -1481,6 +1481,24 @@ POSES = {
         "(legs apart:1.3), (double v:1.45), (arms out:1.3), (grin:1.4), "
         "(full body:1.45)"
     ),
+    # 「がおーッ」. Both hands up as paws beside her face, mouth open, leaning in
+    # at the camera. `(claw pose:1.55)` is the tag that draws the hands and it
+    # carries the whole pose -- everything else here is what keeps it playful
+    # rather than monstrous, which is the axis this one can fall off.
+    #
+    # `(fang:1.3)` and not `(sharp teeth)`: the second draws a mouthful and the
+    # joke is one tooth. `(open mouth:1.4)` puts the pose in `open_mouthed`, so
+    # FACE gives up `closed mouth` -- a がおー with a shut mouth is a shrug.
+    #
+    # `(leaning forward:1.3)` is `hype`'s tag at a lower weight. It is what
+    # makes the hands read as coming AT the viewer instead of resting beside
+    # her head, and it is eased because this pose already has the arms up and
+    # `hype` at 1.35 was fighting nothing.
+    "roar": (
+        "(solo:1.5), (standing:1.45), (from front:1.3), (claw pose:1.55), "
+        "(hands up:1.35), (leaning forward:1.3), (open mouth:1.4), (fang:1.3), "
+        "(full body:1.45)"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
@@ -1576,7 +1594,12 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # decided it is that this is the SAME lever `stand` was fixed with, for
          # the same defect: width beside her is room for someone else to stand.
          # The picked render (28e243ec, seed 1886970040) is drawn at this size.
-         "hype": (832, 1664)}
+         "hype": (832, 1664),
+         # `hype`'s frame, and taken rather than re-derived: this pose has its
+         # arms UP, not out, so it wants width even less than that one did, and
+         # the second-figure lesson behind 832 applies to any standing full body
+         # in this file until something shows otherwise.
+         "roar": (832, 1664)}
 
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
 # and THIN from the positive and the legwear ban from the negative -- naming a
@@ -1824,7 +1847,7 @@ def positive(pose: str, costume: str = "default") -> str:
     # and FACE's `closed mouth` is what turns it back into a smirk. Same
     # mechanism as `kick`'s ドヤ顔 and `situp`'s clenched teeth.
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
-                            "dizzy", "kick", "situp", "hype")
+                            "dizzy", "kick", "situp", "hype", "roar")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.

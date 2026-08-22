@@ -191,6 +191,9 @@ EXCEPTIONS: dict[str, list[dict]] = {
     "hype": [
         {"removed": ["closed mouth"], "why": "(grin:1.4) shows teeth"},
     ],
+    "roar": [
+        {"removed": ["closed mouth"], "why": "がおー is an open mouth or it is a shrug"},
+    ],
     "fall": [
         {"removed": ["closed mouth"], "why": "she is shouting"},
     ],

@@ -7537,3 +7537,34 @@ flat, before the tool was reached for.
 
 The share is the wrong number to screen on. The std of what was repainted is the
 right one, and it is cheap.
+
+## `roar` — がおーッ (2026-08-22)
+
+    (solo:1.5), (standing:1.45), (from front:1.3), (claw pose:1.55),
+    (hands up:1.35), (leaning forward:1.3), (open mouth:1.4), (fang:1.3),
+    (full body:1.45)
+
+Nine tags, 832x1664, first swept in `--costume sporty`. `(claw pose:1.55)` is
+the tag that draws the hands and it carries the pose; everything else is there
+to keep it playful rather than monstrous, which is the axis this one can fall
+off. `(fang:1.3)` and not `(sharp teeth)` -- the second draws a mouthful and the
+joke is one tooth. `(leaning forward:1.3)` is `hype`'s tag eased, because the
+arms are already up and 1.35 was fighting nothing.
+
+The canvas was taken from `hype` rather than re-derived: arms UP want width even
+less than arms out, and until something shows otherwise the second-figure lesson
+applies to every standing full body here.
+
+First sweep, `headcount.py`: 555666777, 737373737, 2557902837 and 3409564303
+ONE; 111222333 and 1886970040 flagged. Only one of the two is real --
+
+    111222333    95.47% main, second block 2.22% at 41.3% frame height, 42px
+    1886970040   54.68% and 41.61%, both spanning ~90%+ of frame height
+
+-- and the difference between those two lines is what the 2% floor is for.
+2.22% is a detached hand or a hair island clearing the cutoff, not a person;
+the near-equal halves at full height are the same signature `hype` produced at
+1024 wide. So 5/6, and the one failure is seed variance rather than the frame:
+this canvas is the narrow one already.
+
+Nothing picked yet at the time of writing; the sweep is with the user.

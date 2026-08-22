@@ -502,6 +502,20 @@ def pose_block(pose: str, costume: str = "default") -> str:
     return text
 
 
+# THE がおー, as a part rather than as a spelling. `roar` was the first pose to
+# wear it and it is not going to be the last, and a family of poses that each
+# write out their own copy of the same three tags is the state this file was in
+# before the costume blocks existed: change one, and the others quietly do not
+# change with it.
+#
+# Two fragments and not one, because the hands and the face do not sit next to
+# each other in the order `roar` was rendered in -- `(hands up:1.35)` and
+# `(leaning forward:1.3)` are between them, and token order changes the
+# encoding. Splitting it here is what makes it a no-op: `roar` below is
+# assembled from these and is byte-identical to the string that drew f38695b8.
+GAO_HANDS = "(claw pose:1.55)"
+GAO_FACE = "(open mouth:1.4), (fang:1.3)"
+
 POSES = {
     "lounge": (
         "(solo:1.5), (yokozuwari:1.35), sitting on floor, legs to the side, "
@@ -1495,9 +1509,76 @@ POSES = {
     # her head, and it is eased because this pose already has the arms up and
     # `hype` at 1.35 was fighting nothing.
     "roar": (
-        "(solo:1.5), (standing:1.45), (from front:1.3), (claw pose:1.55), "
-        "(hands up:1.35), (leaning forward:1.3), (open mouth:1.4), (fang:1.3), "
+        "(solo:1.5), (standing:1.45), (from front:1.3), " + GAO_HANDS + ", "
+        "(hands up:1.35), (leaning forward:1.3), " + GAO_FACE + ", "
         "(full body:1.45)"
+    ),
+    # がおー crouched, a beat before it goes off. `roar` is the shape at rest --
+    # standing, hands beside her head; this is the same hands and the same face
+    # with the body loaded. `(leaning forward:1.45)` is the highest weight that
+    # tag carries in this file and it is doing the work `roar` gives to
+    # `(standing:1.45)`.
+    #
+    # `(arms up:1.3)` rather than `roar`'s `(hands up:1.35)`: from a squat the
+    # hands come up from below and the whole arm is in it. Eased, because a
+    # crouch already puts the shoulders where the tag was pushing them.
+    #
+    # No low camera, and this is not an oversight: `(from below:1.35)` is in
+    # NEGATIVE for every pose but `lap`, and the one place this file took it out
+    # it had to be taken out by name. A pounce shot from below is the obvious
+    # framing and it is not available without paying for it.
+    # THE STANCE IS A KNEE, NOT A SQUAT. 978fb1f1 was picked off the squat and
+    # then asked for 「片膝は着くくらい」, which is not something a render can be
+    # adjusted into -- the prompt change redraws the picture and a low-denoise
+    # refine cannot build a limb into a new position. So the squat's render was
+    # spent, deliberately, and two arms were swept in the one slot that decides
+    # the stance:
+    #
+    #   ka   (one knee:1.45)                    one substitution, one slot
+    #   kb   (kneeling:1.4), (one knee:1.45)    the pair
+    #
+    # kb won on 9b2dfdf6 (seed 1886970040), and it is the arm this file's usual
+    # rule argues against: two tags at one defect is how the palette has been
+    # wrecked here before. It is not that rule's case. Those failures were
+    # GUARDS stacked in the negative, outvoting each other's neighbours; this is
+    # a stance named twice in the positive, where `kneeling` is the posture and
+    # `one knee` is which knee. `ka` alone drew the knee on some seeds and a
+    # deeper squat on others, which is the disease this file describes as an
+    # unweighted tag being indistinguishable from an absent one.
+    #
+    # `(leaning forward:1.45)` and both paws stay up. A knee down invites the
+    # three-point stance -- one hand to the ground -- and that costs half the
+    # がおー, which is the thing this pose is a member of.
+    "pounce": (
+        "(solo:1.5), (kneeling:1.4), (one knee:1.45), (from front:1.3), " + GAO_HANDS + ", "
+        "(arms up:1.3), (leaning forward:1.45), " + GAO_FACE + ", "
+        "(full body:1.45)"
+    ),
+    # がおー at full stretch: up on her toes, arms above her head, as big as she
+    # can make herself. The opposite end of the same gesture from `pounce`, and
+    # the reason the family is worth having -- one motif, three amplitudes.
+    #
+    # `(standing on tiptoes:1.35)` is the tag that buys the last of the height
+    # and it is the risky one: this recipe's toe work (see the `kick` sections)
+    # is a record of how badly this model draws feet when asked to look at them.
+    # It is here at 1.35 and not higher for that reason, and the shoes help --
+    # `sporty` has sneakers on, which is a foot the model does not have to draw.
+    "loom": (
+        "(solo:1.5), (standing:1.45), (from front:1.3), " + GAO_HANDS + ", "
+        "(arms up:1.45), (standing on tiptoes:1.35), " + GAO_FACE + ", "
+        "(full body:1.45)"
+    ),
+    # The がおー with the body cropped off it: head and shoulders, both paws up
+    # beside her face. `portrait`'s framing exactly, because that framing is
+    # settled and this pose has no argument with it.
+    #
+    # In HEAD_FRAMINGS, so it drops the legwear, most of BODY and the thin-line
+    # block from the positive and the legwear ban from the negative. That is not
+    # a decision this pose gets to make differently: naming a garment that is out
+    # of frame is what invites it back into the frame.
+    "snarl": (
+        "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2), "
+        "(face focus:1.3), " + GAO_HANDS + ", (hands up:1.4), " + GAO_FACE
     ),
 }
 
@@ -1599,12 +1680,22 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # arms UP, not out, so it wants width even less than that one did, and
          # the second-figure lesson behind 832 applies to any standing full body
          # in this file until something shows otherwise.
-         "roar": (832, 1664)}
+         "roar": (832, 1664),
+         # A squat is wide and short where a standing figure is narrow and tall,
+         # and `sip` already squats at this square. The second-figure argument
+         # for 832 is about width BESIDE her; this pose fills the width itself.
+         "pounce": (1024, 1024),
+         # `roar` reaching upward, so `roar`'s frame -- and this is the pose that
+         # needs the height of it most.
+         "loom": (832, 1664),
+         # `portrait`'s crop, so `portrait`'s square. (portrait:1.5) alone lost
+         # to the canvas at 1024x1280 and drew down to the thighs.
+         "snarl": (1024, 1024)}
 
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
 # and THIN from the positive and the legwear ban from the negative -- naming a
 # garment that is out of frame is what invites it back into the frame.
-HEAD_FRAMINGS = ("portrait", "allnighter", "dizzy")
+HEAD_FRAMINGS = ("portrait", "allnighter", "dizzy", "snarl")
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -1847,7 +1938,8 @@ def positive(pose: str, costume: str = "default") -> str:
     # and FACE's `closed mouth` is what turns it back into a smirk. Same
     # mechanism as `kick`'s ドヤ顔 and `situp`'s clenched teeth.
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
-                            "dizzy", "kick", "situp", "hype", "roar")
+                            "dizzy", "kick", "situp", "hype", "roar",
+                            "pounce", "loom", "snarl")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.

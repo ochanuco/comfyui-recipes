@@ -194,6 +194,19 @@ EXCEPTIONS: dict[str, list[dict]] = {
     "roar": [
         {"removed": ["closed mouth"], "why": "がおー is an open mouth or it is a shrug"},
     ],
+    # The rest of the がおー family, and all for `roar`'s reason: `GAO_FACE`
+    # carries `(open mouth:1.4)` and FACE's `closed mouth` is its direct
+    # opposite. If this list and `open_mouthed` ever disagree, this is the file
+    # that says so.
+    "pounce": [
+        {"removed": ["closed mouth"], "why": "wears GAO_FACE"},
+    ],
+    "loom": [
+        {"removed": ["closed mouth"], "why": "wears GAO_FACE"},
+    ],
+    "snarl": [
+        {"removed": ["closed mouth"], "why": "wears GAO_FACE"},
+    ],
     "fall": [
         {"removed": ["closed mouth"], "why": "she is shouting"},
     ],

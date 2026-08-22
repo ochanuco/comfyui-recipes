@@ -7580,3 +7580,67 @@ colour again, and the second time now that the share has read alarmingly high on
 a tall canvas while the std said the tool never touched the figure. Two renders
 is not a rule, but the pair is consistent: on 832x1664 at 2048, expect the
 backdrop to be somewhere near 55-60% of the frame and screen on the std.
+
+## The がおー family — `pounce`, `loom`, `snarl` (2026-08-22)
+
+「今回のレパートリーのベースにがおーポーズは必須」, so the がおー stopped being a
+spelling inside one pose and became a part:
+
+    GAO_HANDS = "(claw pose:1.55)"
+    GAO_FACE  = "(open mouth:1.4), (fang:1.3)"
+
+Two fragments and not one, because `(hands up:1.35)` and `(leaning forward:1.3)`
+sit between them in the order `roar` was rendered in and token order changes the
+encoding. Splitting it that way is what made it a no-op, and that was checked
+rather than asserted: all 23 existing poses, both costumes, `--hires 0` and
+2048, byte-identical against the previous commit -- `roar` included, so f38695b8
+is still the recipe's own output.
+
+Three members, all first swept in `sporty`:
+
+    pounce   1024x1024   crouched, a beat before it goes off
+    loom     832x1664    up on her toes, arms overhead, as big as she gets
+    snarl    1024x1024   the がおー with the body cropped off it
+
+`snarl` is in HEAD_FRAMINGS -- it drops the legwear, most of BODY and the
+thin-line block, and drops the legwear ban from the negative.
+
+`pounce` has no low camera. `(from below:1.35)` is in NEGATIVE for every pose
+but `lap`, and `lap` had to take it out by name; a pounce shot from below is the
+obvious framing and it is not free.
+
+First sweep, headcount: `loom` 6/6, `snarl` 5/6, `pounce` 4/6.
+
+### 片膝 — the stance is a knee, and two tags beat one
+
+978fb1f1 (pounce, seed 2557902837) was picked and then asked for 「片膝は着くくらい」.
+That is not an adjustment: the prompt change redraws the picture, and a
+low-denoise refine cannot move a limb into a new position. The squat's render
+was spent knowingly. Two arms in the one slot that decides the stance:
+
+    ka   (one knee:1.45)                    1-of-4 seeds usable
+    kb   (kneeling:1.4), (one knee:1.45)    picked: 9b2dfdf6, seed 1886970040
+
+**kb won, and it is the arm this file's usual rule argues against.** Two tags at
+one defect is how the palette got wrecked twice here. This is not that case, and
+the difference is worth keeping: those failures were GUARDS stacked in the
+NEGATIVE, outvoting each other's neighbours. This is a stance named twice in the
+positive, where `kneeling` is the posture and `one knee` is which knee. `ka`
+alone drew the knee on some seeds and a deeper squat on others -- the disease
+this file already describes as an unweighted tag being indistinguishable from an
+absent one.
+
+Both paws stay up and `(leaning forward:1.45)` stays. A knee down invites the
+three-point stance, one hand to the ground, and that costs half the がおー.
+
+Print: 36de43c0, `--hires 2048` (1024x1024 -> 2048x2048), backdrop `#c7e5e9`,
+57.1% repainted at std 0.8/1.1/1.2 -- the third print in a row where the share
+reads high and the deviation says one flat colour.
+
+### A fifth statistic loses to the eye
+
+`headcount.py` called the picked squat, 978fb1f1, TWO BODIES. The user picked it
+by looking at it. That is the fifth image statistic in this repo to disagree with
+the eye and lose, and the pattern in all five is the same: the number is measuring
+something real and it is not measuring the thing it is being read as. Use it to
+sort a sweep, never to reject a render someone has already looked at.

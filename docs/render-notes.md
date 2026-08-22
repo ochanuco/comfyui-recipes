@@ -8144,3 +8144,41 @@ within a seed only. Across seeds this measures the composition, which is the
 mistake this file has made seven times.
 
 Delivered through `deliver.py` rather than posted raw, which is the point of it.
+
+## The arm that was never painted, and the pass that would not paint it (2026-08-23)
+
+「9603280e の右腕が変な色になってる」. It is not a colour. Measured on that
+render: the forearm thrown over her head sits at (255,243,240) against a cheek
+at (250,230,233) and a backdrop at (238,225,230) -- lighter than her skin and
+17 from the backdrop -- with the line around it drawn in pink-red instead of the
+near-black the rest of the figure uses. **The flat was never laid down.** The
+limb is sketch lines on paper, which is why it reads as belonging to a different
+drawing rather than as a wrong hue.
+
+Worth keeping as a diagnosis pattern: "wrong colour" and "no colour" look the
+same in a thumbnail and are not the same defect. The tell is the LINE. Every
+painted part of this recipe is outlined near-black; the unpainted arm is
+outlined in the pink-red the model roughs with.
+
+**Pass 2 at 0.60 does not fix it, and that is the finding.** Three arms, same
+seed, same picture:
+
+    ua   --hires 2048, nothing else                 arm still unpainted
+    ub   ua + HIRES_NEGATIVE `(sketch:1.45), (lineart:1.45),
+         (unfinished:1.4), (monochrome:1.35)`       arm painted, hand painted
+    uc   ua at denoise 0.70                          arm painted
+
+0.60 redraws the picture and it redrew this one with the same hole in it. The
+white region is internally coherent -- it has its own linework -- so there is
+nothing for the second pass to resolve unless it is told the region is wrong.
+Naming the state does that, and it is a pass-2 negative, so the composition the
+user picked is not re-rolled. 0.70 gets there too, by redrawing more of the
+picture; it is the blunter of the two and it moves things that were not asked
+about.
+
+This corrects nothing earlier in the file but it does bound something: the note
+that a refine cannot rebuild structure is about geometry. An unpainted region is
+not structure, and it IS reachable at 0.60 -- with a word.
+
+Not in the recipe yet. Both this guard and `tb`'s `(flailing:1.25)` removal are
+waiting on a pick.

@@ -8091,5 +8091,12 @@ it would arrive by the same route.
 Order matters: recolour first, then stroke. The stroke finds the backdrop by
 flooding from the corner, so it has to run against the colour that is staying.
 
-Four arms out for a pick: a `#b57acb`/12, b `#9256b8`/12, c `#9256b8`/22,
-d `#9256b8`/6.
+**Picked: `#9256b8` at 6px on 2048** -- the thinnest of the four arms, and the
+deeper of the two purples. The equal-weight 12px band and the 22px one both
+lost. What the stroke is for is a second edge you notice after the drawing, not
+a second edge competing with the white one.
+
+**And it is a per-picture number, not a setting.** 「これは絵の雰囲気で変えるべき
+だと思った」. So the script defaults to the pick and stops there: `--width-pct`
+0.3 and `#9256b8`, both overridable, with no attempt to bake a stroke into the
+delivery path. A busier drawing, or a darker one, may well want the 12.

@@ -17,13 +17,19 @@ the border, plus enclosed pockets -- so the stroke follows the figure exactly
 where the repaint stopped, including the gaps between an arm and the body.
 
     uv run scripts/recolor_bg.py print.png --color '#c7e5e9'
-    uv run scripts/outline_stroke.py print-bg.png --color '#b57acb' --width 12
+    uv run scripts/outline_stroke.py print-bg.png
 
-**Width is in pixels and so it is tied to the print size.** The white band it
-sits against is about 15px at 2048 wide and about 7px at 1024; a purple stroke
-of 10-14px matches it at print scale and wants halving for a sweep-sized image.
-`--width-pct` sets it as a share of the longest side instead, which survives a
-resample.
+**The defaults are a starting point, not the recipe.** Four widths were shown
+against the accepted `swelter` print and the thinnest won -- `#9256b8` at 6px on
+2048, an accent rather than a second band of equal weight -- with the note that
+it should be chosen per picture: 「これは絵の雰囲気で変えるべき」. So the default
+here is that pick and nothing more. Reach for a heavier stroke when the drawing
+can carry one.
+
+Width is a share of the longest side by default (`--width-pct`, 0.3, which is
+6px at 2048) because the number is tied to the print. `--width` sets pixels
+instead when the size is known. For scale: the white band the stroke sits
+against measures about 15px at 2048, so 10-14px reads as its equal.
 
 The outer edge gets one pixel of falloff. Without it the band is a hard step
 against a flat backdrop, which is precisely the fringe that
@@ -41,21 +47,29 @@ from scipy import ndimage
 
 from recolor_bg import background_mask, enclosed_mask, parse_color
 
+# The picked arm: thin, and the same hue as the hair's most saturated tenth.
+DEFAULT_COLOR = "#9256b8"
+DEFAULT_WIDTH_PCT = 0.3
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("images", nargs="+", type=Path)
-    parser.add_argument("--color", required=True, help="stroke colour, e.g. #b57acb")
+    parser.add_argument(
+        "--color",
+        default=DEFAULT_COLOR,
+        help=f"stroke colour; default {DEFAULT_COLOR}, Yukari's hair accent at marker weight",
+    )
     parser.add_argument(
         "--width",
         type=float,
-        default=12.0,
         help="stroke thickness in pixels, measured outward from the figure",
     )
     parser.add_argument(
         "--width-pct",
         type=float,
-        help="thickness as a percent of the longest side; overrides --width",
+        help=f"thickness as a percent of the longest side; wins over --width. "
+             f"Default {DEFAULT_WIDTH_PCT}, i.e. 6px at 2048",
     )
     parser.add_argument(
         "--gap",
@@ -110,9 +124,12 @@ def main() -> int:
             print(f"{path.name}: only {share:.1f}% backdrop, skipping")
             continue
 
-        width = args.width
         if args.width_pct is not None:
             width = max(pixels.shape[:2]) * args.width_pct / 100
+        elif args.width is not None:
+            width = args.width
+        else:
+            width = max(pixels.shape[:2]) * DEFAULT_WIDTH_PCT / 100
 
         alpha = stroke_alpha(mask, args.gap, width)
         pixels = pixels + alpha[..., None] * (color - pixels)

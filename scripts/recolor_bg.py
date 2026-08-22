@@ -148,35 +148,59 @@ def enclosed_mask(pixels: np.ndarray, found: np.ndarray, tolerance: int) -> np.n
     return exact & ~found
 
 
+def repaint(
+    pixels: np.ndarray,
+    color: tuple[int, int, int],
+    tolerance: int = 18,
+    enclosed_tolerance: int = 4,
+    feather: int = 1,
+    feather_tolerance: int = 54,
+) -> tuple[np.ndarray, float]:
+    """The repaint itself, on an int RGB array. Returns the array and the share.
+
+    Split out of `main` so the delivery step can run it in process rather than
+    through a second file on disk; `main` calls it too, so there is one
+    implementation and the CLI's defaults are the ones documented above.
+
+    The caller decides what to do with a low share. Below about 5% the backdrop
+    the flood found is not a backdrop, and repainting it anyway paints the
+    figure.
+    """
+    mask = background_mask(pixels, tolerance)
+    if enclosed_tolerance >= 0:
+        mask |= enclosed_mask(pixels, mask, enclosed_tolerance)
+    share = mask.mean() * 100
+
+    seed = pixels[0, 0]
+    if feather > 0:
+        # How much backdrop each edge pixel looks like it holds. Linear from
+        # 1 at the tolerance the hard mask used to 0 at --feather-tolerance,
+        # and zero everywhere outside a thin band around the mask.
+        band = ndimage.binary_dilation(mask, iterations=feather) & ~mask
+        far = max(feather_tolerance - tolerance, 1)
+        distance = np.abs(pixels - seed).max(axis=2)
+        alpha = np.clip((feather_tolerance - distance) / far, 0.0, 1.0)
+        alpha[~band] = 0.0
+        # SHIFTED, not set: the pixel keeps whatever figure is in it and only
+        # its backdrop component moves. Setting it would paint the outline.
+        pixels = pixels + alpha[..., None] * (np.array(color) - seed)
+        pixels = np.clip(pixels, 0, 255)
+    pixels[mask] = color
+    return pixels, share
+
+
 def main() -> int:
     args = parse_args()
     color = parse_color(args.color)
 
     for path in args.images:
         pixels = np.array(Image.open(path).convert("RGB")).astype(int)
-        mask = background_mask(pixels, args.tolerance)
-        if args.enclosed_tolerance >= 0:
-            mask |= enclosed_mask(pixels, mask, args.enclosed_tolerance)
-        share = mask.mean() * 100
+        pixels, share = repaint(
+            pixels, color, args.tolerance, args.enclosed_tolerance,
+            args.feather, args.feather_tolerance)
         if share < 5:
             print(f"{path.name}: only {share:.1f}% matched, skipping (not a flat backdrop?)")
             continue
-
-        seed = pixels[0, 0]
-        if args.feather > 0:
-            # How much backdrop each edge pixel looks like it holds. Linear from
-            # 1 at the tolerance the hard mask used to 0 at --feather-tolerance,
-            # and zero everywhere outside a thin band around the mask.
-            band = ndimage.binary_dilation(mask, iterations=args.feather) & ~mask
-            far = max(args.feather_tolerance - args.tolerance, 1)
-            distance = np.abs(pixels - seed).max(axis=2)
-            alpha = np.clip((args.feather_tolerance - distance) / far, 0.0, 1.0)
-            alpha[~band] = 0.0
-            # SHIFTED, not set: the pixel keeps whatever figure is in it and only
-            # its backdrop component moves. Setting it would paint the outline.
-            pixels = pixels + alpha[..., None] * (np.array(color) - seed)
-            pixels = np.clip(pixels, 0, 255)
-        pixels[mask] = color
         outdir = args.outdir or path.parent
         outdir.mkdir(parents=True, exist_ok=True)
         out = outdir / f"{path.stem}{args.suffix}{path.suffix}"

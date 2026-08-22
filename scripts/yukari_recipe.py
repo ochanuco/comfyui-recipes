@@ -1948,6 +1948,24 @@ def negative(pose: str, costume: str = "default") -> str:
         # the undignified part of this pose is the posture, and it is not this
         # recipe's job to help it anywhere else.
         text = _splice(text, ", (midriff:1.35), (navel:1.3)", "")
+        # 「効果線は削除して」. **There is no tag in the positive that asks for
+        # them.** The 微動 round already took `(motion lines:1.45)` out of the
+        # pose block, and the lines came back anyway: `flailing` and `screaming`
+        # are drawn with them by default, so the model is supplying the
+        # convention on its own.
+        #
+        # That makes this the OPPOSITE of the cases this file keeps losing on.
+        # `(long torso:1.4)` in the negative moved a proportion by nothing, and
+        # the two-layer leg had no tag to outvote -- both times the negative was
+        # being asked about something that is not a drawn object. Speed lines
+        # are a drawn object with a name, which is the kind of thing a guard
+        # has always been able to take out of this backdrop.
+        #
+        # Three names because the model does not treat them as one: `motion
+        # lines` is the general tag, `speed lines` the dense parallel kind, and
+        # `emphasis lines` the burst behind a face -- and it is the burst that
+        # was in the picture.
+        text += ", (motion lines:1.5), (speed lines:1.5), (emphasis lines:1.45)"
     if pose in HEAD_FRAMINGS:
         return text
     text = text + ", " + LEGWEAR_BAN

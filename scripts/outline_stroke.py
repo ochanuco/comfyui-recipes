@@ -110,37 +110,52 @@ def stroke_alpha(mask: np.ndarray, gap: float, width: float) -> np.ndarray:
     return alpha
 
 
+def stroke(
+    pixels: np.ndarray,
+    color: str = DEFAULT_COLOR,
+    width: float | None = None,
+    width_pct: float | None = None,
+    gap: float = 0.0,
+    tolerance: int = 18,
+    enclosed_tolerance: int = 4,
+) -> tuple[np.ndarray, float, float]:
+    """Draw the band on a float RGB array. Returns it, the width, and the share.
+
+    Split out of `main` for the same reason `recolor_bg.repaint` is: the two
+    run back to back on every delivery and there is no reason for the second
+    one to re-read the first one's file.
+    """
+    rgb = np.array(parse_color(color), dtype=float)
+    mask = background_mask(pixels.astype(int), tolerance)
+    if enclosed_tolerance >= 0:
+        mask |= enclosed_mask(pixels.astype(int), mask, enclosed_tolerance)
+    share = mask.mean() * 100
+
+    if width_pct is not None:
+        width = max(pixels.shape[:2]) * width_pct / 100
+    elif width is None:
+        width = max(pixels.shape[:2]) * DEFAULT_WIDTH_PCT / 100
+
+    alpha = stroke_alpha(mask, gap, width)
+    return pixels + alpha[..., None] * (rgb - pixels), width, share
+
+
 def main() -> int:
     args = parse_args()
-    color = np.array(parse_color(args.color), dtype=float)
 
     for path in args.images:
         pixels = np.array(Image.open(path).convert("RGB")).astype(float)
-        mask = background_mask(pixels.astype(int), args.tolerance)
-        if args.enclosed_tolerance >= 0:
-            mask |= enclosed_mask(pixels.astype(int), mask, args.enclosed_tolerance)
-        share = mask.mean() * 100
+        pixels, width, share = stroke(
+            pixels, args.color, args.width, args.width_pct, args.gap,
+            args.tolerance, args.enclosed_tolerance)
         if share < 5:
             print(f"{path.name}: only {share:.1f}% backdrop, skipping")
             continue
-
-        if args.width_pct is not None:
-            width = max(pixels.shape[:2]) * args.width_pct / 100
-        elif args.width is not None:
-            width = args.width
-        else:
-            width = max(pixels.shape[:2]) * DEFAULT_WIDTH_PCT / 100
-
-        alpha = stroke_alpha(mask, args.gap, width)
-        pixels = pixels + alpha[..., None] * (color - pixels)
         outdir = args.outdir or path.parent
         outdir.mkdir(parents=True, exist_ok=True)
         out = outdir / f"{path.stem}{args.suffix}{path.suffix}"
         Image.fromarray(np.clip(pixels, 0, 255).astype(np.uint8)).save(out)
-        print(
-            f"{path.name}: {alpha.sum():.0f}px of stroke, {width:.1f}px wide "
-            f"at gap {args.gap:g} -> {out}"
-        )
+        print(f"{path.name}: {width:.1f}px stroke at gap {args.gap:g} -> {out}")
     return 0
 
 

@@ -8100,3 +8100,47 @@ a second edge competing with the white one.
 だと思った」. So the script defaults to the pick and stops there: `--width-pct`
 0.3 and `#9256b8`, both overridable, with no attempt to bake a stroke into the
 delivery path. A busier drawing, or a darker one, may well want the 12.
+
+## Two asks in one message: the effect lines, and the purple line that was never there (2026-08-23)
+
+「効果線は削除して　あと紫線がなくなった」. They are not the same kind of thing and
+the second one is not a regression.
+
+**The purple line is a post-process.** `outline_stroke.py` runs after the
+render, so a prompt_id posted by `post_renders.py` has never carried one and
+never will -- the channel shows raw renders, and the picture that was approved
+was three commands further on. That gap is a real failure mode of this workflow:
+a sweep gets judged against a delivered image it is not allowed to look like.
+`scripts/deliver.py` closes it -- fetch, repaint, stroke, post, in that fixed
+order, calling `recolor_bg.repaint` and `outline_stroke.stroke` at import level
+so the result is what those two CLIs produce with their own defaults. Both
+functions were split out of their `main()` for this and both were checked
+byte-identical against the already-delivered file first.
+
+**The effect lines have no tag asking for them.** The 微動 round took
+`(motion lines:1.45)` out of the pose block and they came back anyway: the model
+draws them from `flailing` and `screaming` as a matter of convention. So the
+negative is the right side here, and this is the opposite of the cases this file
+keeps losing on -- `(long torso:1.4)` moved a proportion by nothing and the
+two-layer leg had no tag to outvote, but a speed line is a drawn object with a
+name. `(motion lines:1.5), (speed lines:1.5), (emphasis lines:1.45)`, three
+names because the model does not treat them as one and the burst behind the face
+is `emphasis lines` specifically.
+
+**The flat-backdrop share does not decide it, and is recorded as the weak
+measurement it is.** Lines are drawn on the backdrop, so they cut the flood into
+pieces; same seed, guard off (sa) against guard on (ta):
+
+    seed          sa      ta      tb (also no `flailing`)
+    1886970040   49.8%   48.5%   53.1%
+    555666777    29.3%   38.6%    0.1%
+    111222333    19.5%   21.7%   37.7%
+
+ta moves the right way on two seeds of three and by nothing on the third. That
+is not a result. tb's 0.1% is worth more than its wins: with `flailing` gone
+that seed drew a backdrop that will not flood at all, which means the delivery
+step cannot repaint it -- the pose was holding the plain background up. Read
+within a seed only. Across seeds this measures the composition, which is the
+mistake this file has made seven times.
+
+Delivered through `deliver.py` rather than posted raw, which is the point of it.

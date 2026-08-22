@@ -207,6 +207,11 @@ EXCEPTIONS: dict[str, list[dict]] = {
     "snarl": [
         {"removed": ["closed mouth"], "why": "wears GAO_FACE"},
     ],
+    # Not GAO_FACE -- this one asks for the open mouth itself, as panting.
+    "swelter": [
+        {"removed": ["closed mouth"], "why": "暑い is drawn on the face; a shut "
+                                             "mouth is a girl having a nice lie down"},
+    ],
     "fall": [
         {"removed": ["closed mouth"], "why": "she is shouting"},
     ],

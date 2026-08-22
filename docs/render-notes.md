@@ -7905,3 +7905,43 @@ Recorded rather than tuned. Tightening `param2` until the count reads 2 would be
 fitting the measurement to a conclusion nobody has looked at yet, and this repo
 has six statistics on file that were real numbers pointed at the wrong referent.
 This is not a seventh; it is the one that was caught before it was believed.
+
+## `swelter` — 暑くて床でジタバタ、真上から (2026-08-22)
+
+    (solo:1.5), (lying:1.45), (on back:1.5), (from above:1.45),
+    (flailing:1.4), (motion lines:1.3), (sweat:1.35), (open mouth:1.35),
+    (full body:1.45)
+
+Nine tags, 1536x1024, swept in `sporty`. `flop` is this body position at rest
+and `prone` is the from-above camera that already works at this canvas; what is
+new is motion and a reason for it.
+
+**The heat is two tags and neither is a thermometer.** `(sweat:1.35)` and the
+open mouth. `dizzy` and `allnighter` both arrived at the same thing from
+different directions -- a STATE is drawn on the face, not named in the air --
+and there is no `hot` this model draws as heat rather than as blush.
+
+**The one pose whose flat backdrop is not a compromise.** Shot straight down,
+SURFACE's `(simple background:1.3)` IS the floor she is lying on. Every other
+pose in this file is standing in front of nothing; this one gets a setting for
+free by pointing the camera at the ground.
+
+### `headcount.py` cannot read a pose with motion lines
+
+Not the failure its docstring warns about -- that one is about 1-4px slivers and
+the 2% floor handles it, which is what the 12 to 23 ignored blocks per render
+are. The new failure is the other end: **a dense bundle of motion lines is a
+connected mass big enough to clear the floor.**
+
+    111222333    84.06% main + 7.95% (58% of frame height) + 2.01%
+    2557902837   84.91% main + 10.26% (79% of frame height)
+    3409564303   75.99% main + 18.37% (99.9% of frame height) + 2.15%
+
+Three of six flagged, and nothing in the tool can say whether those blocks are a
+second girl or a fan of speed lines. The 2% floor was set from "the smallest
+chibi clone on record is several percent" -- it was never an argument about
+line-work, and 18% of the figure being lines is not something the number knows
+how to be wrong about.
+
+Do not raise the floor to make this pass. On a pose that draws marks as part of
+its subject, this tool answers a different question than the one being asked.

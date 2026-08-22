@@ -1621,6 +1621,32 @@ POSES = {
         "(solo:1.5), (riding bicycle:1.5), (road bicycle:1.45), (bicycle:1.4), "
         "(from side:1.4), (leaning forward:1.3), (full body:1.45)"
     ),
+    # 暑くて床でジタバタ, straight down. `flop` is this body position at rest and
+    # `prone` is the from-above camera that works; what is new here is motion
+    # and a reason.
+    #
+    # `(flailing:1.4)` is borrowed from `fall`, which is the only other pose in
+    # this file whose subject is a body not in control of itself, and it is
+    # paired with `(motion lines:1.3)` for the same reason it is there: motion
+    # lines are a comic convention, drawn as separate marks BY DEFINITION, and
+    # this is the tag that says the limbs are moving rather than posed. Note for
+    # a later sweep -- `headcount.py` counts marks, and its own docstring says
+    # a pose carrying motion lines could not be counted by the tool it replaced.
+    #
+    # The heat is two tags and neither of them is a thermometer: `(sweat:1.35)`
+    # and the open mouth. `dizzy` and `allnighter` both found that a STATE is
+    # drawn on the face, not named in the air -- there is no `hot` that this
+    # model draws as heat rather than as blush.
+    #
+    # This is also the one framing in the file where the flat grey backdrop is
+    # not a compromise. Shot straight down, SURFACE's `(simple background:1.3)`
+    # IS the floor she is lying on, so the pose gets a real setting for free
+    # where every other pose is standing in front of nothing.
+    "swelter": (
+        "(solo:1.5), (lying:1.45), (on back:1.5), (from above:1.45), "
+        "(flailing:1.4), (motion lines:1.3), (sweat:1.35), (open mouth:1.35), "
+        "(full body:1.45)"
+    ),
     # The がおー with the body cropped off it: head and shoulders, both paws up
     # beside her face. `portrait`'s framing exactly, because that framing is
     # settled and this pose has no argument with it.
@@ -1756,7 +1782,10 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # poses. That is knowingly spent -- there is no way to photograph a
          # bicycle side-on in a narrow frame -- and it is the other thing to
          # watch for in the sweep.
-         "ride": (1536, 1024)}
+         "ride": (1536, 1024),
+         # `flop` and `prone`'s frame: a body lying down is wide and short, and
+         # from directly above that is the shape of the whole picture.
+         "swelter": (1536, 1024)}
 
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
 # and THIN from the positive and the legwear ban from the negative -- naming a
@@ -2005,7 +2034,7 @@ def positive(pose: str, costume: str = "default") -> str:
     # mechanism as `kick`'s ドヤ顔 and `situp`'s clenched teeth.
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
                             "dizzy", "kick", "situp", "hype", "roar",
-                            "pounce", "loom", "snarl")
+                            "pounce", "loom", "snarl", "swelter")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.

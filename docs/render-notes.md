@@ -7568,3 +7568,15 @@ the near-equal halves at full height are the same signature `hype` produced at
 this canvas is the narrow one already.
 
 Nothing picked yet at the time of writing; the sweep is with the user.
+
+**Picked: f38695b8**, seed 555666777 -- the one the sweep's headcount had clean
+without qualification. Diffed node-for-node against the recipe before printing;
+identical, so nothing about it lives outside `yukari_recipe.py`.
+
+Print: d3a4364b, `--hires 2048` -> `yk-sporty-roar-555666777_00002_.png`
+(1024x2048). Backdrop `recolor_bg.py --color '#c7e5e9'`, the same value `hype`
+was delivered at, 56.1% repainted at std 0.8/0.8/1.5 under the mask -- one flat
+colour again, and the second time now that the share has read alarmingly high on
+a tall canvas while the std said the tool never touched the figure. Two renders
+is not a rule, but the pair is consistent: on 832x1664 at 2048, expect the
+backdrop to be somewhere near 55-60% of the frame and screen on the std.

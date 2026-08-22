@@ -7945,3 +7945,70 @@ how to be wrong about.
 
 Do not raise the floor to make this pass. On a pose that draws marks as part of
 its subject, this tool answers a different question than the one being asked.
+
+### `swelter` settles at fifteen tags, and the subject was misread twice
+
+The block reached EIGHTEEN tags chasing two reference images, and then came
+back down. Both references were tantrum illustrations -- 「暑いので大暴れは
+していないです。微動」 is the pose. `(motion lines:1.45)` and `(kicking:1.4)`
+came out and `flailing` went 1.55 -> 1.25: the whole violence axis, turned down.
+
+**A camera tag outlived the pose it was for.** `(foreshortening:1.3)` was added
+while the leg was being snapped up, to draw a limb thrown at the viewer, and it
+was right then. When the knee eased 1.55 -> 1.35 nothing removed it, so a camera
+distortion was being applied to a leg that is barely raised, and 「足の長さが
+不自然」 was the result. Three arms:
+
+    ra   foreshortening out                    d35a67f8's sibling
+    rb   ra + BODY (petite:1.2) -> (petite:1.4)   PICKED, seed 111222333
+    rc   foreshortening kept, (long legs:1.4) added to the negative
+
+`rc` is the lexical route and it is not the one that worked. This file has many
+notes about a tag being wrong; this is its first about a tag whose supporting
+setting was pulled out from under it, and the shape to remember is that the tag
+did not become wrong -- its precondition left.
+
+`petite` 1.2 -> 1.4 is `prone`'s from-above easing pointed at length instead of
+bulk, and it is declared in `costume_check` as such.
+
+### A splice failed silently in a scratch script, and shipped a picked render
+
+6ce36efe was picked, and its prompt contains BOTH `closed mouth` AND
+`(open mouth:1.35), (screaming:1.4)`. Cause: the `.local/` arm patched FACE
+first --
+
+    FACE ends  "... closed mouth, small mouth, looking at viewer"
+    minus "small mouth, "        -> "... closed mouth, looking at viewer"
+    minus ", looking at viewer"  -> "... closed mouth"          <- no trailing comma
+
+-- and then `positive()` ran its own `.replace("closed mouth, ", "")`, which
+matched nothing and said nothing. The recipe's `_splice` asserts and would have
+caught it; the scratch script did not use it.
+
+**`_splice` was written for the recipe and the scratch scripts are where the
+failure actually lives.** The recipe's splices are read by `costume_check` on
+every run; a throwaway arm is read by nobody. Use it there first.
+
+Left unresolved: whether the accidental mouth was better. `(open mouth:1.35)`
+and `closed mouth` in one prompt is a tug-of-war that lands the mouth somewhere
+in between, which is a lever this file does not otherwise have. It was not
+adopted, and it was not dismissed either.
+
+### Print: 1.33x is fine for the staircase and bad for the edge
+
+00062a2d, `--hires 2048` from the 1536x1024 canvas -- a 1.33x upscale, between
+`roar`'s 1.23x and `pounce`'s failed 2.0x.
+
+    swelter 2048 (1.33x)   stair 1.8/53   AA 0.96   hard-step 26.2%
+    roar    2048 (1.23x)   stair 2.0/38   AA 2.19   hard-step  3.3%
+    pounce  2048 (2.0x)    stair 5.8/67   AA 2.15   hard-step 14.9%
+
+The staircase is fine -- 1.8 is better than the reference print. What is not
+fine is the edge itself: AA 0.96 means the transition takes ONE pixel, and 26.2%
+of rows have no partial pixel at all, the worst number on file. The two failures
+are not the same failure, and the ratio only predicts the first one.
+
+Delivered as it is, at 56.3% repainted, std 2.5/3.9/3.7 under the mask -- higher
+than the three prints before it but still one flat colour. If the edge reads
+hard, the fix is not another ratio: it is to print LARGER than the delivery size
+and resample DOWN, which is the one antialiasing route this repo has not tried.

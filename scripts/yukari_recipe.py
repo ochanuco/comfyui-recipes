@@ -1633,19 +1633,84 @@ POSES = {
     # a later sweep -- `headcount.py` counts marks, and its own docstring says
     # a pose carrying motion lines could not be counted by the tool it replaced.
     #
-    # The heat is two tags and neither of them is a thermometer: `(sweat:1.35)`
-    # and the open mouth. `dizzy` and `allnighter` both found that a STATE is
-    # drawn on the face, not named in the air -- there is no `hot` that this
-    # model draws as heat rather than as blush.
+    # THE HEAT IS NOT ON HER FACE ANY MORE, and that is a correction rather
+    # than a drift. The first sweep had `(sweat:1.35)` and `(full body:1.45)`
+    # and read as a girl lying down being warm; the reference the user then
+    # posted is a TANTRUM -- both fists and both knees in the air, eyes clamped,
+    # mouth wide -- where the heat is carried by how hard she is thrashing.
+    # Both slots were spent on that: `legs up` for the knees, `closed eyes` for
+    # the clamp. `full body` goes free (a landscape canvas with a lying figure
+    # frames her anyway; `sip` measured the same slot spare at its square) and
+    # the sweat goes knowingly.
+    #
+    # `(closed eyes:1.4)` over `(>_<:1.4)`, swept head to head. `dizzy` proved
+    # this model reads face symbols as tags -- `@_@` is real to it -- so the
+    # symbol was the favourite and it lost. b2370dcc is the picked render.
+    #
+    # Note what closing her eyes costs: FACE's `(tareme:1.3), (large eyes:1.3),
+    # (large iris:1.25)` are all instructions about eyes that are now shut.
     #
     # This is also the one framing in the file where the flat grey backdrop is
     # not a compromise. Shot straight down, SURFACE's `(simple background:1.3)`
     # IS the floor she is lying on, so the pose gets a real setting for free
     # where every other pose is standing in front of nothing.
+    # EIGHTEEN TAGS, the longest block in this file, and it got there one
+    # reference image at a time. The order it was built in is the order the
+    # asks arrived, and each step is a measured arm rather than a guess:
+    #
+    #   closed eyes over `(>_<:1.4)`      b2370dcc, swept head to head. `dizzy`
+    #                                     proved face symbols are real tags to
+    #                                     this model, so the symbol was the
+    #                                     favourite and it lost.
+    #   EVERY LIMB TAG IS SINGULAR        the reference is asymmetric in all
+    #                                     three: one fist and one open hand,
+    #                                     one knee high and one low, one arm up
+    #                                     and one down. This file already
+    #                                     carries both forms -- `kick` has
+    #                                     `knee up`, `situp` has `knees up`;
+    #                                     `peace` has `outstretched arm`, `flop`
+    #                                     has `outstretched arms` -- so naming
+    #                                     one of a pair is an established lever
+    #                                     here, not a hopeful one.
+    #   kicking AND foreshortening        the limb argument and the camera
+    #                                     argument. Shot from above, a leg
+    #                                     thrown up is a leg thrown AT the
+    #                                     viewer; `kick` uses this tag at 1.3
+    #                                     for the same geometry.
+    #   screaming + furrowed brow         `fall` names its emotion beside its
+    #                                     open mouth rather than trusting the
+    #                                     mouth; this does the same.
+    #
+    # `thin eyebrows` is deliberately still in FACE. `(furrowed brow:1.35)` is
+    # about the SHAPE the brows make and not their weight, and pulling both at
+    # once is how a face gets changed without anyone knowing which lever did it.
+    #
+    # IT WAS EIGHTEEN TAGS AND IT IS FIFTEEN, because the subject was misread
+    # and the two reference images are what misread it. They are tantrum
+    # illustrations; 「暑いので大暴れはしていないです。微動」 is the actual pose.
+    # `(motion lines:1.45)` and `(kicking:1.4)` came out and `flailing` went
+    # 1.55 -> 1.25 on that -- the whole violence axis, turned down.
+    #
+    # `(foreshortening:1.3)` came out for a different and more interesting
+    # reason. It was added while the leg was being SNAPPED up, to draw a limb
+    # thrown at the camera, and it was correct then. When the knee eased to
+    # 1.35 nothing removed it, so a camera distortion was being applied to a
+    # leg that is barely raised, and 「足の長さが不自然」 was the result. Swept
+    # against a negative `(long legs:1.4)` and against easing BODY, and taking
+    # the tag out is what fixed it. **A camera tag left behind after the pose
+    # it was for has gone is worse than no camera tag at all** -- this file has
+    # plenty of notes about tags that are wrong and this is its first about a
+    # tag whose supporting setting was removed from under it.
+    #
+    # The length is a real risk and is not the same risk as the tag count. There
+    # is no ceiling -- `kick` runs 13 and is fine -- but a longer block dilutes
+    # every tag in it. If the face or the arms go weak later, suspect the length
+    # before suspecting whatever was added last.
     "swelter": (
         "(solo:1.5), (lying:1.45), (on back:1.5), (from above:1.45), "
-        "(flailing:1.4), (motion lines:1.3), (sweat:1.35), (open mouth:1.35), "
-        "(full body:1.45)"
+        "(flailing:1.25), (knee up:1.35), (spread legs:1.35), (arm up:1.4), "
+        "(clenched hand:1.35), (closed eyes:1.4), (open mouth:1.35), "
+        "(screaming:1.4), (furrowed brow:1.35), (midriff:1.35), (navel:1.3)"
     ),
     # The がおー with the body cropped off it: head and shoulders, both paws up
     # beside her face. `portrait`'s framing exactly, because that framing is
@@ -1870,6 +1935,19 @@ def negative(pose: str, costume: str = "default") -> str:
         text = _splice(text, "(blue tint:1.4), ", "")
     # The head framings crop above the legs, and a guard against a garment that
     # is out of frame is tokens spent on nothing.
+    if pose == "swelter":
+        # 「シャツも少しお腹が見えてしまってる感じで」, and this guard is the thing
+        # in the way. Released at a cost this file already put at zero: the
+        # note on that tail reads "These three measured nothing -- the hem did
+        # not move with them in or out -- and are kept for identity with
+        # 7d231c4f rather than for effect."
+        #
+        # `(cropped jacket:1.45)` STAYS, and is the reason this is a splice of
+        # two tags rather than of the tail. That one names a different garment,
+        # and the garment is a contract. `(upskirt:1.4), panties` stay too --
+        # the undignified part of this pose is the posture, and it is not this
+        # recipe's job to help it anywhere else.
+        text = _splice(text, ", (midriff:1.35), (navel:1.3)", "")
     if pose in HEAD_FRAMINGS:
         return text
     text = text + ", " + LEGWEAR_BAN
@@ -2044,6 +2122,19 @@ def positive(pose: str, costume: str = "default") -> str:
     # and belongs with the rest of it rather than on its own.
     if pose == "nape":
         face = face.replace(", looking at viewer", "")
+    if pose == "swelter":
+        # FACE was settled on a composed girl and two of its tags are the
+        # opposite of a tantrum.
+        #
+        # `small mouth` first: the reference's mouth is the biggest thing in
+        # the face. `allnighter` removed this once for the same reason and the
+        # notes record it going back when that mouth stopped being wanted; it
+        # is wanted again.
+        face = _splice(face, "small mouth, ", "")
+        # And `looking at viewer` for `nape`'s reason rather than its own: with
+        # the eyes clamped shut the instruction has no referent, so it either
+        # argues with the pose or opens her eyes.
+        face = _splice(face, ", looking at viewer", "")
     body = BODY
     if pose == "prone":
         # 「めちゃ下半身太ってしまった…」. BODY's `(wide hips:1.3)` and
@@ -2134,6 +2225,14 @@ def positive(pose: str, costume: str = "default") -> str:
         # on this axis costs the picked composition and has to be re-picked.
         body = body.replace("(pale skin:1.25)",
                             "(long legs:1.40), (pale skin:1.25)")
+    if pose == "swelter":
+        # `prone`'s argument, pointed at length instead of bulk. That pose eased
+        # hips and thighs because a from-above camera foreshortens them into
+        # reading as mass; here the same camera was making the legs read long,
+        # and `petite` is the tag in BODY that answers proportion as a whole.
+        # 1.2 -> 1.4, swept against removing the camera tag alone -- both were
+        # needed, and d35a67f8 is the render that carries them.
+        body = _splice(body, "(petite:1.2)", "(petite:1.4)")
     character = blocks["character"]
     if pose == "boss":
         # Grown up, and it is one substitution now, not the two it started as.

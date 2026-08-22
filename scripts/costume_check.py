@@ -208,9 +208,20 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"removed": ["closed mouth"], "why": "wears GAO_FACE"},
     ],
     # Not GAO_FACE -- this one asks for the open mouth itself, as panting.
+    # Three FACE removals, all on the same argument: this block was settled on a
+    # composed girl and the pose is a tantrum.
     "swelter": [
-        {"removed": ["closed mouth"], "why": "暑い is drawn on the face; a shut "
-                                             "mouth is a girl having a nice lie down"},
+        {"removed": ["closed mouth"],
+         "why": "she is screaming; a shut mouth is a girl having a nice lie down"},
+        {"removed": ["small mouth"],
+         "why": "the reference's mouth is the biggest thing in the face. "
+                "`allnighter` made this exact removal once and gave it back"},
+        {"removed": ["looking at viewer"],
+         "why": "`nape`'s reason, different cause: with the eyes clamped shut "
+                "the instruction has no referent"},
+        {"removed": ["(petite:1.2)"], "added": ["(petite:1.4)"],
+         "why": "`prone`'s from-above easing, pointed at length instead of "
+                "bulk: the overhead camera was making the legs read long"},
     ],
     "fall": [
         {"removed": ["closed mouth"], "why": "she is shouting"},

@@ -7695,3 +7695,35 @@ The skin pixels being caught sit as close to the backdrop as the fringe pixels
 do, so no threshold on colour distance divides them. Spatial width is the only
 lever, and 2 is where it stops. A warm band remains at 3px and is not addressed
 by this change.
+
+### The other jaggedness was real, and it is the upscale ratio (2026-08-22)
+
+「生成でジャギジャギになってない？」 -- and yes, separately from the fringe above.
+`pounce` is the only pose in this file whose print is a **2.0x** upscale: its
+canvas is the 1024x1024 square, so `--hires 2048` doubles both axes. Everything
+else prints at about 1.23x (832x1664 -> 1024x2048).
+
+Measured on the left silhouette edge, per row: `stair` is the run length of an
+unchanged edge x (long runs on a slanted edge are a visible staircase), `AA` is
+how many partial pixels the backdrop-to-figure transition takes.
+
+    pounce 2048 d0.60 (shipped)   stair mean  5.8 max 67   AA 2.15   hard-step 14.9%
+    pounce 2048 d0.70             stair mean  2.1 max 53   AA 1.27   hard-step 19.3%
+    pounce 1536 d0.60             stair mean  2.2 max 46   AA 1.34   hard-step 10.9%
+    roar 2048 (1.23x, reference)  stair mean  2.0 max 38   AA 2.19   hard-step  3.3%
+    pounce pass 1 (1024)          stair mean  2.1 max 31   AA 0.84   hard-step 29.2%
+
+The staircase is the thing that failed and both arms fix it -- 5.8 back to ~2.1,
+which is where a 1.23x print already sits. That supports the mechanism: at 2x,
+denoise 0.60 leaves the first pass's own 1px steps stretched to 2px instead of
+redrawing them, and the first pass has 29.2% hard-step rows to stretch.
+
+**The two numbers then disagree and are recorded disagreeing.** d0.70 halves the
+staircase but sharpens the edge (AA 2.15 -> 1.27, hard-step rows UP to 19.3%).
+1536 is mildest everywhere and costs resolution. Which one the eye prefers is
+not decided here; both were delivered for the user to pick. This file's record
+on image statistics against the eye is 0-5.
+
+`docs` note for whoever reprints a square-canvas pose: the rejected idea in the
+`--hires` docstring is splitting the climb into several 1.5x STEPS. Changing the
+single step's ratio is a different lever and it is not covered by that finding.

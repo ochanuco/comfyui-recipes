@@ -8557,3 +8557,91 @@ Delivered `#9256b8` at 24.9px — the band-relative default, not an override. Th
 number looks heavy against the 6px picked on `swelter`, and it is the same
 accent: the width is 0.32 of the figure's own white marker, and a head crop's
 marker is wide. That share replaced a share-of-canvas after 「大外の紫を復旧して」.
+
+## `(cola:1.4)` was not needed: the vessel was already the picture (2026-08-23)
+
+「コーラを飲んでいるゆかりさんを」, and then, having seen it:
+**「コーラ言ったけど、紙コップストローで飲んでる。で十分だった」.**
+
+`straw` already carries `(holding cup:1.45), (drinking straw:1.55),
+(drinking:1.3)`, and a paper cup with a straw in it IS the picture that was
+being asked for. The drink was named as a subject and answered as a tag, and
+the tag was the part that was not needed.
+
+`cola` is a real danbooru tag (1.6k) and `coca-cola` a larger one (2.5k, a brand
+name and not used here), so this is not the usual "the vocabulary does not
+exist" null. **The vocabulary existed and the slot was already filled.** Worth
+checking before adding a tag for a named object: whether the pose block already
+draws the thing under a different name.
+
+Not in the recipe. Four arms ran in `.local` and none of them are the reason
+the picture worked.
+
+## 174ce1dc's finish does not transfer, and the two halves break the palette TOGETHER (2026-08-23)
+
+「絵柄・塗りのベースとして」 174ce1dc — `yk-ub-swelter-1886970040`. Two things in
+that render are not in a stock `portrait` and look portable:
+
+- its pass-2 negative, `(sketch:1.45), (lineart:1.45), (unfinished:1.4),
+  (monochrome:1.35)`, the guard written for the arm that was never flatted
+- `THIN`, which the head framings drop with the rest of the crop
+
+Carried onto `portrait` together they drew 「なんか色がおかしいね」. Distinct flats
+in the figure, quantised to 8 levels per channel, with the backdrop excluded by
+`recolor_bg`'s own mask so the count is over the drawing only:
+
+| arm | THIN | paint guard | figure | flats |
+|---|---|---|---|---|
+| R1 | — | — | 94.8% | **150** |
+| T2 | — | yes | 94.9% | 168 |
+| T1 | yes | — | 89.5% | 190 |
+| S1 | yes | yes | 94.7% | **225** |
+
+**+18 and +40 separately, +75 together.** The pair is superadditive, and neither
+half predicts it. R1 and S1 have the same figure area to within 0.1%, so this is
+not the mask measuring different amounts of picture.
+
+**The prediction was wrong and the direction of the error is the useful part.**
+The guard was the suspect — it bans `monochrome` and `unfinished`, which on a
+picture with nothing unflatted reads as pressure to add colour. It does do that,
+by 18 flats. `THIN` does more than twice as much, on a smaller figure, i.e. more
+still per unit area. Asking for thin, fine, delicate lines subdivides the flats,
+and this costume's whole look is `(flat color:1.3)` — few, large flats. **THIN is
+not a neutral line-weight setting; it is a palette lever**, and it has been in
+every full-figure prompt in this file since it was added, described in its own
+comment as "measured to do nothing to stroke width".
+
+That comment is now two-thirds of a null: it does nothing to stroke width and it
+is not doing nothing.
+
+**What this says about porting a finish.** 174ce1dc's paint is what a deletion
+left behind on a picture that had a specific defect. On a picture without that
+defect the same deletion has to find something else to delete. A finish that is
+the residue of a fix is not a style, and the poses that would want it are the
+poses with the same defect.
+
+Picked out of this: **T2** — the paint guard, no THIN — 547b7b91.
+
+## `outline_stroke.py`'s band measurement is not stable enough to deliver a comparison (2026-08-23)
+
+The stroke width is a share of the figure's own white marker band, which was a
+correction: it shipped as a share of the canvas and went invisible on a head
+crop (「大外の紫を復旧して」). The share-of-band fixed that case and is not stable.
+
+Across renders of the SAME pose at the SAME canvas, differing only in eyelash
+tags, the automatic width came out at:
+
+    1536x1536 tehe    6.5px   3.5px   1.0px
+    1024x2048 straw   6.1px*  2.9px   2.3px   11.3px   12.7px
+
+\* re-run with `--stroke-width-pct 0.3`; the automatic figures are the others.
+
+A fivefold spread, and 1.0px is the same invisible stroke the share-of-canvas
+version was replaced for producing. **A sweep delivered on the automatic width
+is not a comparison** — the purple varies more between arms than the thing being
+compared does, which is how a delivery step starts deciding a judgement.
+
+Worked around by passing `--stroke-width-pct` explicitly for every set above.
+That is not a fix: it is a number a human has to remember per canvas, and the
+whole reason `deliver.py` exists is that the three-step finish was being
+forgotten. The band estimate itself is what needs looking at.

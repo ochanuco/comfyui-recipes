@@ -8290,3 +8290,48 @@ on image statistics against the eye is 0-7.
 **Standing note for square-canvas poses.** `pounce`, `snarl` and `tehe` are on
 1024x1024, so every one of them prints at 2.0x and every one of them will do
 this. It is a property of the canvas, not of the pose.
+
+## 指が正常化するまで: 40 renders at 1024, and the answer was the seed (2026-08-23)
+
+「一旦解像度を落として指が正常化するまで頑張って欲しい」. Pass 1 only, 1024,
+judged off hand crops rather than off whole renders -- `.local/handcrop.py`
+takes a fixed window at x 0.15-0.60, y 0.25-0.80, which is where this framing
+puts the hand on every seed rendered so far. Nine crops tile into one sheet.
+
+**The clever version of that crop is worth recording as a null.** Find the hand
+as skin that is also THIN -- open the skin mask with a disk wide enough to
+swallow a finger and subtract -- and it finds hair. `(light purple hair:1.25)`
+highlights sit close enough to `(pale skin:1.25)` that no tolerance separates
+them and still keeps the fingers. The fixed window is not a shortcut, it is the
+thing that works.
+
+**The hand guard moved into the PASS 1 negative for the sweep.** It had been in
+`HIRES_NEGATIVE`, which is invisible at 1024, and a sweep judged at 1024 has to
+be looking at what it is testing.
+
+Three levers, six seeds each:
+
+  * **`(clenched hand:1.2)` is dead.** It fixes the knuckle count by removing
+    the V -- five of six seeds drew an open palm or a fist at the cheek. A V IS
+    a fist with two fingers out, and saying `fist` gets a fist. This is the
+    same shape of failure as `hand on own cheek`, from the opposite side.
+  * **Dropping `hand on own cheek` draws the best hands and puts them in the
+    wrong place.** The hand leaves the cheek for the neck or the chest and two
+    of six left the crop entirely. So that tag is buying placement and paying
+    in handshape -- a trade to price, not a tag to delete.
+  * **Weight barely matters between 1.05 and 1.15.** Nine more seeds at each:
+    the same two draws are good in both arms and the same seven are bad in
+    both. That is the finding. **At this point the hand is the seed.**
+
+2020202020 and 343434343 draw a V with two fingers up, a thumb tucked across
+and a knuckle line that counts. Taken to 2048/d0.70 with the guard in both
+passes, 2020202020 holds in both arms and **343434343 drew a second figure at
+print size** -- the failure `stand` recorded against a taller canvas, arriving
+here through the upscale instead.
+
+Delivered: `9b33b436` (cheek 1.15) and `631e7cd1` (cheek 1.05), both on
+2020202020, both 2048/d0.70, purple matched at 7px.
+
+Not in the recipe: `tehe` still carries `(v:1.6)` with no hand guard. What is
+waiting on a pick is `(v:1.45)`, the cheek weight, and whether the guard belongs
+in the shared negative or only in pass 2.

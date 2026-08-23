@@ -8249,3 +8249,44 @@ the median distance from the backdrop contour to the nearest dark pixel. Stable
 across the repaint: 19.2 against 19.2, 13.2 against 13.0. Median, not mean:
 parts of a contour have no line near them and read in the hundreds; the accepted
 print's quartiles are 16 and 98.
+
+## `tehe` is a square canvas, so its print is 2.0x, so it staircased (2026-08-23)
+
+「ジャギジャギしてる」 on the tehe print, and this is a repeat, not a new
+problem: `tehe` sits on the 1024x1024 square like `pounce`, so `--hires 2048`
+doubles both axes. That ratio is already recorded as the one that breaks the
+staircase, and the same measurement says the same thing here.
+
+**`scripts/edge_profile.py` exists now.** The numbers quoted in the `pounce`
+entry came from a throwaway in `.local/` that is gone, so they could not be
+rerun -- which is the argument for the file. It also fixes a real bug in the
+first version: the AA window was a fixed distance band, and a fixed band counts
+the whole `(white outline:1.6)` (35 from the backdrop) and reports an AA of 30
+pixels, which is the band's width and not a blend. It measures the ramp against
+the value the ramp climbs to now, per row.
+
+    tehe 2048, 2.0x, d0.60        stair mean 6.6 max 81   AA  6.5   hard  8.5%
+    tehe pass 1, 1024             stair mean 3.8 max 32   AA 16.5   hard  0.6%
+    swelter print, 1.33x          stair mean 1.8 max 54   AA 14.4   hard  0.3%
+
+    ya  2048 at d0.70             stair mean 3.6 max 41   AA  3.8   hard 19.9%
+    yb  1536 at d0.60, 1.5x       stair mean 3.8 max 69   AA 17.9   hard  0.7%
+    yc  yb resampled to 2048      stair mean 3.8 max 87   AA  1.9   hard  3.3%
+
+`pounce` measured 5.8/67 at 2.0x against 2.0 at 1.23x. Same failure, same
+ratio, and the same trade at the bottom: **0.70 halves the staircase and pays
+for it in hard-step rows** -- 8.5% to 19.9% -- exactly as recorded there. 1536
+is the softest edge and costs resolution; resampling it back up returns the
+pixels without letting the model near the picture again.
+
+The purple stroke is not the cause and was checked rather than assumed: the raw
+render measures jagged before any delivery step runs, and the stroke's own outer
+edge is ramped over a pixel by construction.
+
+All three delivered at a matched 7px stroke so the only difference on the sheet
+is the render. Which one the eye prefers is not decided here; this file's record
+on image statistics against the eye is 0-7.
+
+**Standing note for square-canvas poses.** `pounce`, `snarl` and `tehe` are on
+1024x1024, so every one of them prints at 2.0x and every one of them will do
+this. It is a property of the canvas, not of the pose.

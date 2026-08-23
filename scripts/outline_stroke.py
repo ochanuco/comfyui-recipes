@@ -26,10 +26,16 @@ it should be chosen per picture: 「これは絵の雰囲気で変えるべき�
 here is that pick and nothing more. Reach for a heavier stroke when the drawing
 can carry one.
 
-Width is a share of the longest side by default (`--width-pct`, 0.3, which is
-6px at 2048) because the number is tied to the print. `--width` sets pixels
-instead when the size is known. For scale: the white band the stroke sits
-against measures about 15px at 2048, so 10-14px reads as its equal.
+**The width is a share of the white band, not of the canvas, and that was a
+correction.** It shipped as 0.3% of the longest side, and on a head crop the
+purple went invisible -- 「大外の紫を復旧して」. The band the stroke sits
+against is drawn by the model at a size that has nothing to do with the canvas:
+19.2px on a 2048 print and 13.2px on a 1024 head crop, i.e. 0.94% of one frame
+and 1.29% of the other. A constant share of the canvas therefore makes the
+stroke look thinner on exactly the pictures whose band is thickest. `band` is
+the default now, at 0.32 -- the share that reproduces the picked 6.1px on the
+picture the four arms were judged on. `--width-pct` and `--width` still
+override it.
 
 The outer edge gets one pixel of falloff. Without it the band is a hard step
 against a flat backdrop, which is precisely the fringe that
@@ -50,6 +56,10 @@ from recolor_bg import background_mask, enclosed_mask, parse_color
 # The picked arm: thin, and the same hue as the hair's most saturated tenth.
 DEFAULT_COLOR = "#9256b8"
 DEFAULT_WIDTH_PCT = 0.3
+# The picked width as a share of the white band it sits against, which is what
+# it was actually chosen as: 6.1px against a band measuring 19.2 on the render
+# the four arms were judged on. See `band_thickness`.
+DEFAULT_WIDTH_BAND = 0.32
 
 
 def parse_args() -> argparse.Namespace:
@@ -68,8 +78,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--width-pct",
         type=float,
-        help=f"thickness as a percent of the longest side; wins over --width. "
-             f"Default {DEFAULT_WIDTH_PCT}, i.e. 6px at 2048",
+        help=f"thickness as a percent of the longest side ({DEFAULT_WIDTH_PCT} "
+             f"is 6px at 2048)",
+    )
+    parser.add_argument(
+        "--width-band",
+        type=float,
+        help=f"thickness as a share of the figure's own white marker, measured "
+             f"per image. The default when nothing else is given, at "
+             f"{DEFAULT_WIDTH_BAND}",
     )
     parser.add_argument(
         "--gap",
@@ -94,6 +111,36 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def band_thickness(pixels: np.ndarray, mask: np.ndarray, dark: int = 120) -> float:
+    """How thick the figure's OWN white marker is, at the median of its contour.
+
+    **Measured to the LINE, not to the white.** The obvious version -- walk in
+    from the backdrop counting bright unsaturated pixels -- does not work in
+    this recipe, and the reason is worth keeping: `(pale skin:1.25)` puts her
+    face at (250,240,225), which is brighter and barely more saturated than the
+    white band at (248,243,242). There is no threshold that separates the paint
+    from the girl. It also read 1px on any repainted image, because
+    `recolor_bg`'s 1px feather tints the outermost ring toward the backdrop and
+    that alone failed the test.
+
+    The band's INNER edge is unambiguous: it is the figure's black outline. So
+    this measures, for every pixel on the backdrop's contour, the distance to
+    the nearest dark pixel, and takes the median. Stable to the repaint --
+    19.2 against 19.2 on the print, 13.2 against 13.0 on a head crop -- because
+    nothing it looks at is near the tolerance of anything.
+
+    The median and not the mean: parts of a contour have no line anywhere near
+    them (the inside of a leg, a sleeve running out of frame) and those read in
+    the hundreds. On the accepted print the quartiles are 16 and 98.
+    """
+    inward = ndimage.distance_transform_edt(~mask)
+    to_line = ndimage.distance_transform_edt(pixels.mean(axis=2) >= dark)
+    contour = (inward > 0) & (inward <= 1)
+    if not contour.any():
+        return 0.0
+    return float(np.median(to_line[contour]))
+
+
 def stroke_alpha(mask: np.ndarray, gap: float, width: float) -> np.ndarray:
     """Coverage of the band, gap..gap+width pixels out into the backdrop.
 
@@ -115,6 +162,7 @@ def stroke(
     color: str = DEFAULT_COLOR,
     width: float | None = None,
     width_pct: float | None = None,
+    width_band: float | None = None,
     gap: float = 0.0,
     tolerance: int = 18,
     enclosed_tolerance: int = 4,
@@ -134,7 +182,8 @@ def stroke(
     if width_pct is not None:
         width = max(pixels.shape[:2]) * width_pct / 100
     elif width is None:
-        width = max(pixels.shape[:2]) * DEFAULT_WIDTH_PCT / 100
+        fraction = DEFAULT_WIDTH_BAND if width_band is None else width_band
+        width = band_thickness(pixels, mask) * fraction
 
     alpha = stroke_alpha(mask, gap, width)
     return pixels + alpha[..., None] * (rgb - pixels), width, share
@@ -146,8 +195,8 @@ def main() -> int:
     for path in args.images:
         pixels = np.array(Image.open(path).convert("RGB")).astype(float)
         pixels, width, share = stroke(
-            pixels, args.color, args.width, args.width_pct, args.gap,
-            args.tolerance, args.enclosed_tolerance)
+            pixels, args.color, args.width, args.width_pct, args.width_band,
+            args.gap, args.tolerance, args.enclosed_tolerance)
         if share < 5:
             print(f"{path.name}: only {share:.1f}% backdrop, skipping")
             continue

@@ -148,6 +148,14 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"removed": ["closed mouth"],
          "why": "\u5bdd\u4e0d\u8db3: the mouth hangs open"},
     ],
+    # \u30c6\u30d8\u30da\u30ed. `;p` IS a mouth with a tongue coming out of it,
+    # so FACE's `closed mouth` is the tag that would close it again -- the same
+    # contradiction the four poses above resolve, arriving here through an
+    # emoticon rather than through a word.
+    "tehe": [
+        {"removed": ["closed mouth"],
+         "why": "a tongue cannot come out of a closed mouth; `;p` names both"},
+    ],
     # Full body, so unlike `allnighter` it wears the whole costume; the mouth is
     # its only departure.
     "allnighter_full": [
@@ -278,13 +286,23 @@ COSTUME_ONLY: dict[str, dict[str, list[dict]]] = {
 }
 
 
+# Footwear a costume names in its CHARACTER block, which no crop touches. The
+# head framings have to take it out themselves; `sporty` is the only costume
+# that has any, and `stand` is the only pose that names shoes of its own.
+COSTUME_FOOTWEAR = {
+    "sporty": ["(white footwear:1.4)", "(sneakers:1.45)", "(high tops:1.3)"],
+}
+
+
 def _cropped(costume: str) -> dict:
     """The head framings' one departure: everything below the crop, removed."""
     return {"removed": (tags(yk.COSTUMES[costume]["legwear"])
                         + [t for t in tags(yk.BODY) if t != "(pale skin:1.25)"]
-                        + tags(yk.THIN)),
+                        + tags(yk.THIN)
+                        + COSTUME_FOOTWEAR.get(costume, [])),
             "why": "the crop is above all of it, and naming what is out of "
-                   "frame is what invites it back in"}
+                   "frame is what invites it back in -- the shoes are on this "
+                   "list because c08034a0 drew one floating in the backdrop"}
 
 
 def declared(pose: str, costume: str) -> list[dict]:

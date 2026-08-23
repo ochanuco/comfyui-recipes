@@ -53,6 +53,11 @@ def parse_args() -> argparse.Namespace:
         help="marker drawn outside the figure's white band; '' to skip it",
     )
     parser.add_argument("--stroke-width-pct", type=float)
+    parser.add_argument(
+        "--stroke-width-band", type=float,
+        help="stroke as a share of the figure's own white band; the default is "
+             f"{outline_stroke.DEFAULT_WIDTH_BAND}, calibrated to the picked arm",
+    )
     parser.add_argument("--no-post", action="store_true")
     parser.add_argument("--outdir", type=Path, default=OUTDIR)
     parser.add_argument("--host", default=DEFAULT_HOST)
@@ -102,8 +107,11 @@ def main() -> int:
         width = None
         if args.stroke:
             pixels, width, _ = outline_stroke.stroke(
-                pixels.astype(float), args.stroke, width_pct=args.stroke_width_pct)
-        out = args.outdir / f"{path.stem}-delivered.png"
+                pixels.astype(float), args.stroke,
+                width_pct=args.stroke_width_pct,
+                width_band=args.stroke_width_band)
+        tag = "" if width is None else f"-p{width:.0f}"
+        out = args.outdir / f"{path.stem}{tag}-delivered.png"
         Image.fromarray(np.clip(pixels, 0, 255).astype(np.uint8)).save(out)
         edge = "" if width is None else f", {args.stroke} at {width:.1f}px"
         print(f"{path.name}: {share:.1f}% repainted{edge} -> {out.name}", flush=True)

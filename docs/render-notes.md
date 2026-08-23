@@ -8192,3 +8192,60 @@ what is left doing the work is `knee up`, `spread legs` and `arm up`. If a later
 round wants the motion back, it is the guard that comes out first, not the tag
 -- the tag costs a floodable backdrop on at least one seed and the guard costs
 nothing measured.
+
+## テヘペロ, and a shoe with no foot to stand on (2026-08-23)
+
+New pose `tehe`, settled off c08034a0 and its two corrections.
+
+**`;p` is one token for the whole face and it lands.** Danbooru's emoticon tags
+name a complete expression -- this one is a wink with the tongue out -- and it
+drew both halves on the first sweep, judged against an arm spelling the same
+face out as `(one eye closed:1.45), (wink:1.35), (tongue out:1.5)`. Kept beside
+`(tongue out:1.4)` rather than alone: the emoticon decides the face and the
+second tag keeps the tongue from being a detail it can drop. This is the first
+emoticon tag in the file and the cheapest expression in it.
+
+**`(v:1.6)` against `(hand on own cheek:1.15)`, and the weights are the whole
+finding.** At 1.45/1.4 the cheek tag won outright and drew an open palm with
+splayed fingers -- no V anywhere. `hand on own cheek` DESCRIBES an open palm, so
+the two tags name different handshapes for the same hand and whichever is
+heavier gets it. Inverted, the V is the shape and the cheek is only the place.
+The general form is worth carrying: a placement tag that implies a handshape is
+not neutral about the handshape.
+
+`(upper body:1.35)` where the other head framings carry `(close-up:1.2)`. This
+is the only crop in the file with a hand ON the face rather than beside it, and
+at `close-up` the top of her head was outside the frame. It pays twice: the
+backdrop share went from 7-30% to 30-41%, and `deliver.py` needs a floodable
+backdrop.
+
+**A shoe was floating in the backdrop, and it is this file's own rule catching
+the file out.** c08034a0 drew a white high-top sneaker beside her head,
+correctly rendered, attached to nothing. The head framings already drop LEGWEAR,
+BODY and THIN because naming what is out of frame invites it back in -- but
+`sporty` carries its shoes in the CHARACTER block, which no crop touched. Every
+head framing under that costume was doing this. Removed now for all of them, and
+removed rather than substituted: `swelter` swaps in `(no shoes:1.35)` because
+its feet are in the picture, and here there is no foot at all. Measured: the
+figure was 7 islands with a 1.77% one beside her head, and is 1 island now.
+
+**The purple stroke was measured against the wrong thing.** 「大外の紫を復旧し
+て」. It shipped as 0.3% of the longest side, and the white band it is supposed
+to sit against is not a share of the canvas at all -- 19.2px on a 2048 print,
+13.2px on a 1024 head crop, i.e. 0.94% of one frame and 1.29% of the other. A
+constant share of the canvas makes the stroke thinnest exactly where the band is
+thickest, which is why it vanished on a head. `--width-band` is the default now,
+at 0.32, the share that reproduces the picked 6.1px on the picture the four arms
+were judged on.
+
+**And the band has to be measured to the LINE, not to the white.** The obvious
+version -- walk in from the backdrop counting bright unsaturated pixels -- has
+no threshold that works here: `(pale skin:1.25)` puts her face at (250,240,225),
+brighter and barely more saturated than the band at (248,243,242). It also read
+1px on any repainted image, because `recolor_bg`'s 1px feather tints the
+outermost ring and that alone failed the test. The band's inner edge is
+unambiguous -- it is the figure's own black outline -- so `band_thickness` takes
+the median distance from the backdrop contour to the nearest dark pixel. Stable
+across the repaint: 19.2 against 19.2, 13.2 against 13.0. Median, not mean:
+parts of a contour have no line near them and read in the hundreds; the accepted
+print's quartiles are 16 and 98.

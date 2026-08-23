@@ -1733,6 +1733,32 @@ POSES = {
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2), "
         "(face focus:1.3), " + GAO_HANDS + ", (hands up:1.4), " + GAO_FACE
     ),
+    # テヘペロ, with a peace sign at the cheek.
+    #
+    # **`;p` is one token for the whole face and it lands.** Danbooru's
+    # emoticon tags name a complete expression -- this one is a wink with the
+    # tongue out -- and it drew both halves on the first sweep, against a
+    # spelled-out arm carrying `one eye closed`, `wink` and `tongue out`. It
+    # is kept beside `(tongue out:1.4)` and not alone: the emoticon decides the
+    # face, the second tag keeps the tongue from being a detail it can drop.
+    #
+    # `(v:1.6)` against `(hand on own cheek:1.15)`, and the weights are the
+    # whole finding. At 1.45/1.4 the cheek tag won outright and drew an open
+    # palm with splayed fingers -- `hand on own cheek` DESCRIBES an open palm,
+    # so the two tags are naming different handshapes for the same hand and
+    # whichever is heavier gets it. Inverted, the V is the shape and the cheek
+    # is only the place.
+    #
+    # `(upper body:1.35)` where the other head framings have `(close-up:1.2)`.
+    # This is the one crop in the file with a hand ON the face rather than
+    # beside it, and at `close-up` the top of her head was outside the frame.
+    # The backdrop share is the other half of it: 30-41% here against 7-30% at
+    # the tighter crop, which is what the delivery step needs to flood.
+    "tehe": (
+        "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
+        "(upper body:1.35), (face focus:1.3), (;p:1.5), (tongue out:1.4), "
+        "(v:1.6), (hand on own cheek:1.15)"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
@@ -1859,12 +1885,16 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          "ride": (1536, 1024),
          # `flop` and `prone`'s frame: a body lying down is wide and short, and
          # from directly above that is the shape of the whole picture.
-         "swelter": (1536, 1024)}
+         "swelter": (1536, 1024),
+         # `portrait`'s square, like `snarl`. The crop inside it is wider --
+         # `upper body` rather than `close-up` -- and that is a tag decision,
+         # not a canvas one; the frame is the settled one for a head.
+         "tehe": (1024, 1024)}
 
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
 # and THIN from the positive and the legwear ban from the negative -- naming a
 # garment that is out of frame is what invites it back into the frame.
-HEAD_FRAMINGS = ("portrait", "allnighter", "dizzy", "snarl")
+HEAD_FRAMINGS = ("portrait", "allnighter", "dizzy", "snarl", "tehe")
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
@@ -2139,7 +2169,7 @@ def positive(pose: str, costume: str = "default") -> str:
     # mechanism as `kick`'s ドヤ顔 and `situp`'s clenched teeth.
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
                             "dizzy", "kick", "situp", "hype", "roar",
-                            "pounce", "loom", "snarl", "swelter")
+                            "pounce", "loom", "snarl", "swelter", "tehe")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
@@ -2261,6 +2291,27 @@ def positive(pose: str, costume: str = "default") -> str:
         # needed, and d35a67f8 is the render that carries them.
         body = _splice(body, "(petite:1.2)", "(petite:1.4)")
     character = blocks["character"]
+    if pose in HEAD_FRAMINGS:
+        # The head framings already drop LEGWEAR, BODY and THIN for one reason:
+        # naming what is out of frame is what invites it back into the frame.
+        # The shoes are the same reason and were being missed, because they are
+        # not in one of those blocks -- `sporty` carries them in the CHARACTER
+        # block, which no crop touches.
+        #
+        # What that cost, and it is the cleanest demonstration of the rule this
+        # file has: c08034a0 drew a white high-top sneaker floating in the
+        # backdrop beside her head, correctly rendered and attached to nothing.
+        # Not a defect of the pose -- the costume asked for a shoe and the frame
+        # had no foot to put it on.
+        #
+        # Removed, not substituted. `swelter` swaps in `(no shoes:1.35)` because
+        # its feet are IN the picture and something has to be on them; here
+        # there is no foot, and `no shoes` would be naming the crop's own
+        # contents back into it.
+        character = _splice(
+            character,
+            ", (white footwear:1.4), (sneakers:1.45), (high tops:1.3)", "",
+            costume == "sporty")
     if pose == "swelter":
         # 「部屋でジタバタしているので」. She is on the floor of a room, and
         # SPORTY's white high tops are outdoor shoes; nothing else in the

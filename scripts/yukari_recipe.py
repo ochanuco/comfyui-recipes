@@ -1708,7 +1708,16 @@ POSES = {
     # before suspecting whatever was added last.
     "swelter": (
         "(solo:1.5), (lying:1.45), (on back:1.5), (from above:1.45), "
-        "(flailing:1.25), (knee up:1.35), (spread legs:1.35), (arm up:1.4), "
+        # `(flailing:1.25)` was here and is gone with the effect lines. It is
+        # the one word left in the block that a speed line is the standard
+        # drawing of, and the negative guard alone did not finish the job.
+        # What it cost is recorded rather than guessed at: on 555666777 the
+        # backdrop stopped being flat at all -- 0.1% floods, against 29.3% with
+        # the tag -- so this tag was holding the plain background up on at
+        # least one seed, and `deliver.py` cannot repaint what it cannot flood.
+        # The pose survives it because `knee up`, `spread legs` and `arm up`
+        # are the shape, and 微動 is the ask.
+        "(knee up:1.35), (spread legs:1.35), (arm up:1.4), "
         "(clenched hand:1.35), (closed eyes:1.4), (open mouth:1.35), "
         "(screaming:1.4), (furrowed brow:1.35), (midriff:1.35), (navel:1.3)"
     ),
@@ -2512,6 +2521,26 @@ HIRES_DENOISE = 0.60
 # So a guard whose job is subtraction belongs here rather than in
 # `_negative_base`, where it would be handed to the pass that can act on it.
 HIRES_NEGATIVE = {
+    # 「右腕が変な色になってる」 on 9603280e, and it was not a colour: the arm
+    # thrown over her head measured (255,243,240) against a cheek at
+    # (250,230,233) and a backdrop at (238,225,230), outlined in the pink-red
+    # this model roughs with instead of the near-black everything painted
+    # carries. The flat was never laid down.
+    #
+    # **The second pass does not fix that on its own.** Same seed, 2048: plain
+    # `--hires` redrew the picture with the same hole in it, and 0.70 filled it
+    # by redrawing more of everything. The white region is internally coherent
+    # -- it has its own linework -- so 0.60 has nothing to resolve until the
+    # state is named. Naming it is this line, and it lands at 0.60 without
+    # touching anything that was not asked about.
+    #
+    # Four names because the model does not treat them as one: `sketch` and
+    # `lineart` are the medium, `unfinished` is the state, and `monochrome` is
+    # what an unpainted region actually is next to a painted one.
+    #
+    # Pass 2 only, which is the whole point -- the composition the user picked
+    # is not re-rolled. 174ce1dc is the render that carries it.
+    "swelter": "(sketch:1.45), (lineart:1.45), (unfinished:1.4), (monochrome:1.35), ",
     # 「目も修正してほしい」 on 4b7d646c. `smug` narrows the lids on its own --
     # `half-closed eyes` is long gone from this pose -- and the face is roughly
     # 250px across in a 1536x1024 frame, which is where eyes stop matching each

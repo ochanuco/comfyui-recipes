@@ -8180,5 +8180,15 @@ This corrects nothing earlier in the file but it does bound something: the note
 that a refine cannot rebuild structure is about geometry. An unpainted region is
 not structure, and it IS reachable at 0.60 -- with a word.
 
-Not in the recipe yet. Both this guard and `tb`'s `(flailing:1.25)` removal are
-waiting on a pick.
+**Settled on ub: `174ce1dc`.** Both changes are in the recipe -- the pass-2
+guard in `HIRES_NEGATIVE["swelter"]`, and `(flailing:1.25)` out of the pose
+block. Checked the way this file requires: `yk.build("swelter", 1886970040,
+hires=2048, costume="sporty")` was compared node for node against
+`/history/174ce1dc`, every input bar the filename prefix, and matches.
+
+So `swelter` now runs 14 tags, and the whole ジタバタ axis is spent: the motion
+lines are guarded in the negative, `flailing` is gone from the positive, and
+what is left doing the work is `knee up`, `spread legs` and `arm up`. If a later
+round wants the motion back, it is the guard that comes out first, not the tag
+-- the tag costs a floodable backdrop on at least one seed and the guard costs
+nothing measured.

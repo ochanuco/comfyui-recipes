@@ -8335,3 +8335,47 @@ Delivered: `9b33b436` (cheek 1.15) and `631e7cd1` (cheek 1.05), both on
 Not in the recipe: `tehe` still carries `(v:1.6)` with no hand guard. What is
 waiting on a pick is `(v:1.45)`, the cheek weight, and whether the guard belongs
 in the shared negative or only in pass 2.
+
+## `tehe` settled: the emoticon that worked is the one that had to go (2026-08-23)
+
+「舌出し止めて」 on a8efbbdc, then 「ベースのモデルでいいよ」. Settled on that
+render's seed and composition, 1357913579, with the mouth shut.
+
+**`;p` was chosen because it carries a wink AND a tongue in one token, and that
+is exactly why it could not survive the tongue being cancelled.** An emoticon
+names a whole expression; there is no half of `;p` to keep. So the face is
+spelled out after all -- `(one eye closed:1.45), (wink:1.35), (smile:1.35)` --
+which is the arm this file would have picked in the first round if the tongue
+had never been asked for. The first round's finding still stands and is worth
+keeping in that shape: **an emoticon tag is the cheapest way to draw a compound
+expression and the most expensive one to edit.**
+
+`tehe` leaves `open_mouthed` with the tongue -- it was only ever in that list to
+let a tongue through FACE's `closed mouth` -- and its `closed mouth` departure
+comes out of `costume_check`. A stale declaration and an undeclared exception
+fail that file the same way.
+
+Two other arms were rendered on the same seed and both work, if the expression
+is ever re-opened: `(open mouth:1.25), (smile:1.3)` for the cheerful version,
+and dropping `smile` for the flat one.
+
+**The hand guard moved into pass 1, and the ORDER of it was caught by the
+reproduction check.** Prepending versus appending five negative tags reproduced
+every other node of d2106e99 and differed on exactly one, which is the check
+doing the job it exists for -- this file has already recorded that token order
+changes the encoding, which is why the がおー parts are two fragments. Both
+guards are prepended now, hands in front of tongue, because that is the order
+the sweep ran in.
+
+**The square canvas did not staircase this time.** `tehe` is 1024x1024 so its
+print is 2.0x, and the entry above says that is the ratio that breaks the
+staircase. Measured on the settled print at 2048/d0.70: stair mean 2.0, max 68,
+hard-step 0.1% -- level with the 1.33x `swelter` print at 1.8 and 0.3%. So 0.70
+is not a workaround for that pose, it is the print setting, and `--hires-denoise
+0.70` is part of how this pose prints:
+
+    uv run scripts/yukari_recipe.py --pose tehe --costume sporty \
+        --seed 1357913579 --hires 2048 --hires-denoise 0.70
+    uv run scripts/deliver.py <prompt_id>
+
+Delivered: `21c7a32a`. The recipe rebuilds `d2106e99` node for node.

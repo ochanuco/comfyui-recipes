@@ -148,14 +148,11 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"removed": ["closed mouth"],
          "why": "\u5bdd\u4e0d\u8db3: the mouth hangs open"},
     ],
-    # \u30c6\u30d8\u30da\u30ed. `;p` IS a mouth with a tongue coming out of it,
-    # so FACE's `closed mouth` is the tag that would close it again -- the same
-    # contradiction the four poses above resolve, arriving here through an
-    # emoticon rather than through a word.
-    "tehe": [
-        {"removed": ["closed mouth"],
-         "why": "a tongue cannot come out of a closed mouth; `;p` names both"},
-    ],
+    # \u30c6\u30d8\u30da\u30ed had a `closed mouth` removal here while `;p` was
+    # drawing a tongue through it. 「\u820c\u51fa\u3057\u6b62\u3081\u3066」 took
+    # the tongue and the emoticon together, so the mouth is shut like every
+    # other pose and the departure is gone rather than left lying -- an
+    # undeclared exception and a stale declaration fail this file the same way.
     # Full body, so unlike `allnighter` it wears the whole costume; the mouth is
     # its only departure.
     "allnighter_full": [

@@ -1733,21 +1733,36 @@ POSES = {
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), (close-up:1.2), "
         "(face focus:1.3), " + GAO_HANDS + ", (hands up:1.4), " + GAO_FACE
     ),
-    # テヘペロ, with a peace sign at the cheek.
+    # テヘペロ minus the ペロ, with a peace sign at the cheek.
     #
-    # **`;p` is one token for the whole face and it lands.** Danbooru's
-    # emoticon tags name a complete expression -- this one is a wink with the
-    # tongue out -- and it drew both halves on the first sweep, against a
-    # spelled-out arm carrying `one eye closed`, `wink` and `tongue out`. It
-    # is kept beside `(tongue out:1.4)` and not alone: the emoticon decides the
-    # face, the second tag keeps the tongue from being a detail it can drop.
+    # **`;p` was here and it worked exactly as advertised, which is why it had
+    # to go.** Danbooru's emoticon tags name a complete expression -- that one
+    # is a wink WITH the tongue out -- and it drew both halves from one token
+    # on the first sweep, beating an arm that spelled the same face out. Then
+    # 「舌出し止めて」, and an emoticon whose whole content is a wink and a
+    # tongue has nothing left to be once the tongue goes. So the face is spelled
+    # out after all: `(one eye closed:1.45), (wink:1.35), (smile:1.35)`, shut,
+    # which is the sly version rather than the cheerful one. `(open mouth:1.25),
+    # (smile:1.3)` is the cheerful arm and `(smile:1.35)` alone dropped is the
+    # flat one; both were rendered on this seed and both work.
     #
-    # `(v:1.6)` against `(hand on own cheek:1.15)`, and the weights are the
+    # The pose leaves `open_mouthed` with the tongue. It was only ever in that
+    # list to let a tongue through FACE's `closed mouth`.
+    #
+    # `(v:1.45)` against `(hand on own cheek:1.05)`, and the weights are the
     # whole finding. At 1.45/1.4 the cheek tag won outright and drew an open
     # palm with splayed fingers -- `hand on own cheek` DESCRIBES an open palm,
     # so the two tags are naming different handshapes for the same hand and
     # whichever is heavier gets it. Inverted, the V is the shape and the cheek
     # is only the place.
+    #
+    # **The exact weights past that inversion do not matter and forty renders
+    # say so.** 1.6/1.15 and 1.45/1.05 were run against the same nine seeds:
+    # the same two draws are good in both and the same seven are bad in both.
+    # Two other levers died on the way -- `(clenched hand:1.2)` fixes the
+    # knuckle count by removing the V, and dropping the cheek tag draws the
+    # best hands in the sweep and puts them on her chest. **At this point the
+    # hand is the seed**, and the guard below is what makes a good seed hold.
     #
     # `(upper body:1.35)` where the other head framings have `(close-up:1.2)`.
     # This is the one crop in the file with a hand ON the face rather than
@@ -1756,8 +1771,8 @@ POSES = {
     # the tighter crop, which is what the delivery step needs to flood.
     "tehe": (
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
-        "(upper body:1.35), (face focus:1.3), (;p:1.5), (tongue out:1.4), "
-        "(v:1.6), (hand on own cheek:1.15)"
+        "(upper body:1.35), (face focus:1.3), (one eye closed:1.45), "
+        "(wink:1.35), (smile:1.35), (v:1.45), (hand on own cheek:1.05)"
     ),
 }
 
@@ -2005,6 +2020,34 @@ def negative(pose: str, costume: str = "default") -> str:
         # `emphasis lines` the burst behind a face -- and it is the burst that
         # was in the picture.
         text += ", (motion lines:1.5), (speed lines:1.5), (emphasis lines:1.45)"
+    if pose == "tehe":
+        # And the tongue, which nothing in the positive asks for any more. The
+        # emoticon that drew it is gone; this is here because a wink and a small
+        # mouth are what the model was drawing one FROM. A tongue is a drawn
+        # object with a name, which is the case where a guard works -- same
+        # reasoning as `swelter`'s speed lines.
+        text = "(tongue:1.5), (tongue out:1.5), " + text
+        # ...and the hands go in FRONT of the tongue, because that is the order
+        # the sweep ran in. Two prepends in the other order reproduced every
+        # node but this one.
+        # **A hand guard, in PASS 1, and that placement is the point.** It lived
+        # in `HIRES_NEGATIVE` first, which is invisible at 1024 -- and 1024 is
+        # where forty renders of this hand were judged, so a sweep would have
+        # been looking at a prompt the print does not use. It is in both passes
+        # now: this one, and the pass-2 copy below.
+        #
+        # 「指の形がおかしいのと、数（手の甲の指の根元の突起の数）がおかしい」.
+        # `extra digits` is the one that names the second half -- four knuckles
+        # drawn for a fist showing two folded fingers -- and it is the term the
+        # weight is on.
+        #
+        # PREPENDED, not appended, and that is not cosmetic. The sweep these
+        # were judged on put them at the front of the negative, and this file
+        # has already recorded that token order changes the encoding -- the
+        # がおー parts are split into two fragments for exactly that reason.
+        # Appending reproduced every other node of d2106e99 and differed here,
+        # which is the whole check catching a one-line drift.
+        text = HAND_BAN + text
     if pose in HEAD_FRAMINGS:
         return text
     text = text + ", " + LEGWEAR_BAN
@@ -2169,7 +2212,7 @@ def positive(pose: str, costume: str = "default") -> str:
     # mechanism as `kick`'s ドヤ顔 and `situp`'s clenched teeth.
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
                             "dizzy", "kick", "situp", "hype", "roar",
-                            "pounce", "loom", "snarl", "swelter", "tehe")
+                            "pounce", "loom", "snarl", "swelter")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
@@ -2571,7 +2614,15 @@ HIRES_DENOISE = 0.60
 #
 # So a guard whose job is subtraction belongs here rather than in
 # `_negative_base`, where it would be handed to the pass that can act on it.
+# The five names for a hand drawn wrong, used by `tehe` in both passes.
+HAND_BAN = ("(bad hands:1.5), (mutated hands:1.5), (extra digits:1.5), "
+            "(fused fingers:1.45), (long fingers:1.4), ")
+
 HIRES_NEGATIVE = {
+    # The pass-1 hand guard again, because 0.70 redraws the hand and a guard
+    # that only ran on the pass that is being redrawn is not a guard. Same five
+    # tags; see `negative()` for why they are those five.
+    "tehe": HAND_BAN,
     # 「右腕が変な色になってる」 on 9603280e, and it was not a colour: the arm
     # thrown over her head measured (255,243,240) against a cheek at
     # (250,230,233) and a backdrop at (238,225,230), outlined in the pink-red

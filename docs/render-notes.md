@@ -8379,3 +8379,56 @@ is not a workaround for that pose, it is the print setting, and `--hires-denoise
     uv run scripts/deliver.py <prompt_id>
 
 Delivered: `21c7a32a`. The recipe rebuilds `d2106e99` node for node.
+
+## It is not the resolution, it is the redraw (2026-08-23)
+
+「解像度を上げると途端に指の数がバグる」. Correct, and the mechanism is narrower
+than "resolution": the second pass does not enlarge a hand, it draws a new one.
+At 2048 the hand has four times the pixels and the model fills them with its own
+idea of a hand rather than with the hand that was there.
+
+Measured on 2557902837, one composition, four routes, same crop:
+
+    1024 pass 1                 a correct V: two fingers up, thumb across the
+                                folded ring and little finger, knuckles count
+    lanczos to 2048             the same hand, bigger. Identical
+    2048 / d0.70                wrecked: extra digits, tangled folds, a stray
+                                finger at the hairline
+    1536 / d0.60                also wrecked, differently
+
+**Both denoises and both sizes break it, and the resample does not touch it.**
+So `upscale_plain.py` is the print route for this pose, and the reason is
+structural rather than a setting to tune: a hand is the one thing in this
+picture whose correctness is combinatorial -- four fingers and a thumb in a
+specific arrangement -- and 0.60 is enough freedom to rearrange it. A flat that
+was never laid down (see the `swelter` arm) is the opposite kind of defect, and
+that is why pass 2 fixes one and breaks the other. **Pass 2 is for paint, not
+for anatomy.**
+
+What it costs is real and is not hidden: lanczos adds no detail, so the print is
+a 1024 drawing at 2048. On this style that is cheap -- flat colour, thin lines,
+nothing photographic to lose -- and the edge measures better than the redraw:
+
+    lanczos 2048    stair mean 1.8 max 30   AA 1.93   hard  0.0%
+    2048 / d0.70    stair mean 1.9 max 39   AA 0.79   hard 30.6%
+
+**Two more things fell out of the round and both are worth having.** At 2.0x,
+d0.45 and d0.60 leave visible RGB fringing along every edge and 0.70 does not,
+so the denoise on a square-canvas print is not free to come down for the hand's
+sake -- another reason the answer is to not redraw at all. And d0.70 at 2.0x
+**re-frames**: the print is visibly tighter on the head than its own pass 1. A
+second pass at that denoise is not a refinement.
+
+**And a correction to the round before this one.** 1357913579 was settled partly
+on its hand, and its hand was never good -- `.local/handcrop.py`'s fixed window
+cut the hand off the top of the frame, so it read as acceptable at 460px because
+most of it was outside the crop. Three ways of finding the hand automatically
+have now failed (thin-skin finds hair, the fixed window silently crops, line
+density finds the hair ornament), and the tool takes a window as an argument
+now. **A judging tool that silently crops the thing being judged is worse than
+no tool.**
+
+Re-hunted on the settled recipe, twelve seeds: 2557902837 first by a distance,
+then 192837465, 555666777, 111222333; 86753090, 979797979 and 987654321 drew a
+second figure. Delivered `yk-h-tehe-2557902837-big` (lanczos) beside
+`be94da12` (the d0.70 redraw) so the difference is on one sheet.

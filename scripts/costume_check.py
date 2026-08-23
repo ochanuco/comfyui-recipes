@@ -259,6 +259,12 @@ COSTUME_ONLY: dict[str, dict[str, list[dict]]] = {
              "why": "the rib outlived the thighhighs it belonged to; ADDED, "
                     "not substituted -- substituting it removed the tights"},
         ],
+        "portrait": [
+            {"added": ["(criss-cross halter:1.45)"],
+             "why": "\u80a9\u7d10\u304c\u306a\u3044\u306d: the dress's own "
+                    "straps, in frame on a head-and-shoulders crop; the backdrop "
+                    "cost is repainted at delivery on this framing"},
+        ],
         "nape": [
             {"added": ["(halterneck:1.45)", "(black straps:1.35)"],
              "why": "the bow this pose is looking at; documented as costing "

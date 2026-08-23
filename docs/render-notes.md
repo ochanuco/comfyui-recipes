@@ -8460,3 +8460,100 @@ The edge is fine at this size and this is a 1.5x print, not a 2.0x one:
     1536 / d0.60, shipped    stair mean 1.8 max 21   AA 8.77   hard 7.5%
 
 Purple at 6.5px from the band default, no override.
+
+## まつ毛: the vocabulary exists, and the weight is bracketed from above (2026-08-23)
+
+「ゆかりさんのまつ毛をより良くしたい」, refined to **「毛量は多いが長さは均一がいいかな」**
+and then to **lashK**. That second sentence is the durable part of this entry:
+the criterion is dense and EVEN, not long, and a later session judging this axis
+by "more eyelash" will pick the wrong arm.
+
+`FACE` has carried a bare, unweighted `eyelashes` since the block was written
+and this repo had never swept it. The one prior mention is `queue_dq3`'s
+duplicate-figure suspect list, where it was named and never tested.
+
+**The tags are real, and that was checked rather than assumed.** Against
+danbooru's tag list: `eyelashes` 262k, `colored_eyelashes` 56k, `long_eyelashes`
+12k, `thick_eyelashes` 7.2k. So `long eyelashes` and `thick eyelashes` are
+vocabulary, not prose — thin vocabulary next to the base tag, but vocabulary.
+`colored_eyelashes` being the second-largest of the group is worth remembering:
+it is the common idiom for "the lashes are drawn on purpose", and it draws them
+as a mass rather than as separate hairs.
+
+Four rounds, all `portrait` at 555666777, 1024 first pass then `--hires 1536`.
+The face is the largest in the file and lash width at 1024 is under the line
+width this model draws with, so the second pass is not optional here.
+
+| round | arms |
+|---|---|
+| 1 | A control · B `(eyelashes:1.45)` · C long · D thick · E long+thick · F colored |
+| 2 | G thick 1.45 · H = G **plus `(long eyelashes:1.35)` in the negative** · I +colored · J `(eyelashes:1.55)` |
+| 3 | K/L/M — H's configuration at thick 1.35 / 1.25 / 1.15 |
+| 4 | Kn (K without the guard) · K2, Kn2 (the same pair on 111222333) |
+
+**H was called right on length, ほんの少し多い on density, and K was picked.** So:
+
+    (eyelashes:1.3), (thick eyelashes:1.35)     positive
+    (long eyelashes:1.35)                       negative, prepended
+
+**The weight is bracketed from above and that is what a later session inherits:**
+1.45 is too dense, 1.35 is right, and the two rungs below it were rendered in
+the same round rather than left for another round trip. Whatever is right on
+this axis is at or under 1.35, and going back to 1.45 is not new information.
+
+### Open, and it decides what enters the recipe
+
+K, L and M all carried the guard, so **nobody has yet seen K without it**. Round
+4 is the isolation — Kn against K on the settled seed, Kn2 against K2 on a fresh
+one — and it is unjudged at the time of writing. It matters because the guard
+would go in a negative that EVERY POSE SHARES, where the recipe's own record
+says a guard is a deletion that works on drawn objects and fails on properties
+(`(long torso:1.4)` moved nothing). Lash length is nearer a property than an
+object, so the guard being dead weight is the outcome to expect.
+
+`FACE` is therefore UNCHANGED so far. Nothing above is in the recipe yet, and
+that is deliberate: the positive was only ever judged with the guard present, so
+shipping it alone would ship a state nobody has looked at.
+
+## 肩紐: the head framings never drew the straps (2026-08-23)
+
+「肩紐がないね」, said of a `portrait` render. It is correct and it was not a
+regression — the pose never had the splice.
+
+Her dress is a halter whose straps cross at the chest and pass over the
+shoulders; it is the official design, recorded here 2026-08-17. The tag lives in
+three poses — `boss` and `stand` take `(criss-cross halter:1.45)`, `nape` takes
+`(halterneck:1.45), (black straps:1.35)` — and **it was tried globally once and
+dropped**, for backdrop intruders on both seeds. `stand` then took it anyway:
+the straps are the design and `recolor_bg.py` repaints the backdrop at delivery.
+
+`portrait` is a head-and-shoulders crop, so the straps are in frame, and it is
+delivered through the same repaint. The backdrop cost is one it had already
+paid. Three arms, K's lashes carried so the pictures were judged in the state
+they were being looked at:
+
+| | tags | |
+|---|---|---|
+| **P1** | `(criss-cross halter:1.45)` | **picked — e4ff4f8a** |
+| P2 | `nape`'s pair | |
+| P3 | P1 + `(off shoulder:1.3)` — `boss`'s actual configuration | |
+
+**The `boss` precedent predicted a cost this pose did not pay.** `boss`'s comment
+says it could afford the tag *because* its coat was already off the shoulders,
+which reads as a precondition. It is not one: P1 drew the straps with the
+cardigan up, and P3 — the arm built to give the strap a bare shoulder to cross —
+was not needed. A constraint recorded as the reason a pose could afford
+something is not automatically a requirement for the next pose.
+
+In the recipe as a `pose == "portrait"` splice, declared in `COSTUME_ONLY`.
+Costume fingerprint unchanged: this is a pose-level departure, not a block edit.
+
+**The other four head framings are still strapless.** `allnighter`, `dizzy`,
+`snarl` and `tehe` crop at the shoulders for the same reason `portrait` does and
+have the same gap. They are untested, and the global attempt is the reason they
+get tested per pose rather than fixed with one edit.
+
+Delivered `#9256b8` at 24.9px — the band-relative default, not an override. The
+number looks heavy against the 6px picked on `swelter`, and it is the same
+accent: the width is 0.32 of the figure's own white marker, and a head crop's
+marker is wide. That share replaced a share-of-canvas after 「大外の紫を復旧して」.

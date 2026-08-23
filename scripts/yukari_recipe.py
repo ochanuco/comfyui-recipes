@@ -2481,6 +2481,25 @@ def positive(pose: str, costume: str = "default") -> str:
             character,
             "(drawstring:1.4), ", "(drawstring:1.4), (criss-cross halter:1.45), ",
             dressed)
+    if pose == "portrait" and dressed:
+        # 「肩紐がないね」. The halter is the official design and this is a
+        # head-and-shoulders framing, so the straps are in frame and were not
+        # being drawn -- the pose simply never had the splice.
+        #
+        # `boss` could afford this because its coat is already off the
+        # shoulders, and this pose cannot make that argument. It did not need
+        # to: the one-tag form drew the straps here with the cardigan up.
+        # e4ff4f8a is the picked render, against nape's pair and against the
+        # `(off shoulder:1.3)` configuration boss uses.
+        #
+        # The backdrop cost recorded when this tag was tried GLOBALLY applies
+        # here too and is accepted for the same reason `stand` accepted it: the
+        # backdrop of a head framing is repainted by `recolor_bg.py` at
+        # delivery, so it is a cost this pose had already paid.
+        character = _splice(
+            character,
+            "(drawstring:1.4), ", "(drawstring:1.4), (criss-cross halter:1.45), ",
+            dressed)
     if pose == "nape" and dressed:
         # The dress ties in a bow at the nape, which only this pose is looking
         # at, and which costs every other pose its coat -- see CHARACTER.

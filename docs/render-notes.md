@@ -8432,3 +8432,31 @@ Re-hunted on the settled recipe, twelve seeds: 2557902837 first by a distance,
 then 192837465, 555666777, 111222333; 86753090, 979797979 and 987654321 drew a
 second figure. Delivered `yk-h-tehe-2557902837-big` (lanczos) beside
 `be94da12` (the d0.70 redraw) so the difference is on one sheet.
+
+## `tehe` printed: 1536 at the default denoise, on 2557902837 (2026-08-23)
+
+Settled: `bb0d5baa`, which is
+
+    uv run scripts/yukari_recipe.py --pose tehe --costume sporty \
+        --seed 2557902837 --hires 1536
+    uv run scripts/deliver.py <prompt_id>
+
+No flags past `--hires`. The recipe rebuilds that graph node for node with
+`HIRES_DENOISE` untouched at 0.60, which is worth saying plainly: the pose needs
+no print settings of its own after all. `--hires-denoise 0.70` was the arm the
+staircase round reached for and it is not what shipped.
+
+**My read of that render's hand lost, and the entry above should be read with
+this next to it.** I put `bb0d5baa` on the sheet as "also wrecked, differently"
+and it is the one that was chosen. What the previous entry establishes stands --
+the second pass redraws a hand rather than enlarging it, and the lanczos route
+preserves pass 1 exactly -- but "the redraw is worse" is a judgement, and this
+project's record on my judgement of a hand at crop scale is now no better than
+its record on image statistics. **What the measurement supports is that the
+hands DIFFER; which one is right was never mine to call.**
+
+The edge is fine at this size and this is a 1.5x print, not a 2.0x one:
+
+    1536 / d0.60, shipped    stair mean 1.8 max 21   AA 8.77   hard 7.5%
+
+Purple at 6.5px from the band default, no override.

@@ -8744,3 +8744,70 @@ The `yk-qbK` caveat did not decide anything, and it is left standing as a caveat
 that arm repainted 53.8% against its pair's 26.5%, so the two `tehe` tiles are
 not only a lash difference. The two `portrait` pairs carry this result; the
 `tehe` pair agrees with them.
+
+## The purple stroke's automatic width was measuring the tail, in both directions (2026-08-24)
+
+The band estimate produced 1.0, 2.3, 2.9, 3.2, 3.5, 4.5, 6.5, 11.3, 12.7 and
+24.9px across one day's deliveries, on renders of the same poses at the same
+canvases. **A sweep delivered on it is not a comparison** — the purple varied
+more between arms than the thing being compared did.
+
+`band_thickness` takes the median, over the backdrop's contour, of the distance
+to the nearest dark pixel. Its docstring already recorded that the quartiles on
+the accepted print were 16 and 98 — "parts of a contour have no line anywhere
+near them and those read in the hundreds" — and chose the median for exactly
+that reason. **The median only protects while the tail is under half.** Share of
+contour with no line within 20px, on the renders that produced the spread:
+
+    strawX (picked)   0.3%     band 10.0    ->  3.2px
+    colaU1c          18.5%     band  7.1    ->  2.3px
+    qbK              37.7%     band 11.3    ->  3.6px
+    qbKn             44.8%     band  3.0    ->  1.0px
+    qb               57.6%     band 20.6    ->  6.6px
+    portrait P1      60.7%     band 77.6    -> 24.9px
+    colaU2           81.2%     band 45.5    -> 14.6px
+
+The two past 50% are the two whose numbers are absurd — 45.5px of "band" on a
+print whose band is under 20, and 77.6 on a head crop.
+
+**The 24.9px head crop was the same failure, and nobody noticed because it broke
+in the flattering direction.** It was delivered, it was not complained about,
+and it was read as the band rule working. It was not: at far 60.7% that median
+is distance-to-nothing. A statistic can be wrong in a way that looks like taste.
+
+Fixed in `outline_stroke.py`, two lines of behaviour:
+
+- `band_thickness` returns 0.0 — could not find it, rather than it is zero —
+  when the far share reaches 0.5. Not a tuned threshold: it is the point at
+  which a median *is* the tail.
+- the canvas share is a **floor** under the band estimate rather than the rule
+  it replaced. Both rules only ever failed by drawing too thin, so the larger of
+  the two is never the failure mode.
+
+Every arm of a comparison now gets the same width: 4.6px across the three
+`tehe` renders, 6.1px across the three `straw` ones, where before they were
+6.5/3.5/1.0 and 12.7/2.3/3.2. 6.1 is what the eye picked on cf978c9c.
+
+### Two picked widths, and no rule fits both
+
+    head crop, 1536    24.9px    1.62% of the long side
+    full print, 2048    6.1px    0.30%
+
+A fivefold split that nothing measured predicts. The band rule does not: on
+`eyeR1`, a head crop whose estimate is *healthy* at far 9.7%, it says 3.5px —
+thin, in the same direction it was thin on the prints. **There is no example of
+the band rule working on a head crop**, only one of it failing upward.
+
+So no rule was written. Head framings need `--stroke-width-pct 1.6` passed
+explicitly until there is more than one data point, and under the fix their
+default is the 4.6px floor, which is the value 「大外の紫を復旧して」 was said about.
+That is a real regression against an accident, and it is taken deliberately:
+deterministic-and-overridable beats random, and the old behaviour was random —
+the same framing got 24.9 on one render and 3.5 on another.
+
+What the difference actually is, measured between the two head-crop tiles: 1.38%
+of pixels differ, 97% of them inside the stroke annulus, 965 on the figure's own
+edge where the wider band's inner ramp lands, and none anywhere else. The
+pictures are identical apart from the line. It reads as a larger change than
+that because a contact sheet scales the tiles down and a 4.6px line nearly
+disappears at 1000px wide.

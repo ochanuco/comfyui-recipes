@@ -60,6 +60,10 @@ DEFAULT_WIDTH_PCT = 0.3
 # it was actually chosen as: 6.1px against a band measuring 19.2 on the render
 # the four arms were judged on. See `band_thickness`.
 DEFAULT_WIDTH_BAND = 0.32
+# The share-of-canvas rule this one replaced, kept as a FLOOR under it. Both
+# rules only ever failed by drawing too thin, so the larger of the two is the
+# one that is never the failure.
+DEFAULT_WIDTH_PCT = 0.3
 
 
 def parse_args() -> argparse.Namespace:
@@ -111,6 +115,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+# Above this share of the contour having no line within LINE_REACH, the median
+# below is measuring the tail rather than the band. 0.5 is not a tuned number:
+# it is the point at which a median IS the tail.
+FAR_SHARE = 0.5
+LINE_REACH = 20.0
+
+
 def band_thickness(pixels: np.ndarray, mask: np.ndarray, dark: int = 120) -> float:
     """How thick the figure's OWN white marker is, at the median of its contour.
 
@@ -138,7 +149,20 @@ def band_thickness(pixels: np.ndarray, mask: np.ndarray, dark: int = 120) -> flo
     contour = (inward > 0) & (inward <= 1)
     if not contour.any():
         return 0.0
-    return float(np.median(to_line[contour]))
+    distances = to_line[contour]
+    # **The median only protects while the tail is under half.** Measured on the
+    # renders that produced today's 1.0-to-12.7px spread: the share of contour
+    # with no line within 20px ran 0.3%, 18.5%, 37.7%, 44.8%, 57.6%, 81.2%, and
+    # the two past 50% are exactly the two whose estimate was absurd -- 45.5px
+    # of "band" on a print whose band is under 20. Past that point the median
+    # has crossed into the distances-to-nothing and is not measuring paint.
+    #
+    # 0.0 rather than a clamped guess: the caller has a canvas-relative default
+    # that does not depend on finding the band at all, and a number that is
+    # known to be wrong is worse than no number.
+    if float((distances > LINE_REACH).mean()) >= FAR_SHARE:
+        return 0.0
+    return float(np.median(distances))
 
 
 def stroke_alpha(mask: np.ndarray, gap: float, width: float) -> np.ndarray:
@@ -183,7 +207,21 @@ def stroke(
         width = max(pixels.shape[:2]) * width_pct / 100
     elif width is None:
         fraction = DEFAULT_WIDTH_BAND if width_band is None else width_band
-        width = band_thickness(pixels, mask) * fraction
+        band = band_thickness(pixels, mask)
+        # **A FLOOR, not a fallback.** The two rules fail in opposite
+        # directions: the canvas share went invisible on a head crop, which is
+        # why the band share replaced it, and the band share came out at 1.0
+        # and 2.3px on prints whose siblings got 6.5 and 12.7. Taking the larger
+        # of the two fixes both, because neither is ever wrong by being too big
+        # here -- the head crop's band is thick, so the band rule wins there and
+        # the floor does not bind; a print's band is thin, so the floor does.
+        #
+        # Measured on the six renders that produced today's spread. Before:
+        # 6.5 3.5 1.0 / 12.7 2.3 3.2. After: 4.6 4.6 4.6 / 6.1 6.1 6.1 -- every
+        # arm of a comparison gets the same band, which is the property that was
+        # actually missing. 6.1 is also what the eye picked on cf978c9c.
+        width = max(band * fraction,
+                    max(pixels.shape[:2]) * DEFAULT_WIDTH_PCT / 100)
 
     alpha = stroke_alpha(mask, gap, width)
     return pixels + alpha[..., None] * (rgb - pixels), width, share

@@ -461,6 +461,58 @@ SPORTY_LEGWEAR = "(black pantyhose:1.5), (opaque pantyhose:1.4)"
 # costume does not have, and naming an absent garment is how it gets drawn.
 SPORTY_HOOD = "(visible hair:1.2), (purple eyes:1.2)"
 
+# The third costume, and it was arrived at by subtraction from the second over
+# one session: the tee lost its print and its colour, the denim and the tights
+# came off as 夏っぽくない, a skirt was tried in six shapes and abandoned
+# (「スカート案をやめた方が良さそう」), and what was left is a gym kit.
+#
+# 「無地でリブ生地がいいな。夏っぽさを出すなら少し薄めの紫」 is the top, tag for
+# tag: `light purple` is IDENTITY's own spelling for the shade, borrowed rather
+# than invented, and one colour tag in one slot -- `purple shirt` is NOT stacked
+# beside it. `ribbed_shirt` is 8.3k.
+#
+# `(high-waist pants:1.4)` is here and not in the legwear block on purpose. It
+# is the waistband, which is a thing the SHIRT sits on: without it the oversized
+# tee hangs to mid-thigh and swallows whatever is under it, which is how two
+# rounds of skirt-length measurement got thrown away before anyone noticed the
+# hem was not the variable.
+FITNESS = IDENTITY + (
+    "(light purple shirt:1.45), (ribbed shirt:1.35), (t-shirt:1.45), "
+    "(oversized shirt:1.4), short sleeves, "
+    "(high-waist pants:1.4), (sportswear:1.35), "
+    "vocaloid, voiceroid, "
+    "(white footwear:1.4), (sneakers:1.45), (high tops:1.3)"
+)
+
+# Still ONE garment on the leg, and here the garment is the trousers: ankle-length
+# compression leggings ARE the legwear, so they go in this slot rather than
+# beside the shorts the way `sporty`'s denim does.
+#
+# **`(vertical-striped clothes:1.35)` is the side stripe, and it is the one tag
+# in this costume that was bought with a hit rate rather than a look.** The line
+# arrived unasked on ONE seed of four under `(sportswear:1.35)` alone -- 33f5fd9d,
+# 「白のラインが良い！！！！」 -- which is this file's usual warning sign: a value
+# the model has no way to hold. Naming the stripe took it to three of four. The
+# COLOUR did not come along: the picked pair are purple-lined and the render that
+# started it is white-lined. Presence is pinned; hue is not, and nothing here
+# pretends otherwise.
+#
+# The cost is a guard, in `negative()`, because the tag names clothes and not
+# trousers -- see there.
+FITNESS_LEGWEAR = ("(leggings:1.45), (black leggings:1.4), (skin tight:1.45), "
+                   "(vertical-striped clothes:1.35)")
+
+# No hood here either, for SPORTY_HOOD's reason.
+FITNESS_HOOD = "(visible hair:1.2), (purple eyes:1.2)"
+
+# The costumes that bring shoes of their own. Three gates below are about
+# footwear and NONE of them is about being `sporty` -- they were written as
+# `costume == "sporty"` when that was the only shod costume, and an equality
+# test is exactly the kind of gate a third costume walks past in silence. The
+# failure would not have been loud: `stand` would carry two pairs of shoes, and
+# the head framings would go back to drawing a sneaker floating in the backdrop.
+SHOD = ("sporty", "fitness")
+
 # The three blocks a costume owns. Everything else -- FACE, SURFACE, BODY, THIN,
 # every pose and the whole negative -- is shared, which is the claim this split
 # is making: what changes between the two is the clothes, not her and not the
@@ -468,6 +520,8 @@ SPORTY_HOOD = "(visible hair:1.2), (purple eyes:1.2)"
 COSTUMES = {
     "default": {"character": CHARACTER, "legwear": LEGWEAR, "hood": HOOD},
     "sporty": {"character": SPORTY, "legwear": SPORTY_LEGWEAR, "hood": SPORTY_HOOD},
+    "fitness": {"character": FITNESS, "legwear": FITNESS_LEGWEAR,
+                "hood": FITNESS_HOOD},
 }
 
 
@@ -499,7 +553,7 @@ def pose_block(pose: str, costume: str = "default") -> str:
     be looking at the same text or that splice matches nothing.
     """
     text = POSES[pose]
-    if pose == "stand" and costume == "sporty":
+    if pose == "stand" and costume in SHOD:
         # The only pose that names footwear, and it names the settled costume's
         # black high tops. SPORTY brings white sneakers; both in one prompt is
         # asking for two pairs of shoes.
@@ -1591,9 +1645,13 @@ POSES = {
     #   pose needed, so it is gone. `sip` had to spend that slot to get china;
     #   a paper cup is what this model reaches for unaided.
     #
-    # `(logo:1.4), (print:1.35)` are already in NEGATIVE, which is why the cup
-    # comes out plain. That is a happy accident of a guard written for her
-    # clothes and it is worth knowing before someone deletes it.
+    # This block used to claim that `(logo:1.4), (print:1.35)` are in NEGATIVE
+    # and that they are why the cup comes out plain. **They are not in
+    # NEGATIVE.** They are appended by `_negative_base` for `stand` and for no
+    # other pose, so `straw`'s plain cup is the model's own doing and has no
+    # guard behind it. The claim cost a real render to disprove: the sporty tee
+    # arrived with a watermelon print on `snack`'s sweep, on a pose that has no
+    # such guard, which is what a costume relying on this would look like.
     #
     # NOT in `open_mouthed`: FACE's `closed mouth` is correct with a straw --
     # lips around it, not a shout.
@@ -2038,10 +2096,20 @@ SWEEP_SEEDS = [555666777, 111222333, 1886970040, 737373737, 2557902837, 34095643
 def negative(pose: str, costume: str = "default") -> str:
     """The negative, plus the legwear ban every full-figure pose now carries."""
     text = _negative_base(pose)
-    if costume == "sporty":
-        # One guard released, and only for this costume. `(blue tint:1.4)` was
-        # aimed at a cast over the whole picture; this costume is asking for
-        # denim, which is blue, so the guard would be arguing with the clothes.
+    if costume in ("sporty", "fitness"):
+        # One guard released. `(blue tint:1.4)` was aimed at a cast over the
+        # whole picture; `sporty` is asking for denim, which is blue, so the
+        # guard would be arguing with the clothes.
+        #
+        # **`fitness` is here on inheritance, not on that reason.** Nothing in
+        # that costume is blue -- black leggings, a light purple tee, white
+        # shoes -- so by the argument above it should keep the guard. It is
+        # released because the renders that were picked (d218afdc, e8dacf7e)
+        # were swept under `sporty` and drawn without it, and one guard is
+        # exactly the size of difference this file has watched change an
+        # output. Same shape as `straw` carrying `swelter`'s paint guard:
+        # carried rather than earned, and written down as such so that the day
+        # a blue cast turns up there is a line to take back.
         #
         # `(blue background:1.5)` STAYS. The backdrop is not prompt-stable here
         # and is set afterwards with recolor_bg.py, so a blue one in the render
@@ -2111,6 +2179,23 @@ def negative(pose: str, costume: str = "default") -> str:
     if pose in HEAD_FRAMINGS:
         return text
     text = text + ", " + LEGWEAR_BAN
+    if costume == "fitness":
+        # **The stripe tag names CLOTHES, not trousers.** `vertical-striped
+        # clothes` is 64k and does not know which garment was meant, so the tee
+        # this costume spent three tags keeping plain comes back striped. Same
+        # shape as `snack`'s watermelon: a pattern tag with no garment attached
+        # goes wherever there is fabric.
+        #
+        # Gated on the COSTUME, which is the correction this one forced.
+        # `(logo:1.4), (print:1.35)` sit in `_negative_base` under `stand` and
+        # nowhere else, so every other pose is unguarded against a print -- the
+        # guard was put where a pose needed it instead of where the wardrobe
+        # does. This is the same mistake not repeated.
+        #
+        # AFTER the legwear ban, because that is where the sweep put it. The
+        # arm this reproduces appended to a finished negative, and this file has
+        # already recorded that token order changes the encoding.
+        text = text + ", (striped shirt:1.5)"
     if pose == "situp":
         # The exercise brings its own wardrobe and its own room. Three tags,
         # kept short on purpose: this file has twice watched a long guard stack
@@ -2425,7 +2510,7 @@ def positive(pose: str, costume: str = "default") -> str:
         character = _splice(
             character,
             ", (white footwear:1.4), (sneakers:1.45), (high tops:1.3)", "",
-            costume == "sporty")
+            costume in SHOD)
     if pose == "swelter":
         # 「部屋でジタバタしているので」. She is on the floor of a room, and
         # SPORTY's white high tops are outdoor shoes; nothing else in the
@@ -2452,7 +2537,7 @@ def positive(pose: str, costume: str = "default") -> str:
             character,
             "(white footwear:1.4), (sneakers:1.45), (high tops:1.3)",
             "(no shoes:1.35)",
-            costume == "sporty")
+            costume in SHOD)
     if pose == "boss":
         # Grown up, and it is one substitution now, not the two it started as.
         #

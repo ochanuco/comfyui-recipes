@@ -8885,3 +8885,156 @@ Print: 7c4ecd18 at `--hires 2048`. **No resample step**: 1024x1536 to 2048 is
 `pounce`'s 2.0x, and denoise 0.60 covers it. Delivered at 53.0% backdrop with
 the stroke at 6.1px — the print value the repaired width rule was tuned to, on
 its first unattended run since the repair.
+
+## `fitness`: a third costume, arrived at by subtraction (2026-08-25)
+
+「服をオリジナル服（紫のワンピースのあれ）ベースのTシャツにマッシュアップできる？」
+started this, and eleven sweeps later what is in the file is a gym kit: a plain
+ribbed light-purple tee, ankle-length black compression leggings with a side
+stripe, white high tops. Almost nothing that was tried on the way is in it.
+
+    (light purple shirt:1.45), (ribbed shirt:1.35), (t-shirt:1.45),
+    (oversized shirt:1.4), short sleeves,
+    (high-waist pants:1.4), (sportswear:1.35),
+    (white footwear:1.4), (sneakers:1.45), (high tops:1.3)
+    legwear: (leggings:1.45), (black leggings:1.4), (skin tight:1.45),
+             (vertical-striped clothes:1.35)
+    negative: + (striped shirt:1.5)
+
+Picked: d218afdc and e8dacf7e, seeds 111222333 and 737373737, `stand` at
+832x1664. Both reproduce from `--costume fitness` node-for-node. Print of the
+round before it: f31d220d, delivered at 67.0% backdrop, stroke 6.1px.
+
+Fingerprint `2940a4b4552ad646` → `9c4d0da38fc1378f`, and the settled blocks are
+again untouched: 32 poses × {default, sporty} × {pass 1, 2048} rebuilt against
+the previous commit, zero drift.
+
+### The colour is spelled the way IDENTITY spells it
+
+「少し薄めの紫」 is `(light purple shirt:1.45)` — the same `light purple` that
+IDENTITY has been using for her hair since the file was written, borrowed rather
+than invented. One colour tag in one slot: `purple shirt` is **not** stacked
+beside it. `ribbed_shirt` is 8.3k, and the rib survives `(flat color:1.3)`.
+
+### The guard that named the rare variant
+
+「レーススカートが透けすぎている」 on a skirt that already carried
+`(see-through clothes:1.5), (see-through skirt:1.5)`. Both legs were drawn
+through it, outlines and all.
+
+NEGATIVE's own long-standing guard is `(see-through dress:1.45)`. On danbooru
+that tag is **9.3k**; `see-through_clothes` is **217k** and
+`see-through_shirt` is 20k. The guard has been naming a rare variant of the
+thing it was written to stop, for as long as it has existed. Nothing in this
+repo had ever asked it to do work before, so nothing had caught it.
+
+### Guarding a property while banning the fix
+
+Raising the correct guard to 1.6 was still not the answer, and the reason is
+worth more than the fix: **lace is not see-through because it has a lining, and
+NEGATIVE bans the lining.** `(petticoat:1.35)` and `(layered skirt:1.25)` are
+both in it. The prompt was asking for an opaque sheer garment while forbidding
+the only construction that makes one.
+
+Not resolved by render — the skirt was abandoned first
+(「スカート案をやめた方が良さそう」) — so this is a mechanism with no measurement
+behind it yet. Recorded because the next lace or chiffon anything will hit it.
+
+### A guard pointing the wrong way, and the length that has no tag
+
+Two errors in one axis, both mine.
+
+**Danbooru has no midi.** The length vocabulary is `microskirt` 27k →
+`miniskirt` 381k → *(unmarked `skirt` 2.2M)* → `long_skirt` 54k. The middle
+length has no name because it is the default — so "knee-length" is
+`(skirt:1.45)` with no length tag, and the way to hold it there is to bracket
+both ends in the negative.
+
+**And the bracket I wrote pointed both ends the same way.** `(long skirt:1.4)`
+in the negative pushes the hem UP, and the model's prior for an unmarked skirt
+is already `miniskirt` at 7× the count of `long_skirt`. Guarding both ends
+guarded neither: four of four came out microskirt. Measured after removing it:
+
+| positive | hem |
+| --- | --- |
+| none | mid-thigh, and the oversized tee hides it |
+| `(long skirt:1.1)` | mid-thigh, barely distinguishable from none |
+| `(long skirt:1.2)` | mid-calf |
+| `(long skirt:1.3)` | ankle; 2 of 4 came out high-low |
+
+A cliff between 1.1 and 1.2 with the knee inside it, which is where the dial
+was still sitting when the skirt was dropped.
+
+### The variable was not the hem
+
+Half of that measurement was junk for a reason no weight would have fixed:
+`(oversized shirt:1.4)` hangs to mid-thigh, so on three of four seeds **the tee
+was covering the skirt** and the sweep was reading the shirt's hem, not the
+skirt's. `(high-waist pants:1.4)` is in the settled costume partly for this —
+it pins the waistband, so what is below it is visible enough to measure.
+
+Two rounds of length arms were spent before anyone looked at what was on top.
+
+### Slit height has no tag, and `side slit` means cheongsam
+
+「脚は見せたいがロングスカート」 resolves to `side_slit` (59k) and nothing else —
+`front_slit` is 3.9k, `back_slit` 160. But **there is no tag for how far up a
+slit goes**, and `side_slit`'s training mass is qipao, so it draws hip-high:
+「チャイナ服感があるな」. Weighting it down removes the slit rather than
+shortening it, which is why the round after that was three *constructions* with
+a low opening rather than three settings of one dial.
+
+`(chinese clothes:1.5)` (161k) is the guard for the style, not `china dress` —
+what was showing up was a skirt's tailoring, not a dress.
+
+### Three guards that a pose owned and a costume needed
+
+The recurring shape of this whole session, and the reason the promotion took as
+long as the sweeps:
+
+- **`(buttons:1.4)` is banned by `stand` and `boss`.** 「ボタンでちゃんと留めたい」
+  was a request to release a guard. It went in because her dress has no buttons
+  and the cardigan reads as a shirt — a costume-shaped reason living in a pose.
+- **`(logo:1.4), (print:1.35)` are `stand`-only.** The `straw` block claimed
+  they were in NEGATIVE and that this is why its paper cup comes out plain.
+  **They are not, and the cup is the model's own doing.** The claim was
+  disproved by a render, not by reading: `snack`'s sweep put a watermelon print
+  on the tee, on a pose with no such guard. Corrected in the block.
+- **`(vertical-striped clothes:1.35)` needed its own.** The tag names clothes,
+  not trousers, so it stripes the tee this costume spends three tags keeping
+  plain. `(striped shirt:1.5)` is gated on the COSTUME, which is the same
+  mistake not repeated — and it goes after the legwear ban because that is
+  where the swept arm put it.
+
+### `costume == "sporty"` in four places
+
+Four gates were written as an equality against the only shod costume that
+existed, and a third one walks past all four in silence: `stand` would carry two
+pairs of shoes, and every head framing would go back to drawing a sneaker
+floating in the backdrop (c08034a0). They are `costume in SHOD` now.
+
+The two `costume == "default"` gates were already correct by luck — `situp`'s
+`(sportswear:1.45), (gym uniform:1.4)` and `stand`'s white-shoe ban both had to
+be skipped for this costume, and "not default" happens to say that.
+
+### The stripe: presence pinned, hue not
+
+The white side line arrived unasked on **one seed of four** under
+`(sportswear:1.35)` alone — 「白のラインが良い！！！！」 — which is this file's
+usual signature for a value the model cannot hold. Naming it
+`(vertical-striped clothes:1.35)` took it to **three of four** (555666777 is the
+one that comes out plain), and the shirt guard held on all four.
+
+**The colour did not come along.** The two renders picked out of that arm are
+purple-lined; the render that started it is white-lined. Presence is pinned and
+hue is not, and there is no tag between them — `side-striped_clothes` does not
+exist, and `striped_clothes` at 354k does not know which garment was meant.
+
+### `(bike shorts:1.5)` was queued and withdrawn
+
+「フィットネスパンツは？」 was answered with three arms including bike shorts, and
+then the reference photo arrived: ankle-length high-waist compression leggings.
+Bike shorts are a knee-length garment and a different one. The arm was cleared
+off the queue before it rendered, so it cost nothing — worth noting only because
+the queue was cleared twice this session for the same reason, and both times the
+already-finished half was still posted.

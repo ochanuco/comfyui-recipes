@@ -68,7 +68,9 @@ COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "th
                   # It has no approved render behind it yet, which is a reason
                   # to hash it rather than a reason not to: the fingerprint is
                   # what makes a later edit to it visible.
-                  "sporty", "sporty_legwear", "sporty_hood")
+                  "sporty", "sporty_legwear", "sporty_hood",
+                  # And the third, for the same reason the second is here.
+                  "fitness", "fitness_legwear", "fitness_hood")
 # 47b0d089d5a5ec77 -> aa86759a39ffca43 on 2026-08-20. The settled blocks did not
 # change a character: what moved the hash is the second costume joining the list
 # above. The proof it is only that is in the notes -- every pose's prompt and
@@ -77,7 +79,11 @@ COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "th
 # aa86759a39ffca43 -> 2940a4b4552ad646 on 2026-08-24. FACE's lashes: a bare
 # unweighted `eyelashes`, never swept since the block was written, becomes
 # `(eyelashes:1.3), (thick eyelashes:1.35)`. Every pose wears it.
-COSTUME_FINGERPRINT = "2940a4b4552ad646"
+# 2940a4b4552ad646 -> 9c4d0da38fc1378f on 2026-08-25. A THIRD costume joins the
+# list above -- `fitness`, the summer gym kit. The settled blocks are untouched
+# again, and the same proof applies: every pose under `--costume default` and
+# `--costume sporty` was compared against the previous commit.
+COSTUME_FINGERPRINT = "9c4d0da38fc1378f"
 
 
 def tags(text: str) -> list[str]:
@@ -292,6 +298,24 @@ COSTUME_ONLY: dict[str, dict[str, list[dict]]] = {
                     "every other pose its coat, which is why it is spliced"},
         ],
     },
+    # The same two departures as `sporty`, because they follow from the same
+    # fact: this costume also names shoes. They are written out rather than
+    # aliased to that entry -- a costume declaring another costume's exceptions
+    # by reference is a line nobody re-reads when one of the two changes.
+    "fitness": {
+        "swelter": [
+            {"removed": ["(white footwear:1.4)", "(sneakers:1.45)",
+                         "(high tops:1.3)"],
+             "added": ["(no shoes:1.35)"],
+             "why": "\u90e8\u5c4b\u3067\u30b8\u30bf\u30d0\u30bf: indoors, and this "
+                    "costume's high tops are outdoor shoes"},
+        ],
+        "stand": [
+            {"removed": ["(black footwear:1.35)", "(high tops:1.35)"],
+             "why": "this costume names its own shoes; the pose's pair would "
+                    "be a second one in the same prompt"},
+        ],
+    },
     "sporty": {
         "swelter": [
             {"removed": ["(white footwear:1.4)", "(sneakers:1.45)",
@@ -315,6 +339,7 @@ COSTUME_ONLY: dict[str, dict[str, list[dict]]] = {
 # that has any, and `stand` is the only pose that names shoes of its own.
 COSTUME_FOOTWEAR = {
     "sporty": ["(white footwear:1.4)", "(sneakers:1.45)", "(high tops:1.3)"],
+    "fitness": ["(white footwear:1.4)", "(sneakers:1.45)", "(high tops:1.3)"],
 }
 
 

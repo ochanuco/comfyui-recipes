@@ -8706,3 +8706,41 @@ actually mattered before rendering any of them.
 
 `(cola:1.4)` went the same way one message earlier. Two asks in a row where the
 named thing was already in the picture or already in the prompt.
+
+### Correction: the length guard was isolated, and it won all three pairs (2026-08-24)
+
+The section above says the guard is in the recipe "by selection rather than by
+measurement" and predicts it does nothing. **Both halves of that are now wrong.**
+The three pairs were put on two contact sheets and judged:
+
+| sheet | pair | picked |
+|---|---|---|
+| `sheet-guard-portrait` | `yk-lashK` / `yk-lashKn` (555666777) | **guard** |
+| `sheet-guard-portrait` | `yk-lashK2` / `yk-lashKn2` (111222333) | **guard** |
+| `sheet-guard-tehe` | `yk-qbK` / `yk-qbKn` (`tehe`, sporty) | **guard** |
+
+Three for three, across two poses, two costumes and two seeds, with the positive
+identical inside each pair. `(long eyelashes:1.35)` stays in `NEGATIVE` and it is
+load-bearing.
+
+**What this corrects is not the line, it is the rule that predicted it.** This
+file has said, from `(long torso:1.4)` moving nothing and the two-layer leg
+having no tag to outvote, that a guard deletes drawn objects and fails on
+properties. Lash length was filed under properties and the prediction was made
+out loud before rendering. It was wrong.
+
+The distinction that survives is narrower than object-versus-property:
+`long torso` asks the model to un-stretch a region it does not draw as a
+separate mark, while `long eyelashes` names a variant of something it draws as
+discrete strokes — the same shape as `speed lines` and the dress's buttons,
+which guards did remove. **A tag whose subject the model draws with its own
+strokes can be guarded, whether the tag names the object or an attribute of it.**
+That is a smaller claim than the old rule and it is the one the evidence carries.
+
+Nothing to re-render: the recipe already had the guard, and the sheets only
+moved it from selected to measured.
+
+The `yk-qbK` caveat did not decide anything, and it is left standing as a caveat:
+that arm repainted 53.8% against its pair's 26.5%, so the two `tehe` tiles are
+not only a lash difference. The two `portrait` pairs carry this result; the
+`tehe` pair agrees with them.

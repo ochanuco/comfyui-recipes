@@ -8645,3 +8645,64 @@ Worked around by passing `--stroke-width-pct` explicitly for every set above.
 That is not a fix: it is a number a human has to remember per canvas, and the
 whole reason `deliver.py` exists is that the three-step finish was being
 forgotten. The band estimate itself is what needs looking at.
+
+## Settled: the lashes go in, and the reference image yielded one tag (2026-08-24)
+
+Picked: **cf978c9c**, `yk-strawX-straw-737373737` — `straw`, sporty, `--hires
+2048`. Verified: `yukari_recipe.build("straw", 737373737, ..., hires=2048,
+costume="sporty")` reproduces nodes 6, 7 and 7b of that render's own graph
+identically, so what is below is the picture and not a description of it.
+
+**This corrects the まつ毛 entry above**, which said `FACE` was unchanged and
+that nothing had entered the recipe. That was true when it was written and is
+not true now.
+
+In `FACE`, worn by every pose:
+
+    2000s (style), (eyelashes:1.3), (thick eyelashes:1.35), (large iris:1.25)
+
+In `NEGATIVE`, in front, worn by every pose:
+
+    (long eyelashes:1.35)
+
+Costume fingerprint `aa86759a39ffca43` -> **`2940a4b4552ad646`**.
+
+`straw` alone also gets `HIRES_NEGATIVE_PAINT` on pass 2 and gives up `THIN`,
+declared in `costume_check`. Those two are a pair and the entry above says why:
+apart they are +18 and +40 flats, together +75.
+
+### The length guard is in, and it was never isolated
+
+K/Kn on 555666777, K2/Kn2 on 111222333, and qbK/qbKn on the `tehe` render — three
+pairs whose only difference is `(long eyelashes:1.35)` in the negative. All six
+were rendered and delivered; **none were judged.** The picked render carries the
+guard, so the guard is in the recipe by selection rather than by measurement.
+
+Recorded plainly because the recipe's own record predicts it does nothing: a
+guard is a deletion, it works on drawn objects with names and fails on
+properties (`(long torso:1.4)` moved nothing), and lash length is nearer a
+property than an object. If a later session isolates it and finds it inert, the
+line is one line and deleting it costs nothing else. **Do not re-derive the
+three pairs — they exist, they are in the history, and what is missing is a
+look, not a render.**
+
+### What the reference image actually yielded
+
+「な方面の目がいいかな」 came with a picture, and it decomposed into four things.
+Checked against danbooru's tag list rather than guessed:
+
+| from the reference | tag | outcome |
+|---|---|---|
+| thick dark upper lash band | `thick eyelashes` 7.2k | **in** — and it was already picked before the reference arrived |
+| bright iris highlight | `sparkling eyes` 18k | out — 「キラキラは外してほしい」 |
+| purple-to-gold iris | `gradient eyes` 13k | out — and it cost the flat backdrop on 2 of 3 arms carrying it, so `recolor_bg` refused to repaint them |
+| wide open eyes | `unusually open eyes` 6.1k | never judged; it also requires deleting `(half-closed eyes:1.3)`, which is the pose's expression |
+
+**One of four survived, and it was the one already chosen.** The reference did
+not add a tag to this recipe; it confirmed one. That is worth saying because the
+sweep it produced was eight renders across two rounds, and the cheaper move
+would have been to ask which of the four differences from the current render
+actually mattered before rendering any of them.
+
+`(cola:1.4)` went the same way one message earlier. Two asks in a row where the
+named thing was already in the picture or already in the prompt.

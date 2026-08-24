@@ -231,7 +231,12 @@ CHARACTER = IDENTITY + (
 # it is half of the white-outline idiom -- so the print is the one that goes.
 
 FACE = (
-    "(tareme:1.3), (large eyes:1.3), 2000s (style), eyelashes, "
+    # 「毛量は多いが長さは均一がいいかな」, and the weight is bracketed from
+    # ABOVE: 1.45 was called ほんの少し多い and 1.25/1.15 were rendered in the
+    # same round, so anything right on this axis is at or under 1.35. The bare
+    # `eyelashes` this replaces had never been swept at all.
+    "(tareme:1.3), (large eyes:1.3), 2000s (style), "
+    "(eyelashes:1.3), (thick eyelashes:1.35), "
     "(large iris:1.25), thin eyebrows, closed mouth, small mouth, "
     "looking at viewer"
 )
@@ -1912,6 +1917,17 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
 HEAD_FRAMINGS = ("portrait", "allnighter", "dizzy", "snarl", "tehe")
 
 NEGATIVE = (
+    # The other half of the lash pair above: `thick eyelashes` is the 毛量 and
+    # this is the 長さは均一. In front, because every guard this file kept went
+    # at the front and token order changes the encoding.
+    #
+    # NOT ISOLATED. K/Kn and qbK/qbKn were rendered to measure whether this tag
+    # does anything at all -- the recipe's own record is that a guard deletes
+    # drawn objects and fails on properties, and lash length is nearer a
+    # property. Those pairs were never judged; the picked render carries the
+    # guard, so the guard is in. If a later session finds it inert, this is the
+    # line to delete and there is no other cost to deleting it.
+    "(long eyelashes:1.35), "
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
     "extra fingers, extra limbs, watermark, signature, text, (disembodied eye:1.4), "
     "(brown legwear:1.5), brown thighhighs, brown pantyhose, (fishnet:1.4), "
@@ -2591,7 +2607,17 @@ def positive(pose: str, costume: str = "default") -> str:
     # eight tags and a ninth is where the hair clips broke last time.
     hood = blocks["hood"]
     parts.append(f"{hood}, (off shoulder:1.25)" if pose == "nape" else hood)
-    if full_figure:
+    if full_figure and pose != "straw":
+        # `straw` drops THIN, and it is a PALETTE decision rather than a line
+        # one. Measured on `portrait`: THIN alone took the figure from 150
+        # distinct flats to 190, the pass-2 paint guard alone to 168, and the
+        # two together to 225 -- superadditive, and neither half predicts it.
+        # This pose carries the guard (see HIRES_NEGATIVE), so it cannot also
+        # carry THIN without rebuilding the arm that drew 「色がおかしい」.
+        #
+        # THIN's own comment says it was "measured to do nothing to stroke
+        # width". That still holds. Doing nothing to stroke width is not the
+        # same as doing nothing, and this is where the difference showed up.
         parts.append(THIN)
     return ", ".join(parts)
 
@@ -2637,6 +2663,11 @@ HIRES_DENOISE = 0.60
 HAND_BAN = ("(bad hands:1.5), (mutated hands:1.5), (extra digits:1.5), "
             "(fused fingers:1.45), (long fingers:1.4), ")
 
+# Named once because two poses use it and a second literal is a second thing to
+# keep in step. `swelter` earned it; `straw` inherited it.
+HIRES_NEGATIVE_PAINT = ("(sketch:1.45), (lineart:1.45), (unfinished:1.4), "
+                        "(monochrome:1.35), ")
+
 HIRES_NEGATIVE = {
     # The pass-1 hand guard again, because 0.70 redraws the hand and a guard
     # that only ran on the pass that is being redrawn is not a guard. Same five
@@ -2661,7 +2692,17 @@ HIRES_NEGATIVE = {
     #
     # Pass 2 only, which is the whole point -- the composition the user picked
     # is not re-rolled. 174ce1dc is the render that carries it.
-    "swelter": "(sketch:1.45), (lineart:1.45), (unfinished:1.4), (monochrome:1.35), ",
+    "swelter": HIRES_NEGATIVE_PAINT,
+    # The same four tags, on `straw`, and they were NOT earned the same way.
+    # `swelter` had a region that was genuinely never flatted and this guard
+    # named it. `straw` has no such region: 「絵柄・塗りのベースとして」 asked for
+    # 174ce1dc's paint on another picture, and what transferred was this guard
+    # plus THIN's removal, together, as a finish.
+    #
+    # Read the entry in the notes before copying this onto a third pose. A
+    # finish that is the residue of a fix is not a style, and half of this one
+    # is a DELETION of a block every other full-figure pose still carries.
+    "straw": HIRES_NEGATIVE_PAINT,
     # 「目も修正してほしい」 on 4b7d646c. `smug` narrows the lids on its own --
     # `half-closed eyes` is long gone from this pose -- and the face is roughly
     # 250px across in a 1536x1024 frame, which is where eyes stop matching each

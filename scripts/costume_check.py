@@ -74,7 +74,10 @@ COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "th
 # above. The proof it is only that is in the notes -- every pose's prompt and
 # graph under `--costume default` was compared against the previous commit and
 # came back byte-identical.
-COSTUME_FINGERPRINT = "aa86759a39ffca43"
+# aa86759a39ffca43 -> 2940a4b4552ad646 on 2026-08-24. FACE's lashes: a bare
+# unweighted `eyelashes`, never swept since the block was written, becomes
+# `(eyelashes:1.3), (thick eyelashes:1.35)`. Every pose wears it.
+COSTUME_FINGERPRINT = "2940a4b4552ad646"
 
 
 def tags(text: str) -> list[str]:
@@ -119,6 +122,14 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"removed": ["looking at viewer"],
          "why": "she is turned away; the instruction has no referent and either "
                 "argues with the pose or spins her around"},
+    ],
+    "straw": [
+        {"removed": ["(thin lineart:1.3)", "(fine lines:1.25)",
+                     "(delicate lines:1.2)"],
+         "why": "a palette decision, not a line one: THIN and this pose's "
+                "pass-2 paint guard measured superadditive on the flat count "
+                "(150 -> 190 -> 225), and the guard is what the picked render "
+                "wanted"},
     ],
     "prone": [
         # Five legwear entries used to sit here, shortening and recolouring the

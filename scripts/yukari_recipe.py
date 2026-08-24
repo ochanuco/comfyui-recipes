@@ -1601,6 +1601,46 @@ POSES = {
         "(solo:1.5), (standing:1.45), (from front:1.3), (holding cup:1.45), "
         "(drinking straw:1.55), (drinking:1.3), (full body:1.45)"
     ),
+    # 菓子パン, sitting down. `straw`'s vessel grammar one size smaller, and
+    # every slot does the same job it does there:
+    #
+    #   `(holding food:1.45)` is `holding cup`. It puts the thing in her hand
+    #   and says nothing at all about where the hand then goes.
+    #   `(eating:1.4)` is `drinking`: the tag that lifts it to the mouth.
+    #   `(melon bread:1.5)` is the second naming, and this is the case `ride`
+    #   paid for rather than the one `straw` got free. Bare `bread` draws a loaf
+    #   or a slice -- danbooru has `bread` at 21k and `bread_slice` at 5.5k --
+    #   and neither is a 菓子パン. `melon_bread` at 1.5k is the archetype, and
+    #   the only sweet roll there with a count worth spending a slot on
+    #   (`cream_bread` 143, `curry_bread` 66).
+    #
+    # The chair is NOT named twice, and that is the same judgement seen from the
+    # other side: a plain chair is what the model reaches for unaided, like
+    # `straw`'s paper cup. `chair` spends `gaming chair, swivel chair, backrest`
+    # because a gaming chair is not the default one. That is `ride`'s road bike,
+    # and it is not this.
+    #
+    # **Seated because standing could not keep its shoes on.** 「パンを食べてる
+    # ときに靴は触っちゃダメよw 椅子に座って食べるのもOK」. The other arm of the
+    # first sweep was a `cowboy shot`, which crops at the thigh -- and the
+    # sporty costume's `(white footwear:1.4), (sneakers:1.45), (high tops:1.3)`
+    # then had no referent, while `holding food` was sitting there as an open
+    # slot for an object. She was drawn holding a sneaker in 2 of 4 seeds and
+    # standing over a loose one in a third. Deleting the three tags fixed it 4
+    # of 4, which is the HEAD_FRAMINGS rule one crop shallower: naming what is
+    # out of frame is what invites it back in. This pose needs no such deletion,
+    # because the feet are in frame -- it is the framing that makes the costume
+    # honest again, not a guard.
+    #
+    # In `open_mouthed`, against `straw`'s reading of the same question: lips
+    # close around a straw and a bite does not. FACE's `closed mouth` is removed
+    # rather than replaced -- nothing here asks for `(open mouth)` -- so a bite
+    # is permitted and a shout is not commanded.
+    "snack": (
+        "(solo:1.5), (sitting on chair:1.45), (front view:1.35), "
+        "facing viewer, (holding food:1.45), (melon bread:1.5), "
+        "(eating:1.4), (full body:1.45)"
+    ),
     # ロードバイク. Written against the vessel grammar `sip` and `straw` worked
     # out, because a bicycle is the same problem one size up: an object that has
     # to be BOTH in the picture and under her, and whose type has to be pinned.
@@ -1894,6 +1934,10 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # cost is that the cup is small in it; if the vessel is what fails, a
          # square crop is the arm to try before the tags are touched.
          "straw": (832, 1664),
+         # A seated full body, so the frame every seated full body in this
+         # file uses. The roll is small in it and that was accepted: the arm
+         # that made the roll bigger is the one that lost its shoes.
+         "snack": (1024, 1536),
          # Landscape, and the only pose here that is wide for the sake of an
          # OBJECT rather than a body: a road bike seen from the side is longer
          # than she is tall. `flop`, `prone` and `situp` already use this frame.
@@ -2199,6 +2243,14 @@ def _negative_base(pose: str) -> str:
     return text + ", (2girls:1.6), (multiple girls:1.6), (duplicate:1.55), (another person:1.5)"
 
 
+# The poses whose finish is 174ce1dc's. It is TWO things -- the pass-2 paint
+# guard in HIRES_NEGATIVE, and the removal of THIN -- and a pose that got one
+# half without the other is precisely the failure the `straw` entry down there
+# warns about. Named here so that adding a third pose to the finish is one edit
+# in one place rather than two edits five hundred lines apart.
+PAINT_FINISH = ("straw", "snack")
+
+
 def positive(pose: str, costume: str = "default") -> str:
     # The legwear, body and thin-line blocks belong to whole-figure framings;
     # the portrait crops above them and naming what is out of frame is what
@@ -2226,9 +2278,12 @@ def positive(pose: str, costume: str = "default") -> str:
     # `hype` is here for `(grin:1.4)`: a grin is drawn with the teeth showing
     # and FACE's `closed mouth` is what turns it back into a smirk. Same
     # mechanism as `kick`'s ドヤ顔 and `situp`'s clenched teeth.
+    # `snack` is here for a bite. `straw` is deliberately NOT, and the pair is
+    # the whole rule: lips close around a straw and they do not close around a
+    # melon bread.
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
                             "dizzy", "kick", "situp", "hype", "roar",
-                            "pounce", "loom", "snarl", "swelter")
+                            "pounce", "loom", "snarl", "swelter", "snack")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
@@ -2607,9 +2662,9 @@ def positive(pose: str, costume: str = "default") -> str:
     # eight tags and a ninth is where the hair clips broke last time.
     hood = blocks["hood"]
     parts.append(f"{hood}, (off shoulder:1.25)" if pose == "nape" else hood)
-    if full_figure and pose != "straw":
-        # `straw` drops THIN, and it is a PALETTE decision rather than a line
-        # one. Measured on `portrait`: THIN alone took the figure from 150
+    if full_figure and pose not in PAINT_FINISH:
+        # `PAINT_FINISH` drops THIN, and it is a PALETTE decision rather than a
+        # line one. Measured on `portrait`: THIN alone took the figure from 150
         # distinct flats to 190, the pass-2 paint guard alone to 168, and the
         # two together to 225 -- superadditive, and neither half predicts it.
         # This pose carries the guard (see HIRES_NEGATIVE), so it cannot also
@@ -2703,6 +2758,12 @@ HIRES_NEGATIVE = {
     # finish that is the residue of a fix is not a style, and half of this one
     # is a DELETION of a block every other full-figure pose still carries.
     "straw": HIRES_NEGATIVE_PAINT,
+    # The third pose to carry it, and it was carried rather than earned: this
+    # one is `straw`'s sibling in the same costume, and `straw`'s configuration
+    # is the last standing full body the user approved (cf978c9c). Both halves
+    # came across together -- see PAINT_FINISH, which is what makes that one
+    # decision instead of two.
+    "snack": HIRES_NEGATIVE_PAINT,
     # 「目も修正してほしい」 on 4b7d646c. `smug` narrows the lids on its own --
     # `half-closed eyes` is long gone from this pose -- and the face is roughly
     # 250px across in a 1536x1024 frame, which is where eyes stop matching each

@@ -123,6 +123,16 @@ EXCEPTIONS: dict[str, list[dict]] = {
          "why": "she is turned away; the instruction has no referent and either "
                 "argues with the pose or spins her around"},
     ],
+    "snack": [
+        {"removed": ["closed mouth"],
+         "why": "a bite. `straw` keeps it, because lips close around a straw "
+                "and they do not close around a melon bread"},
+        {"removed": ["(thin lineart:1.3)", "(fine lines:1.25)",
+                     "(delicate lines:1.2)"],
+         "why": "`straw`'s finish, carried onto its sibling in the same "
+                "costume rather than re-measured; the two halves move together "
+                "through PAINT_FINISH"},
+    ],
     "straw": [
         {"removed": ["(thin lineart:1.3)", "(fine lines:1.25)",
                      "(delicate lines:1.2)"],

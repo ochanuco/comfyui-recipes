@@ -8811,3 +8811,77 @@ edge where the wider band's inner ramp lands, and none anywhere else. The
 pictures are identical apart from the line. It reads as a larger change than
 that because a contact sheet scales the tiles down and a 4.6px line nearly
 disappears at 1000px wide.
+
+## `snack`: 菓子パン, and the crop that took her shoes off her feet (2026-08-24)
+
+菓子パンを食べるゆかりさん. Written against the vessel grammar `sip`, `straw` and
+`ride` worked out, because a sweet roll is a paper cup one size down and every
+slot maps:
+
+| role | `straw` | `snack` |
+| --- | --- | --- |
+| puts it in her hand | `(holding cup:1.45)` | `(holding food:1.45)` |
+| lifts it to the mouth | `(drinking:1.3)` | `(eating:1.4)` |
+| names the type | — (a paper cup is free) | `(melon bread:1.5)` |
+
+**The second naming is the case `ride` paid for, not the one `straw` got free.**
+Bare `bread` on danbooru is 21k with `bread_slice` at 5.5k, and both draw a loaf
+— neither is a 菓子パン. `melon_bread` is 1.5k, the archetype, and the only
+sweet roll there with a count worth a slot: `cream_bread` 143, `curry_bread` 66.
+It drew a melon roll in 8 of 8 first-sweep renders, crust hatching and all.
+
+The chair is deliberately **not** named twice, which is the same judgement from
+the other side. `chair` spends three tags (`gaming chair, swivel chair,
+backrest`) because a gaming chair is not what the model reaches for; a plain
+chair is, like the paper cup. One slot back.
+
+### The crop took the shoes off her feet and put them in her hand
+
+The first sweep ran two framings on four shared seeds: `full body` at 832x1664
+(`straw`'s own frame) and `cowboy shot` at 1024x1280, on the theory that a roll
+is smaller than a cup and 「the cost is that the cup is small in it」 was
+`straw`'s own open question.
+
+The `cowboy shot` arm came back with her **holding a sneaker** — 872ba604 and
+39289634 plainly, 27d3e771 with a loose one on the ground beside her. 「パンを
+食べてるときに靴は触っちゃダメよw」.
+
+**This is the HEAD_FRAMINGS rule one crop shallower, and it needed a deletion
+rather than a guard.** `cowboy shot` cuts at the thigh, so the sporty costume's
+`(white footwear:1.4), (sneakers:1.45), (high tops:1.3)` had no referent left in
+frame — and `holding food` was sitting right there as an open slot for an
+object, so the orphaned tags took it. Removing the three tags fixed it 4 of 4
+(and, unasked, took out the two-figure render at 1886970040 as well).
+
+Worth keeping because the instinct is backwards here: a negative guard would
+have been the obvious reach and it could not have worked. A guard deletes a
+drawn object; the orphaned tag stays in the prompt and finds somewhere else to
+land. What was wrong was the prompt naming something the frame had cut.
+
+### Picked: seated, and the framing is what makes the costume honest
+
+1903f19a, seed 1886970040, `(sitting on chair:1.45)` at 1024x1536 — the frame
+every seated full body in this file uses. 「椅子に座って食べるのもOK」.
+
+The seated arm keeps its shoes, and that is not an inconsistency: the feet are
+in frame, so the tags have their referent and there is no orphan to place. The
+framing is the fix, not a per-pose deletion.
+
+In `open_mouthed`, against `straw`'s reading of the identical question — lips
+close around a straw and they do not close around a melon bread. FACE's
+`closed mouth` is **removed and not replaced**; nothing here asks for
+`(open mouth)`, so a bite is permitted rather than a shout commanded.
+
+Finish is `straw`'s, carried rather than re-measured: sporty, THIN removed, the
+pass-2 paint guard. That is the last standing full body the user approved
+(cf978c9c), and this is its sibling in the same costume. `PAINT_FINISH` now
+names the two poses that carry it, because it is two edits five hundred lines
+apart in `yukari_recipe.py` and half of it is a deletion — a pose that got the
+guard without the THIN removal would be the exact failure the `straw` entry
+warns about, silently.
+
+Print: 7c4ecd18 at `--hires 2048`. **No resample step**: 1024x1536 to 2048 is
+1.33x on the long side, the same side of the line as `straw`'s 1.23x rather than
+`pounce`'s 2.0x, and denoise 0.60 covers it. Delivered at 53.0% backdrop with
+the stroke at 6.1px — the print value the repaired width rule was tuned to, on
+its first unattended run since the repair.

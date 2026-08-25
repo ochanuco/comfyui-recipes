@@ -1778,6 +1778,53 @@ POSES = {
         "(flying sweatdrops:1.4), (dizzy:1.3), (full body:1.45), "
         "(short dress:1.35)"
     ),
+    # 運動不足で息も絶え絶えで床に座り込む. `hoops` の続き -- she is still in the
+    # gym kit, now on the floor. The reference is a stick figure: legs stretched
+    # out in front, both hands planted on the floor BEHIND her, head back, mouth
+    # open, sweatdrops flying.
+    #
+    # **Half the words for this state are not tags.** Counted before use:
+    # `panting` 0, `tired` 0, `fatigue` 0, `sitting_on_floor` 0,
+    # `outstretched_legs` 956, `hands_on_floor` 985. What carries the state is
+    # `heavy_breathing` 51k, and what carries the hands-behind shape is
+    # `arm_support` 118k -- the tag is already exactly this gesture, so the
+    # 985-count literal naming of it is not needed.
+    #
+    # `(from side:1.35)` 333k is load-bearing, not framing taste. Legs thrown
+    # forward are foreshortened into nothing by a front camera; the first sweep
+    # of this pose was nine renders all shot `from front` and that is what was
+    # wrong with them. It costs the face its three-quarter turn, which is why
+    # `looking at viewer` comes out below.
+    #
+    # **The legs are straightened by a DELETION.** No tag says "legs extended"
+    # in a count that moves a picture, but `knees_up` 81k is exactly the bend to
+    # remove, and it goes in the negative -- the same shape as the knot and the
+    # third arm, where naming the thing to delete beat every attempt to draw the
+    # thing wanted. `legs_together` 37k keeps them closed, which the costume's
+    # standing 「股を出さずに」 requires.
+    #
+    # `(>_<:1.0)` at `dizzy`'s weight and not a digit higher. Two priors, both
+    # about weight rather than the symbol: `(@_@:1.45)` drew literal black
+    # spirals on the whites and 1.0 is what was picked, and `swelter` swept
+    # `(>_<:1.4)` head to head against `(closed eyes:1.4)` and the symbol LOST.
+    # 93.7k posts, more than `@_@`, so the tag is real -- it is 1.4 that is not.
+    # Swept here at 1.0 and 1.3, and 1.0 is the pick.
+    #
+    # `(sweat:1.3)` is deliberately the lowest weight in the block. 763k and
+    # strong, but it is drawn as SHEEN, which is the same axis as the pass-2
+    # gloss this round was spent removing. The state is carried by the symbol
+    # side instead -- `flying_sweatdrops` 126k, `hoops`'s tag. `steaming_body`
+    # 42k is left out for `hoops`'s reason: steam is scenery and SURFACE is a
+    # flat backdrop.
+    "winded": (
+        "(solo:1.5), (sitting:1.5), (on floor:1.45), (from side:1.35), "
+        "(arm support:1.5), (leaning back:1.4), "
+        "(outstretched legs:1.5), (legs together:1.4), "
+        "(open mouth:1.5), (>_<:1.0), (wavy mouth:1.4), (looking up:1.35), "
+        "(heavy breathing:1.45), "
+        "(flying sweatdrops:1.35), (sweat:1.3), "
+        "(full body:1.45), (short dress:1.35)"
+    ),
     # ロードバイク. Written against the vessel grammar `sip` and `straw` worked
     # out, because a bicycle is the same problem one size up: an object that has
     # to be BOTH in the picture and under her, and whose type has to be pinned.
@@ -2078,6 +2125,12 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # A standing full body, so `stand`'s frame -- and `straw`'s, which is
          # the closer sibling: one figure, arms down, an object in her hands.
          "hoops": (832, 1664),
+         # Square, and the only square full body in the file. Legs forward and
+         # arms back put the figure's long axis on the DIAGONAL, so neither the
+         # portrait frames nor the landscape ones fit it: `snack`'s 1024x1536
+         # runs the feet into the edge and `flop`'s 1536x1024 leaves half the
+         # frame empty beside a seated girl. The reference is square too.
+         "winded": (1152, 1152),
          # Landscape, and the only pose here that is wide for the sake of an
          # OBJECT rather than a body: a road bike seen from the side is longer
          # than she is tall. `flop`, `prone` and `situp` already use this frame.
@@ -2294,6 +2347,20 @@ def negative(pose: str, costume: str = "default") -> str:
         # drawn in -- seam, limbs, knot. Token order changes the encoding here
         # and this file has caught a one-line drift by checking it before.
         text = "(cameltoe:1.6), " + text
+    if pose == "winded":
+        # The bend to delete, and the limbs that a girl propped on both arms
+        # grows. `knees_up` 81k is how the legs get straight: nothing in the
+        # positive says "extended" in a count that moves a picture, so the
+        # lever is subtraction. The limb trio is `hoops`'s, and it is here for
+        # a sharper reason than there -- two arms angled back behind the torso
+        # is the arrangement that invites a third.
+        #
+        # Prepended AFTER the seam guard, which means they land in front of it.
+        # That is the order the picked render was drawn in and this file has
+        # caught a one-line drift by checking it; `hoops`'s comment above claims
+        # the last word for the seam and no longer has it on this pose.
+        text = "(knees up:1.5), " + text
+        text = "(extra arms:1.5), (extra legs:1.5), (extra limbs:1.5), " + text
     if costume == "fitness" and ", (midriff:1.35), (navel:1.3)" in text:
         # 「お腹が見えてるのも not for me」. The tail this replaces carries its own
         # confession -- "these three measured nothing... kept for identity with
@@ -2518,7 +2585,7 @@ def positive(pose: str, costume: str = "default") -> str:
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
                             "dizzy", "kick", "situp", "hype", "roar",
                             "pounce", "loom", "snarl", "swelter", "snack",
-                            "hoops")
+                            "hoops", "winded")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.
@@ -2540,6 +2607,20 @@ def positive(pose: str, costume: str = "default") -> str:
         # And `looking at viewer` for `nape`'s reason rather than its own: with
         # the eyes clamped shut the instruction has no referent, so it either
         # argues with the pose or opens her eyes.
+        face = _splice(face, ", looking at viewer", "")
+    if pose == "winded":
+        # Both of `swelter`'s removals, each for the reason `swelter` gives.
+        #
+        # `small mouth` because あ゛〜〜〜 makes the mouth the largest thing in
+        # the face, which is the sentence `swelter` wrote about its own
+        # reference.
+        #
+        # `looking at viewer` for `nape`'s reason: shot from the side with her
+        # head back, the instruction has no referent, so it either argues with
+        # the camera or turns her around. FACE's `(tareme:1.3), (large eyes:1.3),
+        # (large iris:1.25)` STAY, and they are instructions about eyes that are
+        # now shut -- `swelter` noted that cost and did not pay it either.
+        face = _splice(face, "small mouth, ", "")
         face = _splice(face, ", looking at viewer", "")
     body = BODY
     if pose == "prone":
@@ -2958,6 +3039,31 @@ HAND_BAN = ("(bad hands:1.5), (mutated hands:1.5), (extra digits:1.5), "
 HIRES_NEGATIVE_PAINT = ("(sketch:1.45), (lineart:1.45), (unfinished:1.4), "
                         "(monochrome:1.35), ")
 
+# 「線画の絵柄が変わったね」. Every pose gets these, on the second pass only, and
+# the four tags are ALREADY in NEGATIVE at 1.2/1.25 -- this is the same guard
+# at a weight that survives a 2x redraw.
+#
+# The diagnosis, and it is worth keeping because it exonerates two suspects.
+# Distinct flats over the figure ran 849 on the first `hoops` render, 643 on
+# knotK2, and 1154 and 1167 on the two finalised prints -- the gloss arrived
+# between them. It is not the pass-1 prompt: the same pass 1 measured 552 with
+# no second pass at all. It is not `6b` either: the 1167 render has no `6b`
+# node. What changed is that pass 1 handed pass 2 a different latent, and the
+# redraw landed in a glossier style -- specular hair, gradient irises,
+# airbrushed skin, i.e. exactly the "clean and vivid" regression this file
+# exists to prevent.
+#
+# Raising them to 1.45/1.5 for the second pass measured 590 against 1154 on the
+# same pass 1. `(short dress:1.35)` was the other suspect and it is innocent:
+# dropping it from the pass-2 positive measured 1147, i.e. nothing.
+#
+# Pass 1 keeps 1.2/1.25, untouched. At 1024 that weight was never losing, and
+# raising it there would re-roll the composition of every picked render in the
+# file -- the guard belongs to the pass that redraws, which is the same rule
+# `HIRES_NEGATIVE` was written on.
+SHADE_BAN = ("(detailed shading:1.5), (heavy shading:1.5), (impasto:1.45), "
+             "(painterly:1.45), ")
+
 HIRES_NEGATIVE = {
     # The pass-1 hand guard again, because 0.70 redraws the hand and a guard
     # that only ran on the pass that is being redrawn is not a guard. Same five
@@ -3005,6 +3111,12 @@ HIRES_NEGATIVE = {
     # sweep is judging a prompt the print does not use. So this one carries it
     # in both passes from the first sweep, rather than earning the lesson twice.
     "hoops": HAND_BAN,
+    # **Measured, not assumed: this pose's FIRST pass has no hand guard at all.**
+    # The five names live in `negative()` behind `pose ==` gates, so `tehe` and
+    # `hoops` get them and a new pose does not -- `(bad hands:1.5)` counted zero
+    # in the picked render's negative. Both hands are flat on the floor carrying
+    # her weight and pass 2 redraws them, so they are named here, once.
+    "winded": HAND_BAN,
     # 「目も修正してほしい」 on 4b7d646c. `smug` narrows the lids on its own --
     # `half-closed eyes` is long gone from this pose -- and the face is roughly
     # 250px across in a 1536x1024 frame, which is where eyes stop matching each
@@ -3197,11 +3309,15 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
             graph["6b"] = {"class_type": "CLIPTextEncode",
                            "inputs": {"clip": ["4", 1], "text": text}}
             graph["11"]["inputs"]["positive"] = ["6b", 0]
-        if pose in HIRES_NEGATIVE:
-            graph["7b"] = {"class_type": "CLIPTextEncode", "inputs": {
-                "clip": ["4", 1],
-                "text": HIRES_NEGATIVE[pose] + negative(pose, costume)}}
-            graph["11"]["inputs"]["negative"] = ["7b", 0]
+        # Unconditional, where this used to be `if pose in HIRES_NEGATIVE`.
+        # SHADE_BAN applies to every pose -- the gloss is a property of the
+        # redraw, not of any one pose -- so there is always a second negative
+        # now, and the dict only decides what goes in FRONT of it.
+        graph["7b"] = {"class_type": "CLIPTextEncode", "inputs": {
+            "clip": ["4", 1],
+            "text": (SHADE_BAN + HIRES_NEGATIVE.get(pose, "")
+                     + negative(pose, costume))}}
+        graph["11"]["inputs"]["negative"] = ["7b", 0]
         graph["8"]["inputs"]["samples"] = ["11", 0]
 
     return graph

@@ -144,6 +144,17 @@ EXCEPTIONS: dict[str, list[dict]] = {
          "why": "she is turned away; the instruction has no referent and either "
                 "argues with the pose or spins her around"},
     ],
+    "winded": [
+        {"removed": ["closed mouth"],
+         "why": "\u3042\u309b\u301c\u301c\u301c is an open mouth and FACE "
+                "closes it"},
+        {"removed": ["small mouth"],
+         "why": "the groan makes the mouth the largest thing in the face; "
+                "`swelter` removed it for the same sentence"},
+        {"removed": ["looking at viewer"],
+         "why": "shot from the side with her head back, the instruction has no "
+                "referent -- `nape`'s reason"},
+    ],
     "hoops": [
         {"removed": ["closed mouth"],
          "why": "\u301c\u301c\u301c is a drawn-out complaint and FACE closes "

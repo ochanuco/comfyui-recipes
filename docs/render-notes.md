@@ -9289,3 +9289,133 @@ was written for.
 pass 2 at denoise 0.5 redraws a thin light line on black as a torn slash.
 Removing `vertical-striped clothes` from the pass-2 positive did not help, so it
 is the redraw itself and not the instruction. Open.
+
+## `winded`: 運動不足で息も絶え絶え (2026-08-25)
+
+「運動不足で息も絶え絶えで床に座り込むゆかりさん」, then a stick-figure reference:
+legs stretched out in front, both hands planted on the floor behind, head back,
+mouth open, sweatdrops flying. `hoops`'s sequel and the same `fitness` kit.
+Picked pass 1 is 96c28abc; the print is 21daf140, reproduced node-for-node by
+`--pose winded --costume fitness --hires 2048 --denoise 0.5`.
+
+### Half the vocabulary for this state does not exist
+
+Counted on danbooru before use, and the misses are the useful part:
+
+| tag | posts |
+| --- | --- |
+| `panting` | 0 |
+| `tired` | 0 |
+| `fatigue` | 0 |
+| `sitting_on_floor` | 0 |
+| `outstretched_legs` | 956 |
+| `hands_on_floor` | 985 |
+| `after_exercise` | 50 |
+| `heavy_breathing` | **51k** |
+| `arm_support` | **118k** |
+| `knees_up` | **81k** |
+
+Four of the first words that come to mind are not tags at all, and three more
+are on the shelf where `after_exercise` sits — real, and too thin to move a
+picture. The state is carried by `heavy_breathing`; the hands-behind shape is
+carried by `arm_support`, which already means exactly that gesture, so the
+985-count literal was never needed.
+
+### The legs are straightened by a deletion
+
+There is no usable tag for "legs extended". There is one for the bend:
+`knees_up` 81k, in the negative. Same shape as the knot and the third arm —
+when the thing wanted has no name, name the thing in the way and remove it.
+`legs_together` 37k keeps them closed, which is what the costume's standing
+「股を出さずに」 needs.
+
+### The camera was the first sweep's mistake
+
+Nine renders, three leg arrangements, all shot `from front`, and the legs read
+as stumps in every one: thrown forward at the camera they are foreshortened
+into nothing. `from_side` 333k is not framing taste on this pose, it is what
+makes the legs legible. It costs the face its turn toward the viewer, which is
+why `looking at viewer` comes out — `nape`'s reason, arrived at from the
+opposite direction.
+
+### `(>_<:1.0)`, and the two priors are both about weight
+
+「死んだ目というよりは＞＜な感じかな」. `>_<` is 93.7k, *more* than `@_@` at
+55.7k, so the tag is real. What is not real is 1.4:
+
+- `dizzy` found `(@_@:1.45)` draws literal black spirals on the whites, and
+  picked 1.0.
+- `swelter` swept `(>_<:1.4)` head to head against `(closed eyes:1.4)` and the
+  symbol **lost** (b2370dcc).
+
+So the sweep here was 1.0 against 1.3 rather than symbol against no-symbol, and
+1.0 is the pick. A face symbol on this model wants roughly the weight of a
+plain tag, not the weight of an instruction.
+
+`(sweat:1.3)` is the lowest weight in the block on purpose. 763k and strong,
+but it is drawn as **sheen**, which is the same axis as the pass-2 gloss this
+round was spent removing. The state goes to the symbol side instead:
+`flying_sweatdrops` 126k. `steaming_body` 42k is left out for `hoops`'s reason —
+steam is scenery and SURFACE is a flat backdrop.
+
+### 1152×1152, the only square full body in the file
+
+Legs forward and arms back put the figure's long axis on the **diagonal**, so
+neither family of frames fits: `snack`'s 1024×1536 runs the feet into the edge,
+`flop`'s 1536×1024 leaves half the frame empty beside a seated girl.
+
+### The hand guard is per-pose, and a new pose gets none
+
+Measured while building the print: `(bad hands:1.5)` counted **zero** in the
+picked render's negative. The five names live in `negative()` behind `pose ==`
+gates, so `tehe` and `hoops` are covered and anything new is not. Both hands are
+flat on the floor carrying her weight and pass 2 redraws them. Named once, in
+`HIRES_NEGATIVE`.
+
+Worth knowing generally: a guard that reads as global because it appears in
+every printed prompt you have looked at may be gated on the poses you looked at.
+Count it in the actual negative before assuming it is there.
+
+## 「線画の絵柄が変わったね」: the gloss is the second pass, and the guard was already there (2026-08-25)
+
+Distinct flats over the figure: 849 on the first `hoops` render, 643 on knotK2,
+1154 and 1167 on the two finalised prints. The gloss arrived between them —
+specular hair highlights, gradient irises, airbrushed skin, i.e. the "clean and
+vivid" regression this file exists to prevent.
+
+Two suspects were cleared by measurement:
+
+- **Not the pass-1 prompt.** The same pass 1, decoded with no second pass at
+  all, measures 552.
+- **Not `6b`.** The 1167 render has no `6b` node.
+- **Not `(short dress:1.35)`.** Dropping it from the pass-2 positive measured
+  1147 against 1154 — nothing. This was my suspicion and it was wrong; the tag
+  covering the hem stays.
+
+What was actually happening: `(detailed shading:1.2), (heavy shading:1.2),
+(impasto:1.25), (painterly:1.25)` have been in NEGATIVE all along, and at 1024
+that weight was never losing. At 2× the redraw out-argues them. Raising the same
+four to 1.45/1.5 **for the second pass only** measured 590 against 1154 on an
+identical pass 1.
+
+`SHADE_BAN`, and it is applied to every pose rather than added to
+`HIRES_NEGATIVE` pose by pose: the gloss is a property of the redraw, not of any
+one pose, so `build` now always writes a `7b` node and the dict only decides
+what goes in front of it. Pass 1 keeps 1.2/1.25 untouched — raising it there
+would re-roll the composition of every picked render in the file, which is the
+same rule `HIRES_NEGATIVE` was written on.
+
+**A caution about the number.** `flats` was re-derived when it was needed again
+on `winded` and the definition is not the one that produced 590 and 1154, so
+those two are not comparable to anything measured after them. On `winded`'s own
+print the guard moved 144 to 136 — a much smaller gap, because that picture was
+not glossy to begin with. Per `metrics-lie-here`: the statistic localised the
+problem, and the face crop is what confirmed it.
+
+### One guard's duplication turned out not to be load-bearing
+
+The first arm that raised the shading weights also prepended the seam, limb and
+knot guards a second time on top of a picked graph that already had them, and
+measured 691. Re-run in the exact shape the recipe emits — each guard appearing
+once, asserted — it measured 590. The duplication was not helping and was
+mildly in the way.

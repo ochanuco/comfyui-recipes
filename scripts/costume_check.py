@@ -83,7 +83,18 @@ COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "th
 # list above -- `fitness`, the summer gym kit. The settled blocks are untouched
 # again, and the same proof applies: every pose under `--costume default` and
 # `--costume sporty` was compared against the previous commit.
-COSTUME_FINGERPRINT = "9c4d0da38fc1378f"
+# 9c4d0da38fc1378f -> 910a022f1d495234 on 2026-08-25. `fitness` drops
+# `(ribbed shirt:1.35)` -- 「スポーツ着としては合ってない」 -- and its
+# `oversized shirt` goes 1.4 -> 1.45. The two moved together and had to: the rib
+# was what made the hem unsettleable, and with it gone the length went LONGER
+# than the value that had already been rejected as too long.
+#
+# An intermediate cb2de6f211d944dd (rib kept, hem 1.3) existed for one round and
+# is not in the file: that was the arm 「服を中に入れるのは違う」 rejected.
+#
+# Only this costume's character block moved. `default` and `sporty` were rebuilt
+# against the previous commit across every pose and both passes, and did not.
+COSTUME_FINGERPRINT = "910a022f1d495234"
 
 
 def tags(text: str) -> list[str]:

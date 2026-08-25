@@ -477,8 +477,20 @@ SPORTY_HOOD = "(visible hair:1.2), (purple eyes:1.2)"
 # rounds of skirt-length measurement got thrown away before anyone noticed the
 # hem was not the variable.
 FITNESS = IDENTITY + (
-    "(light purple shirt:1.45), (ribbed shirt:1.35), (t-shirt:1.45), "
-    "(oversized shirt:1.4), short sleeves, "
+    # **`(ribbed shirt:1.35)` was here and is gone**, and the removal is the
+    # more interesting half of this line. 「リブ柄を指定したがスポーツ着としては
+    # 合ってないから」 -- but the rib was also the reason the hem could not be
+    # settled. A ribbed knit falls against the body, so it read as a sweater
+    # dress when long and as a shirt tucked in when short, and 1.4 drew
+    # 「少し服が長すぎる」 while 1.3 drew 「服を中に入れるのは違う」. There was no
+    # window between them because the dial was the wrong one.
+    #
+    # Plain jersey has neither failure, and the hem then went the OTHER way from
+    # where two rounds of weight-sweeping were pushing it: 1.45, longer than the
+    # 1.4 that had already been called too long. That is what a wrong dial looks
+    # like from the far side.
+    "(light purple shirt:1.45), (t-shirt:1.45), "
+    "(oversized shirt:1.45), short sleeves, "
     "(high-waist pants:1.4), (sportswear:1.35), "
     "vocaloid, voiceroid, "
     "(white footwear:1.4), (sneakers:1.45), (high tops:1.3)"
@@ -1702,13 +1714,27 @@ POSES = {
     # バスケなんてやりたくないですよぉ〜〜〜〜〜. The object grammar again, and by
     # now it is a form to fill in rather than a thing to work out:
     #
-    #   `(holding ball:1.45)` 13k is `holding cup`. In her hand, nothing about
-    #   where the hand goes.
-    #   `(basketball:1.5)` is the second naming, and it is `ride`'s case: a bare
-    #   ball is any ball. Danbooru's tag is `basketball_(object)` at 6k, but the
-    #   parentheses are weight syntax in a prompt and cannot be written; the
-    #   plain word reaches the text encoder perfectly well, which is the one
-    #   place this file's tag-count discipline has to bend to the tokenizer.
+    #   `(holding basketball:1.5)` is ONE noun, and that is the correction.
+    #   It was `(holding ball:1.45), (basketball:1.5)` -- the two-noun form the
+    #   grammar prescribes -- and it drew TWO BALLS, which is precisely the
+    #   hazard `ride` records for its own second naming ("two bicycles is the
+    #   first thing to look for"). `ride` accepted that cost because a road bike
+    #   is not the default bicycle; here the fused phrase pins the type without
+    #   paying it, so there is nothing to accept.
+    #
+    #   Danbooru's tag is `basketball_(object)` at 6k, but parentheses are
+    #   weight syntax in a prompt and cannot be written. The plain word reaches
+    #   the text encoder perfectly well, which is the one place this file's
+    #   tag-count discipline has to bend to the tokenizer.
+    #
+    #   `(hugging object:1.4)` 32k and `(spread fingers:1.3)` 5.6k are the grip
+    #   in the reference photo: the ball at chest height, a palm on each side,
+    #   fingers open. 「両側から押し抱えてる？感じがいいな。バスケだし」. **There is
+    #   no tag for holding something with both hands** -- not in `holding_*`,
+    #   not under `*both_hands*`, and `holding_to_chest` is 102 posts. So the
+    #   grip is spelled as a clutch plus a hand shape, which is the same
+    #   position `side_slit` left this file in: the picture exists in the
+    #   training data and the word for it does not.
     #
     # **`(@_@:1.0)` is NOT re-measured here.** `dizzy` owns that finding and the
     # value is the finding: 1.45 draws a near-black spiral on a white sclera,
@@ -1730,8 +1756,9 @@ POSES = {
     # is right -- SURFACE is a flat backdrop and a court would fight it, the
     # same contract `ride` keeps by putting her on a bike in front of nothing.
     "hoops": (
-        "(solo:1.5), (standing:1.45), (from front:1.3), (holding ball:1.45), "
-        "(basketball:1.5), (@_@:1.0), (wavy mouth:1.4), "
+        "(solo:1.5), (standing:1.45), (from front:1.3), "
+        "(holding basketball:1.5), (hugging object:1.4), (spread fingers:1.3), "
+        "(@_@:1.0), (wavy mouth:1.4), "
         "(flying sweatdrops:1.4), (dizzy:1.3), (full body:1.45)"
     ),
     # ロードバイク. Written against the vessel grammar `sip` and `straw` worked
@@ -2214,6 +2241,34 @@ def negative(pose: str, costume: str = "default") -> str:
         # Appending reproduced every other node of d2106e99 and differed here,
         # which is the whole check catching a one-line drift.
         text = HAND_BAN + text
+    if pose == "hoops":
+        # `tehe`'s guard on `tehe`'s reasoning, taken up front rather than
+        # after the fact: two hands closed around an object is the same
+        # accident, and that pose's finding was that a pass-2-only guard leaves
+        # the 1024 sweep judging a prompt the print will not use.
+        #
+        # PREPENDED, for the reason recorded above -- the sweep this reproduces
+        # put it at the front, and token order changes the encoding here.
+        text = HAND_BAN + text
+    if costume == "fitness" and ", (midriff:1.35), (navel:1.3)" in text:
+        # 「お腹が見えてるのも not for me」. The tail this replaces carries its own
+        # confession -- "these three measured nothing... kept for identity with
+        # 7d231c4f rather than for effect" -- and 1.35/1.30 is what that looks
+        # like from the other side: weights placed for provenance, asked to do
+        # work for the first time and unable to. `(crop top:1.5)` 282k is the
+        # garment name that was missing; the other two are the same tags with
+        # weights that mean it.
+        #
+        # Costume-gated, because it is this costume's shirt that rides up: a
+        # plain tee over high-waist leggings has a hem with nothing to sit on.
+        #
+        # The `in text` test is not defensive coding, it is `swelter`: that pose
+        # RELEASES these two tags a few lines above, deliberately, and a fitness
+        # `swelter` must keep that release rather than have it silently undone
+        # here. `_splice` would assert instead, which would be the wrong answer
+        # to a legitimate combination.
+        text = text.replace(", (midriff:1.35), (navel:1.3)",
+                            ", (midriff:1.5), (navel:1.45), (crop top:1.5)")
     if pose in HEAD_FRAMINGS:
         return text
     text = text + ", " + LEGWEAR_BAN
@@ -2234,6 +2289,18 @@ def negative(pose: str, costume: str = "default") -> str:
         # arm this reproduces appended to a finished negative, and this file has
         # already recorded that token order changes the encoding.
         text = text + ", (striped shirt:1.5)"
+        # 「シャツが股間で凹むのも望んでいない」 -- the hem pulling into a V between
+        # her legs. `(skin tight:1.45)` is in this costume's LEGWEAR slot and
+        # that slot does not contain it: it is a property tag with no garment
+        # attached, so it goes wherever there is fabric. **Third time in one
+        # costume**, after `vertical-striped clothes` striping the tee and
+        # `snack`'s watermelon, which stops it being a surprise and makes it the
+        # rule: a tag that names how cloth behaves needs a guard on every
+        # garment it was not meant for.
+        #
+        # `taut_clothes` 21k and `taut_shirt` 8.5k, after the stripe guard,
+        # which is the order the picked renders were drawn in.
+        text = text + ", (taut clothes:1.45), (taut shirt:1.5)"
     if pose == "situp":
         # The exercise brings its own wardrobe and its own room. Three tags,
         # kept short on purpose: this file has twice watched a long guard stack
@@ -2888,6 +2955,12 @@ HIRES_NEGATIVE = {
     # came across together -- see PAINT_FINISH, which is what makes that one
     # decision instead of two.
     "snack": HIRES_NEGATIVE_PAINT,
+    # Two hands closed around an object at chest height, which is `tehe`'s
+    # accident class exactly. That pose spent forty renders on one hand and its
+    # conclusion was about WHERE the guard goes: pass 2 only means the 1024
+    # sweep is judging a prompt the print does not use. So this one carries it
+    # in both passes from the first sweep, rather than earning the lesson twice.
+    "hoops": HAND_BAN,
     # 「目も修正してほしい」 on 4b7d646c. `smug` narrows the lids on its own --
     # `half-closed eyes` is long gone from this pose -- and the face is roughly
     # 250px across in a 1536x1024 frame, which is where eyes stop matching each

@@ -9092,3 +9092,111 @@ reading the picked graph back from `/history` and attaching only the second
 pass, so nodes 3/5/6/7 are the worker's own and the print is that drawing at
 size. The costume's current form was run separately as a four-seed check, because
 whether the pose survives the stripe is a measurement and not an assumption.
+
+### Finalising `hoops` and `fitness`: the rib was the wrong dial (2026-08-25)
+
+Picked: 81e14661 (「服装はこれ！！！」, seed 1886970040) and 6755b2ec
+(「ポーズはこれ！！」, seed 737373737) — the same arm, two seeds, praised for
+different halves. Both reproduce from
+`--pose hoops --costume fitness` node-for-node.
+
+Fingerprint `9c4d0da38fc1378f` → `910a022f1d495234`. 32 poses × {default,
+sporty} × both passes rebuilt: zero drift. `hoops` itself moved, which is the
+pose being settled.
+
+**The rib was the wrong dial, and two rounds of weight-sweeping went into
+turning it.** `(ribbed shirt:1.35)` made the hem unsettleable: a ribbed knit
+falls against the body, so 1.4 drew 「少し服が長すぎる」 and 1.3 drew
+「服を中に入れるのは違う」 — no window between two adjacent weights, which should
+have been read as "wrong dial" the first time rather than as "narrow window".
+
+It was removed for an unrelated reason (「スポーツ着としては合ってない」), and the
+hem then settled at **1.45 — longer than the 1.4 already rejected as too long.**
+That is what a wrong dial looks like from the far side: the correct value was
+outside the range the sweep had been searching, in the direction it had ruled
+out.
+
+### A property tag with no garment, three times in one costume
+
+The pattern is now the rule rather than a surprise:
+
+| tag | slot it was in | garment it went to |
+| --- | --- | --- |
+| `(vertical-striped clothes:1.35)` | legwear (the side stripe) | the tee, striped |
+| `(skin tight:1.45)` | legwear (the compression fit) | the tee, pulling into a V at the crotch |
+| `(logo)`/`(print)` — absent | nowhere | `snack`'s tee, a watermelon |
+
+**A tag that names how cloth behaves needs a guard on every garment it was not
+meant for.** `(striped shirt:1.5)` and `(taut clothes:1.45), (taut shirt:1.5)`
+are those guards, both gated on the costume rather than on a pose — which is the
+correction this costume forced, since `(logo)`/`(print)` sit under `stand` and
+leave every other pose unguarded.
+
+The stripe guard is not perfect: hemH13 at 555666777 came back a striped tunic,
+1 of 4, before the taut pair was added.
+
+### The midriff guard was placed for provenance, not for effect
+
+「お腹が見えてるのも not for me」, on a prompt that already carried
+`(midriff:1.35), (navel:1.3)`. The block's own comment says why they could not
+help: "these three measured nothing — the hem did not move with them in or out —
+and are kept for identity with 7d231c4f rather than for effect." Weights placed
+to match a reference render, asked to do work for the first time.
+
+`(crop top:1.5)` 282k is the garment name that was missing. Raised to
+`(midriff:1.5), (navel:1.45)` alongside.
+
+Gated on the costume and skipped when the tags are already absent — **`swelter`
+releases exactly this pair on purpose**, and a fitness `swelter` has to keep
+that release. `_splice` would have asserted on a legitimate combination, so this
+one tests rather than asserts, which is the one place in this file where that is
+the right call.
+
+### Two balls, and a grip with no name
+
+`(holding ball:1.45), (basketball:1.5)` — the two-noun form the vessel grammar
+prescribes — drew **two basketballs**, which is the hazard `ride` records for its
+own second naming and accepts because a road bike is not the default bicycle.
+Here it does not have to be accepted: `(holding basketball:1.5)` is one noun and
+pins the type anyway.
+
+**There is no tag for holding something with both hands.** Not in `holding_*`,
+not under `*both_hands*`; `holding_to_chest` is 102 posts. The reference photo —
+ball at chest height, a palm on each side, fingers open — is spelled as
+`(hugging object:1.4)` 32k plus `(spread fingers:1.3)` 5.6k: a clutch and a hand
+shape, because the picture is in the training data and the word for it is not.
+Same position `side_slit` left this file in.
+
+`HAND_BAN` is in both passes from the first sweep rather than after the fact.
+Two hands closed around an object is `tehe`'s accident class, and that pose's
+conclusion was about placement — a pass-2-only guard leaves the 1024 sweep
+judging a prompt the print does not use.
+
+### The proportion metric returned a constant on three seeds of four
+
+「もしかして脚が長すぎる？」 — and the leg side of that axis is **not
+addressable**: `(long legs:1.4)` in the negative is recorded as doing nothing by
+`prone`, `(long torso:1.4)` moved 40.1% to 38.9% for `flop`, and `hoops` carries
+no positive `long legs` to turn down. The hem was the only lever, which is also
+what was asked for.
+
+`.local/proportion.py` was run on the three hem weights across four seeds:
+
+| seed | 1.35 | 1.4 | 1.45 |
+| --- | --- | --- | --- |
+| 737373737 | 37.0% | 36.2% | 35.4% |
+| 1886970040 | 59.9% | 60.5% | 60.5% |
+| 111222333 | 60.6% | 60.7% | 61.0% |
+| 555666777 | 60.5% | 60.5% | 60.5% |
+
+The bottom three rows all report the hem at row **665 exactly**. That is not a
+hem that did not move, it is a hem that was never found: the detector looks for
+where the figure narrows into two legs, and a figure holding a ball with elbows
+out narrows somewhere else first.
+
+**The dangerous row is the top one.** It is smooth, monotone, and points the
+right way, and it is the same broken script — one seed in four happened to
+produce a plausible number. A metric that works on the seed you are looking at
+and returns a constant on the rest has not been validated by the row that looks
+good. See the `metrics-lie-here` note; this is that failure mode again, and this
+time it was caught before the number was used.

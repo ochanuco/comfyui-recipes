@@ -3428,6 +3428,9 @@ SETTLED_SEED = {
     # The picked render is b393e171. Same number as `winded` and that is
     # coincidence -- both poses were swept from the front of SWEEP_SEEDS.
     "doze": 737373737,
+    # The picked render is 4e56f616, from a four-seed sweep. Third pose in a
+    # row to land on this number and still coincidence, for the same reason.
+    "brush": 737373737,
 }
 
 HIRES_POSITIVE = {

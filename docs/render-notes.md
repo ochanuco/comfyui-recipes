@@ -9737,3 +9737,32 @@ and is not even a danbooru tag, and `(vivid colors:1.5), (high saturation:1.4)`
 in a pass-2 negative turned her hair silver. The remaining levers are the ones
 that do not argue with the tags: a lower pass-2 denoise, or `upscale_plain.py`,
 which keeps pass 1's colour by not letting the model touch it.
+
+## `brush`: 疲れ顔で歯磨き、チェストアップ (2026-08-26)
+
+Assembled entirely from precedent and picked on the first sweep — no slot in
+the block was newly measured this round, so what this entry records is which
+precedents composed and the one place the file had to be told something new.
+
+- Framing is `tehe`'s four tags verbatim, on `tehe`'s square. The request said
+  チェストアップ and `tehe`'s `(upper body:1.35)` is already that crop — it was
+  chosen there because a hand ON the face pushed the head out of `close-up`,
+  and a toothbrush at the mouth is the same geometry.
+- `(brushing teeth:1.45), (toothbrush:1.3)` is `sip`'s two-slot rule (action
+  lifts the object to the mouth, object tag decides what it is), with the
+  action taking the heavier weight because it carries the whole pose.
+- The exhaustion is `allnighter`'s `(eyebags:1.4), (half-closed eyes:1.35)`,
+  and no expression tag beside them, for `allnighter`'s reason.
+- `brush` joins `open_mouthed`, on `snack`'s side of the straw rule: lips do
+  not close around a brush that has to move.
+
+### Picked: 4e56f616, seed 737373737 (2026-08-26)
+
+Sweep was the front four of SWEEP_SEEDS (555666777, 111222333, 1886970040,
+737373737); the user picked yk-brush-737373737_00001_ by filename. Third pose
+in a row settled on 737373737 and still coincidence — every sweep starts from
+the front of the same list. Recorded in `SETTLED_SEED`.
+
+Delivered with `deliver.py` defaults: 15.1% repainted, stroke #9256b8 at 5.4px.
+Backdrop share sits between `tehe`'s 30-41% and the tight crops' 7-30%, which
+is consistent with the same framing plus a raised arm eating into the field.

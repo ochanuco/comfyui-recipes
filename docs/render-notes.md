@@ -9578,3 +9578,60 @@ decides whether the composition has anywhere to put the feet.
 seed holds the colour and decides whether the framing tag works, which makes it
 part of the recipe rather than a detail of one run. Before this it was
 recoverable only from a filename in a worker's history.
+
+### Correction: the print is 1416 (1.23×), and the scale ladder was measured on the wrong render (2026-08-26)
+
+Final for `winded` is **cc988f40** — seed 737373737, printed at 1416×1416,
+denoise 0.50. `HIRES_PRINT` now holds 1416.
+
+The entry above sets it to 1152 — print at 1.0×, no upscale at all — on a ladder
+that measured skin colour count rising 23 / 33 / 38 with the scale and sharpness
+falling 62.9 to 19.7. **That ladder was taken on seed 1886970040, which the seed
+sweep in the same entry later showed to be the most saturated of five on an
+identical prompt.** Retaken on the render that actually ships:
+
+| pass 2 | skin colours | saturation | value sd | darkest p1 |
+| --- | --- | --- | --- | --- |
+| 1152 (1.0×) | 18 | 31.4 | 83.6 | 0.3 |
+| 1416 (1.23×) | 27 | 21.2 | 70.0 | 25.7 |
+| 2048 (1.78×) | 28 | 19.7 | 68.6 | 30.0 |
+
+Bigger prints came out **flatter and with lighter shadows** — the opposite of
+the first ladder — and 1.23× is where the eye stopped. The skin colour count
+still rises with size, but that is the metric this pose already corrected once
+(a Lanczos enlargement scores higher with no new detail in it by construction),
+and the saturation and black-floor movement is far larger.
+
+**A property measured across seeds is not a property of the setting.** Retake
+any such measurement on the render that will ship. This pose spent a full
+session on that sentence: the colour turned out to live in the seed, and then
+the scale conclusion turned out to have been read off the seed as well.
+
+### What this pose cost, and the shape of the mistake
+
+Five properties were wanted — colour, line, ankles, framing, print size — and
+four of them are decided in the first pass, which re-rolls all of them together
+whenever a single token moves. Fixing them one at a time therefore broke a
+settled property on almost every round: the colour fix changed the seed and
+broke the ankles; the ankle fix cost 22.4 → 31.4 in saturation; the line-art
+attempt pulled the feet back into frame and took saturation to 49.2.
+
+The way out was the last question asked rather than the first: **change only the
+second pass.** Print size is the one lever of the five that pass 1 does not own,
+so it moved saturation 31.4 → 21.2 without touching anything already settled.
+
+For the next pose: settle the pass-1 prompt in one piece, sweep seeds in a
+batch, and pick a render that is acceptable on every axis at once. Sequential
+single-dial fixes do not converge here.
+
+### Still open, and shipped anyway
+
+- The wooden floor `(on floor:1.45)` draws. Second-pass guards took it from
+  3.07% to 1.40% of the frame and no further.
+- `recolor_bg` at tolerance 18 leaks into her forearm and hand, because pale
+  skin sits 15 from the corner colour while the floor sits 43. No single
+  tolerance does both.
+- `(high tops:1.3)` in the `fitness` costume has 1903 posts and cannot be
+  moving anything.
+- The three second-pass shoe guards (`shoe_soles`, `single_shoe`, dropping
+  `high tops`) all measured as no-ops. The shoes were solved by framing.

@@ -3258,17 +3258,29 @@ HIRES_FINISH = {
 # wrong. `winded` is the first entry and the reason it exists.
 #
 # **`--hires` is a longest-side number, not a scale factor**, so the same 2048
-# is a 1.23x redraw on a 832x1664 pose and a 1.78x redraw on a square one. That
-# difference is not cosmetic: at 1.78x the second pass had twice the pixels to
-# fill and filled them with detail -- specular skin, coloured shadows, the
-# "CG っぽい" regression -- while the same pass at 1.0x came out the sharpest
-# render in the sweep. So this pose prints at its own canvas, and the second
-# pass is a redraw rather than an enlargement.
+# is a 1.23x redraw on a 832x1664 pose and a 1.78x redraw on a square one. 1416
+# is this pose's 1.23x -- the ratio every portrait pose in the file already
+# prints at, reached the long way round.
+#
+# **This entry read 1152 -- print at 1.0x, no upscale at all -- and that was
+# wrong, on a measurement taken on the wrong render.** The ladder that produced
+# it (skin colour count rising 23 / 33 / 38 with the scale, sharpness falling
+# 62.9 to 19.7) was measured on seed 1886970040, which the seed sweep later
+# showed to be the most saturated of five on an identical prompt. A scale
+# conclusion drawn on the file's most saturated individual did not survive
+# being retaken on the settled one: at 1.0x saturation is 31.4 and the shadows
+# reach true black at 0.3, while 1.23x gives 21.2 and a floor of 25.7 and 1.78x
+# gives 19.7 and 30.0. Bigger prints came out FLATTER and lighter-shadowed here,
+# which is the opposite of what the first ladder said.
+#
+# The general lesson, and it is the one this pose kept teaching: on this model a
+# property measured across seeds is not a property of the setting. Retake any
+# such measurement on the render that will actually ship.
 #
 # 0.50 rather than HIRES_DENOISE's 0.60 for the ordinary reason: the face is
 # carried by a symbol and 0.60 dissolves it.
 HIRES_PRINT = {
-    "winded": (1152, 0.50),
+    "winded": (1416, 0.50),
 }
 
 # The seed each pose was settled on, where the pose has one. Not a default --

@@ -289,6 +289,12 @@ EXCEPTIONS: dict[str, list[dict]] = {
     "fall": [
         {"removed": ["closed mouth"], "why": "she is shouting"},
     ],
+    "doze": [
+        {"removed": ["looking at viewer"],
+         "why": "`nape`'s reason at the eyes: she is asleep, so the "
+                "instruction has no referent and either argues with the pose "
+                "or opens them"},
+    ],
 }
 
 # Departures that exist only because a particular costume has the garment being

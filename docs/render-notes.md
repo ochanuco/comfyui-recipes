@@ -9635,3 +9635,60 @@ single-dial fixes do not converge here.
   moving anything.
 - The three second-pass shoe guards (`shoe_soles`, `single_shoe`, dropping
   `high tops`) all measured as no-ops. The shoes were solved by framing.
+
+## `doze`: バスケ帰りの電車で寝落ち (2026-08-26)
+
+「バスケ帰りで疲れ果てて電車で寝てるゆかりさん」. `hoops` → `winded` の続きで、
+costume は `sporty` — 練習帰りの私服という読み。1152×1152、`winded` の正方形を
+その理由ごと借りている（座った人物は縦にも横にも収まらない）。
+
+Counts taken before the block was written: `sleeping` 100332,
+`sleeping_upright` 4258, `head_tilt` 172547, `zzz` 15769,
+`towel_around_neck` 9420, `messy_hair` 91176, `bench` 21720,
+`arms_at_sides` 38750. `exhausted` is real at 3696 and was still left out —
+the state is posture and symbol here, as it is in `winded`.
+
+Three words this scene wants do not exist: `dozing` 0, `nodding_off` (no page),
+and `tired` 0 for the third time in this file.
+
+`(sleeping upright:1.45)` sits ABOVE the 100k `sleeping` under it on purpose.
+4.3k is thin for the tag that decides the whole pose, and `sleeping` unopposed
+draws a girl in a bed.
+
+### An existing tag that is not a tag
+
+`hoops` carries `(holding basketball:1.5)`. `holding_basketball` has **0 posts**
+— the ball is presumably arriving from `basketball_(object)` 5977 plus the
+`hugging object` grip that block already names. Not touched here, and not
+re-measured; written down because the block's own comment reasons about that
+tag as though it were doing work.
+
+### The carriage, measured against the contract
+
+`ride` puts her on a bike in front of nothing and `hoops` keeps the court out,
+because SURFACE is a flat grey backdrop. A train interior is a scene, so the
+pose says 帰り with `(towel around neck:1.4)` instead — a worn object cannot
+fall out of the composition the way a loose bag can, which is `sip`'s finding.
+
+The user asked for a train, so the contract was given one sweep rather than one
+argument. Same pose, same four seeds, same costume; `(simple background:1.3),
+(grey background:1.2)` replaced by `(train interior:1.4), (vehicle
+interior:1.3), (window:1.2)`, plus a crowd guard the flat arm does not need
+(`.local/_dozetrain.py`).
+
+- flat: 4f711db5, 65194aee, fa6340d7, 09555835
+- train: d4a0b072, 95dadbd4, dcbb65bc, b393e171
+
+### `headcount.py` cannot judge the train arm at all
+
+It reported 2, 3, 4 and 2 bodies there, and every one of those numbers is
+noise: the tool takes the background colour from the median of the border
+pixels, so a carriage full of seats, poles and windows is figure by
+construction. **It is a flat-backdrop instrument and the arm that breaks the
+flat backdrop is exactly the arm it cannot be pointed at.** Nothing about the
+crowd risk was learned from it.
+
+On the flat arm it works, and reported ONE on three seeds. The fourth,
+737373737, came back "2 bodies" and `--detail` disposes of it: the extra block
+is 73px wide at 2.84% of the figure and 53% of frame height, i.e. the bench
+running out to one side. A second girl is tall for her width; this is not.

@@ -129,6 +129,11 @@ EXCEPTIONS: dict[str, list[dict]] = {
          "why": "she is turned away; the instruction has no referent and either "
                 "argues with the pose or spins her around"},
     ],
+    "hoops": [
+        {"removed": ["closed mouth"],
+         "why": "\u301c\u301c\u301c is a drawn-out complaint and FACE closes "
+                "the mouth"},
+    ],
     "snack": [
         {"removed": ["closed mouth"],
          "why": "a bite. `straw` keeps it, because lips close around a straw "

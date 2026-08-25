@@ -1699,6 +1699,41 @@ POSES = {
         "facing viewer, (holding food:1.45), (melon bread:1.5), "
         "(eating:1.4), (full body:1.45)"
     ),
+    # バスケなんてやりたくないですよぉ〜〜〜〜〜. The object grammar again, and by
+    # now it is a form to fill in rather than a thing to work out:
+    #
+    #   `(holding ball:1.45)` 13k is `holding cup`. In her hand, nothing about
+    #   where the hand goes.
+    #   `(basketball:1.5)` is the second naming, and it is `ride`'s case: a bare
+    #   ball is any ball. Danbooru's tag is `basketball_(object)` at 6k, but the
+    #   parentheses are weight syntax in a prompt and cannot be written; the
+    #   plain word reaches the text encoder perfectly well, which is the one
+    #   place this file's tag-count discipline has to bend to the tokenizer.
+    #
+    # **`(@_@:1.0)` is NOT re-measured here.** `dizzy` owns that finding and the
+    # value is the finding: 1.45 draws a near-black spiral on a white sclera,
+    # `spiral eyes` and `dizzy eyes` are not danbooru tags at all, and 1.0 is
+    # the weight on the render that was picked (49b3aab4). Copied at its
+    # measured value, not re-swept.
+    #
+    # `(dizzy:1.3)` comes with it for the reason `dizzy` records: it went in as
+    # a floor under the symbol, in case `@_@` did not draw, and stayed because
+    # it carries the state when the symbol is faint. Three arms were run and the
+    # one WITH it was picked, so on this pose the floor is doing visible work.
+    #
+    # `(wavy mouth:1.4)` 101k and `(flying sweatdrops:1.4)` 126k are the whine
+    # and its punctuation. In `open_mouthed`: 〜〜〜 is a drawn-out complaint and
+    # FACE closes the mouth. Removed, not replaced -- `snack`'s rule.
+    #
+    # The joke is the costume: `fitness` is a gym kit, so she is already dressed
+    # for the thing she does not want to do. Nothing in the block says so, which
+    # is right -- SURFACE is a flat backdrop and a court would fight it, the
+    # same contract `ride` keeps by putting her on a bike in front of nothing.
+    "hoops": (
+        "(solo:1.5), (standing:1.45), (from front:1.3), (holding ball:1.45), "
+        "(basketball:1.5), (@_@:1.0), (wavy mouth:1.4), "
+        "(flying sweatdrops:1.4), (dizzy:1.3), (full body:1.45)"
+    ),
     # ロードバイク. Written against the vessel grammar `sip` and `straw` worked
     # out, because a bicycle is the same problem one size up: an object that has
     # to be BOTH in the picture and under her, and whose type has to be pinned.
@@ -1996,6 +2031,9 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # file uses. The roll is small in it and that was accepted: the arm
          # that made the roll bigger is the one that lost its shoes.
          "snack": (1024, 1536),
+         # A standing full body, so `stand`'s frame -- and `straw`'s, which is
+         # the closer sibling: one figure, arms down, an object in her hands.
+         "hoops": (832, 1664),
          # Landscape, and the only pose here that is wide for the sake of an
          # OBJECT rather than a body: a road bike seen from the side is longer
          # than she is tall. `flop`, `prone` and `situp` already use this frame.
@@ -2368,7 +2406,8 @@ def positive(pose: str, costume: str = "default") -> str:
     # melon bread.
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
                             "dizzy", "kick", "situp", "hype", "roar",
-                            "pounce", "loom", "snarl", "swelter", "snack")
+                            "pounce", "loom", "snarl", "swelter", "snack",
+                            "hoops")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.

@@ -9038,3 +9038,57 @@ Bike shorts are a knee-length garment and a different one. The arm was cleared
 off the queue before it rendered, so it cost nothing — worth noting only because
 the queue was cleared twice this session for the same reason, and both times the
 already-finished half was still posted.
+
+### Correction: the loose tee is the look, not the defect (2026-08-25)
+
+The section above ("The variable was not the hem") reads as if
+`(oversized shirt:1.4)` hanging to mid-thigh were a problem to design around.
+**It is the intended look.** 「服はしまってないのでふわっとしてるのが正解」, on
+2bc9d8dc.
+
+What that section actually established is narrower and still holds: while
+*measuring a skirt hem*, a shirt that covers the hem makes the measurement read
+the wrong garment. That is a fact about the sweep, not about the costume. The
+untucked, loose tee over the leggings is what was picked, twice, and
+`(high-waist pants:1.4)` earns its slot by placing the waistband — not by
+tucking anything into it.
+
+## `hoops`: バスケなんてやりたくないですよぉ〜〜〜 (2026-08-25)
+
+    (solo:1.5), (standing:1.45), (from front:1.3), (holding ball:1.45),
+    (basketball:1.5), (@_@:1.0), (wavy mouth:1.4), (flying sweatdrops:1.4),
+    (dizzy:1.3), (full body:1.45)
+
+832x1664, in `fitness`. Picked: 2bc9d8dc, seed 1886970040, off the arm WITH
+`(dizzy:1.3)`.
+
+The object grammar is `straw`'s and `ride`'s, filled in rather than worked out:
+`holding ball` (13k) puts it in her hand, `basketball` is the second naming that
+`ride` pays for because a bare ball is any ball.
+
+**One place the tag-count discipline has to bend.** Danbooru's tag is
+`basketball_(object)` at 6k, and the parentheses are weight syntax in a prompt —
+it cannot be written as the tag. The plain word reaches the text encoder and
+draws a basketball in 12 of 12. Worth recording as the boundary: the tag list is
+evidence about what the model saw in training, not a spelling this file is
+obliged to reproduce when the tokenizer disagrees.
+
+**`(@_@:1.0)` was copied, not re-swept.** `dizzy` owns that measurement and the
+value is the finding — 1.45 draws a near-black spiral on a white sclera, and
+neither `spiral eyes` nor `dizzy eyes` is a danbooru tag at all. Three arms were
+run on the whine (`wavy mouth` alone, + `flying sweatdrops`, + `dizzy`) and the
+fullest was picked, so `dizzy`'s floor under the symbol is doing visible work
+here rather than sitting there as insurance.
+
+### The pose was picked against a costume that has since moved
+
+The `hoops` sweep was queued before the side stripe was settled, so 2bc9d8dc
+carries neither `(vertical-striped clothes:1.35)` nor `(striped shirt:1.5)`.
+`build("hoops", 1886970040, costume="fitness")` therefore does **not** reproduce
+it — the two tags are the whole diff, one in each encode.
+
+Handled by not pretending otherwise: the 2048 print (352b3a8e) was built by
+reading the picked graph back from `/history` and attaching only the second
+pass, so nodes 3/5/6/7 are the worker's own and the print is that drawing at
+size. The costume's current form was run separately as a four-seed check, because
+whether the pose survives the stripe is a measurement and not an assumption.

@@ -1803,12 +1803,19 @@ POSES = {
     # thing wanted. `legs_together` 37k keeps them closed, which the costume's
     # standing 「股を出さずに」 requires.
     #
-    # `(>_<:1.0)` at `dizzy`'s weight and not a digit higher. Two priors, both
-    # about weight rather than the symbol: `(@_@:1.45)` drew literal black
-    # spirals on the whites and 1.0 is what was picked, and `swelter` swept
-    # `(>_<:1.4)` head to head against `(closed eyes:1.4)` and the symbol LOST.
-    # 93.7k posts, more than `@_@`, so the tag is real -- it is 1.4 that is not.
-    # Swept here at 1.0 and 1.3, and 1.0 is the pick.
+    # `(>_<:1.45)`, and the road to that number is the useful part. 93.7k posts,
+    # more than `@_@` at 55.7k, so the tag is real. Two priors said to keep the
+    # weight LOW -- `(@_@:1.45)` drew literal black spirals on the whites and
+    # `dizzy` picked 1.0; `swelter` swept `(>_<:1.4)` against `(closed eyes:1.4)`
+    # and the symbol lost -- and 1.0 was duly swept against 1.3 and picked.
+    #
+    # **Then the seed changed and 1.0 stopped drawing anything at all.** On
+    # 111222333 the eyes came out open, and 1.3 and 1.45 both brought the symbol
+    # back without drawing a glyph on the whites. So the window is real and it
+    # MOVES WITH THE SEED: the same weight that was correct on one pass 1 is
+    # invisible on another. A face symbol has to be re-checked on any seed it is
+    # carried to, and re-checked in both directions -- too low is as wrong as
+    # too high, and this file only had the too-high failure written down.
     #
     # `(sweat:1.3)` is deliberately the lowest weight in the block. 763k and
     # strong, but it is drawn as SHEEN, which is the same axis as the pass-2
@@ -1820,7 +1827,7 @@ POSES = {
         "(solo:1.5), (sitting:1.5), (on floor:1.45), (from side:1.35), "
         "(arm support:1.5), (leaning back:1.4), "
         "(outstretched legs:1.5), (legs together:1.4), "
-        "(open mouth:1.5), (>_<:1.0), (wavy mouth:1.4), (looking up:1.35), "
+        "(open mouth:1.5), (>_<:1.45), (wavy mouth:1.4), (looking up:1.35), "
         "(heavy breathing:1.45), "
         "(flying sweatdrops:1.35), (sweat:1.3), "
         "(full body:1.45), (short dress:1.35)"
@@ -3200,6 +3207,47 @@ HIRES_NEGATIVE = {
 # Spliced into the pose block rather than appended to the whole string: that is
 # where every other pose carries the smirk, and this file has already recorded
 # that token order changes the encoding.
+# 「手書き風のファイナライズ」. The finish the SECOND pass wears, for poses whose
+# print is meant to look drawn rather than printed.
+#
+# Two halves, and one of them is a deletion this file already owned. THIN --
+# `(thin lineart:1.3), (fine lines:1.25), (delicate lines:1.2)` -- comes off,
+# which is exactly what `PAINT_FINISH` does for `straw` and `snack`; the notes
+# there call it a palette decision rather than a line one, and here it is used
+# as a line one. `traditional_media` 125k and `marker_(medium)` 18k are the
+# other half, and the marker is close to what the picture already is: every
+# figure in this file carries `(white outline:1.6)`, which reads as a marker
+# edge before any tag says so.
+#
+# `sketch` 194k is NOT here despite the count. It means unfinished, and
+# `HIRES_NEGATIVE_PAINT` exists to remove exactly that state -- reaching for it
+# would undo `swelter`'s fix in the same breath.
+#
+# **Appended at the very END of the prompt, after where THIN used to sit.**
+# `HIRES_POSITIVE` splices after the pose block instead, which puts its tags in
+# the middle; token order changes the encoding here and this file has caught a
+# one-line drift by checking it. These are separate mechanisms for that reason.
+HIRES_FINISH = {
+    "winded": ", (traditional media:1.4), (marker (medium):1.35)",
+}
+
+# The print each pose was settled at, when a bare `--hires` number would get it
+# wrong. `winded` is the first entry and the reason it exists.
+#
+# **`--hires` is a longest-side number, not a scale factor**, so the same 2048
+# is a 1.23x redraw on a 832x1664 pose and a 1.78x redraw on a square one. That
+# difference is not cosmetic: at 1.78x the second pass had twice the pixels to
+# fill and filled them with detail -- specular skin, coloured shadows, the
+# "CG っぽい" regression -- while the same pass at 1.0x came out the sharpest
+# render in the sweep. So this pose prints at its own canvas, and the second
+# pass is a redraw rather than an enlargement.
+#
+# 0.50 rather than HIRES_DENOISE's 0.60 for the ordinary reason: the face is
+# carried by a symbol and 0.60 dissolves it.
+HIRES_PRINT = {
+    "winded": (1152, 0.50),
+}
+
 HIRES_POSITIVE = {
     # 「もうちょっといつものドヤ顔で」 after 1.15 and 1.35 both landed short.
     # The pair, not a third weight -- this is the lever the previous round named
@@ -3287,7 +3335,20 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
             "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
             "latent_image": ["10", 0], "seed": seed, "steps": 30, "cfg": 5.0,
             "sampler_name": "dpmpp_2m", "scheduler": "karras",
-            "denoise": HIRES_DENOISE if denoise is None else denoise}}
+            "denoise": (HIRES_PRINT[pose][1] if denoise is None
+                                                 and pose in HIRES_PRINT
+                        else HIRES_DENOISE if denoise is None else denoise)}}
+        if pose in HIRES_FINISH:
+            assert pose not in HIRES_POSITIVE, "one pass-2 positive, not two"
+            text = positive(pose, costume)
+            # Asserted rather than replaced blind: a `.replace` against a string
+            # the prompt no longer contains does nothing and says nothing, which
+            # is a mistake this file has paid for before.
+            assert text.count(", " + THIN) == 1, pose
+            text = text.replace(", " + THIN, "") + HIRES_FINISH[pose]
+            graph["6b"] = {"class_type": "CLIPTextEncode",
+                           "inputs": {"clip": ["4", 1], "text": text}}
+            graph["11"]["inputs"]["positive"] = ["6b", 0]
         if pose in HIRES_POSITIVE:
             # `pose_block`, not `POSES[pose]`: a costume may have edited the
             # pose's tags, and this splice finds the pose block inside the
@@ -3363,7 +3424,9 @@ def main() -> None:
         req = urllib.request.Request(
             f"http://{args.host}:{args.port}/prompt",
             data=json.dumps({"prompt": build(args.pose, seed, prefix,
-                                             args.hires, args.hires_denoise,
+                                             args.hires or HIRES_PRINT.get(
+                                                 args.pose, (0,))[0],
+                                             args.hires_denoise,
                                              args.costume)}).encode(),
             headers={"Content-Type": "application/json"},
         )

@@ -9419,3 +9419,115 @@ knot guards a second time on top of a picked graph that already had them, and
 measured 691. Re-run in the exact shape the recipe emits — each guard appearing
 once, asserted — it measured 590. The duplication was not helping and was
 mildly in the way.
+
+## `winded` settled: the seed was the colour dial all along (2026-08-25)
+
+Final is 292ad788, from seed **111222333**, reproduced node-for-node by
+
+```
+uv run scripts/yukari_recipe.py --pose winded --costume fitness --seed 111222333
+```
+
+with no `--hires` flag — see `HIRES_PRINT`, which supplies both the print size
+and the denoise for this pose.
+
+### 「絵柄がだいぶCGっぽくなってる」 was the pass-2 SCALE, not the pass-2 prompt
+
+`--hires` is a longest-side number, not a scale factor. On the file's portrait
+poses 2048 is a 1.23× redraw; on this pose's 1152 square it is 1.78×, i.e. twice
+the pixels for the second pass to fill — and it filled them with specular skin,
+coloured shadows and gradient irises.
+
+The ladder, all on the same pass 1, skin colour count measured at a common
+resolution: no second pass 24, 1416 (1.23×) 23, 1664 (1.44×) 33, 2048 (1.78×)
+38. And sharpness on the figure runs the other way from what "more pixels"
+suggests: **1152 (1.0×, no upscale at all) measured 62.9 against 19.7 at 2048.**
+The bicubic latent upscale is what softens the picture; the redraw on top of it
+is what hardens the shading. Printing at 1.0× gets both back.
+
+**Two corrections to entries above, both caught by controls.**
+
+- The first skin ladder (24 / 26 / 33 / 47 / 57) was measuring resolution, not
+  drawing. A Lanczos enlargement of one render — no new detail by construction —
+  scored 55 against its own 36. Colour counts are not comparable across sizes;
+  everything now downsamples to a common longest side first. Fourth entry for
+  [[metrics-lie-here]], and the control is the only reason it was caught.
+- Sharpness across DIFFERENT pictures is confounded by content. A standing girl
+  holding a ball has more edge per pixel than a seated one in an oversized tee,
+  so `hipL2` scoring above every `winded` arm meant nothing. Only same-content
+  comparisons were kept.
+
+### The colour is a property of the seed
+
+Same prompt, same everything, five seeds, whole-figure saturation: **21.3, 21.6,
+31.0, 41.6, 51.2.** A 2.4× spread with nothing changed but the seed — and the
+seed this pose had been settled on, 1886970040, was the most saturated of the
+five.
+
+That is why a week of prompt work could not reach `lineT3`'s colour. Restoring
+that render's exact pass-2 configuration (SHADE_BAN in, `shiny skin` out) moved
+purple 46.6 → 41.5 against a target of 27.5. Switching seed reached 24.2 in one
+step.
+
+Canvas was ruled out in the same sweep: 832×1664 and 960×1408 both measured 40.1
+against the square's 41.6.
+
+**So: check the seed before tuning the prompt for colour.** Three separate
+guards were designed, measured and argued about — `shiny skin`, dropping
+`sweat`, raising SHADE_BAN to 1.6 — and all three were noise on a dial the seed
+was holding.
+
+### `(shiny skin:1.5)` and `(sweat:1.3)` both failed, twice each
+
+`shiny_skin` 157k is the name for lit skin and it made skin *worse* every time
+it was measured — 23 → 27 in the colour count, and the arm carrying it was
+further from the reference than the arm without. `sweat` 763k was suspected of
+glazing the skin on a panting pose; removing it from the second pass moved
+nothing, in two separate sweeps. Neither is in the shipped pose.
+
+### The symbol's weight window moves with the seed
+
+`(>_<:1.0)` was swept against 1.3 and picked, on seed 1886970040. On 111222333
+it drew **nothing** — ordinary open eyes. 1.3 and 1.45 both brought the symbol
+back with no glyph on the whites, and 1.45 is the pick.
+
+This file had the too-high failure written down twice (`@_@` at 1.45 drawing
+spirals; `swelter` losing `>_<` at 1.4 to `closed eyes`) and had quietly
+generalised it to "keep face symbols low". The other end exists too. Re-check a
+face symbol on any seed it is carried to, in both directions.
+
+`(closed eyes:1.35)` added underneath as a floor — `dizzy`'s pattern — is not
+here, and the reason is worth keeping: it took the figure from 47% of the frame
+to 74% and pulled saturation back up. A floor tag under a symbol is not free on
+every pose.
+
+### 「手書き風」 is a second-pass finish, and it barely moves the numbers
+
+THIN comes off and `traditional_media` 125k + `marker_(medium)` 18k go on, at
+the END of the prompt rather than spliced after the pose block — `HIRES_FINISH`
+exists separately from `HIRES_POSITIVE` for that reason alone.
+
+Measured, the three arms are indistinguishable: ink coverage 32.2 / 32.3 / 32.9
+/ 32.7, saturation 22.4 / 21.6 / 24.7 / 22.4. The pick was made by eye, on a
+difference the statistics cannot see. `traditional media` was expected to bring paper
+texture and fight the flat backdrop; it did not — corner variance 0.29 against
+the baseline's 0.32.
+
+`sketch` 194k is deliberately absent despite being the largest tag in the
+family: it means *unfinished*, which is the state `HIRES_NEGATIVE_PAINT` was
+written to remove.
+
+### Two defects shipped with it
+
+The floor. `(on floor:1.45)` draws a wooden plane under her, and its colour sits
+43 from the corner while pale skin sits 15 — so no single `recolor_bg` tolerance
+both swallows the floor and spares her arm. Guarding it in the second pass
+(`wooden floor`, `indoors`) halved the area, 3.07% → 1.40%, and did not clear
+it. Not fixed.
+
+The repaint leaks into her arm and hand at the shipped tolerance of 18, for the
+same reason: pale skin is inside it. Visible as teal speckling on the forearm.
+Not fixed, and it is the reason to look at a delivered file rather than a raw
+one when judging.
+
+Delivered without the purple stroke — `deliver.py --stroke ''` — on request.

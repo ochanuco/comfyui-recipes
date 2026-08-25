@@ -16,6 +16,16 @@ that is staying. Both steps are import-level calls into the scripts that own
 them -- `recolor_bg.repaint` and `outline_stroke.stroke` -- so the delivered
 file is what those two CLIs would have produced, defaults and all.
 
+**One flag is worth knowing before a render looks broken.** `recolor_bg`'s
+enclosed-pocket pass finds backdrop the border flood cannot reach -- the gap
+between an arm and the body. It finds it by colour, and it cannot tell that gap
+from a pale detail drawn INSIDE the figure. On the `fitness` costume's black
+leggings, the light-grey side stripe matched, so the stripe was repainted as
+backdrop and then the purple stroke was drawn through the middle of her thigh.
+`--enclosed-tolerance -1` skips the pass and both defects go with it, at the
+cost of the arm gaps. Neither setting is right for every picture, so it is a
+flag rather than a new default.
+
 Everything this writes goes to .local/_nogit/deliver/. It is a derived picture:
 the render is on the worker and the recipe is in git, so nothing here is worth
 keeping.
@@ -57,6 +67,14 @@ def parse_args() -> argparse.Namespace:
         "--stroke-width-band", type=float,
         help="stroke as a share of the figure's own white band; the default is "
              f"{outline_stroke.DEFAULT_WIDTH_BAND}, calibrated to the picked arm",
+    )
+    parser.add_argument(
+        "--enclosed-tolerance", type=int, default=4,
+        help="tighter match for backdrop the border flood cannot reach; -1 to "
+             "skip it. **Reach for -1 when a pale detail INSIDE the figure "
+             "comes back repainted and stroked.** The pocket finder cannot tell "
+             "a gap between an arm and the body from a light-grey stripe on "
+             "black leggings, and at the default it took the second one",
     )
     parser.add_argument("--no-post", action="store_true")
     parser.add_argument("--outdir", type=Path, default=OUTDIR)
@@ -100,7 +118,9 @@ def main() -> int:
 
     for label, path in sources(args.targets, args.host, args.port):
         pixels = np.array(Image.open(path).convert("RGB")).astype(int)
-        pixels, share = recolor_bg.repaint(pixels, recolor_bg.parse_color(args.color))
+        pixels, share = recolor_bg.repaint(
+            pixels, recolor_bg.parse_color(args.color),
+            enclosed_tolerance=args.enclosed_tolerance)
         if share < 5:
             print(f"{path.name}: {share:.1f}% backdrop, not flat enough -- skipped")
             continue
@@ -109,7 +129,8 @@ def main() -> int:
             pixels, width, _ = outline_stroke.stroke(
                 pixels.astype(float), args.stroke,
                 width_pct=args.stroke_width_pct,
-                width_band=args.stroke_width_band)
+                width_band=args.stroke_width_band,
+                enclosed_tolerance=args.enclosed_tolerance)
         tag = "" if width is None else f"-p{width:.0f}"
         out = args.outdir / f"{path.stem}{tag}-delivered.png"
         Image.fromarray(np.clip(pixels, 0, 255).astype(np.uint8)).save(out)

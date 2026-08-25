@@ -94,7 +94,11 @@ COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "th
 #
 # Only this costume's character block moved. `default` and `sporty` were rebuilt
 # against the previous commit across every pose and both passes, and did not.
-COSTUME_FINGERPRINT = "910a022f1d495234"
+# 910a022f1d495234 -> 73ee99e0962defe1 on 2026-08-25. `fitness`'s
+# `oversized shirt` goes 1.45 -> 1.55: 「股を出さずに服で隠すこと」. Third and last
+# value on that dial. Only this costume's character block moved; 32 poses under
+# `default` and `sporty` were rebuilt across both passes and did not.
+COSTUME_FINGERPRINT = "73ee99e0962defe1"
 
 
 def tags(text: str) -> list[str]:

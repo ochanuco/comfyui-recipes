@@ -9200,3 +9200,92 @@ produce a plausible number. A metric that works on the seed you are looking at
 and returns a constant on the rest has not been validated by the row that looks
 good. See the `metrics-lie-here` note; this is that failure mode again, and this
 time it was caught before the number was used.
+
+### Where the second pass's reach ends, measured on cloth (2026-08-25)
+
+`HIRES_POSITIVE`'s note already said it: "reaches anything a late pass can DRAW,
+and does not reach anything pass 1 has already DECIDED. A face is the second
+kind." Settling `hoops` put four more things on each side of that line, and the
+split turns out to be **delete vs. add** rather than detail vs. composition.
+
+| put in pass 2 only | result |
+| --- | --- |
+| `(tied shirt:1.5), (front-tie top:1.5)` | **knot removed**, composition untouched |
+| `(extra arms:1.5)` | **third arm removed**, composition untouched |
+| `(covered navel:1.4)` | nothing, twice (covG3, hipL2) |
+| `(lavender shirt:1.5)` + desaturation | shirt 182 → 114, and **the hair went silver** |
+
+A late pass can take a knot out of cloth pass 1 already drew. It cannot put
+cloth where there is none — the hem is a pass-1 decision in the same way a face
+is. So a longer hem always costs the composition, and the pose has to be
+re-hunted at the new length. That was two seed hunts this round and it is not
+avoidable.
+
+### The knot was pulling the hem up, and three rounds of weights could not win
+
+`(oversized shirt:...)` was swept across 1.1, 1.2, 1.3, 1.35, 1.4, 1.45, 1.55 —
+seven weights in four rounds — against 「お腹お尻はシャツで隠れて欲しい」. None of
+it worked, and the reason was visible in the render the whole time: **the tee was
+tied at the front.** A knotted tee rides up at the back, so the hem's weight was
+fighting a knot.
+
+Second time in one costume that a weight sweep was searching the wrong dial —
+the rib was the first. The tell is the same both times: **two adjacent weights
+drawing opposite complaints, with no window between them.** That should be read
+as "wrong dial", not "narrow window".
+
+What finally covered her was not a weight at all but a noun: `(short dress:1.35)`
+130k, the silhouette an oversized tee makes once it reaches the thigh. Named
+directly, the model draws that shape.
+
+### `(spread fingers:1.3)` was the cause of the bad fingers
+
+`HAND_BAN` was in both passes from the first sweep and the fingers were still
+wrong. The tag to remove was not a guard that was missing — it was a request
+that was present: `spread fingers` asked for open fingers and the model supplied
+too many of them. Dropping it gave the cleanest hand of any arm.
+
+**The lower hand is a separate problem and it is pass-1.** Under the ball there
+is a hand-shaped void in every arm of every round: not a bad hand, no hand.
+`HAND_BAN` cannot help — a guard deletes, and there is nothing there to delete.
+Only a seed with the hand already drawn fixes it, which is what the second hunt
+was for.
+
+### A saturation guard has no garment either
+
+`(vivid colors:1.5), (high saturation:1.4)` in pass 2 took the shirt from 182 to
+114 — and turned her hair silver. **Fourth tag in this costume that names a
+property without naming a garment**, after `vertical-striped clothes` (striped
+the tee), `skin tight` (pulled the tee into a V at the crotch) and `snack`'s
+missing print guard (a watermelon).
+
+The colour was left to post-processing in the end, for `recolor_bg`'s reason:
+five spellings — `light purple`, `pale purple`, `white + light purple`,
+`lavender`, and a desaturation guard — produced 182, 161, 159, 155, 139. The
+post-process reaches 75 and touches nothing else. This is a value the prompt
+cannot hold.
+
+Two of those numbers are worth distrusting rather than reading: adding
+`(purple shirt:1.5)` to the negative moved saturation the WRONG way (140 against
+E1's 117), and removing a *finger* tag moved it 27 points. There is no
+mechanism for either. Pass 2 at denoise 0.5 is simply that noisy, and a
+three-point ladder cannot see through it.
+
+### `deliver.py --enclosed-tolerance -1`
+
+`recolor_bg`'s enclosed-pocket pass finds backdrop the border flood cannot reach
+— the gap between an arm and the body. It finds it by colour, and **it cannot
+tell that gap from a pale detail drawn inside the figure.** The light-grey side
+stripe on black leggings matched, so the stripe was repainted as backdrop and
+the purple stroke was drawn down the middle of her thigh, with a trail of dots
+between her legs.
+
+Diagnosed by delivering the same raw render both ways rather than by guessing:
+at tolerance 4 the speckling is there, at -1 it is gone and the stripe is
+intact. A flag rather than a new default, because the arm gaps are what the pass
+was written for.
+
+**The stripe is also damaged before delivery**, and that half is not fixed:
+pass 2 at denoise 0.5 redraws a thin light line on black as a torn slash.
+Removing `vertical-striped clothes` from the pass-2 positive did not help, so it
+is the redraw itself and not the instruction. Open.

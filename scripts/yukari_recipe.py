@@ -490,7 +490,10 @@ FITNESS = IDENTITY + (
     # 1.4 that had already been called too long. That is what a wrong dial looks
     # like from the far side.
     "(light purple shirt:1.45), (t-shirt:1.45), "
-    "(oversized shirt:1.45), short sleeves, "
+    # 1.45 -> 1.55. 「股を出さずに服で隠すこと」. Third value on this dial and
+    # the last: it is the tag that decides where the hem lands, the hem is what
+    # covers her, and this is the weight at which it clears the crotch.
+    "(oversized shirt:1.55), short sleeves, "
     "(high-waist pants:1.4), (sportswear:1.35), "
     "vocaloid, voiceroid, "
     "(white footwear:1.4), (sneakers:1.45), (high tops:1.3)"
@@ -1727,7 +1730,20 @@ POSES = {
     #   the text encoder perfectly well, which is the one place this file's
     #   tag-count discipline has to bend to the tokenizer.
     #
-    #   `(hugging object:1.4)` 32k and `(spread fingers:1.3)` 5.6k are the grip
+    #   `(spread fingers:1.3)` 5.6k WAS here and is gone. It asked for open
+    #   fingers and the model obliged with too many of them; dropping it gave
+    #   the cleanest upper hand of any arm. The tag to suspect for a bad hand is
+    #   not always a guard that is missing -- sometimes it is a request that is
+    #   present.
+    #
+    #   `(short dress:1.35)` 130k is the SILHOUETTE an oversized tee makes once
+    #   it reaches the thigh, named so the model draws that shape rather than a
+    #   shirt that stops at the hip. It is the tag that finally covered her, and
+    #   it was reached only after `oversized shirt` had been swept across six
+    #   weights in three rounds. The risk it carries -- that an actual dress
+    #   arrives instead -- did not materialise on any of three seeds.
+    #
+    #   `(hugging object:1.4)` 32k is the grip
     #   in the reference photo: the ball at chest height, a palm on each side,
     #   fingers open. 「両側から押し抱えてる？感じがいいな。バスケだし」. **There is
     #   no tag for holding something with both hands** -- not in `holding_*`,
@@ -1757,9 +1773,10 @@ POSES = {
     # same contract `ride` keeps by putting her on a bike in front of nothing.
     "hoops": (
         "(solo:1.5), (standing:1.45), (from front:1.3), "
-        "(holding basketball:1.5), (hugging object:1.4), (spread fingers:1.3), "
+        "(holding basketball:1.5), (hugging object:1.4), "
         "(@_@:1.0), (wavy mouth:1.4), "
-        "(flying sweatdrops:1.4), (dizzy:1.3), (full body:1.45)"
+        "(flying sweatdrops:1.4), (dizzy:1.3), (full body:1.45), "
+        "(short dress:1.35)"
     ),
     # ロードバイク. Written against the vessel grammar `sip` and `straw` worked
     # out, because a bicycle is the same problem one size up: an object that has
@@ -2250,6 +2267,33 @@ def negative(pose: str, costume: str = "default") -> str:
         # PREPENDED, for the reason recorded above -- the sweep this reproduces
         # put it at the front, and token order changes the encoding here.
         text = HAND_BAN + text
+    if costume == "fitness":
+        # **The tee knots itself, and a knotted tee rides up at the back.** This
+        # is the guard that ended three rounds of sweeping the hem: the hem was
+        # being pulled up by a knot, so no weight on `oversized shirt` could
+        # win. 「服で隠す」 was unreachable until the knot was named.
+        #
+        # `tied_shirt` 21k, `front-tie_top` 52k. A knot is a DRAWN OBJECT, which
+        # is why this works in the second pass as well -- see the entry in the
+        # notes: it removed a knot pass 1 had already drawn, without moving the
+        # composition, which is the sharpest reading this file has of where the
+        # late pass's reach ends.
+        text = "(tied shirt:1.5), (front-tie top:1.5), " + text
+    if pose == "hoops":
+        # Arms AND legs by name. `extra limbs` is in NEGATIVE unweighted and did
+        # not stop either: a third arm crossing her torso at 2048, and a fourth
+        # leg on a print. The weighted names are what worked, the same way
+        # `(extra arms:1.5)` had to be spelled out beside it.
+        text = "(extra arms:1.5), (extra legs:1.5), (extra limbs:1.5), " + text
+    if costume == "fitness":
+        # 「股を出さずに」. `(skin tight:1.45)` draws the seam it implies, and
+        # `cameltoe` 125k is that seam's name. A drawn thing, so a guard reaches
+        # it; the SHIRT covering her is the other half and lives in the hem.
+        #
+        # Prepended last so the three land in the order the picked render was
+        # drawn in -- seam, limbs, knot. Token order changes the encoding here
+        # and this file has caught a one-line drift by checking it before.
+        text = "(cameltoe:1.6), " + text
     if costume == "fitness" and ", (midriff:1.35), (navel:1.3)" in text:
         # 「お腹が見えてるのも not for me」. The tail this replaces carries its own
         # confession -- "these three measured nothing... kept for identity with

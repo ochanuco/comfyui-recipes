@@ -2120,6 +2120,26 @@ POSES = {
         "(upper body:1.35), (face focus:1.3), (one eye closed:1.45), "
         "(wink:1.35), (smile:1.35), (v:1.45), (hand on own cheek:1.05)"
     ),
+    # 疲れ顔で歯磨き、チェストアップ. `tehe`'s framing verbatim -- it is the one
+    # crop in the file built for a hand at the face, and its `(upper body:1.35)`
+    # is already the chest-up that was asked for.
+    #
+    # `brushing teeth` + `toothbrush` is `sip`'s two-slot rule: the action tag
+    # is what puts the object at the mouth (`drinking` held the cup up after
+    # `holding cup` alone dropped it to her feet), and the object tag is what
+    # decides which object it is. The action carries the pose, so it takes the
+    # heavier weight.
+    #
+    # The exhaustion is `allnighter`'s pair at `allnighter`'s weights --
+    # (eyebags:1.4) is the fixed price of tired in this file, and the droop is
+    # the raised 1.35 form of `half-closed eyes`. No expression tag beside
+    # them, for `allnighter`'s reason: tiredness is the absence of one, and the
+    # last time a slot was spent naming it anyway the face came back angry.
+    "brush": (
+        "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
+        "(upper body:1.35), (face focus:1.3), (brushing teeth:1.45), "
+        "(toothbrush:1.3), (eyebags:1.4), (half-closed eyes:1.35)"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
@@ -2269,12 +2289,14 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # `portrait`'s square, like `snarl`. The crop inside it is wider --
          # `upper body` rather than `close-up` -- and that is a tag decision,
          # not a canvas one; the frame is the settled one for a head.
-         "tehe": (1024, 1024)}
+         "tehe": (1024, 1024),
+         # `tehe`'s crop, so `tehe`'s square.
+         "brush": (1024, 1024)}
 
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
 # and THIN from the positive and the legwear ban from the negative -- naming a
 # garment that is out of frame is what invites it back into the frame.
-HEAD_FRAMINGS = ("portrait", "allnighter", "dizzy", "snarl", "tehe")
+HEAD_FRAMINGS = ("portrait", "allnighter", "dizzy", "snarl", "tehe", "brush")
 
 NEGATIVE = (
     # The other half of the lash pair above: `thick eyelashes` is the 毛量 and
@@ -2707,10 +2729,12 @@ def positive(pose: str, costume: str = "default") -> str:
     # `snack` is here for a bite. `straw` is deliberately NOT, and the pair is
     # the whole rule: lips close around a straw and they do not close around a
     # melon bread.
+    # `brush` is here on `snack`'s side of the straw rule: lips close around a
+    # straw, and they do not close around a brush that has to move.
     open_mouthed = pose in ("yawn", "fall", "allnighter", "allnighter_full",
                             "dizzy", "kick", "situp", "hype", "roar",
                             "pounce", "loom", "snarl", "swelter", "snack",
-                            "hoops", "winded")
+                            "hoops", "winded", "brush")
     face = FACE.replace("closed mouth, ", "") if open_mouthed else FACE
     # Turned away from the camera, an instruction to face it has no referent;
     # it either argues with the pose or spins her back around.

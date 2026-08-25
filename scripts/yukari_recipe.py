@@ -1817,6 +1817,29 @@ POSES = {
     # carried to, and re-checked in both directions -- too low is as wrong as
     # too high, and this file only had the too-high failure written down.
     #
+    # `(feet out of frame:1.4)` 236k, and it is here because the ankles could
+    # not be drawn. 「足首から靴の向きが骨折しているとしか見えない」 on the
+    # settled render: one shoe sole-on, one shoe not joined to a leg, and a
+    # third lace-covered lump between them.
+    #
+    # **Three second-pass guards were tried first and none of them touched it.**
+    # `shoe_soles` 18.4k for the sole-on view, `single_shoe` 10.8k for the odd
+    # count, and dropping the costume's own `(high tops:1.3)` -- ink coverage
+    # over the lower half moved 44.9 to 44.3, i.e. nothing. A late pass can
+    # delete a drawn object; it cannot re-articulate a joint. That is
+    # `refine-cannot-rebuild-structure` measured on a fourth pose.
+    #
+    # Which left re-rolling pass 1, and the cheap exit was to re-roll it with
+    # the broken region outside the frame. Note what this tag is NOT: it is a
+    # framing decision, so it only works in the pass that decides framing.
+    # Putting it in the second pass would be the same mistake as the guards.
+    #
+    # It does not land the same way on every seed. On 111222333 -- the seed this
+    # pose was settled on for COLOUR -- the figure still reached the bottom edge
+    # in full, so the cheapest exit was closed on exactly the seed that had the
+    # flattest paint. Four seeds were run with and without; 737373737 is the
+    # pick, at some cost in saturation (31.4 against 22.4).
+    #
     # `(sweat:1.3)` is deliberately the lowest weight in the block. 763k and
     # strong, but it is drawn as SHEEN, which is the same axis as the pass-2
     # gloss this round was spent removing. The state is carried by the symbol
@@ -1830,7 +1853,7 @@ POSES = {
         "(open mouth:1.5), (>_<:1.45), (wavy mouth:1.4), (looking up:1.35), "
         "(heavy breathing:1.45), "
         "(flying sweatdrops:1.35), (sweat:1.3), "
-        "(full body:1.45), (short dress:1.35)"
+        "(feet out of frame:1.4), (full body:1.45), (short dress:1.35)"
     ),
     # ロードバイク. Written against the vessel grammar `sip` and `straw` worked
     # out, because a bicycle is the same problem one size up: an object that has
@@ -3246,6 +3269,16 @@ HIRES_FINISH = {
 # carried by a symbol and 0.60 dissolves it.
 HIRES_PRINT = {
     "winded": (1152, 0.50),
+}
+
+# The seed each pose was settled on, where the pose has one. Not a default --
+# `--seed` is still explicit -- but the number is otherwise only recoverable
+# from a filename in a worker's history, and `winded` is a pose where the seed
+# is load-bearing rather than incidental: it holds the colour (2.4x spread in
+# saturation across five seeds on an identical prompt) and it decides whether
+# `feet out of frame` clears the frame at all.
+SETTLED_SEED = {
+    "winded": 737373737,
 }
 
 HIRES_POSITIVE = {

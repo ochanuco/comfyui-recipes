@@ -9531,3 +9531,50 @@ Not fixed, and it is the reason to look at a delivered file rather than a raw
 one when judging.
 
 Delivered without the purple stroke — `deliver.py --stroke ''` — on request.
+
+### Correction: `winded` is settled on seed 737373737, not 111222333 (2026-08-25)
+
+The entry above settles the pose on 111222333 for its colour. That render's
+ankles do not survive inspection — 「足首から靴の向きが骨折しているとしか見えない」
+— so the pose has moved to **737373737** with `(feet out of frame:1.4)` in the
+block. Final is 00041991. Everything else in that entry stands.
+
+**Three second-pass guards were tried on the shoes and all three did nothing.**
+`shoe_soles` 18.4k named the sole-on view, `single_shoe` 10.8k named the odd
+count, and the costume's own `(high tops:1.3)` was dropped as a suspect. Ink
+coverage over the lower half of the figure: 44.93 → 44.65 → 44.42 → 44.27. A
+late pass deletes drawn objects; it does not re-articulate a joint.
+[[refine-cannot-rebuild-structure]], now measured on a fourth pose.
+
+Worth recording separately: **`(high tops:1.3)` has 1903 posts.** It has been in
+the `fitness` costume since the costume was written, on the same shelf as
+`after_exercise` at 50 — a tag that cannot move a picture. It was not removed,
+because removing it is a costume change and nothing has been rendered to justify
+one; but nothing should be attributed to it either.
+
+### `feet out of frame` is a framing decision, and it does not land on every seed
+
+236k, and it belongs in pass 1 for the same reason the shoe guards failed in
+pass 2. Four seeds run with and without, share of the bottom 12% of the frame
+the figure still touches:
+
+| seed | plain | + feet out of frame |
+| --- | --- | --- |
+| 111222333 | 51.1% | **100%** |
+| 555666777 | 100% | 24.2% |
+| 737373737 | 52.4% | 67.6% |
+| 424242424 | 100% | 13.6% |
+
+On 111222333 the tag made the figure reach the edge *more*. That is the seed the
+pose had just been settled on for colour, so the cheapest exit was closed on
+precisely the render that needed it — and the pick cost saturation, 22.4 → 31.4.
+
+**A tag that names a framing outcome is not a framing guarantee.** The seed
+decides whether the composition has anywhere to put the feet.
+
+### The seed is now recorded in code
+
+`SETTLED_SEED`. Not a default — `--seed` stays explicit — but on this pose the
+seed holds the colour and decides whether the framing tag works, which makes it
+part of the recipe rather than a detail of one run. Before this it was
+recoverable only from a filename in a worker's history.

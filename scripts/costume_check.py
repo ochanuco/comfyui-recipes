@@ -294,6 +294,18 @@ EXCEPTIONS: dict[str, list[dict]] = {
          "why": "`nape`'s reason at the eyes: she is asleep, so the "
                 "instruction has no referent and either argues with the pose "
                 "or opens them"},
+        # The only pose in the file that replaces the backdrop half of SURFACE.
+        # It is a break of the contract `ride` and `hoops` keep, and it is
+        # declared here rather than argued: both arms were swept at 1152 on the
+        # same four seeds and the picked render, b393e171, is the carriage one.
+        # The rest of SURFACE -- flat colour, white outline, the shading pair --
+        # is untouched, which is what keeps the train drawn rather than
+        # photographed.
+        {"removed": ["(simple background:1.3)", "(grey background:1.2)"],
+         "added": ["(train interior:1.4)", "(vehicle interior:1.3)",
+                   "(window:1.2)"],
+         "why": "she is asleep ON A TRAIN, and the user picked the arm that "
+                "draws one; SURFACE's backdrop is the half a scene replaces"},
     ],
 }
 

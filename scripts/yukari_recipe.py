@@ -262,6 +262,36 @@ BODY = (
     "(petite:1.2), (pale skin:1.25)"
 )
 
+# The one place a SCENE replaces the backdrop, and it is a deliberate break of
+# the contract everything else in this file keeps. `ride` puts her on a bike in
+# front of nothing and `hoops` keeps the court out, because SURFACE is flat and
+# a scene fights it. `doze` was swept BOTH ways at 1152 on four seeds -- one arm
+# on the grey backdrop, one with this splice -- and the picked render is
+# b393e171, from this one. The contract lost a measurement rather than an
+# argument, and it lost on exactly one pose.
+#
+# It replaces `(simple background:1.3), (grey background:1.2)` and nothing else:
+# `(flat color:1.3)`, `(white outline:1.6)` and the shading pair stay, which is
+# why the carriage arrives as pale line and stripe rather than as a photograph.
+#
+# `train_interior` 11.4k, `vehicle_interior` 1.2k, `window` 179k. The window is
+# the weakest weight of the three on purpose -- it is 179k of pictures that are
+# mostly NOT trains, so it is here to put light behind her and not to name the
+# place.
+#
+# Two things this costs, both real and both paid: recolor_bg.py has nothing to
+# do here (there is no flat backdrop left to set), and `headcount.py` cannot be
+# pointed at this pose at all -- it takes the background colour from the border
+# pixels, so seats and poles count as figure.
+SCENE_TRAIN = "(train interior:1.4), (vehicle interior:1.3), (window:1.2)"
+
+# A carriage is a room whose entire subject is other passengers, and `(solo:1.5)`
+# has never had to hold against a background that implies a crowd. In front of
+# NEGATIVE for the reason the rest of this file's guards are: token order changes
+# the encoding, and this is the order b393e171 was drawn in.
+CROWD_BAN = "(multiple girls:1.5), (2girls:1.5), (crowd:1.4), (people:1.4), "
+
+
 # Reset to b1258b0c: hood down at 1.25, not pinned behind her head.
 #
 # The alternative -- (hood down:1.5), (hood behind head:1.3) -- was measured and
@@ -2534,6 +2564,8 @@ def negative(pose: str, costume: str = "default") -> str:
         # a5c494ef was drawn with, verified against its own history rather than
         # rebuilt from memory.
         text += ", (white footwear:1.45), (red footwear:1.4)"
+    if pose == "doze":
+        text = CROWD_BAN + text
     return text
 
 
@@ -3074,7 +3106,12 @@ def positive(pose: str, costume: str = "default") -> str:
              pose_block(pose, costume)]
     if full_figure:
         parts.append(legwear)
-    parts += [face, SURFACE]
+    surface = SURFACE
+    if pose == "doze":
+        surface = _splice(surface,
+                          "(simple background:1.3), (grey background:1.2)",
+                          SCENE_TRAIN)
+    parts += [face, surface]
     parts.append(body if full_figure else "(pale skin:1.25)")
     # The coat pulled off the shoulders, which is what uncovers the nape. It
     # rides with the hood rather than joining the pose block: that block is at
@@ -3364,6 +3401,9 @@ HIRES_PRINT = {
 # `feet out of frame` clears the frame at all.
 SETTLED_SEED = {
     "winded": 737373737,
+    # The picked render is b393e171. Same number as `winded` and that is
+    # coincidence -- both poses were swept from the front of SWEEP_SEEDS.
+    "doze": 737373737,
 }
 
 HIRES_POSITIVE = {

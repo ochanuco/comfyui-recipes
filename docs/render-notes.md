@@ -9692,3 +9692,48 @@ On the flat arm it works, and reported ONE on three seeds. The fourth,
 737373737, came back "2 bodies" and `--detail` disposes of it: the extra block
 is 73px wide at 2.84% of the figure and 53% of frame height, i.e. the bench
 running out to one side. A second girl is tall for her width; this is not.
+
+### Picked: b393e171, and the carriage moved into the recipe (2026-08-26)
+
+The user picked the train arm, seed 737373737. So the contract lost to a
+measurement rather than to an argument, and it lost on exactly one pose:
+`SCENE_TRAIN` and `CROWD_BAN` are in `yukari_recipe.py` now, spliced over
+SURFACE's `(simple background:1.3), (grey background:1.2)` and prepended to the
+negative respectively. The rest of SURFACE is untouched, which is why the
+carriage arrives as pale line and stripe rather than as a photograph.
+
+`.local/_dozecheck.py` is `_kickseeds.py`'s check pointed at this: nodes 5, 6, 7
+and 3 all MATCH against the picked render's own `/history`, so the pose in the
+file is the picture and not a reconstruction of it.
+
+`costume_check.py` earned its keep here — it failed the change three times over
+(once per costume) with the exact five tags, and the declaration in `EXCEPTIONS`
+is now the written record that this pose replaces the backdrop.
+
+### The print collapses the colour, and both sizes do it
+
+    render                       px   ink%   sat  sat90  dark%  flats
+    b393e171 pass 1            1152   32.1  46.6  154.0  11.18   4453
+    9f1b8edb 1416 @ 0.50       1416   33.8  17.6   37.0   1.39   2682
+    179eab42 2048 @ 0.60       2048   38.7  18.5   34.0   0.82   3142
+
+Saturation over the whole frame is meaningless on this pose -- most of it is a
+pale carriage -- so `ink%` is everything not near-white and the rest is measured
+inside that.
+
+The brightest tenth falling 154 → 35 is the finding, and it is visible: pass 1's
+seat is green and its hair is purple; both prints are cream and pale blue. The
+drawing is BETTER in the print -- the shoes and the seat frame gain real detail
+and the line stays drawn rather than clean -- and the colour is what it costs.
+
+**The two prints differ in two variables at once (1416/0.50 against 2048/0.60),
+so nothing here says anything about size.** `winded`'s 1.23× finding is neither
+confirmed nor refuted; 17.6 against 18.5 is inside the noise this file already
+put on a pass-2 measurement at 0.5.
+
+Two doors this file has already closed, checked before spending a render on
+either: `(vivid colors)` in `HIRES_POSITIVE` measured IDENTICAL at 1.25 and 1.40
+and is not even a danbooru tag, and `(vivid colors:1.5), (high saturation:1.4)`
+in a pass-2 negative turned her hair silver. The remaining levers are the ones
+that do not argue with the tags: a lower pass-2 denoise, or `upscale_plain.py`,
+which keeps pass 1's colour by not letting the model touch it.

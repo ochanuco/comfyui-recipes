@@ -232,6 +232,29 @@ def save_state(path: Path, state: dict) -> None:
     path.write_text(json.dumps(state, indent=2))
 
 
+def batch_payload(req: dict, git: dict, idempotency_key: str) -> dict:
+    """The batch row is the provenance record: the API takes these flat,
+    treats them all as optional, and stores NULL for whatever is not sent --
+    this mapping is what decides whether a picture can be traced later."""
+    gen = req["generation"]
+    payload = {
+        "idempotency_key": idempotency_key,
+        "raw_instruction": req["request"]["instruction"],
+        "recipe": gen["recipe"],
+        "parameters": gen.get("parameters", {}),
+        "git_commit": git["commit"],
+        "git_dirty": git["dirty"],
+    }
+    # Optional blocks want absent keys, not explicit nulls.
+    for key in ("prompt", "negative_prompt"):
+        if gen.get(key):
+            payload[key] = gen[key]
+    for key in ("references", "refinement", "story"):
+        if req.get(key):
+            payload[key] = req[key]
+    return payload
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--request", required=True, type=Path)
@@ -248,7 +271,7 @@ def main() -> None:
                      for _ in range(req["request"]["count"])])
         graph = build_graph(req["generation"], seeds[0], "chimera-dryrun-0")
         print("batch payload:")
-        print(json.dumps({**req, "git": git, "idempotency_key": "<uuid4>"},
+        print(json.dumps(batch_payload(req, git, "<uuid4>"),
                          indent=2, ensure_ascii=False))
         print(f"seeds: {seeds}")
         print(f"graph nodes: {sorted(graph, key=int)}")
@@ -262,11 +285,8 @@ def main() -> None:
     state = load_state(state_path)
     check_references(req)
 
-    # The API wants absent keys, not explicit nulls, for the optional blocks.
-    payload = {k: v for k, v in req.items() if v is not None}
     batch = api("POST", "/api/v1/batches",
-                {**payload, "git": git,
-                 "idempotency_key": state["idempotency_key"]})
+                batch_payload(req, git, state["idempotency_key"]))
     state["batch_id"] = batch["id"]
     if "seeds" not in state:
         state["seeds"] = (req["request"].get("seeds")

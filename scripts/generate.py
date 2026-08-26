@@ -249,7 +249,14 @@ def batch_payload(req: dict, git: dict, idempotency_key: str) -> dict:
     for key in ("prompt", "negative_prompt"):
         if gen.get(key):
             payload[key] = gen[key]
-    for key in ("references", "refinement", "story"):
+    if req.get("references"):
+        # The request contract says generation_id; the API's reference rows
+        # say source_generation_id. Map at the boundary, keep the contract.
+        payload["references"] = [
+            {**{k: v for k, v in ref.items() if k != "generation_id"},
+             "source_generation_id": ref["generation_id"]}
+            for ref in req["references"]]
+    for key in ("refinement", "story"):
         if req.get(key):
             payload[key] = req[key]
     return payload

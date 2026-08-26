@@ -212,6 +212,16 @@ def notify(content: str, filename: str, image: bytes) -> None:
         print(f"  ! Discord: HTTP {err.code} {err.read()[:200]!r}")
 
 
+def resolve_character(name: str) -> str:
+    """Name to UUID; the ingest metadata wants the id, not the name."""
+    listing = api("GET", "/api/v1/characters")
+    for item in listing.get("items", listing if isinstance(listing, list) else []):
+        if item.get("name") == name or name in (item.get("aliases") or []):
+            return item["id"]
+    created = api("POST", "/api/v1/characters", {"name": name, "aliases": []})
+    return created["id"]
+
+
 def load_state(path: Path) -> dict:
     if path.exists():
         return json.loads(path.read_text())
@@ -269,7 +279,10 @@ def main() -> None:
 
     outdir = WORKDIR / short
     outdir.mkdir(parents=True, exist_ok=True)
-    character_id = req["generation"].get("parameters", {}).get("character_id")
+    params = req["generation"].get("parameters", {})
+    character_id = params.get("character_id")
+    if not character_id and params.get("character"):
+        character_id = resolve_character(params["character"])
 
     for index, seed in enumerate(state["seeds"]):
         while len(state["jobs"]) <= index:

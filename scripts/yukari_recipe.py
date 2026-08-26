@@ -550,6 +550,40 @@ FITNESS_LEGWEAR = ("(leggings:1.45), (black leggings:1.4), (skin tight:1.45), "
 # No hood here either, for SPORTY_HOOD's reason.
 FITNESS_HOOD = "(visible hair:1.2), (purple eyes:1.2)"
 
+# The fourth costume, and the only one that keeps the settled costume's coat:
+# summer, air-conditioned room, off-duty. 寒いから羽織っている -- the cardigan is
+# on her because the room is cold, not because this is a variant of the dress
+# costume, so it carries CHARACTER's cardigan/hood/sleeve text VERBATIM rather
+# than a respelling. That is what lets a later session widen one of the
+# `dressed`-gated splices onto this costume too, if a pose ever wants to: the
+# needle would be there to match. None does yet -- see the notes at those
+# gates in `positive()`.
+#
+# Under it: a white oversized tee and dolphin shorts, same slot SPORTY's denim
+# and FITNESS's high-waist pants sit in. No footwear tag, unlike either of
+# those two -- this costume is barefoot, not shod.
+ROOMWEAR = IDENTITY + (
+    "(black hooded cardigan:1.45), open cardigan, (rabbit hood:1.55), "
+    "animal hood, long sleeves, (drawstring:1.4), "
+    "(white shirt:1.4), (t-shirt:1.45), (oversized shirt:1.3), "
+    "(dolphin shorts:1.4), (short shorts:1.25), "
+    "vocaloid, voiceroid, "
+    "(sleeves past wrists:1.3)"
+)
+
+# One garment on the leg, LEGWEAR's rule -- here the garment is none.
+# LEGWEAR_BAN still bans the second garment by name (socks, thighhighs), and
+# `negative()` separately bans the settled costume's own pantyhose by name:
+# that costume WEARS one, so the shared negative leaves the plain colour
+# unbanned, and this costume does not wear it at all.
+ROOMWEAR_LEGWEAR = "(bare legs:1.45), (barefoot:1.35)"
+
+# HOOD, unchanged and reused rather than respelled: the cardigan is here and
+# open, so `(hood down:1.25)` names a garment this costume actually has --
+# unlike SPORTY_HOOD/FITNESS_HOOD, which drop the line because those two
+# costumes have no hood to be down.
+ROOMWEAR_HOOD = HOOD
+
 # The costumes that bring shoes of their own. Three gates below are about
 # footwear and NONE of them is about being `sporty` -- they were written as
 # `costume == "sporty"` when that was the only shod costume, and an equality
@@ -567,6 +601,8 @@ COSTUMES = {
     "sporty": {"character": SPORTY, "legwear": SPORTY_LEGWEAR, "hood": SPORTY_HOOD},
     "fitness": {"character": FITNESS, "legwear": FITNESS_LEGWEAR,
                 "hood": FITNESS_HOOD},
+    "roomwear": {"character": ROOMWEAR, "legwear": ROOMWEAR_LEGWEAR,
+                 "hood": ROOMWEAR_HOOD},
 }
 
 
@@ -2547,6 +2583,22 @@ def negative(pose: str, costume: str = "default") -> str:
     if pose in HEAD_FRAMINGS:
         return text
     text = text + ", " + LEGWEAR_BAN
+    if costume == "roomwear":
+        # The settled costume's own garment, banned by name. The shared
+        # negative bans `(brown pantyhose)`, `(blue legwear)` and the rest as
+        # DEFECTS of a pantyhose this costume does not wear, so the plain
+        # colour was never forbidden there -- LEGWEAR wears it. This costume's
+        # legs are bare, so the plain colour has to be named here instead.
+        #
+        # `(shoes:1.4)` too, and it is a partial fix rather than a full one:
+        # `stand` is the one pose that puts footwear in the POSITIVE prompt
+        # (`pose_block`, gated `costume in SHOD`), and this costume is not
+        # shod, so that text is not spliced out for it the way it is for
+        # `sporty`/`fitness` -- doing so needs a matching declaration in
+        # `costume_check.py`'s `COSTUME_ONLY`, which is out of scope here. A
+        # negative guard is the mitigation available without touching that
+        # file; it does not reach the positive tag it is arguing with.
+        text = text + ", (pantyhose:1.5), (black pantyhose:1.45), (shoes:1.4)"
     if costume == "fitness":
         # **The stripe tag names CLOTHES, not trousers.** `vertical-striped
         # clothes` is 64k and does not know which garment was meant, so the tee
@@ -2590,16 +2642,24 @@ def negative(pose: str, costume: str = "default") -> str:
         # Released under `sporty`: that costume IS a casual gym kit, and a
         # guard against the wardrobe would be a guard against the clothes. The
         # posture guard below is about her back, not her clothes, and stays.
-        if costume == "default":
+        #
+        # `roomwear` joins `default` here, not `sporty`/`fitness`: a tee and
+        # dolphin shorts is loungewear, not a gym kit, so the guard against
+        # the exercise scene's own wardrobe applies to it for the same reason
+        # it applies to the settled costume.
+        if costume in ("default", "roomwear"):
             text += ", (sportswear:1.45), (gym uniform:1.4)"
         # 猫背's opposite, and the posture this model volunteers for a girl on
         # her back. `stand` pays a positive tag to GET this arch; here it is
         # the whole defect. Naming the shape in the positive without forbidding
         # its opposite is half a lever.
         text += ", (arched back:1.4), (bridge (pose):1.3)"
-    if pose == "stand" and costume == "default":
+    if pose == "stand" and costume in ("default", "roomwear"):
         # Gated on the costume: `sporty`'s shoes ARE white, so this line would
-        # forbid the footwear that costume names.
+        # forbid the footwear that costume names. `roomwear`'s feet are bare,
+        # not shod in any colour, so the guard belongs to it too -- and it is
+        # the one pose where that costume still carries a positive footwear
+        # tag it did not ask for; see the roomwear guard above LEGWEAR_BAN.
         #
         # After the ban, not before it: this is the tail of the negative that
         # a5c494ef was drawn with, verified against its own history rather than

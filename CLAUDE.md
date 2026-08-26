@@ -120,6 +120,9 @@ The webhook is a credential and lives in `.local/discord-webhook` or
   ingest から再開する — state ファイルを消すと重複レコードができる。
 - chimera への全リクエストに User-Agent の明示が必須（urllib のデフォルトは
   Cloudflare が 403/1010 で弾く）。
+- rating（bad/neutral/good）を書くのは人間だけ。Claude は人間の rating と
+  semantic を API で読んで改善を進める。AI が画像を開く検品は、rating と
+  semantic だけでは判断できない場合の最終手段（トークン消費が理由）。
 - Service Token は 1Password `chimera-claude-agent`。取得後は untracked の
   `.local/chimera-token`（0600）にキャッシュされ、以後 Touch ID なしで動く。
   値をトラックされるファイルに書かない。

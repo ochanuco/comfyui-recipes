@@ -128,6 +128,10 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"added": ["(long legs:1.35)"],
          "why": "a standing figure reads its own proportions; 40.1% of height "
                 "below the hem to 55.7%"},
+        {"removed": ["(eyelashes:1.3)", "(thick eyelashes:1.35)"],
+         "added": ["eyelashes"],
+         "why": "the 08-24 lash pair melts this pose into foil noise; isolated "
+                "tag-by-tag, and the negative's guard is innocent and stays"},
     ],
     "boss": [
         {"removed": ["(petite:1.2)"], "added": ["(mature female:1.35)"],
@@ -234,6 +238,14 @@ EXCEPTIONS: dict[str, list[dict]] = {
         {"removed": ["closed mouth"],
          "why": "(open mouth:1.35) is most of the difference between a smirk "
                 "and a ドヤ顔; the two cannot both be in the prompt"},
+    ],
+    # Brushing teeth: the brush is in the mouth, so the mouth is open. The
+    # straw rule cuts the other way here -- lips close around a straw, not
+    # around a moving brush.
+    "brush": [
+        {"removed": ["closed mouth"],
+         "why": "the brush is in the mouth; lips close around a straw, not "
+                "around a moving brush"},
     ],
     # A failed sit-up: gritted teeth, and teeth are drawn with the mouth open.
     "situp": [

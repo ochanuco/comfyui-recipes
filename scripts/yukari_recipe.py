@@ -2781,6 +2781,17 @@ def positive(pose: str, costume: str = "default") -> str:
         # thing in the face; asleep it is the smallest, and FACE's
         # `closed mouth` is the expression rather than something in the way.
         face = _splice(face, ", looking at viewer", "")
+    if pose == "stand":
+        # The 2026-08-24 lash pair melts this pose into foil noise -- full
+        # prompt, every seed tried, weight-independent (the halter at 1.2 was
+        # blamed first and acquitted). Isolated one tag at a time: the POSITIVE
+        # pair is the killer and the negative's `(long eyelashes:1.35)` is
+        # innocent, so the guard stays. `portrait` and `brush` carry the same
+        # pair over the same face and are fine; whatever it collides with is in
+        # this pose's full-body tag set, and no weight was found that draws
+        # lashes here without destroying the picture.
+        face = _splice(face, "(eyelashes:1.3), (thick eyelashes:1.35)",
+                       "eyelashes")
     body = BODY
     if pose == "prone":
         # 「めちゃ下半身太ってしまった…」. BODY's `(wide hips:1.3)` and

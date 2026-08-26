@@ -1482,8 +1482,14 @@ POSES = {
     # is on thinner ice than the count suggests, because the four that pushed it
     # past the line were all expression and none of them touched the pose.
     "kick": (
+        # `(couch:1.2)` is gone (2026-08-26): the sticker delivery wants the
+        # white band and the marker on HER alone, and the model draws the band
+        # around subject-plus-couch as one thing. No tag un-outlines a couch,
+        # so the couch is what goes. She still gets seated -- the model invents
+        # a ledge or sits her on the frame edge -- and the picked render
+        # (0db8e020, seed 737373737) is this form.
         "(solo:1.5), (sitting:1.45), (soles:1.4), (foot focus:1.35), "
-        "(foreshortening:1.3), (knee up:1.25), (leaning back:1.25), (couch:1.2), "
+        "(foreshortening:1.3), (knee up:1.25), (leaning back:1.25), "
         "(smug:1.3), (confident:1.25), (half-closed eyes:1.25), (open mouth:1.35), "
         "(full body:1.4)"
     ),
@@ -2465,6 +2471,19 @@ def negative(pose: str, costume: str = "default") -> str:
         # PREPENDED, for the reason recorded above -- the sweep this reproduces
         # put it at the front, and token order changes the encoding here.
         text = HAND_BAN + text
+    if pose == "kick":
+        # The picked render (0db8e020) carries all five, in this order, so all
+        # five are in -- the long-eyelashes precedent: never judged one at a
+        # time, but the pick was drawn through them.
+        #
+        # The line trio is `swelter`'s three names for the same convention.
+        # Honestly earned? No: on the seed that drew the doodles (111222333)
+        # the trio stopped nothing, and what actually cleared the backdrop was
+        # leaving that seed. The dress pair is 「肩紐、襟無し、ボタンなし」 --
+        # the halter has no collar and no buttons, and the model keeps
+        # inventing both for any dress it draws under a cardigan.
+        text = ("(speed lines:1.45), (motion lines:1.4), (emphasis lines:1.4), "
+                "(buttons:1.35), (collared dress:1.35), ") + text
     if costume == "fitness":
         # **The tee knots itself, and a knotted tee rides up at the back.** This
         # is the guard that ended three rounds of sweeping the hem: the hem was
@@ -3442,6 +3461,9 @@ SETTLED_SEED = {
     # The picked render is 4e56f616, from a four-seed sweep. Third pose in a
     # row to land on this number and still coincidence, for the same reason.
     "brush": 737373737,
+    # 0db8e020, the no-couch form, from a four-seed sweep. Fourth pose on this
+    # number; the seed that lost (111222333) lost on background doodles.
+    "kick": 737373737,
 }
 
 HIRES_POSITIVE = {

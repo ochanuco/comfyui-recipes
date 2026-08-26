@@ -9948,3 +9948,34 @@ kfuthu -> b2c54r -> lx2mjb の膝枕深掘りで、タイツの質感アーム�
   素材」で却下。ltpge6 の構図保持には refine パスでの ribbed -> opaque
   差し替え（mat-ltpge6, batch 9xardj）が機能した。素材の平滑化は refine で
   できる。sheer 化はできない。この非対称は既知のとおり。
+
+### 根本原因: negative は凍結された過去の修正の要塞で、誰も読み返さない (2026-08-27)
+
+膝枕深掘りで同じ形の事故が繰り返された。sheer を頼んだ 6 アームの色崩壊、
+水色背景の指定が「無視」された件、その代償に選んだ後処理の範囲ぐちゃぐちゃ。
+並べると一つの構造に還元される:
+
+**positive の新しい要求が、別の見た目のために昔立てた negative の ban と
+衝突している。** sheer は `(transparent clothing:1.3)` に、"もっと薄く" は
+`(black pantyhose)` の重みと `(dark)` に、水色背景は `(blue background:1.5),
+(blue tint:1.4)` に、それぞれ正面からぶつかっていた。ban は一度入ると全アーム
+に黙って継承され、衝突してもエラーは出ない — 絵が壊れて初めて分かる。
+8921 行の「Guarding a property while banning the fix」と同じ病で、今回は
+それが3連発した。逃げ場を全部塞がれたモデルが緑に逃げてセージ背景と
+カーキタイツになったのも同根。
+
+**解決はコードに置いた。** `scripts/prompt_lint.py` が positive と negative
+の矛盾（同じ色・素材・対象の両面指名、sheer vs transparent 系、色付き背景
+vs 色 ban）を検出し、`generate.py` は explicit prompt の request で矛盾が
+あると停止する（意図的なペアは `--force`）。素のレシピは全 costume × 全
+pose で無警告、今回の事故2種（k の sheer、水色背景）は検出されることを
+確認済み。
+
+lint が守れないもの: 「sheer はこのスタイルでは色を代償にする」のような
+グローバルな相性は矛盾ではないので通る。それはこの file の仕事のまま。
+
+副産物の教訓: img2img は denoise 0.65 でも元 latent の色に錨を降ろす。
+黒タイツに (white pantyhose:1.3) を頼んでも輝度 39 にしかならなかった
+（元 52、狙い 145）。色を変えるなら生成し直すか、数値で塗ってから低
+denoise で描き直す（queue_refine の docstring どおり）。プロンプトで色を
+持ち上げる操作は img2img には存在しない。

@@ -273,10 +273,22 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--request", required=True, type=Path)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--force", action="store_true",
+                        help="run despite positive/negative contradictions")
     args = parser.parse_args()
 
     req = json.loads(args.request.read_text())
     validate(req)
+    gen = req.get("generation", {})
+    if gen.get("prompt") and gen.get("negative_prompt"):
+        import prompt_lint
+        hits = prompt_lint.conflicts(gen["prompt"], gen["negative_prompt"])
+        if hits and not args.force:
+            for p, n, why in hits:
+                print(f"positive asks ({p}) while negative bans ({n})  [{why}]")
+            raise SystemExit(
+                "prompt contradicts its negative -- fix one side, or --force "
+                "if the pair is deliberate")
     git = git_metadata()
 
     if args.dry_run:

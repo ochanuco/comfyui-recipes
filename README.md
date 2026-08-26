@@ -61,6 +61,37 @@ Models are not included and not downloaded automatically.
 [`docs/models.md`](docs/models.md) lists the exact upstream and SHA256 of every
 model these recipes were tuned against.
 
+## Recording runs in chimera
+
+`scripts/generate.py` runs a batch the same way the recipes do, but records it
+in the [chimera](https://chimera.chanu.co) Management API on the way through:
+Batch and Job registration, image ingest into R2, and a Discord notification
+that carries the generation's canonical URL.
+
+```bash
+uv run scripts/generate.py --request request.json            # run and record
+uv run scripts/generate.py --request request.json --dry-run  # show what would be sent
+```
+
+`request.json` follows the contract in the chimera repository's
+`docs/generation-request.md` (`schema_version` 1). The parts this CLI reads:
+`generation.recipe` must be `yukari` for now; `generation.parameters` carries
+the builder arguments (`pose` required; `costume`, `hires`, `denoise`
+optional); `generation.prompt` / `negative_prompt`, when set, replace the
+built node text wholesale. For attribution, `parameters.character` takes a
+character *name* and resolves it against the API (creating it if new), while
+`parameters.character_id` passes a known UUID straight through.
+
+Authentication is a Cloudflare Access service token, read from
+`$CHIMERA_CF_CLIENT_ID` / `$CHIMERA_CF_CLIENT_SECRET`, or failing that from
+the 1Password item `chimera-claude-agent`. The values are credentials: they
+never go into a tracked file.
+
+A run writes `<request>.state.json` next to the request. That file is what
+makes re-running the same command safe — it holds the idempotency keys, batch
+and job ids, and the seeds, so a retry resumes from wherever the last run
+stopped instead of creating duplicates.
+
 ## What this is, and what it is not
 
 This is personal tooling, published because the measurements in

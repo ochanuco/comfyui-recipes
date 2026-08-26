@@ -33,6 +33,7 @@ BASE = os.environ.get("CHIMERA_BASE_URL", "https://chimera.chanu.co").rstrip("/"
 REPO = Path(__file__).resolve().parent.parent
 WORKDIR = REPO / ".local/_nogit/chimera"
 OP_ITEM = "yml6r5qgx3zt57pryokgi3xdqy"
+TOKEN_CACHE = REPO / ".local/chimera-token"
 POLL_INTERVAL = 10
 POLL_TIMEOUT = 20 * 60
 
@@ -40,15 +41,21 @@ POLL_TIMEOUT = 20 * 60
 def credentials() -> dict[str, str]:
     cid = os.environ.get("CHIMERA_CF_CLIENT_ID", "").strip()
     sec = os.environ.get("CHIMERA_CF_CLIENT_SECRET", "").strip()
+    if not (cid and sec) and TOKEN_CACHE.exists():
+        # Untracked cache, same standing as .local/discord-webhook: `op`
+        # prompts Touch ID on every fetch, which makes unattended runs stall.
+        cid, sec, *_ = TOKEN_CACHE.read_text().splitlines() + ["", ""]
+        cid, sec = cid.strip(), sec.strip()
     if not (cid and sec):
-        # The service token lives in 1Password; `op` prompts Touch ID when the
-        # session is locked, so interactive runs may pause here.
         def field(label: str) -> str:
             return subprocess.run(
                 ["op", "item", "get", OP_ITEM, "--fields", f"label={label}",
                  "--reveal"],
                 check=True, capture_output=True, text=True).stdout.strip()
         cid, sec = field("CF-Access-Client-Id"), field("CF-Access-Client-Secret")
+        TOKEN_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        TOKEN_CACHE.touch(mode=0o600)
+        TOKEN_CACHE.write_text(f"{cid}\n{sec}\n")
     return {"CF-Access-Client-Id": cid, "CF-Access-Client-Secret": sec}
 
 

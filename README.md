@@ -83,9 +83,11 @@ character *name* and resolves it against the API (creating it if new), while
 `parameters.character_id` passes a known UUID straight through.
 
 Authentication is a Cloudflare Access service token, read from
-`$CHIMERA_CF_CLIENT_ID` / `$CHIMERA_CF_CLIENT_SECRET`, or failing that from
-the 1Password item `chimera-claude-agent`. The values are credentials: they
-never go into a tracked file.
+`$CHIMERA_CF_CLIENT_ID` / `$CHIMERA_CF_CLIENT_SECRET`, then from the untracked
+cache `.local/chimera-token`, and only failing both from the 1Password item
+`chimera-claude-agent` — which prompts Touch ID, so a successful fetch writes
+the cache (mode 0600) and later runs stay unattended. The values are
+credentials: they never go into a tracked file.
 
 A run writes `<request>.state.json` next to the request. That file is what
 makes re-running the same command safe — it holds the idempotency keys, batch

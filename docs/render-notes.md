@@ -9927,3 +9927,24 @@ flop が最も打率が高い（6枚中 good 4）。だらけの本命は flop�
 
 finalize は barefoot 条件付きで (toes:1.55) を外す変更後の初運用
 （f907f5d）。2048 raw が j6xvoh、delivered が pclbfb。
+
+### 膝枕深掘り: sheer は今回も色で払った、muted は背景ごと奪った (2026-08-27)
+
+kfuthu -> b2c54r -> lx2mjb の膝枕深掘りで、タイツの質感アームが二度、
+パレットで失敗した。
+
+- `(muted color:1.25)` は全体のコントラストを下げたが、背景ごと脱色して
+  「白夜みたいな配色」になった。1.1 でも本質は同じで、採用されたのは
+  muted も `(high contrast:1.4)` ガードもない素のパレット（arm j, lx2mjb）。
+  コントラストの元凶はタイツのグラデ（pale purple + gradient legwear）で、
+  それを消して黒単色 + `(shiny legwear:1.45)` にしたことが実際の解だった。
+- `(sheer black pantyhose:1.4)`（arm k）と + `(skin visible through
+  pantyhose:1.3)`（arm l）は 6 枚全てで「色がぐちゃぐちゃ」。この file の
+  古い記録 -- sheer 1.5 は色を代償にし、弱めると透けが消える -- の再現。
+  negative の `(transparent clothing:1.3)` を外して挑んでも同じだった。
+  このスタイルで sheer 系タグは閉じた扉。リアル質感は 2048 パスが乗せる
+  微細シェーディングで判断する。
+- `(ribbed legwear:1.35/1.55)`（arm g/h）は編みを描いたが「一般的なタイツ
+  素材」で却下。ltpge6 の構図保持には refine パスでの ribbed -> opaque
+  差し替え（mat-ltpge6, batch 9xardj）が機能した。素材の平滑化は refine で
+  できる。sheer 化はできない。この非対称は既知のとおり。

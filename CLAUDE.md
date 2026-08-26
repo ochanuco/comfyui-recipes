@@ -110,6 +110,19 @@ not, start it, because otherwise the user cannot see any of this.
 The webhook is a credential and lives in `.local/discord-webhook` or
 `$DISCORD_WEBHOOK`. Never put it in a tracked file.
 
+## chimera 連携の不変条件
+
+- 生成の記録は chimera Management API（https://chimera.chanu.co）。CLI は
+  `scripts/generate.py` で、実行と記録のみを担う — semantic 判断（prompt
+  組み立て、reference の意味付け、検品）は Claude Code 側の仕事。
+- idempotency key は CLI が uuid4 で生成し `<request>.state.json` に保持。
+  再送は必ず同じ key で行う。失敗後の再実行は同一 batch/job を再利用して
+  ingest から再開する — state ファイルを消すと重複レコードができる。
+- chimera への全リクエストに User-Agent の明示が必須（urllib のデフォルトは
+  Cloudflare が 403/1010 で弾く）。
+- Service Token は 1Password `chimera-claude-agent`。値をトラックされる
+  ファイルに書かない。
+
 ## The costume is a contract, not a preference
 
 `scripts/yukari_recipe.py` holds shared blocks — `CHARACTER`, `LEGWEAR`, `BODY`,

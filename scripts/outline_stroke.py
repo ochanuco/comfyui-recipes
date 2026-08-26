@@ -53,13 +53,13 @@ from scipy import ndimage
 
 from recolor_bg import background_mask, enclosed_mask, parse_color
 
-# The picked arm: thin, and the same hue as the hair's most saturated tenth.
-DEFAULT_COLOR = "#9256b8"
-DEFAULT_WIDTH_PCT = 0.3
+# Re-picked 2026-08-26 on the colW kick sweep: darker than the hair-accent
+# #9256b8 it replaced, judged against a lighter #b591d6 at the same width.
+DEFAULT_COLOR = "#6a3494"
 # The picked width as a share of the white band it sits against, which is what
-# it was actually chosen as: 6.1px against a band measuring 19.2 on the render
-# the four arms were judged on. See `band_thickness`.
-DEFAULT_WIDTH_BAND = 0.32
+# it was actually chosen as: 12.5px on the render whose 0.32 stroke drew 6.1px.
+# Chosen from a 0.32 / 0.50 / 0.80 / 1.2 ladder. See `band_thickness`.
+DEFAULT_WIDTH_BAND = 0.80
 # The share-of-canvas rule this one replaced, kept as a FLOOR under it. Both
 # rules only ever failed by drawing too thin, so the larger of the two is the
 # one that is never the failure.

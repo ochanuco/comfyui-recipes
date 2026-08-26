@@ -9766,3 +9766,13 @@ the front of the same list. Recorded in `SETTLED_SEED`.
 Delivered with `deliver.py` defaults: 15.1% repainted, stroke #9256b8 at 5.4px.
 Backdrop share sits between `tehe`'s 30-41% and the tight crops' 7-30%, which
 is consistent with the same framing plus a raised arm eating into the field.
+
+## 紫フチの再選定: #6a3494 / band 0.80 (2026-08-26)
+
+colW `kick`（a4c27b83 の再生成 3a9c9905、seed 111222333）を素材に、色2×太さのはしごで振った。
+
+- 色: 濃い #6a3494 と薄い #b591d6 を同幅で並べ、濃い方が採られた。元の #9256b8（髪のアクセント色）は両者の中間で、退役。
+- 太さ: band 0.32 (6.1px) → 0.50 (7.8px) → 0.80 (12.5px) → 1.2 (18.7px)。「もっと太く」が2回続き、12.5px で止まった。1.2 は行き過ぎ。
+- 採用: `yk-colW-kick-111222333_00002_-p12-delivered.png` の濃い紫。`outline_stroke.DEFAULT_COLOR = "#6a3494"`、`DEFAULT_WIDTH_BAND = 0.80` に反映済み。
+
+同じ p12 名で濃・薄2枚が投稿される事故があった。deliver.py の出力名は色を含まないので、同一 prompt_id を色違いで振るときはファイル名では区別できない — 投稿順で覚えるか、色を聞き直すことになる。

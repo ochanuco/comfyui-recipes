@@ -9913,3 +9913,17 @@ flop が最も打率が高い（6枚中 good 4）。だらけの本命は flop�
   残り2枚は横座りに崩れて潜る脚が再発した。wariza はタグとして座らない。
 
 部屋着の座り姿勢は yokozuwari でなく indian style を既定にする価値がある。
+
+## roomwear 初採用: 6d970y → finalize pclbfb (2026-08-26)
+
+部屋着コスの最初の採用作。あぐら（indian style）+ 脱力、表情は sleepy
+アーム — smug を (sleepy:1.35), (half-closed eyes:1.35), (parted lips:1.2)
+に置換し、FACE の closed mouth を外したもの。シードは znyqao 系 2743458075、
+太さは thick thighs 1.05 + wide hips 1.15。ショーツはピンクが出た個体。
+
+表情3アームでは sleepy が採用、jitome (l73z22) と yurui (6mqs68) は不採用。
+「ドヤ顔の状況が分からない」が発注理由で、だらけ姿勢には smug より sleepy
+が正解だった。
+
+finalize は barefoot 条件付きで (toes:1.55) を外す変更後の初運用
+（f907f5d）。2048 raw が j6xvoh、delivered が pclbfb。

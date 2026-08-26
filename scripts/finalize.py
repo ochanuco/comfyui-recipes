@@ -87,7 +87,10 @@ def main() -> None:
 
     prefix = f"fin-{args.short_id}"
     pos = base["6"]["inputs"]["text"]
-    p2_neg = ("(toes:1.55), " + yr.SHADE_BAN + base["7"]["inputs"]["text"])
+    # The kick toe ban, unless the costume is barefoot on purpose -- banning
+    # toes under `(barefoot:1.35)` redraws the feet as mittens in pass 2.
+    toe_ban = "" if "barefoot" in pos else "(toes:1.55), "
+    p2_neg = (toe_ban + yr.SHADE_BAN + base["7"]["inputs"]["text"])
     graph = rf.chain_pass(base, 2048, args.denoise, prefix,
                           prompt=(pos, p2_neg))
     prompt_id = rf.post(graph)

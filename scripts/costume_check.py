@@ -358,6 +358,13 @@ COSTUME_ONLY: dict[str, dict[str, list[dict]]] = {
              "why": "the bow this pose is looking at; documented as costing "
                     "every other pose its coat, which is why it is spliced"},
         ],
+        "kick": [
+            {"removed": ["(pale purple pantyhose:1.35)"],
+             "added": ["(purple pantyhose:1.15)"],
+             "why": "the gradient's light end bleaches to white and this pose "
+                    "has the soles at the camera; full colour at reduced "
+                    "weight won the bracket"},
+        ],
     },
     # The same two departures as `sporty`, because they follow from the same
     # fact: this costume also names shoes. They are written out rather than

@@ -3116,6 +3116,17 @@ def positive(pose: str, costume: str = "default") -> str:
         legwear = legwear.replace(
             "(opaque pantyhose:1.4)",
             "(opaque pantyhose:1.4), (ribbed legwear:1.35)")
+    if pose == "kick" and dressed:
+        # 「つま先のタイツのグラデーションを白ではなく紫に」. The block's
+        # `pale purple` bleaches to near-white at the gradient's light end, and
+        # this pose is the one with the soles at the camera. Bracketed:
+        # `(purple pantyhose:1.35)` overshot -- 「コントラストが高すぎる」 --
+        # and `light purple pantyhose` at 1.35 was the colour-name middle;
+        # what won is the full colour at reduced weight. Per-pose because only
+        # this framing puts the light end of the gradient in the viewer's face;
+        # promoting it to LEGWEAR recolours every pose and was not asked for.
+        legwear = legwear.replace(
+            "(pale purple pantyhose:1.35)", "(purple pantyhose:1.15)")
     # ---- and then the block itself became one garment ----
     #
     # This is where prone spliced its legwear, and the splice is gone: LEGWEAR

@@ -4,6 +4,13 @@ Claude Code interprets the human's intent and writes the request; this script
 only validates, executes and records (chimera/docs/architecture.md). Usage:
 
     uv run scripts/generate.py --request request.json [--dry-run]
+    uv run scripts/generate.py --semantic <generation_id> <semantic.json>
+    uv run scripts/generate.py --tag <generation_id> <name>
+
+The request must carry a `semantic` block (summary at minimum): it is PUT
+onto every generation right after ingest, because the human evaluates
+mid-run on chimera and a generation without semantics cannot be evaluated
+there. --semantic re-PUTs (replaces) later, e.g. after the human's verdict.
 
 Everything that must survive a crash -- idempotency keys, batch/job ids, the
 seeds -- lives in <request>.state.json next to the request file, so re-running
@@ -131,6 +138,14 @@ def validate(req: dict) -> None:
         raise SystemExit(f"recipe {gen.get('recipe')!r} not supported yet")
     if not gen.get("parameters", {}).get("pose"):
         raise SystemExit("generation.parameters.pose is required for yukari")
+    # chimera is where the human evaluates mid-run, and a generation without
+    # semantics cannot be evaluated there -- so the arm's intent must be
+    # written down before the render exists, not after a favourite is picked.
+    if not req.get("semantic", {}).get("summary"):
+        raise SystemExit(
+            "request.semantic.summary is required: state this arm's intent "
+            "(what it tries, what it varies from the base) -- it is written "
+            "to every generation at ingest")
 
 
 def check_references(req: dict) -> None:
@@ -219,6 +234,26 @@ def notify(content: str, filename: str, image: bytes) -> None:
         print(f"  ! Discord: HTTP {err.code} {err.read()[:200]!r}")
 
 
+def put_semantic(generation_id: str, semantic: dict) -> dict:
+    """Write (or overwrite) a generation's semantics. chimera separates ingest
+    (fact recording) from semantics (interpretation), so this is a distinct
+    PUT right after ingest -- a generation without semantics cannot be
+    evaluated mid-run, which is the whole point of writing them early.
+    Partial payloads are fine; a later PUT replaces the record wholesale."""
+    semantic.setdefault("schema_version", 1)
+    semantic.setdefault("generated_by", {
+        "provider": "claude-code",
+        "model": os.environ.get("CLAUDE_MODEL", "unspecified"),
+    })
+    return api("PUT", f"/api/v1/generations/{generation_id}/semantic",
+               semantic)
+
+
+def add_tag(generation_id: str, name: str) -> dict:
+    return api("POST", f"/api/v1/generations/{generation_id}/tags",
+               {"name": name, "created_by": "claude"})
+
+
 def resolve_character(name: str) -> str:
     """Name to UUID; the ingest metadata wants the id, not the name."""
     listing = api("GET", "/api/v1/characters")
@@ -271,11 +306,31 @@ def batch_payload(req: dict, git: dict, idempotency_key: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--request", required=True, type=Path)
+    parser.add_argument("--request", type=Path)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force", action="store_true",
                         help="run despite positive/negative contradictions")
+    parser.add_argument("--semantic", nargs=2, metavar=("GEN_ID", "FILE"),
+                        help="PUT the semantic JSON in FILE onto a "
+                             "generation (enrich or backfill; replaces)")
+    parser.add_argument("--tag", nargs=2, metavar=("GEN_ID", "NAME"),
+                        help="add a tag to a generation (created_by claude)")
     args = parser.parse_args()
+    global _CREDS
+
+    if args.semantic or args.tag:
+        _CREDS = credentials()
+        if args.semantic:
+            gid, path = args.semantic
+            put_semantic(gid, json.loads(Path(path).read_text()))
+            print(f"semantic -> {gid}")
+        if args.tag:
+            gid, name = args.tag
+            add_tag(gid, name)
+            print(f"tag {name!r} -> {gid}")
+        return
+    if not args.request:
+        parser.error("--request is required (unless --semantic/--tag)")
 
     req = json.loads(args.request.read_text())
     validate(req)
@@ -304,7 +359,6 @@ def main() -> None:
         print(f"positive: {graph['6']['inputs']['text'][:120]}...")
         return
 
-    global _CREDS
     _CREDS = credentials()
 
     state_path = args.request.with_suffix(args.request.suffix + ".state.json")
@@ -373,6 +427,14 @@ def main() -> None:
                     {k: generation[k]
                      for k in ("id", "short_id", "canonical_url")})
                 save_state(state_path, state)
+                semantic = json.loads(json.dumps(req["semantic"]))
+                semantic.setdefault("attributes", {}).update(
+                    {"seed": seed, **{k: v for k, v in params.items()
+                                      if k in ("arm", "pose", "costume")}})
+                try:
+                    put_semantic(generation["id"], semantic)
+                except SystemExit as err:
+                    print(f"  ! semantic PUT failed: {err}")
                 notify(f"**JOB ID** `{job['comfy_prompt_id']}`\n"
                        f"**file** `{image['filename']}`\n"
                        f"**chimera** {generation['canonical_url']}",

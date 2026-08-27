@@ -124,6 +124,14 @@ The webhook is a credential and lives in `.local/discord-webhook` or
   base からの差分、何を検証する render か）も ingest 直後に書く — 選抜が済んで
   から書くのでは遅い。作業途中の評価はユーザーが chimera の semantics を見て
   行う。semantics/tag は AI が書いてよい（rating だけが人間専用）。
+- semantics の実装: request JSON の `semantic` ブロック（`summary` 必須）が
+  ingest 直後に各 generation へ自動 PUT される（`generate.py` が強制）。
+  事後の追記・上書きは `generate.py --semantic <generation_id> <file.json>`、
+  tag は `--tag <generation_id> <name>`。API は
+  `PUT /api/v1/generations/{id}/semantic`（schema_version:1、部分ペイロード可、
+  再 PUT で全置換）。`generated_by` は CLI が補完する。generation_id には
+  short_id も使える。`generate.py` を通らなかった render の一括 backfill は
+  `.local/_semantic_backfill.py` が雛形（batch GET が generations を内包）。
 - idempotency key は CLI が uuid4 で生成し `<request>.state.json` に保持。
   再送は必ず同じ key で行う。失敗後の再実行は同一 batch/job を再利用して
   ingest から再開する — state ファイルを消すと重複レコードができる。

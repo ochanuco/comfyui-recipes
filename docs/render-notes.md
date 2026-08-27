@@ -10168,3 +10168,12 @@ SWEEP_SEEDS 先頭4本。arm b 以降は generate.py 経由で chimera 記録あ
   シードが言葉にない何かを持っている。SETTLED_SEED に記録。
 - レシピは kts2c3 のプロンプトをタグ単位で再現することを検証済み
   (positive/negative とも request と一致)。
+
+## hige の印刷経路: --hires は再描画であって拡大ではない (2026-08-27)
+
+- kts2c3 を `--hires 2048` で刷った c6iawu は却下。--hires の第2パスは
+  denoise 0.6 の再描画で、平坦な塗りに彩度上げ・色フリンジ・まだらが入る。
+  HIRES_NEGATIVE["hige"] が lace/目つき系の ban を持っていないことも一因
+  (再描画 hires をこのポーズで使うなら先に足すこと)。
+- 採用は `upscale_plain.py --size 2048` (lanczos、モデル無し) → ib0r5u。
+  承認済みの絵に何も加えない。確定済みポーズの「大きくして」は今後この経路。

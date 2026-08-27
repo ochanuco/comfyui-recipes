@@ -10177,3 +10177,32 @@ SWEEP_SEEDS 先頭4本。arm b 以降は generate.py 経由で chimera 記録あ
   (再描画 hires をこのポーズで使うなら先に足すこと)。
 - 採用は `upscale_plain.py --size 2048` (lanczos、モデル無し) → ib0r5u。
   承認済みの絵に何も加えない。確定済みポーズの「大きくして」は今後この経路。
+
+## レシピの再編成: 1ポーズ=1レコード、正の一本化 (2026-08-27)
+
+- `yukari_recipe.py` (3800行) を `scripts/yukari/` パッケージへ分割。
+  prompt_style / delivery_style（作者の個性）、costumes（衣装＋衣装別
+  negative edit）、poses（POSES verbatim + POSE_RECORDS）、recipe
+  （組み立て順を持つ解釈器）、model（Pose / Edit dataclass）。
+  `yukari_recipe.py` は CLI と公開シンボルの facade として残る。
+- 出力はバイト不変。リファクタ前 commit (d4ceb1a) から全 pose × 全衣装
+  × hires 0/1536/2048 の positive/negative/graph sha256 と CLI
+  --print-prompt を baseline (.local/refactor_baseline.json) に固定し、
+  分割後の照合は IDENTICAL (148 entries)。costume 指紋 73ee99e0962defe1
+  も不動。挙動の変化はゼロなので、この項に絵の測定はない。
+- per-pose の条件分岐（8箇所に散っていた open_mouthed / HEAD_FRAMINGS /
+  splice / HIRES_* / SETTLED_SEED / SIZES）は各 Pose レコードの宣言に
+  統合。negative の編集は stage 番号（model.py）で全体順序を保持する —
+  fitness×hoops の knot→limbs→seam のような pose/衣装の交互順が契約。
+- delivery 側の個性を `delivery_style.py` に一本化: 背景 #c7e5e9
+  (deliver/finalize に重複していた)、紫フチ #6a3494 + 幅 0.80 band /
+  0.3 pct (outline_stroke/finalize に重複)、SAT 帯 30-70 / BG 60
+  (palette_check)。各ツールは import で参照し、正は1箇所になった。
+- costume_check に第2の指紋 DELIVERY_FINGERPRINT (bfb58ed23d1ceebd,
+  schema 1, canonical JSON から算出) を追加。背景やフチの変更は衣装
+  指紋ではなくこちらが落ちる。--accept は両方をラベル付きで出す。
+- 互換性: 公開シンボルは facade が全て再エクスポート。POSES は
+  dict[str, str] のまま（POSE_RECORDS が新設）。例外は `_negative_base`
+  の monkeypatch — 旧 .local probe が使った手口で、negative() はもう
+  この名前を経由しないため patch は届かない。レコードの negative_base
+  を差し替えるのが後継。

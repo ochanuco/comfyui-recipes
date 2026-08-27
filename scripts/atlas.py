@@ -2,7 +2,7 @@
 """Where things are, without reading them.
 
 This repo is expensive to look at. `docs/render-notes.md` is ~68k tokens,
-`scripts/queue_dq3.py` ~21k and `scripts/yukari_recipe.py` ~19k -- between them
+`scripts/yukari/poses.py` ~30k and `scripts/queue_dq3.py` ~21k -- between them
 more than half the repository, and all three are files an agent is tempted to
 open whole to answer a one-line question. This prints the answer instead.
 

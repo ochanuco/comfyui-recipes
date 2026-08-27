@@ -46,11 +46,10 @@ import recolor_bg
 import outline_stroke
 from comfy_host import DEFAULT_HOST, DEFAULT_PORT
 
+from yukari.delivery_style import BACKDROP
+
 REPO = Path(__file__).resolve().parent.parent
 OUTDIR = REPO / ".local/_nogit/deliver"
-# The backdrop this project delivers on. Set here rather than defaulted in
-# recolor_bg, which is a general tool and gets pointed at other colours.
-BACKDROP = "#c7e5e9"
 
 
 def parse_args() -> argparse.Namespace:

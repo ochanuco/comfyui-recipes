@@ -100,6 +100,15 @@ COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "th
 # `default` and `sporty` were rebuilt across both passes and did not.
 COSTUME_FINGERPRINT = "73ee99e0962defe1"
 
+# The delivery half of the identity -- backdrop, purple stroke, acceptance
+# band -- fingerprinted from `yukari/delivery_style.py`. A SEPARATE hash on
+# purpose: a backdrop change is not a costume change, and a fingerprint that
+# mixes them tells the reader the wrong thing moved. Hashed from an explicit
+# canonical payload (not from the module source), so a comment edit does not
+# move it and a value edit always does.
+DELIVERY_FINGERPRINT = "bfb58ed23d1ceebd"
+FINGERPRINT_SCHEMA = 1
+
 
 def tags(text: str) -> list[str]:
     return [t.strip() for t in text.split(",") if t.strip()]
@@ -484,6 +493,22 @@ def fingerprint() -> str:
     return hashlib.sha256("\n".join(blocks).encode()).hexdigest()[:16]
 
 
+def delivery_fingerprint() -> str:
+    """A hash of the delivery identity, from a canonical payload."""
+    from yukari import delivery_style as d
+    payload = json.dumps({
+        "schema": FINGERPRINT_SCHEMA,
+        "backdrop": d.BACKDROP,
+        "stroke": d.STROKE,
+        "stroke_width_band": d.STROKE_WIDTH_BAND,
+        "stroke_width_pct": d.STROKE_WIDTH_PCT,
+        "sat_band": list(d.SAT_BAND),
+        "bg_sat_max": d.BG_SAT_MAX,
+        "finalize_denoise": d.FINALIZE_DENOISE,
+    }, sort_keys=True)
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
 def check_prompt(pose: str, costume: str = "default") -> list[str]:
     """Undeclared differences between the contract and what the recipe builds."""
     canon, actual = canonical(pose, costume), tags(yk.positive(pose, costume))
@@ -569,7 +594,10 @@ def main() -> None:
     args = ap.parse_args()
 
     if args.accept:
-        print(fingerprint())
+        print(f"costume  {fingerprint()}   -> COSTUME_FINGERPRINT")
+        print(f"delivery {delivery_fingerprint()}   -> DELIVERY_FINGERPRINT")
+        print("paste the changed one above, and write in docs/render-notes.md "
+              "what the look is now")
         return
 
     failed = False
@@ -598,6 +626,15 @@ def main() -> None:
               f"     every pose wears this; see --accept")
     else:
         print(f"ok   costume blocks  ({got})")
+
+    got_d = delivery_fingerprint()
+    if got_d != DELIVERY_FINGERPRINT:
+        failed = True
+        print(f"FAIL the delivery identity changed (yukari/delivery_style.py)\n"
+              f"     contract {DELIVERY_FINGERPRINT}, built {got_d}\n"
+              f"     every delivered picture wears this; see --accept")
+    else:
+        print(f"ok   delivery style  ({got_d})")
 
     # Every costume, not just the settled one. A second set of clothes doubles
     # the number of prompts this file is the only record of, and the splices in

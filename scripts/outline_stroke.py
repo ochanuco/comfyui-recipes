@@ -53,17 +53,13 @@ from scipy import ndimage
 
 from recolor_bg import background_mask, enclosed_mask, parse_color
 
-# Re-picked 2026-08-26 on the colW kick sweep: darker than the hair-accent
-# #9256b8 it replaced, judged against a lighter #b591d6 at the same width.
-DEFAULT_COLOR = "#6a3494"
-# The picked width as a share of the white band it sits against, which is what
-# it was actually chosen as: 12.5px on the render whose 0.32 stroke drew 6.1px.
-# Chosen from a 0.32 / 0.50 / 0.80 / 1.2 ladder. See `band_thickness`.
-DEFAULT_WIDTH_BAND = 0.80
-# The share-of-canvas rule this one replaced, kept as a FLOOR under it. Both
-# rules only ever failed by drawing too thin, so the larger of the two is the
-# one that is never the failure.
-DEFAULT_WIDTH_PCT = 0.3
+from yukari import delivery_style
+
+# The values (and why they were picked) live in yukari/delivery_style.py;
+# these names stay because they are this tool's API -- deliver.py reads them.
+DEFAULT_COLOR = delivery_style.STROKE
+DEFAULT_WIDTH_BAND = delivery_style.STROKE_WIDTH_BAND
+DEFAULT_WIDTH_PCT = delivery_style.STROKE_WIDTH_PCT
 
 
 def parse_args() -> argparse.Namespace:

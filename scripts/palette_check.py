@@ -28,8 +28,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-SAT_BAND = (30.0, 70.0)
-BG_SAT_MAX = 60.0
+from yukari.delivery_style import BG_SAT_MAX, SAT_BAND  # noqa: E402
 
 
 def measure(data: bytes) -> dict:

@@ -12,8 +12,13 @@ complete command, and every preset in it was arrived at by rendering.
 
 Two recipes are live, and they do not share code beyond `comfy_host.py`:
 
-- `scripts/yukari_recipe.py` — Yukari. Shared costume blocks plus a pose table;
-  this is where the current work happens.
+- `scripts/yukari_recipe.py` — Yukari; this is where the current work happens.
+  The CLI plus the public surface: the recipe itself is the `scripts/yukari/`
+  package — `prompt_style.py` and `delivery_style.py` (the author identity),
+  `costumes.py` (the wardrobe), `poses.py` (one record per pose),
+  `recipe.py` (the interpreter that owns the assembly order), `model.py`
+  (the `Pose`/`Edit` dataclasses). A new pose is one `POSES` entry plus one
+  `POSE_RECORDS` entry in `poses.py`, nothing else.
 - `scripts/queue_dq3.py` — the DQ3 / KanColle / Touhou jobs, `--job` per
   character.
 
@@ -41,7 +46,7 @@ working tree and their `HEAD` untouched.
 ## Look things up; do not read them
 
 Three files are more than half this repository — `docs/render-notes.md` (~68k
-tokens), `scripts/queue_dq3.py` (~21k) and `scripts/yukari_recipe.py` (~19k) —
+tokens), `scripts/yukari/poses.py` (~30k) and `scripts/queue_dq3.py` (~21k) —
 and all three are exactly what a one-line question tempts you to open whole.
 Opening any of them without a line range is a mistake, not a thorough approach.
 
@@ -59,7 +64,7 @@ gave you.
 For what a recipe actually sends, ask the recipe instead of reading it:
 
 ```bash
-uv run scripts/yukari_recipe.py --pose prone --print-prompt      # ~0.6k, not 19k
+uv run scripts/yukari_recipe.py --pose prone --print-prompt      # ~0.6k, not 30k
 uv run scripts/queue_dq3.py --job sage --print-prompt            # ~0.9k, not 21k
 uv run scripts/costume_check.py                                  # the blocks, verified
 ```
@@ -146,31 +151,35 @@ The webhook is a credential and lives in `.local/discord-webhook` or
 
 ## The costume is a contract, not a preference
 
-`scripts/yukari_recipe.py` holds shared blocks — `CHARACTER`, `LEGWEAR`, `BODY`,
-`FACE`, `SURFACE` — that **every pose wears at once**. Editing one changes every
-render this repo has ever approved, which is why `scripts/costume_check.py`
-hashes them and fails on any change it was not told about:
+The shared blocks — `CHARACTER`, `LEGWEAR`, `BODY`, `FACE`, `SURFACE`, in
+`scripts/yukari/costumes.py` and `prompt_style.py` — are worn by **every pose
+at once**, and the delivery identity (backdrop `#c7e5e9`, the purple stroke,
+the acceptance band, in `scripts/yukari/delivery_style.py`) is worn by every
+delivered picture. Editing either changes every render this repo has ever
+approved, which is why `scripts/costume_check.py` hashes both and fails on
+any change it was not told about:
 
 ```bash
-uv run scripts/costume_check.py            # fingerprint + per-pose declarations
-uv run scripts/costume_check.py --accept   # the new hash, for a change that is meant
+uv run scripts/costume_check.py            # fingerprints + per-pose declarations
+uv run scripts/costume_check.py --accept   # the new hashes, for a change that is meant
 ```
 
 When it fails, nothing is broken — something was changed. Paste the new
-fingerprint, and write in `docs/render-notes.md` what the costume is now.
+fingerprint, and write in `docs/render-notes.md` what the look is now.
 
 Two rules that follow from this, both learned the expensive way:
 
 - **A settled design decision that lives only in prose is a decision the next
   session does not get.** The one-garment leg was agreed, written into the notes
   and into memory, and applied by throwaway scripts in `.local/` — while
-  `yukari_recipe.LEGWEAR` still built the retired two-layer costume, so another
-  session got tights under knee-highs straight out of the recipe. If a change is
-  settled, put it in the blocks.
-- **Splices are string replacements and fail silently.** A per-pose
-  `legwear.replace("(old tag:1.55)", ...)` against a block that no longer
-  contains that tag does nothing at all and reports nothing. After touching a
-  shared block, check the poses that splice it.
+  `LEGWEAR` still built the retired two-layer costume, so another session got
+  tights under knee-highs straight out of the recipe. If a change is settled,
+  put it in the blocks.
+- **Splices are string replacements and fail silently.** That failure is why
+  per-pose departures are `Edit` records now: `replace`/`remove` assert their
+  needle is present, and `_splice`'s `when=` gate is how a costume says "no
+  such garment" out loud. If you write a bare `.replace` against a block
+  anyway, you are reintroducing the bug class the records exist to end.
 
 ## Working files
 

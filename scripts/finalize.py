@@ -35,9 +35,11 @@ import recolor_bg
 import refine_from_history as rf
 import yukari_recipe as yr
 
+from yukari import delivery_style
+
 WORKDIR = Path(__file__).resolve().parent.parent / ".local/_nogit/finalize"
-BACKDROP_HEX = "#c7e5e9"
-STROKE_HEX = "#6a3494"
+BACKDROP_HEX = delivery_style.BACKDROP
+STROKE_HEX = delivery_style.STROKE
 
 
 def clean_background(data: bytes) -> tuple[bytes, str]:
@@ -72,7 +74,8 @@ def clean_background(data: bytes) -> tuple[bytes, str]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("short_id")
-    parser.add_argument("--denoise", type=float, default=0.45)
+    parser.add_argument("--denoise", type=float,
+                        default=delivery_style.FINALIZE_DENOISE)
     args = parser.parse_args()
 
     generate._CREDS = generate.credentials()

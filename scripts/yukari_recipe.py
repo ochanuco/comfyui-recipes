@@ -2198,13 +2198,17 @@ POSES = {
     # positive entirely and banned by name in the negative instead.
     #
     # What is left is pure composition, on the two-slot rule: `holding own
-    # hair` is the action that fills the hand, and `covering own mouth` is the
-    # placement that brings that hand to the mouth. Between them the held hair
-    # ends up at the lip, which IS the gag; nothing asks for a mustache.
+    # hair` is the action that fills the hand, and the placement pair brings
+    # both the hand and the held tips to the mouth -- `covering own mouth` for
+    # the hand, `hair in own mouth` for the tips. The pair is arm h, and it is
+    # the arm the user pulled both keepers from (45nsvu, nmsrew, seed
+    # 555666777 / 111222333); either tag alone (arms d, e) put only one of the
+    # two things at the mouth.
     "hige": (
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
         "(upper body:1.35), (face focus:1.3), (holding own hair:1.5), "
-        "(covering own mouth:1.4), (playing with own hair:1.3), (smile:1.2)"
+        "(covering own mouth:1.3), (hair in own mouth:1.35), "
+        "(playing with own hair:1.3), (smile:1.2)"
     ),
 }
 

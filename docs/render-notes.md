@@ -10041,3 +10041,17 @@ reroll gfwak3 / matte(shiny1.2) mvtl9r / d0.3 9g298c / d0.7+ban 1zbd5y。
 shiny weight は d0.5 では効かず（3案同値）、光沢を消す実効レバーは
 denoise の深さと negative の gloss ban だった。数値フラット化は
 旧ハイライトが青縞で残り棄却。
+
+### 膝枕 最終確定: 39corc — 髪と袖の順序は根元から直す (2026-08-27)
+
+ybhanv 確定後にユーザーが髪と袖の前後関係の破綻を発見（サイドロックが
+袖の下から出て途中で上に乗る）。交差部だけの masked reroll（denoise 0.6）
+は順序自体を直したが「房が肘から生えている」読みが残った — 頭への接続が
+袖に隠れて切れていたのが本因で、マスクを房の根元側（y240-780, x40-520、
+顎と手指ゾーンは除外）まで広げ denoise 0.65 で経路ごと再決定したら4/4で
+自然になった。局所の occlusion 破綻は、破綻点でなく構造の根元を含めて
+描き直す。
+
+最終 delivered: 39corc（seed 606060 の reroll → 背景のみ #c7e5e9 →
+upscale_plain 2048 → 紫外縁 #6a3494 10px）。前版 ybhanv/b2lvjj は
+系譜として chimera に残る。

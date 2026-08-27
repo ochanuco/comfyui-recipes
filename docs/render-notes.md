@@ -10055,3 +10055,23 @@ ybhanv 確定後にユーザーが髪と袖の前後関係の破綻を発見（�
 最終 delivered: 39corc（seed 606060 の reroll → 背景のみ #c7e5e9 →
 upscale_plain 2048 → 紫外縁 #6a3494 10px）。前版 ybhanv/b2lvjj は
 系譜として chimera に残る。
+
+## 部屋着 glo2s4 ブラッシュアップ: ボタンは negative では消えない (2026-08-27)
+
+glo2s4（部屋着あぐら smug、good）の胸元に描かれた4つのボタンを除去する依頼。
+
+masked reroll（denoise 0.6、negative に `(buttons:1.5), (button placket:1.4)`
+追加、4シード）は 4/4 でボタンを再生成した。タイツの色と同じ機構 — 下地の
+暗斑が denoise 0.6 では構造として生き残り、negative は既に画素にあるものを
+消せない。
+
+効いたのは二段: ボタン画素を形状で検出（連結成分、面積 150-2500・充填率
+>0.55 の丸い暗斑。紐・リボンは巨大連結成分として除外）→ 周辺の明色中央値で
+塗り潰し → その領域だけの soft mask（σ4）で denoise 0.35 refine。1パスで
+4つとも消え、リボンと編み目は不変。
+
+マスク外は VAE 再エンコードで輪郭に 1px 級の差分が散る。採用時は soft mask
+で元画像にアルファ合成し、変更をボタン列（y506-686, x461-513）だけに限定した。
+
+delivered: glo2s4 → ボタン除去 (uf2uaq) → plain 2048 → 紫外縁 #6a3494 10px
+= tsrog3（batch 7kvboq）。

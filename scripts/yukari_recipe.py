@@ -2198,17 +2198,18 @@ POSES = {
     # positive entirely and banned by name in the negative instead.
     #
     # What is left is pure composition, on the two-slot rule: `holding own
-    # hair` is the action that fills the hand, and the placement pair brings
-    # both the hand and the held tips to the mouth -- `covering own mouth` for
-    # the hand, `hair in own mouth` for the tips. The pair is arm h, and it is
-    # the arm the user pulled both keepers from (45nsvu, nmsrew, seed
-    # 555666777 / 111222333); either tag alone (arms d, e) put only one of the
-    # two things at the mouth.
+    # hair` is the action that fills the hand, and `smelling hair` is the
+    # placement -- the sniffing gesture is the one vocabulary that pins held
+    # TIPS to the NOSE (arm p, 74gn3v: 「毛先っていう意味ではこれが正しい」).
+    # The mouth pair that preceded it (`covering own mouth` + `hair in own
+    # mouth`, arms h) sent everything to the mouth instead and lost once 毛先
+    # was the ask. What `smelling hair` drags in -- narrowed, smug eyes -- is
+    # named and banned in `negative()`, and the picked render (kts2c3, seed
+    # 3409564303) was drawn through that ban.
     "hige": (
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
         "(upper body:1.35), (face focus:1.3), (holding own hair:1.5), "
-        "(covering own mouth:1.3), (hair in own mouth:1.35), "
-        "(playing with own hair:1.3), (smile:1.2)"
+        "(smelling hair:1.45), (playing with own hair:1.3), (smile:1.2)"
     ),
 }
 
@@ -2545,7 +2546,18 @@ def negative(pose: str, costume: str = "default") -> str:
         # drew the part instead of the gesture, and a drawn part with a name
         # is exactly what a guard can take out. The hair at the lip has no
         # name in this prompt, so the ban cannot delete it.
-        text = (HAND_BAN + "(mustache:1.5), (fake mustache:1.5), "
+        #
+        # In FRONT of the hand guard, because that is the order kts2c3 was
+        # drawn in. Two prices of the pose's own tags, both named:
+        # - the lace trio: `(frills:1.25)` leaked off the unseen dress collar
+        #   onto the cardigan hem (dm5e2v) -- the positive's splice removes
+        #   the ask, this removes what the model draws out of habit.
+        # - the eye trio: `smelling hair` narrows the eyes into a smirk
+        #   (74gn3v, and every eyefix that inherited its structure). Naming
+        #   the state is what returned FACE's tareme.
+        text = ("(lace trim:1.5), (frilled jacket:1.45), (lace:1.4), "
+                "(half-closed eyes:1.5), (narrowed eyes:1.5), (smug:1.4), "
+                + HAND_BAN + "(mustache:1.5), (fake mustache:1.5), "
                 "(facial hair:1.4), (beard:1.4), " + text)
     if pose == "kick":
         # The picked render (0db8e020) carries all five, in this order, so all
@@ -3295,7 +3307,20 @@ def positive(pose: str, costume: str = "default") -> str:
         # width". That still holds. Doing nothing to stroke width is not the
         # same as doing nothing, and this is where the difference showed up.
         parts.append(THIN)
-    return ", ".join(parts)
+    text = ", ".join(parts)
+    if pose == "hige":
+        # kts2c3's three end-appends and one removal, exactly where the picked
+        # render carried them -- appended AFTER everything because that is the
+        # token order it was drawn in, and this file has recorded that a
+        # mid-prompt insertion re-rolls every token after it (arms i/j).
+        # `(frills:1.25)` comes out because the dress collar it describes is
+        # out of frame here and the tag was landing on the cardigan instead;
+        # gated on the settled costume, whose CHARACTER is the block that
+        # carries it.
+        text = _splice(text, "(frills:1.25), ", "",
+                       when=costume == "default")
+        text += ", (covered mouth:1.35), (tareme:1.5), (large eyes:1.4)"
+    return text
 
 
 # What the second pass redraws at, whatever size it is redrawing into. This is
@@ -3580,6 +3605,9 @@ SETTLED_SEED = {
     # 0db8e020, the no-couch form, from a four-seed sweep. Fourth pose on this
     # number; the seed that lost (111222333) lost on background doodles.
     "kick": 737373737,
+    # kts2c3, picked over six fresh seeds run on the identical prompt
+    # (batch wekzha) -- the seed is carrying something the words do not.
+    "hige": 3409564303,
 }
 
 HIRES_POSITIVE = {

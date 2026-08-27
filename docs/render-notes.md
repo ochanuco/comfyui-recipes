@@ -10141,3 +10141,30 @@ SWEEP_SEEDS 先頭4本。arm b 以降は generate.py 経由で chimera 記録あ
 
 手の掴み位置の語彙はここで尽きている。次に効かせるなら言葉ではなく
 参照画像（img2img / regional）側。
+
+### hige 確定: kts2c3 — 嗅ぐ語彙が毛先を鼻に留め、目の代償は名指しで払う (2026-08-27 続き)
+
+前記の「シード抽選へ切替」から先の経緯と確定:
+
+- arm m のシード抽選から 1lsylo (314159265) が「惜しい」。ここから
+  位置寄せの追記アーム (n: smelling hair / o: finger mustache) と、
+  1lsylo の graph に第2パスを重ねる mix 系 (mix/mix2/mix3)、
+  74gn3v の crop 描き直し (posfix/eyefix/eyefix2) を経たが、
+  **構造（両手・口隠し・目つき）は第2パスと部分描き直しでは戻らず**、
+  ユーザーの「ツギハギじゃなくて再生成」で全要素をパス1へ統合した。
+- 統合の中身 (arm s→t、確定は kts2c3 = arm t, seed 3409564303):
+  - `(smelling hair:1.45)` が毛先タグの本命。嗅ぐジェスチャーは
+    「毛先を摘んで鼻もとへ」を一語で構図にする (arm p / 74gn3v)。
+  - 代償1: 目が細まりスマグ顔になる。→ negative 前置
+    `(half-closed eyes:1.5), (narrowed eyes:1.5), (smug:1.4)` +
+    positive 末尾 `(tareme:1.5), (large eyes:1.4)` で FACE を奪還。
+  - 代償2: `(frills:1.25)` がこのフレーミングでは見えないワンピ襟から
+    カーディガン縁に漏れる (dm5e2v)。→ default 衣装のみ splice で除去 +
+    `(lace trim:1.5), (frilled jacket:1.45), (lace:1.4)` ban。
+  - `(covered mouth:1.35)` は手段を指定しない口隠し。手ではなく髪に
+    口を隠させる。
+  - 末尾追記なのは i/j の教訓（中間挿入は以降を全部再抽選）の裏返し。
+- 同プロンプト6シード再抽選 (batch wekzha) でも kts2c3 が勝ち残り。
+  シードが言葉にない何かを持っている。SETTLED_SEED に記録。
+- レシピは kts2c3 のプロンプトをタグ単位で再現することを検証済み
+  (positive/negative とも request と一致)。

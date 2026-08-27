@@ -164,6 +164,14 @@ EXCEPTIONS: dict[str, list[dict]] = {
          "why": "\u301c\u301c\u301c is a drawn-out complaint and FACE closes "
                 "the mouth"},
     ],
+    "hige": [
+        {"added": ["(covered mouth:1.35)"],
+         "why": "the held tips hide the mouth; means-agnostic so the hair, "
+                "not a hand, gets to do it"},
+        {"added": ["(tareme:1.5)", "(large eyes:1.4)"],
+         "why": "`smelling hair` narrows the eyes into a smirk; FACE's own "
+                "pair restated at the weights that outvoted it (kts2c3)"},
+    ],
     "snack": [
         {"removed": ["closed mouth"],
          "why": "a bite. `straw` keeps it, because lips close around a straw "
@@ -328,6 +336,12 @@ EXCEPTIONS: dict[str, list[dict]] = {
 # undeclared change, and this file already fails on both.
 COSTUME_ONLY: dict[str, dict[str, list[dict]]] = {
     "default": {
+        "hige": [
+            {"removed": ["(frills:1.25)"],
+             "why": "the dress collar it describes is out of frame and the "
+                    "tag was landing on the cardigan hem instead (dm5e2v); "
+                    "only this costume's CHARACTER carries the tag"},
+        ],
         "stand": [
             {"added": ["(criss-cross halter:1.45)"],
              "why": "the dress's own crossed straps, taken with the backdrop "

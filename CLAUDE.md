@@ -99,13 +99,18 @@ ComfyUI writes the graph into each output PNG's metadata (`im.info['prompt']`)
 but **not** the prompt_id. When the user names a render by prompt_id, get the
 prompt from `/history/<id>` while the worker still has it.
 
-## Renders reach the user through Discord
+## Renders reach the user through chimera; Discord is a side channel
 
-`scripts/post_renders.py --interval 20` runs in the background and posts every
-finished render to a webhook. It watches ComfyUI's history, not any queueing
-script, so it catches whatever produced the image. Check it is alive
-(`pgrep -f post_renders`) before telling the user to look at something; if it is
-not, start it, because otherwise the user cannot see any of this.
+The user reviews renders on chimera (https://chimera.chanu.co), not Discord.
+A render that reached Discord but not chimera **is not delivered** — never
+close out a prompt on the strength of a Discord post alone. Every render,
+including one-off probes and chained passes from `.local/` scripts, gets a
+chimera record (see the invariants below; `.local/_hige_ingest.py` is the
+template for after-the-fact ingest of renders that bypassed `generate.py`).
+
+`scripts/post_renders.py --interval 20` still posts finished renders to a
+Discord webhook as a low-latency notification. Keep it running
+(`pgrep -f post_renders`), but treat it as a courtesy ping, not delivery.
 
 The webhook is a credential and lives in `.local/discord-webhook` or
 `$DISCORD_WEBHOOK`. Never put it in a tracked file.
@@ -115,6 +120,10 @@ The webhook is a credential and lives in `.local/discord-webhook` or
 - 生成の記録は chimera Management API（https://chimera.chanu.co）。CLI は
   `scripts/generate.py` で、実行と記録のみを担う — semantic 判断（prompt
   組み立て、reference の意味付け、検品）は Claude Code 側の仕事。
+- chimera への記録は生成の完了条件。画像だけでなく semantics（各 arm の狙い、
+  base からの差分、何を検証する render か）も ingest 直後に書く — 選抜が済んで
+  から書くのでは遅い。作業途中の評価はユーザーが chimera の semantics を見て
+  行う。semantics/tag は AI が書いてよい（rating だけが人間専用）。
 - idempotency key は CLI が uuid4 で生成し `<request>.state.json` に保持。
   再送は必ず同じ key で行う。失敗後の再実行は同一 batch/job を再利用して
   ingest から再開する — state ファイルを消すと重複レコードができる。

@@ -10370,3 +10370,33 @@ reink ilkpmu。
   完全分割にする。残ギャップ 0。今後マスクを作るときは最初からこれを通す。
 - 線画抽出の既知条件（再掲を避ける）: ネイティブ解像度で抽出し、
   ヒステリシス（強 0.55 / 弱 0.28 連結）で二値化してから使う。
+
+### 局所再生成の3プローブ: 外は同一、色は強制、形はまだ (2026-08-28)
+
+Semantic Spec（tights=#18181c、socks=#b7a4d8、socks above tights）を 9g298c
+に対して3方式で実測した。socks はどのレンダーにも存在せず、layer graph に
+定義して作った領域（脛〜足首帯）。
+
+- flat-color-first（batch idogc4、d45=div2ss / d60=p2reum）: watertight
+  レイヤーから決定的に作った flat init を img2img。**タイツの黒 #18181c は
+  強制できた**（実測 (8,10,24)）。socks は失敗2態 — d45 は色付き矩形のまま
+  衣類にならず、d60 は色が紫→青に流れた。
+- Crop&Stitch 素（pu232u、denoise 0.75）: `ComfyUI-Inpaint-CropAndStitch`
+  導入。**マスク外 max diff 0 を numpy で確認** — 「マスク外は VAE を
+  通さない」の主張はこの環境でも成立する。ただし領域内は元画素の黒が
+  支配し、艶タイツの続きが描かれて socks が出現しなかった。
+- 統合形（bgjwh7、crop 元の socks 領域を #b7a4d8 で塗ってから
+  Crop&Stitch denoise 0.60）: **色は spec にほぼ一致（実測 (184,163,211)
+  vs (183,164,216)）、マスク外 diff 0 も両立**。残る失敗は形 — 矩形の
+  マスクは矩形の布として描かれ、ソックスという衣類の形にならない。
+
+結論: 局所再生成の3要素のうち「外を壊さない」「色を強制する」は解けた。
+残るのは「領域の形の妥当性」で、これはモデルではなく semantic layout を
+書く側（Claude）の責務 — マスクは衣類として成立する輪郭（脚の輪郭に
+沿った cuff）で描く必要がある。あぐら+下からの構図は足首がほぼ画面外で
+socks の作画自体が無理筋なので、次に測るなら stand 系で脚輪郭に沿った
+socks マスクを作ってから。
+
+負の発見も一つ: lap 系 negative は (socks:1.45) (kneehighs:1.5)
+(two-tone legwear:1.4) 等を ban しており、socks 系の実験では外さないと
+黙って衝突する（negative-bans-outlive-their-look の再演）。

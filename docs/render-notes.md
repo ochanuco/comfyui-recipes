@@ -10226,3 +10226,12 @@ SWEEP_SEEDS 先頭4本。arm b 以降は generate.py 経由で chimera 記録あ
   `_hige_ingest.py` は過去レンダーの backfill 雛形としてのみ残る。
 - 過去レンダーの graph backfill は未実施。ComfyUI が PNG に埋める
   `im.info['prompt']` から遡れる（chimera の graph 列デプロイ後の作業）。
+
+### 追記: graph backfill 実施 (2026-08-27)
+
+- 上の項の「backfill 未実施」は解消。chimera の graph 列デプロイ後、
+  `.local/_graph_backfill.py` で全 331 generations を走査し、162 job に
+  PNG メタデータ由来の graph を充填（エラー0）。34 件は PNG に graph が
+  無い — upscale_plain の print や後処理合成で、`/prompt` 投稿物ではない
+  ので null が正しい。検証は c6iawu で PATCH → generation detail 往復一致。
+- これで chimera 上の全 ComfyUI 産レンダーがレコード単体で再投稿可能。

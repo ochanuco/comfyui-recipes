@@ -2182,6 +2182,21 @@ POSES = {
         "(upper body:1.35), (face focus:1.3), (brushing teeth:1.45), "
         "(toothbrush:1.3), (eyebags:1.4), (half-closed eyes:1.35)"
     ),
+    # 自分の髪でヒゲを作って遊ぶ（「ヒゲ〜〜〜」）. `tehe`'s framing verbatim,
+    # for `brush`'s reason: it is the one crop built for a hand at the face.
+    #
+    # `sip`/`brush`'s two-slot rule: `holding own hair` is the action that
+    # brings the hair to the face and takes the heavier weight; `fake mustache`
+    # is the object slot that says what the held hair is posing as. The hope is
+    # the two read together as hair-held-under-nose rather than a separate
+    # costume prop -- that is the thing the sweep judges.
+    # `playing with own hair` beside them is the mood: this is play, not a
+    # hairstyle.
+    "hige": (
+        "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
+        "(upper body:1.35), (face focus:1.3), (holding own hair:1.45), "
+        "(fake mustache:1.3), (playing with own hair:1.35), (smile:1.3)"
+    ),
 }
 
 # The portrait needs a square-ish frame: (portrait:1.5) alone lost to the canvas
@@ -2333,12 +2348,15 @@ SIZES = {"lounge": (1024, 1536), "portrait": (1024, 1024),
          # not a canvas one; the frame is the settled one for a head.
          "tehe": (1024, 1024),
          # `tehe`'s crop, so `tehe`'s square.
-         "brush": (1024, 1024)}
+         "brush": (1024, 1024),
+         # `tehe`'s crop again.
+         "hige": (1024, 1024)}
 
 # Framings that crop above the legs. They drop LEGWEAR, BODY (bar `pale skin`)
 # and THIN from the positive and the legwear ban from the negative -- naming a
 # garment that is out of frame is what invites it back into the frame.
-HEAD_FRAMINGS = ("portrait", "allnighter", "dizzy", "snarl", "tehe", "brush")
+HEAD_FRAMINGS = ("portrait", "allnighter", "dizzy", "snarl", "tehe", "brush",
+                 "hige")
 
 NEGATIVE = (
     # The other half of the lash pair above: `thick eyelashes` is the 毛量 and
@@ -2507,6 +2525,14 @@ def negative(pose: str, costume: str = "default") -> str:
         # PREPENDED, for the reason recorded above -- the sweep this reproduces
         # put it at the front, and token order changes the encoding here.
         text = HAND_BAN + text
+    if pose == "hige":
+        # `tehe`'s accident class -- a hand closed at the face -- so `tehe`'s
+        # guard, in both passes and prepended, per the finding recorded there.
+        # And the prop risk named in the positive: `fake mustache` is wanted as
+        # a reading of the held hair, not as a costume-shop object, so the
+        # attachable forms are banned by name -- a drawn object with a name is
+        # the case where a guard works.
+        text = HAND_BAN + "(facial hair:1.4), (beard:1.4), " + text
     if pose == "kick":
         # The picked render (0db8e020) carries all five, in this order, so all
         # five are in -- the long-eyelashes precedent: never judged one at a
@@ -3334,6 +3360,9 @@ HIRES_NEGATIVE = {
     # that only ran on the pass that is being redrawn is not a guard. Same five
     # tags; see `negative()` for why they are those five.
     "tehe": HAND_BAN,
+    # `tehe`'s guard for `tehe`'s reason: the redrawn pass redraws the hand at
+    # the face, and a guard that only ran on pass 1 is not a guard.
+    "hige": HAND_BAN,
     # 「右腕が変な色になってる」 on 9603280e, and it was not a colour: the arm
     # thrown over her head measured (255,243,240) against a cheek at
     # (250,230,233) and a backdrop at (238,225,230), outlined in the pink-red

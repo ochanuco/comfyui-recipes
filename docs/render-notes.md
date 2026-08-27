@@ -10103,3 +10103,41 @@ delivered: uf2uaq → 縦紐除去 (wfpky5) → plain 2048 → 紫外縁 = yxf0m
 
 delivered: wfpky5 → 残渣除去 (pi5at0) → plain 2048 → 紫外縁 = tr55zw
 （batch 296h9k）。
+
+## hige — 髪ヒゲ: パーツ語はパーツを描き、構図は掴む毛束を選べない (2026-08-27)
+
+新ポーズ `hige`: 「自分の髪の毛で遊んでヒゲ〜〜〜」→ 最終的な仕様は
+「毛先を口元に当ててヒゲを表現。人中→髪→手→髪 ←目線のレイヤー」。
+`tehe` のフレーミング (1024x1024, HEAD_FRAMINGS)。シードは断りない限り
+SWEEP_SEEDS 先頭4本。arm b 以降は generate.py 経由で chimera 記録あり。
+
+- arm a: `(holding own hair:1.45), (fake mustache:1.3)` + negative に
+  `(facial hair:1.4), (beard:1.4)`。髪は持つが鼻下に来ない。ban が頼んだ
+  対象ごと消した疑い（ban はオブジェクトを消す、の再演）。chimera 未記録
+  （直叩き最後の世代）。
+- arm b: facial hair ban 撤去 + `(fake mustache:1.5)` (mkittj)、
+  arm c: b + `(mustache:1.3)` (id7o67)。**mustache 系タグは重みに関係なく
+  「描かれたヒゲパーツ」を出す。** ジェスチャーは出ない。
+- arm d–h: mustache 語を positive から全撤去し negative へ
+  (`(mustache:1.5), (fake mustache:1.5), (facial hair:1.4), (beard:1.4)`、
+  両パス)。構図タグのみで表現:
+  - d `(covering own mouth:1.4)` 単独 (cg0nli)、e `(hair in own mouth:1.4)`
+    単独 (urjdzf)、f `(finger mustache:1.45)` (tjjlr3)、
+    g `(hand on own face:1.3)` (d8hz06) — どれも決まらず。
+  - **h `(covering own mouth:1.3), (hair in own mouth:1.35)` の併用が当たり**
+    (0zqtgl): 手を口元へ+毛先を唇へ、の2枚看板で 45nsvu (555666777) と
+    nmsrew (111222333) が出た。単独タグは片方しか口元に置かない。
+    → レシピ確定 (9d878ec)。
+- 残る注文「もみあげを全て持ってくる」への束縛は4アーム全て不発:
+  - i: `(holding own hair:1.5)` 直後に `(sidelocks:1.35)` 挿入 (8fch6b)
+    → 4/4 bad。**中間挿入は以降の全トークンの encoding を変え、h の当たり
+    構図ごと再抽選になる。** CLIP は因果エンコードなので挿入点以降が全滅。
+  - j: i + `(very long sidelocks:1.45)` (wgfsd9) → 3 bad / 1 neutral。
+    2変更同時で切り分け不能だったのは手順ミス。
+  - k: 挿入なし・`(very long sidelocks:1.3→1.45)` の重みのみ (p5x7zf)、
+    l: h 末尾に `(holding sidelocks:1.4)` 追記 — どちらも h の2枚を
+    超えず。**どの毛束を掴むかはテキストで指定できず、シードの抽選。**
+- arm m: プロンプトは h のまま8シード抽選に切替。
+
+手の掴み位置の語彙はここで尽きている。次に効かせるなら言葉ではなく
+参照画像（img2img / regional）側。

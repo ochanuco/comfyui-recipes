@@ -55,9 +55,12 @@ def imported_by(paths: list[Path]) -> dict[str, set[str]]:
     used: dict[str, set[str]] = {p.stem: set() for p in paths}
     for path in paths:
         text = path.read_text(errors="replace")
-        for match in re.finditer(r"^\s*(?:from|import)\s+([a-zA-Z_][\w]*)", text, re.M):
-            if match.group(1) in names and match.group(1) != path.stem:
-                used[match.group(1)].add(path.stem)
+        # `from yukari.costumes import ...` and the package's own relative
+        # `from .model import ...` both count: credit every dotted component.
+        for match in re.finditer(r"^\s*(?:from|import)\s+\.?([\w.]+)", text, re.M):
+            for part in match.group(1).split("."):
+                if part in names and part != path.stem:
+                    used[part].add(path.stem)
     return used
 
 

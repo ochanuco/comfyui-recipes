@@ -10075,3 +10075,15 @@ masked reroll（denoise 0.6、negative に `(buttons:1.5), (button placket:1.4)`
 
 delivered: glo2s4 → ボタン除去 (uf2uaq) → plain 2048 → 紫外縁 #6a3494 10px
 = tsrog3（batch 7kvboq）。
+
+### 縦紐除去 (2026-08-27 続き)
+
+胸元の縦紐2本（首元の横紐と腰リボンを繋ぐもの）も不要との指摘。ボタンと
+同じ二段（行ごとの暗色ラン追跡で塗り→denoise 0.35 masked refine）で除去。
+紐の上端は首元紐との合流部に切り株が残るので、合流部の箱も refine mask に
+含める。refine 後もアンチエイリアス縁由来の点線残渣が十数個残る — 小さい
+孤立暗色成分（<150px、領域境界に接しないもの）として検出して塗り潰すのが
+確実で、この最終清掃はサンプラーより速くて安全。
+
+delivered: uf2uaq → 縦紐除去 (wfpky5) → plain 2048 → 紫外縁 = yxf0mg
+（batch cc0z4b）。

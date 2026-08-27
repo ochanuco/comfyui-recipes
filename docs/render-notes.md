@@ -10235,3 +10235,31 @@ SWEEP_SEEDS 先頭4本。arm b 以降は generate.py 経由で chimera 記録あ
   無い — upscale_plain の print や後処理合成で、`/prompt` 投稿物ではない
   ので null が正しい。検証は c6iawu で PATCH → generation detail 往復一致。
 - これで chimera 上の全 ComfyUI 産レンダーがレコード単体で再投稿可能。
+
+### See-through 分解プローブ: 脚とタイツが丸ごと脱落 (2026-08-27)
+
+レイヤー分離パイプライン検討（ChatGPT 検討メモ→調査）の最初の実測。
+`jtydhr88/ComfyUI-See-through`（SIGGRAPH 2026、完成絵→最大24パーツの
+RGBA 分解）を worker に導入し、good の glo2s4（膝枕あぐら・光沢黒タイツ・
+下から）を分解した。batch qkn8ql、プレビューは 8377lt / vfn23w。
+
+- 導入: custom_nodes へ clone + 依存導入（diffusers 0.40.0 ほか）、
+  モデルは HF から事前 snapshot_download（layerdiff3d + marigold、
+  数分で完了）。RTX 3060 12GB、resolution 1024 / depth 720 で OOM なし。
+  実行は request の `generation.graph` 経由（直 POST なし）。
+- 出た: 18 パーツ。髪前後・目まわり左右分割・topwear・handwear 左右・
+  headwear・neck など、上半身の分離は成立。bbox と depth 付きの
+  layers.json も出る。
+- 出なかった: 脚・黒タイツ・bottomwear が **どのパーツにも現れず完全脱落**。
+  ラビットフードも消えた。このプローブの本命（タイツだけ差し替える）に
+  対しては失敗。
+- 性質: パーツは元絵の切り出しではなく **拡散モデルによる再描画**。線が
+  太り、色がずれ、キャンバスは 1024 正方に再構成される。この repo の
+  「線とフラット塗りが本体」という look とは相性が悪い。
+- 推測（未検証）: 学習が Live2D 素材（直立正面）なので、下から・あぐらの
+  構図が事前分布から外れて脚を「無いもの」にした。正面立ち絵（stand 系）
+  なら脚が出る可能性は残る。
+
+次に測るなら: (a) stand 系の good で同じ分解を1枚（構図仮説の検証）、
+(b) タイツ再着色だけなら分解でなく segmentation マスク + 色変換
+（recolor_bg.py 系の後処理）で済むかの比較。

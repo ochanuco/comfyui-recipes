@@ -10206,3 +10206,23 @@ SWEEP_SEEDS 先頭4本。arm b 以降は generate.py 経由で chimera 記録あ
   の monkeypatch — 旧 .local probe が使った手口で、negative() はもう
   この名前を経由しないため patch は届かない。レコードの negative_base
   を差し替えるのが後継。
+
+## 実行経路の一本化: graph が記録、直 POST は廃止 (2026-08-27)
+
+- 到達点は「chimera のレコード単体で `/prompt` へ再投稿して再現できる」。
+  担い手はコードではなく投稿した graph そのもの（モデル・プロンプト・seed・
+  サンプラー・パス構成を全部含む自己記述データで、dpmpp_2m は決定的）。
+- generate.py に `generation.graph`（任意 graph）を追加。レシピが組めない
+  probe（refine チェーン、img2img 等）もこれで generate.py を通る。CLI が
+  job ごとに seed（`inputs.seed` を持つ全ノード）と SaveImage prefix だけ
+  差し替え、それ以外は verbatim。prompt/negative は graph モードでは
+  provenance であって splice ではない。
+- queued PATCH に投稿済み graph を同梱。chimera 側は comfy_jobs に graph
+  列を追加して保存する（chimera repo 側で実装。デプロイまでは zod が
+  strip するので送っても無害、デプロイ後から永続化）。
+- これに伴い ComfyUI への直 POST は禁止に（CLAUDE.md 不変条件に追記）。
+  `.local` の位置づけは request JSON の下書きとレンダーを出さない計測
+  コードのみになり、git 未管理でも provenance に穴が開かない。
+  `_hige_ingest.py` は過去レンダーの backfill 雛形としてのみ残る。
+- 過去レンダーの graph backfill は未実施。ComfyUI が PNG に埋める
+  `im.info['prompt']` から遡れる（chimera の graph 列デプロイ後の作業）。

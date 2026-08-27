@@ -7,6 +7,11 @@ only validates, executes and records (chimera/docs/architecture.md). Usage:
     uv run scripts/generate.py --semantic <generation_id> <semantic.json>
     uv run scripts/generate.py --tag <generation_id> <name>
 
+`generation.parameters.pose` runs the recipe; `generation.graph` runs that
+graph verbatim (seed and SaveImage prefix are set per job). Either way the
+submitted graph is stored on the chimera job, so the record alone can be
+re-queued -- which is why a probe never POSTs to /prompt directly.
+
 The request must carry a `semantic` block (summary at minimum): it is PUT
 onto every generation right after ingest, because the human evaluates
 mid-run on chimera and a generation without semantics cannot be evaluated
@@ -134,9 +139,18 @@ def validate(req: dict) -> None:
     if seeds is not None and len(seeds) != count:
         raise SystemExit(f"len(seeds)={len(seeds)} but count={count}")
     gen = req.get("generation", {})
-    if gen.get("recipe") != "yukari":
+    if gen.get("graph"):
+        # Graph mode: the request carries the ComfyUI graph itself. This is
+        # the ONLY sanctioned path for a probe that the recipe cannot build
+        # -- a probe that POSTs to /prompt directly leaves chimera without a
+        # record, and the record is the completion condition.
+        if not isinstance(gen["graph"], dict) or not gen["graph"]:
+            raise SystemExit("generation.graph must be a non-empty graph dict")
+        if not gen.get("recipe"):
+            raise SystemExit("generation.recipe must name what this graph is")
+    elif gen.get("recipe") != "yukari":
         raise SystemExit(f"recipe {gen.get('recipe')!r} not supported yet")
-    if not gen.get("parameters", {}).get("pose"):
+    elif not gen.get("parameters", {}).get("pose"):
         raise SystemExit("generation.parameters.pose is required for yukari")
     # chimera is where the human evaluates mid-run, and a generation without
     # semantics cannot be evaluated there -- so the arm's intent must be
@@ -154,6 +168,21 @@ def check_references(req: dict) -> None:
 
 
 def build_graph(gen: dict, seed: int, prefix: str) -> dict:
+    if gen.get("graph"):
+        # An explicit graph is authoritative: the recipe does not run and
+        # prompt/negative_prompt are provenance, not splices. The CLI's only
+        # edits are the two things that belong to the JOB rather than the
+        # graph -- every node with a `seed` input gets this job's seed (so a
+        # multi-seed request sweeps the graph the way it sweeps the recipe),
+        # and SaveImage prefixes get the batch/job name.
+        graph = json.loads(json.dumps(gen["graph"]))
+        for node in graph.values():
+            inputs = node.get("inputs", {})
+            if "seed" in inputs:
+                inputs["seed"] = seed
+            if node.get("class_type") == "SaveImage":
+                inputs["filename_prefix"] = prefix
+        return graph
     import yukari_recipe
     params = gen.get("parameters", {})
     graph = yukari_recipe.build(
@@ -356,7 +385,9 @@ def main() -> None:
                          indent=2, ensure_ascii=False))
         print(f"seeds: {seeds}")
         print(f"graph nodes: {sorted(graph, key=int)}")
-        print(f"positive: {graph['6']['inputs']['text'][:120]}...")
+        positive = graph.get("6", {}).get("inputs", {}).get("text")
+        if positive:
+            print(f"positive: {positive[:120]}...")
         return
 
     _CREDS = credentials()
@@ -404,9 +435,13 @@ def main() -> None:
                 job["comfy_prompt_id"] = comfy("/prompt",
                                                {"prompt": graph})["prompt_id"]
                 save_state(state_path, state)
+                # The submitted graph rides with the job: it is the record
+                # that makes the render reproducible from chimera alone,
+                # independent of where the code that built it lived.
                 api("PATCH", f"/api/v1/jobs/{job['job_id']}",
                     {"status": "queued",
-                     "comfy_prompt_id": job["comfy_prompt_id"]})
+                     "comfy_prompt_id": job["comfy_prompt_id"],
+                     "graph": graph})
             api("PATCH", f"/api/v1/jobs/{job['job_id']}", {"status": "running"})
             images = wait_for(job["comfy_prompt_id"])
             api("PATCH", f"/api/v1/jobs/{job['job_id']}",

@@ -109,9 +109,11 @@ prompt from `/history/<id>` while the worker still has it.
 The user reviews renders on chimera (https://chimera.chanu.co), not Discord.
 A render that reached Discord but not chimera **is not delivered** — never
 close out a prompt on the strength of a Discord post alone. Every render,
-including one-off probes and chained passes from `.local/` scripts, gets a
-chimera record (see the invariants below; `.local/_hige_ingest.py` is the
-template for after-the-fact ingest of renders that bypassed `generate.py`).
+including one-off probes and chained passes, gets a chimera record — and the
+way to get one is to run through `generate.py`, never by POSTing `/prompt`
+directly: a probe whose graph the recipe cannot build goes in the request as
+`generation.graph`. (`.local/_hige_ingest.py` remains only as the template
+for backfilling legacy renders that predate this rule.)
 
 `scripts/post_renders.py --interval 20` still posts finished renders to a
 Discord webhook as a low-latency notification. Keep it running
@@ -125,6 +127,12 @@ The webhook is a credential and lives in `.local/discord-webhook` or
 - 生成の記録は chimera Management API（https://chimera.chanu.co）。CLI は
   `scripts/generate.py` で、実行と記録のみを担う — semantic 判断（prompt
   組み立て、reference の意味付け、検品）は Claude Code 側の仕事。
+- 実行経路は `generate.py` の一本のみ。ComfyUI `/prompt` への直 POST は禁止
+  — レシピが組めない graph は request の `generation.graph` に入れて渡す
+  （seed と SaveImage prefix は job ごとに CLI が差し替える）。投稿した
+  graph JSON は job に保存され、chimera のレコード単体で再投稿・再現できる
+  ことがこの規則の目的。コードの置き場（`.local/` 含む）は provenance に
+  関与しない。
 - chimera への記録は生成の完了条件。画像だけでなく semantics（各 arm の狙い、
   base からの差分、何を検証する render か）も ingest 直後に書く — 選抜が済んで
   から書くのでは遅い。作業途中の評価はユーザーが chimera の semantics を見て

@@ -10021,3 +10021,23 @@ z4 が成立した構成: 透けを 1.3 に下げ、(skindentation:1.2) が肌�
 検品通過: iy6dwy / w546qv → 背景のみ #c7e5e9 で xa7c4g / kf12s9。
 gk2wk0 は股部の淡い面が不自然に読め目視で落とした（gate は pass — 帯は
 色しか見ないので、構造の検品は目視のまま）。
+
+### 膝枕 採用: 9g298c → 2048 は plain で (2026-08-27)
+
+膝枕深掘りの決着。採用は 9g298c — 系譜は kfuthu → b2c54r → lx2mjb →
+uk1jfi → z4(w546qv) → z6(tefgig) → z8(6naw05) → z9(ryr4wd) → 下半分
+masked reroll（shiny 削除 + gloss ban、denoise 0.3）→ 背景のみ #c7e5e9。
+構成: 濃チャコールタイツ（マット寄り微光沢）、halterneck + 濃紫リボン、
+白フリル、blush 肌（pale skin 1.15）、hair strands 1.3、あぐら POV。
+
+2048 化で一つ確定: denoise 0.45 の img2img パスは、ピクセル単位で
+確定させた絵に対しては裏切る — 背景の平坦グレーに模様を湧かせ、マットに
+調整したタイツを紫光沢に戻した（fin-lap i7rs9p/40v8g2、目視棄却）。
+採用作の拡大は upscale_plain（モデル不介入）が正解で、これは notes が
+以前から言っていたことの再確認。delivered は ybhanv。
+
+タイツの光沢の目盛（ryr4wd 下半分 reroll、全て seed 424242）:
+reroll gfwak3 / matte(shiny1.2) mvtl9r / d0.3 9g298c / d0.7+ban 1zbd5y。
+shiny weight は d0.5 では効かず（3案同値）、光沢を消す実効レバーは
+denoise の深さと negative の gloss ban だった。数値フラット化は
+旧ハイライトが青縞で残り棄却。

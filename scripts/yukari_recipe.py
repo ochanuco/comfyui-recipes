@@ -2192,10 +2192,19 @@ POSES = {
     # costume prop -- that is the thing the sweep judges.
     # `playing with own hair` beside them is the mood: this is play, not a
     # hairstyle.
+    # 「ヒゲのパーツを書くのではなくて、毛先を口元に持ってきてヒゲを表現する」.
+    # `fake mustache` at any weight names the drawn part, not the gesture --
+    # arms a-c all reached for the part -- so the mustache words are out of the
+    # positive entirely and banned by name in the negative instead.
+    #
+    # What is left is pure composition, on the two-slot rule: `holding own
+    # hair` is the action that fills the hand, and `covering own mouth` is the
+    # placement that brings that hand to the mouth. Between them the held hair
+    # ends up at the lip, which IS the gag; nothing asks for a mustache.
     "hige": (
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
-        "(upper body:1.35), (face focus:1.3), (holding own hair:1.45), "
-        "(fake mustache:1.3), (playing with own hair:1.35), (smile:1.3)"
+        "(upper body:1.35), (face focus:1.3), (holding own hair:1.5), "
+        "(covering own mouth:1.4), (playing with own hair:1.3), (smile:1.2)"
     ),
 }
 
@@ -2528,11 +2537,12 @@ def negative(pose: str, costume: str = "default") -> str:
     if pose == "hige":
         # `tehe`'s accident class -- a hand closed at the face -- so `tehe`'s
         # guard, in both passes and prepended, per the finding recorded there.
-        # And the prop risk named in the positive: `fake mustache` is wanted as
-        # a reading of the held hair, not as a costume-shop object, so the
-        # attachable forms are banned by name -- a drawn object with a name is
-        # the case where a guard works.
-        text = HAND_BAN + "(facial hair:1.4), (beard:1.4), " + text
+        # The mustache words moved here from the positive: asked for, they
+        # drew the part instead of the gesture, and a drawn part with a name
+        # is exactly what a guard can take out. The hair at the lip has no
+        # name in this prompt, so the ban cannot delete it.
+        text = (HAND_BAN + "(mustache:1.5), (fake mustache:1.5), "
+                "(facial hair:1.4), (beard:1.4), " + text)
     if pose == "kick":
         # The picked render (0db8e020) carries all five, in this order, so all
         # five are in -- the long-eyelashes precedent: never judged one at a
@@ -3361,8 +3371,10 @@ HIRES_NEGATIVE = {
     # tags; see `negative()` for why they are those five.
     "tehe": HAND_BAN,
     # `tehe`'s guard for `tehe`'s reason: the redrawn pass redraws the hand at
-    # the face, and a guard that only ran on pass 1 is not a guard.
-    "hige": HAND_BAN,
+    # the face, and a guard that only ran on pass 1 is not a guard. The
+    # mustache ban rides along for the same reason -- pass 2 could paint the
+    # part back in.
+    "hige": HAND_BAN + "(mustache:1.5), (fake mustache:1.5), ",
     # 「右腕が変な色になってる」 on 9603280e, and it was not a colour: the arm
     # thrown over her head measured (255,243,240) against a cheek at
     # (250,230,233) and a backdrop at (238,225,230), outlined in the pink-red

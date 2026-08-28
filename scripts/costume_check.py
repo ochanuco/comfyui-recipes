@@ -98,7 +98,7 @@ COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "th
 # `oversized shirt` goes 1.45 -> 1.55: 「股を出さずに服で隠すこと」. Third and last
 # value on that dial. Only this costume's character block moved; 32 poses under
 # `default` and `sporty` were rebuilt across both passes and did not.
-COSTUME_FINGERPRINT = "73ee99e0962defe1"
+COSTUME_FINGERPRINT = "6baf3a49c68abd92"
 
 # The delivery half of the identity -- backdrop, purple stroke, acceptance
 # band -- fingerprinted from `yukari/delivery_style.py`. A SEPARATE hash on
@@ -451,6 +451,15 @@ def declared(pose: str, costume: str) -> list[dict]:
     entries += COSTUME_ONLY.get(costume, {}).get(pose, [])
     if pose in yk.HEAD_FRAMINGS:
         entries.append(_cropped(costume))
+    if yk.POSE_RECORDS[pose].own_eyes:
+        # Only the halves the strip actually removes: a smug pose's block
+        # carries `(half-closed eyes:1.3)` itself, so that tag never leaves
+        # the prompt and declaring it removed would be a stale declaration.
+        gone = [t for t in tags(yk.RESTING_EYES)
+                if t not in tags(yk.positive(pose, costume))]
+        entries.append({"removed": gone,
+                        "why": "own_eyes: the pose wears its own expression; "
+                               "RESTING_EYES is the \u7d20\u9854 default"})
     return entries
 
 

@@ -18,6 +18,7 @@ from .prompt_style import (
     FACE,
     HIRES_DENOISE,
     NEGATIVE,
+    RESTING_EYES,
     SHADE_BAN,
     SURFACE,
     THIN,
@@ -98,6 +99,8 @@ def positive(pose: str, costume: str = "default") -> str:
     # invites it back in.
     full_figure = rec.framing != "head"
     face = FACE.replace("closed mouth, ", "") if rec.open_mouth else FACE
+    if rec.own_eyes:
+        face = face.replace(RESTING_EYES, "")
     face = _apply(face, rec.face_edits, costume)
     body = _apply(BODY, rec.body_edits, costume)
     character = blocks["character"]

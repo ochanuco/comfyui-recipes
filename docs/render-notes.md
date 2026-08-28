@@ -10532,3 +10532,24 @@ FACE のまま）。ただし本人の言では「まだ確定じゃない」—
 ドヤ側の neki8u は第1弾で portrait 現行の smug ペア（2p810d）に勝って
 いるので、確定すれば smug 系ポーズの表情タグ置換候補でもある。標準化は
 引き続きしない。
+
+### 素顔の目が FACE のデフォルトになった (2026-08-28)
+
+「デフォルト変数として固定してもいいかな」を受けて標準化。FACE に
+`RESTING_EYES = "(unamused:1.3), (half-closed eyes:1.3), "` が入り
+（tareme 1.3 の直後）、costume fingerprint は 73ee99e0962defe1 →
+6baf3a49c68abd92。素顔の出典は e6d6j7（28腕スイープの人間ピック）。
+
+実装は open_mouth と同型の `own_eyes` フラグ: 自前の表情・目状態を持つ
+29ポーズ（smug 系、徹夜系、がおー系、doze/dizzy/tehe/yawn ほか）は
+own_eyes=True で RESTING_EYES を外し、変更前とバイト同一のプロンプトを
+保つ（全37ポーズを snapshot 比較で検証、opt-out 29 は identical・採用 8 は
+ペア挿入のみ）。素顔を受け取るのは表情タグを持たない8ポーズ:
+chair / coy / hunt / nape / ride / situp / snack / straw。
+
+declaration は costume_check の declared() が own_eyes から自動生成する
+（ポーズブロックが half-closed 1.3 を自前で持つ場合は unamused だけを
+removed 扱いにする — 宣言と実態のズレを作らないため）。
+
+ドヤ顔（neki8u = tareme 1.3 + half-closed 1.3、unamused なし）はまだ
+どのポーズにも配線していない。smug 系ポーズの表情置換候補のまま。

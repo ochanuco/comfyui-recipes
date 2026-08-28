@@ -10,12 +10,21 @@ half of the identity (backdrop colour, outline, palette) is
 
 from __future__ import annotations
 
+# The 素顔 (resting face) eyes, picked as e6d6j7 over a 28-arm sweep: shape
+# tags (jitome/narrowed/droopy/tsurime) all lost; what reads as ジト目 is an
+# expression-driven lid at exactly this weight (1.15 too little, 1.45 too much)
+# plus a cool attitude. Swapping `unamused` out turns the same lid into the
+# ドヤ顔 (neki8u) -- one lid, two moods. A pose that declares its own
+# expression sets `own_eyes=True`, which strips this pair the way `open_mouth`
+# strips `closed mouth`; both halves must stay one string or the strip breaks.
+RESTING_EYES = "(unamused:1.3), (half-closed eyes:1.3), "
+
 FACE = (
     # 「毛量は多いが長さは均一がいいかな」, and the weight is bracketed from
     # ABOVE: 1.45 was called ほんの少し多い and 1.25/1.15 were rendered in the
     # same round, so anything right on this axis is at or under 1.35. The bare
     # `eyelashes` this replaces had never been swept at all.
-    "(tareme:1.3), (large eyes:1.3), 2000s (style), "
+    "(tareme:1.3), " + RESTING_EYES + "(large eyes:1.3), 2000s (style), "
     "(eyelashes:1.3), (thick eyelashes:1.35), "
     "(large iris:1.25), thin eyebrows, closed mouth, small mouth, "
     "looking at viewer"

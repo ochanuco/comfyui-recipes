@@ -66,6 +66,7 @@ class Pose:
     size: tuple[int, int]
     framing: str = "full"             # full | head (head crops above the legs)
     open_mouth: bool = False          # drop FACE's `closed mouth`
+    own_eyes: bool = False            # drop FACE's RESTING_EYES pair
     face_edits: tuple[Edit, ...] = ()
     body_edits: tuple[Edit, ...] = ()
     character_edits: tuple[Edit, ...] = ()

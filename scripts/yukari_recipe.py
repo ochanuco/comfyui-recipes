@@ -140,6 +140,7 @@ from yukari.poses import (
     SCENE_TRAIN,
 )
 from yukari.prompt_style import (
+    RESTING_EYES,
     BODY,
     FACE,
     HAND_BAN,

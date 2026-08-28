@@ -1642,25 +1642,25 @@ _CRISS_CROSS = Edit("replace", "(drawstring:1.4), ",
                     gate="dressed")
 
 POSE_RECORDS = {
-    "lounge": Pose(POSES["lounge"], (1024, 1536)),
+    "lounge": Pose(POSES["lounge"], (1024, 1536), own_eyes=True),
     # Head framings sit in a square: (portrait:1.5) alone lost to a 1024x1280
     # canvas and drew down to the thighs.
-    "portrait": Pose(POSES["portrait"], (1024, 1024), framing="head",
+    "portrait": Pose(POSES["portrait"], (1024, 1024), own_eyes=True, framing="head",
                      # 「肩紐がないね」-- in frame here and never drawn until the
                      # splice arrived. e4ff4f8a, picked with the cardigan up.
                      character_edits=(_CRISS_CROSS,)),
-    "allnighter": Pose(POSES["allnighter"], (1024, 1024), framing="head",
+    "allnighter": Pose(POSES["allnighter"], (1024, 1024), own_eyes=True, framing="head",
                        open_mouth=True),
-    "dizzy": Pose(POSES["dizzy"], (1024, 1024), framing="head",
+    "dizzy": Pose(POSES["dizzy"], (1024, 1024), own_eyes=True, framing="head",
                   open_mouth=True),
     # Seated full bodies are 1024x1536; this one wears the legwear, so it is
     # NOT a head framing despite the name.
-    "allnighter_full": Pose(POSES["allnighter_full"], (1024, 1536),
+    "allnighter_full": Pose(POSES["allnighter_full"], (1024, 1536), own_eyes=True,
                             open_mouth=True),
-    "peace": Pose(POSES["peace"], (1024, 1536)),
+    "peace": Pose(POSES["peace"], (1024, 1536), own_eyes=True),
     "chair": Pose(POSES["chair"], (1024, 1024)),
     "boss": Pose(
-        POSES["boss"], (1024, 1024),
+        POSES["boss"], (1024, 1024), own_eyes=True,
         # Grown up by ONE substitution: the rest of BODY is already adult
         # proportion and was only held down by `petite`. Dropping the eye tag
         # instead drew a second empty chair; `(tsurime:1.1)` is the middle if
@@ -1705,11 +1705,11 @@ POSE_RECORDS = {
             # bought the backdrop intruder.
             Edit("prepend", new="(buttons:1.4), "),
         )),
-    "yawn": Pose(POSES["yawn"], (1024, 1536), open_mouth=True),
-    "fall": Pose(POSES["fall"], (1024, 1536), open_mouth=True),
+    "yawn": Pose(POSES["yawn"], (1024, 1536), own_eyes=True, open_mouth=True),
+    "fall": Pose(POSES["fall"], (1024, 1536), own_eyes=True, open_mouth=True),
     "coy": Pose(POSES["coy"], (1024, 1536)),
     "lap": Pose(
-        POSES["lap"], (1024, 1536),
+        POSES["lap"], (1024, 1536), own_eyes=True,
         negative_base=(
             # A head in her lap looks up at her, so the low-angle guard fights
             # the shot. `(upskirt:1.4)`/panties stay -- those are about what
@@ -1720,12 +1720,12 @@ POSE_RECORDS = {
             Edit("append", new=", (2girls:1.6), (multiple girls:1.6), "
                                "(duplicate:1.55), (another person:1.5)"),
         )),
-    "invite": Pose(POSES["invite"], (1024, 1536)),
+    "invite": Pose(POSES["invite"], (1024, 1536), own_eyes=True),
     "hunt": Pose(POSES["hunt"], (1024, 1536)),
-    "crouch": Pose(POSES["crouch"], (1024, 1536)),
+    "crouch": Pose(POSES["crouch"], (1024, 1536), own_eyes=True),
     # A side-on squat is about as wide as it is tall; at 1024x1536 she drew
     # small in a tall empty frame.
-    "sip": Pose(POSES["sip"], (1024, 1024)),
+    "sip": Pose(POSES["sip"], (1024, 1024), own_eyes=True),
     "nape": Pose(
         POSES["nape"], (1024, 1024),
         # Turned away from the camera, `looking at viewer` has no referent --
@@ -1755,7 +1755,7 @@ POSE_RECORDS = {
     # and doubled the relative stroke, 1024x1536 drew the rear-forward
     # composition from the canvas alone. Same 1.57M pixels, on its side.
     "prone": Pose(
-        POSES["prone"], (1536, 1024),
+        POSES["prone"], (1536, 1024), own_eyes=True,
         # 「めちゃ下半身太ってしまった…」: straight at the rear, foreshortened,
         # BODY's hip/thigh tags read as bulk. EASED, not deleted -- pushing
         # further (0.6/0.6 + petite/waist raises) drew the rabbit intruder.
@@ -1764,7 +1764,7 @@ POSE_RECORDS = {
             Edit("replace", "(thick thighs:1.35)", "(thick thighs:1.05)"),
         )),
     "flop": Pose(
-        POSES["flop"], (1536, 1024),
+        POSES["flop"], (1536, 1024), own_eyes=True,
         # 「ちょっと胴体が長い」, `stand`'s axis and `stand`'s lever. Bracketed
         # from both sides: no tag drew a long torso, 1.45 drew 「脚が長すぎる」.
         # The negative route does nothing on this axis -- ask for the leg.
@@ -1774,7 +1774,7 @@ POSE_RECORDS = {
         # and a 250px face is where eyes stop matching. Pass 2 only.
         hires_negative="(half-closed eyes:1.4), (closed eyes:1.4), "),
     "kick": Pose(
-        POSES["kick"], (1024, 1536), open_mouth=True,
+        POSES["kick"], (1024, 1536), own_eyes=True, open_mouth=True,
         legwear_edits=(
             # 「つま先のタイツのグラデーションを白ではなく紫に」: only this
             # framing puts the gradient's light end at the camera. Full colour
@@ -1818,7 +1818,7 @@ POSE_RECORDS = {
     # 832 wide: width beside her is room for someone else to stand. At 1024
     # three of six seeds drew a second figure; at 832, one.
     "stand": Pose(
-        POSES["stand"], (832, 1664),
+        POSES["stand"], (832, 1664), own_eyes=True,
         face_edits=(
             # The 2026-08-24 lash pair melts THIS pose into foil noise -- full
             # prompt, every seed, weight-independent; `portrait` and `brush`
@@ -1857,12 +1857,12 @@ POSE_RECORDS = {
             Edit("append", new=", (white footwear:1.45), (red footwear:1.4)",
                  gate="default_or_roomwear", stage=S_POSE_SHOES),
         )),
-    "hype": Pose(POSES["hype"], (832, 1664), open_mouth=True),
-    "roar": Pose(POSES["roar"], (832, 1664), open_mouth=True),
+    "hype": Pose(POSES["hype"], (832, 1664), own_eyes=True, open_mouth=True),
+    "roar": Pose(POSES["roar"], (832, 1664), own_eyes=True, open_mouth=True),
     # A squat fills its own width; the 832 argument is about width BESIDE her.
-    "pounce": Pose(POSES["pounce"], (1024, 1024), open_mouth=True),
-    "loom": Pose(POSES["loom"], (832, 1664), open_mouth=True),
-    "snarl": Pose(POSES["snarl"], (1024, 1024), framing="head",
+    "pounce": Pose(POSES["pounce"], (1024, 1024), own_eyes=True, open_mouth=True),
+    "loom": Pose(POSES["loom"], (832, 1664), own_eyes=True, open_mouth=True),
+    "snarl": Pose(POSES["snarl"], (1024, 1024), own_eyes=True, framing="head",
                   open_mouth=True),
     "straw": Pose(POSES["straw"], (832, 1664),
                   # 174ce1dc's finish, carried whole -- see PAINT_FINISH in
@@ -1871,7 +1871,7 @@ POSE_RECORDS = {
     "snack": Pose(POSES["snack"], (1024, 1536), open_mouth=True,
                   paint_finish=True, hires_negative=HIRES_NEGATIVE_PAINT),
     "hoops": Pose(
-        POSES["hoops"], (832, 1664), open_mouth=True,
+        POSES["hoops"], (832, 1664), own_eyes=True, open_mouth=True,
         negative_edits=(
             # Two hands closed around an object is `tehe`'s accident class,
             # and that pose's forty-render finding was about WHERE the guard
@@ -1884,7 +1884,7 @@ POSE_RECORDS = {
     # Square: legs forward and arms back put the long axis on the DIAGONAL,
     # so neither portrait nor landscape frames fit. The reference is square.
     "winded": Pose(
-        POSES["winded"], (1152, 1152), open_mouth=True,
+        POSES["winded"], (1152, 1152), own_eyes=True, open_mouth=True,
         face_edits=(
             # あ゛〜〜〜 makes the mouth the largest thing in the face
             # (`swelter`'s reason), and shot from the side with her head back
@@ -1926,7 +1926,7 @@ POSE_RECORDS = {
     # The only square doze earns: asleep she is compact, and the empty half
     # of a wider canvas is where a second figure gets drawn.
     "doze": Pose(
-        POSES["doze"], (1152, 1152),
+        POSES["doze"], (1152, 1152), own_eyes=True,
         # Eyes shut: `looking at viewer` has no referent and either argues or
         # opens them. `small mouth` STAYS -- asleep it is the smallest thing
         # in the face, the expression rather than something in the way.
@@ -1953,7 +1953,7 @@ POSE_RECORDS = {
     # is tall. Spends the second-figure protection 832 buys, knowingly.
     "ride": Pose(POSES["ride"], (1536, 1024)),
     "swelter": Pose(
-        POSES["swelter"], (1536, 1024), open_mouth=True,
+        POSES["swelter"], (1536, 1024), own_eyes=True, open_mouth=True,
         face_edits=(
             # The reference's mouth is the biggest thing in the face, and the
             # eyes are clamped shut -- FACE was settled on a composed girl and
@@ -1998,7 +1998,7 @@ POSE_RECORDS = {
         # is not re-rolled (174ce1dc).
         hires_negative=HIRES_NEGATIVE_PAINT),
     "tehe": Pose(
-        POSES["tehe"], (1024, 1024), framing="head",
+        POSES["tehe"], (1024, 1024), own_eyes=True, framing="head",
         negative_edits=(
             # The emoticon that drew the tongue is gone; a wink and a small
             # mouth are what the model draws one FROM. A tongue is a drawn
@@ -2014,12 +2014,12 @@ POSE_RECORDS = {
         # ...and the pass-2 copy: 0.70 redraws the hand, and a guard that
         # only ran on the pass being redrawn is not a guard.
         hires_negative=HAND_BAN),
-    "brush": Pose(POSES["brush"], (1024, 1024), framing="head",
+    "brush": Pose(POSES["brush"], (1024, 1024), own_eyes=True, framing="head",
                   open_mouth=True,
                   # 4e56f616, from a four-seed sweep.
                   settled_seed=737373737),
     "hige": Pose(
-        POSES["hige"], (1024, 1024), framing="head",
+        POSES["hige"], (1024, 1024), own_eyes=True, framing="head",
         tail_edits=(
             # `(frills:1.25)` names a dress collar that is out of frame here,
             # and the tag was landing on the cardigan instead. Gated on the

@@ -10598,3 +10598,27 @@ cutout（背景抜き透過）も含め assets (role=layer) として各 generat
 AA は flood mask を 2x で切って stroke_alpha も 2x で計算し、alpha を
 2x2 平均で 1x に落とす方式 — 縁の階段が半ピクセル勾配になる。
 縁の幅・色はレイヤー再生成だけで変えられ、repaint 工程は不要になる。
+
+## lounge のコントラスト是正: グラデ廃止が解、sketch 追加は不可視 (2026-08-28)
+
+lounge (n9b2dh, seed 111222333) の「タイツと絵全体が高コントラスト」への
+対処。最初の3アーム（shiny ban / muted color / 両方, 25p1zk・t4inov・
+55gseh）は全て外れ — 艶はそもそも描かれておらず、muted color は膝枕深掘り
+で記録済みの背景脱色の罠だった。ユーザー確認で正体を絞ると「紫の
+ビビッドさ・グラデの変化幅・全体の薄塗り化」で黒の深さは維持。
+
+是正アーム3本（同 seed、n9b2dh 派生）:
+- solid-leg (tx4oxl): (pale purple pantyhose:1.35), (gradient legwear:1.4)
+  を除去して黒単色。膝枕の lx2mjb と同じ解。
+- thin-paint (dtg0ob): (sketch:1.1), (rough sketch:1.1), (sketch lines:1.15)
+  追加、グラデ残し。
+- solid-thin (dlof1x): 両方。
+
+採用は jcjwb6 / 64d41q（solid 系2本の仕上げ）。ユーザーは2本の違いを
+「あまりわかってない」— つまり sketch トリオはこの絵では不可視。効いたのは
+グラデ廃止のみで、sketch 追加は常設しない。
+
+固定: lounge の Pose レコードに legwear_edits (remove, gate=dressed) を追加、
+costume_check は COSTUME_ONLY["default"]["lounge"] で宣言。他ポーズの
+グラデは未判定のまま — stand などにも同じ不満が出たら、置き場を LEGWEAR
+本体に昇格するかをそのとき決める。

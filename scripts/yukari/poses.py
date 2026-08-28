@@ -1642,7 +1642,20 @@ _CRISS_CROSS = Edit("replace", "(drawstring:1.4), ",
                     gate="dressed")
 
 POSE_RECORDS = {
-    "lounge": Pose(POSES["lounge"], (1024, 1536), own_eyes=True),
+    # The leg is solid black here, not the gradient. On this pose the
+    # black->vivid-purple sweep read as the picture's loudest contrast and the
+    # user picked the grad-free arms (jcjwb6/64d41q, seed 111222333) over the
+    # block's own leg -- the same verdict the lap deep-dive reached (lx2mjb).
+    # Removal, not reweighting: six attempts at paling the purple end from the
+    # prompt are already on record as failures (see LEGWEAR's comment).
+    "lounge": Pose(POSES["lounge"], (1024, 1536), own_eyes=True,
+                   legwear_edits=(
+                       Edit("remove",
+                            "(pale purple pantyhose:1.35), (gradient legwear:1.4), ",
+                            gate="dressed",
+                            why="the gradient's vivid ankle was the contrast the "
+                                "user asked off this pose"),
+                   )),
     # Head framings sit in a square: (portrait:1.5) alone lost to a 1024x1280
     # canvas and drew down to the thighs.
     "portrait": Pose(POSES["portrait"], (1024, 1024), own_eyes=True, framing="head",

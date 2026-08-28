@@ -39,8 +39,27 @@ STROKE_WIDTH_PCT = 0.3
 # 41.6, uk1jfi 41.5; the y-arms' 68-86 pink drift already read as
 # 「寄っている」). A pass is not approval -- the human still judges -- but a
 # FAIL never goes forward.
-SAT_BAND = (30.0, 70.0)
+#
+# The upper bound was 70 until 2026-08-28, when it failed a render the user
+# had picked (tx4oxl raw 76.5, its delivered composite 90.8): the frame mean
+# moves with the figure's share of the canvas, so a bound calibrated on lap
+# framings misreads a lounge. 95 keeps it as the explosion detector (the lap
+# disasters measured 108-188); the composition-independent guard is the
+# FIGURE_SAT pair below.
+SAT_BAND = (30.0, 95.0)
 BG_SAT_MAX = 60.0
+
+# The figure's own saturation, measured where colour is actually visible:
+# non-backdrop pixels at V >= FIGURE_MIDTONE_V. The V floor is the 「タイツを
+# 除く」 rule made mechanical -- the black tights and coat sit below it, so
+# deep black stays exempt while the midtones carry the 高彩度・多彩 guard.
+# Calibrated 2026-08-28 on the lounge contrast verdicts: the picked grad-free
+# arms (jcjwb6/64d41q) measure mean 59.9-66.5, top-decile 123-191; the
+# rejected gradient renders measure mean 108-137, top-decile 255. The bands
+# split those with margin on the picked side.
+FIGURE_MIDTONE_V = 80
+FIGURE_SAT_MEAN_MAX = 95.0
+FIGURE_SAT_P90_MAX = 230.0
 
 # finalize's masked refine, the denoise a 2048 print's touch-up runs at.
 FINALIZE_DENOISE = 0.45

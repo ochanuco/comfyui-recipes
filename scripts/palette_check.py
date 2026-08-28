@@ -28,7 +28,11 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from yukari.delivery_style import BG_SAT_MAX, SAT_BAND  # noqa: E402
+import recolor_bg  # noqa: E402
+from yukari.delivery_style import (  # noqa: E402
+    BG_SAT_MAX, FIGURE_MIDTONE_V, FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX,
+    SAT_BAND,
+)
 
 
 def measure(data: bytes) -> dict:
@@ -39,8 +43,19 @@ def measure(data: bytes) -> dict:
     bg = np.median(edge, axis=0).astype(int)
     bg_hsv = np.array(Image.fromarray(bg[None, None].astype(np.uint8))
                       .convert("HSV")).astype(float)[0, 0]
+    # The figure's midtone saturation: black tights/coat sit under the V
+    # floor and stay exempt (delivery_style's 「タイツを除く」 rule). On a
+    # non-flat backdrop the flood under-reaches and backdrop leaks into
+    # "figure"; those renders fail the flatness screen before this number
+    # means anything, so the leak is not worth a guard here.
+    mask = recolor_bg.background_mask(im.astype(int), 18)
+    mask |= recolor_bg.enclosed_mask(im.astype(int), mask, 4)
+    mid = ~mask & (hsv[..., 2] >= FIGURE_MIDTONE_V)
+    fig_s = hsv[..., 1][mid] if mid.any() else np.zeros(1)
     return {"bg": tuple(bg), "bg_sat": float(bg_hsv[1]),
-            "sat": float(hsv[..., 1].mean())}
+            "sat": float(hsv[..., 1].mean()),
+            "fig_sat_mean": float(fig_s.mean()),
+            "fig_sat_p90": float(np.percentile(fig_s, 90))}
 
 
 def verdict(m: dict) -> list[str]:
@@ -49,6 +64,12 @@ def verdict(m: dict) -> list[str]:
         fails.append(f"mean saturation {m['sat']:.1f} outside {SAT_BAND}")
     if m["bg_sat"] > BG_SAT_MAX:
         fails.append(f"background saturation {m['bg_sat']:.1f} > {BG_SAT_MAX}")
+    if m["fig_sat_mean"] > FIGURE_SAT_MEAN_MAX:
+        fails.append(f"figure midtone saturation {m['fig_sat_mean']:.1f} > "
+                     f"{FIGURE_SAT_MEAN_MAX}")
+    if m["fig_sat_p90"] > FIGURE_SAT_P90_MAX:
+        fails.append(f"figure midtone p90 saturation {m['fig_sat_p90']:.1f} > "
+                     f"{FIGURE_SAT_P90_MAX}")
     return fails
 
 
@@ -78,7 +99,8 @@ def main() -> None:
         status = "FAIL" if fails else "pass"
         failed |= bool(fails)
         print(f"{name}: {status} | bg #%02x%02x%02x sat {m['bg_sat']:.0f} "
-              f"| mean sat {m['sat']:.1f}" % m["bg"]
+              f"| mean sat {m['sat']:.1f} | fig mid sat {m['fig_sat_mean']:.1f} "
+              f"p90 {m['fig_sat_p90']:.0f}" % m["bg"]
               + ("".join(f"\n  - {f}" for f in fails)))
     raise SystemExit(1 if failed else 0)
 

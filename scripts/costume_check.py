@@ -106,7 +106,7 @@ COSTUME_FINGERPRINT = "6baf3a49c68abd92"
 # mixes them tells the reader the wrong thing moved. Hashed from an explicit
 # canonical payload (not from the module source), so a comment edit does not
 # move it and a value edit always does.
-DELIVERY_FINGERPRINT = "bfb58ed23d1ceebd"
+DELIVERY_FINGERPRINT = "29ca465d3ac86bc9"
 FINGERPRINT_SCHEMA = 1
 
 

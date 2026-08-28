@@ -10622,3 +10622,28 @@ lounge (n9b2dh, seed 111222333) の「タイツと絵全体が高コントラス
 costume_check は COSTUME_ONLY["default"]["lounge"] で宣言。他ポーズの
 グラデは未判定のまま — stand などにも同じ不満が出たら、置き場を LEGWEAR
 本体に昇格するかをそのとき決める。
+
+## 全体ガード: figure 中間調彩度が受け入れゲートに、limited palette が新レバー (2026-08-28)
+
+「高コントラスト・高彩度を全体ガードで制御。配色は多彩な厚塗りより
+シンプルな単色。ただしタイツを除く」への実装。厚塗り側は既存 negative
+(impasto/painterly/oil/heavy shading) が既に担っている。
+
+ゲート（palette_check / delivery_style）:
+- 新設 FIGURE_SAT_MEAN_MAX=95 / FIGURE_SAT_P90_MAX=230: 非背景かつ
+  V>=80（FIGURE_MIDTONE_V）の人物中間調の彩度。V floor が「タイツを除く」
+  の機械化 — 黒タイツ・コートは測定から自然に外れる。校正は lounge の
+  採用/却下実測（採用 59.9〜66.5 / 123〜191、却下 108〜137 / 255）。
+- SAT_BAND 上限 70→95: frame-mean は人物の画面占有率で動く構図依存の
+  数字で、lap 構図で校正した 70 が採用済みの tx4oxl raw (76.5) と
+  composite (90.8) を誤 FAIL していた。爆発検出（lap 事故の 108〜188）
+  専用に降格。構図非依存の本ガードは FIGURE_SAT 側。
+
+プロンプトレバー（lounge, seed 111222333, tx4oxl 派生, batch asrl5a）:
+- (limited palette:1.2) 単独 (sfctof/wodtrd): fig 中間調 52.1 / p90 113。
+  白帯 19.3px 健全。muted color の罠（背景脱色）なしに彩度が下がる。
+- flat color 1.45 併用 (544tyr/w6yxy8): 彩度は同等 (52.6/105) だが
+  band_thickness が 0 に落ちた — 輪郭近傍の線が痩せる代償の兆候。
+  flat の増量はしない。
+
+limited palette の常設（SURFACE 入り）はユーザーの眼の判定待ち。

@@ -145,7 +145,8 @@ def main() -> None:
                                         (delivered_name, delivered)]):
         row = generate.api("POST", f"/api/v1/jobs/{job['id']}/generations",
                            multipart=({"seed": seed, "original_filename": name,
-                                       "comfy_output_index": idx}, name, data))
+                                       "comfy_output_index": idx},
+                                      "image", name, data, "image/png"))
         urls.append(row["canonical_url"])
         print(f"{name} -> {row['canonical_url']}")
     generate.api("PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})

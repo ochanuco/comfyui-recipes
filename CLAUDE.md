@@ -183,6 +183,12 @@ Two rules that follow from this, both learned the expensive way:
   `LEGWEAR` still built the retired two-layer costume, so another session got
   tights under knee-highs straight out of the recipe. If a change is settled,
   put it in the blocks.
+- **A pass that redraws the face without `positive()` must carry the eye
+  identity by hand.** The recipe path holds the eye design because FACE always
+  rides along; a rough→finish img2img or eye-region inpaint runs on a
+  hand-written prompt, and at high denoise hassaku's own detailed eyes walk in
+  (28bgoa). Put `FACE` in that pass's positive and `EYE_BAN`
+  (`prompt_style.py`) in its negative — both, not either.
 - **Splices are string replacements and fail silently.** That failure is why
   per-pose departures are `Edit` records now: `replace`/`remove` assert their
   needle is present, and `_splice`'s `when=` gate is how a costume says "no

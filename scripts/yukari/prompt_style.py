@@ -161,6 +161,16 @@ HAND_BAN = ("(bad hands:1.5), (mutated hands:1.5), (extra digits:1.5), "
 HIRES_NEGATIVE_PAINT = ("(sketch:1.45), (lineart:1.45), (unfinished:1.4), "
                         "(monochrome:1.35), ")
 
+# 「目のデザインが私の作品っぽくない」(28bgoa). The recipe path holds the eyes
+# because positive() always carries FACE; any pass that redraws the face
+# WITHOUT going through positive() -- a rough→finish img2img, an eye-region
+# Crop&Stitch -- lets hassaku's own detailed eyes in at high denoise. Such a
+# pass must put FACE in its positive and this ban in its negative; neither
+# half alone was enough on 28bgoa. detailed/heavy shading are not here
+# because SHADE_BAN already owns them -- stack both blocks, do not merge.
+EYE_BAN = ("(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
+           "(gradient eyes:1.2), ")
+
 # 「線画の絵柄が変わったね」. Every pose gets these, on the second pass only, and
 # the four tags are ALREADY in NEGATIVE at 1.2/1.25 -- this is the same guard
 # at a weight that survives a 2x redraw.

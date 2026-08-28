@@ -10432,3 +10432,25 @@ hassaku 既定の描き込み系の目が入ってくる。
 (a) 仕上げ段のプロンプトに FACE ブロックをそのまま差し込む（recipe.py の
 positive() から取れる）、(b) 目領域だけ低 denoise で保護（色ラフの目を
 形として尊重）、(c) 仕上げ後に目だけ Crop&Stitch でレシピ調に描き直す。
+
+### 目のアイデンティティは経路に依存させない: EYE_BAN 導入 (2026-08-28)
+
+28bgoa の「目のデザインが私の作品っぽくない」への恒久対応の前半。原因は
+経路差 — レシピの positive() は FACE を必ず運ぶが、ラフ→仕上げの img2img や
+目領域 Crop&Stitch は手書きプロンプトで走り、高 denoise 段で hassaku 既定の
+描き込み系の目（sparkling / gradient / 多重ハイライト）が入る。
+
+対応: `prompt_style.py` に `EYE_BAN` を追加し、positive() を通らずに顔を
+再描画するパスは「FACE を positive に + EYE_BAN を negative に」の両方を
+必須とした（CLAUDE.md の costume 契約に追記）。detailed/heavy shading は
+SHADE_BAN が既に持っているので EYE_BAN には入れず、両ブロックを重ねて使う。
+
+タグ語彙は eyes-request（jj1cog=d0.55 / xhk426=d0.70、28bgoa の目領域
+Crop&Stitch 描き直し）で使ったものそのまま。両腕とも未評価なので、weight の
+妥当性はその評価待ち — このエントリは経路規則の記録であって weight の確定
+ではない。
+
+後半（デザインそのものの固定）は未着手。ユーザーの回答は「正解の目は過去の
+生成の中にある」— good 評価レンダーから正準の目を選んでもらい、正準アセット
+化（目クロップ）ないし LoRA 化を検討する。タグはカテゴリしか言えず、同一
+カテゴリ内のブレはタグでは止まらない（eye size の教訓と同型）。

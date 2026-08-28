@@ -10786,3 +10786,21 @@ delivery_style に追加し、palette_check が raw の corner spread で FAIL �
 raw の frame mean はグレー素背景で 30 を割るのが正常（SAT_BAND は納品
 composite 用の校正）。raw に効くのは平坦スクリーンと light band、composite
 に効くのが SAT_BAND — 使い分けをここに明記しておく。
+
+## 2026-08-28 H/S ピン留め probe: 線画に戻さない「PANTONE 化」 (08ow4z)
+
+「線画に戻して再着色すれば安定した色が出るか」→ 線画には戻さず、V（陰影・
+筆致）を原画のまま残して色相・彩度だけ素材窓別に基準へ合わせる中間案を
+probe した (.local/repin_probe.py)。
+
+- 基準: stand 4eqpdv raw の実測 — 紫窓 (H170-225) S 50.4/45.1・H 191、
+  肌窓 (H0-48) S 24.7/58.5（light/mid の band 別、V 連続 feather）
+- 対象: lounge y6gg4z (seed 321321321、S一律正規化版 f3wynz と同一 raw)
+- 補正量は素材で大きく違った: 紫 0.44/0.18、肌 0.46/0.37 — S 一律 0.34 は
+  この平均を取っていたことになる。特にタイツ帯の 0.18 は一律版の倍近い補正
+- 出力 08ow4z、gate pass 49.6/102。hue のドリフト自体は小さかった
+  (198→191) ので H ピンの寄与は薄く、本体は素材別 S 合わせ
+
+比較は f3wynz (S一律) vs 08ow4z (素材別ピン)。眼の判定待ち。採用なら
+repin を scripts/ へ昇格して正規化 desat を置き換え、基準統計（窓定義と
+band 別目標）は delivery_style に持たせる。

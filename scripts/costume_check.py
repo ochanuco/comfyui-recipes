@@ -345,14 +345,6 @@ EXCEPTIONS: dict[str, list[dict]] = {
 # undeclared change, and this file already fails on both.
 COSTUME_ONLY: dict[str, dict[str, list[dict]]] = {
     "default": {
-        "lounge": [
-            {"removed": ["(pale purple pantyhose:1.35)", "(gradient legwear:1.4)"],
-             "why": "the gradient's vivid ankle was this pose's loudest "
-                    "contrast; the user picked the grad-free arms "
-                    "(jcjwb6/64d41q) and the lap deep-dive reached the same "
-                    "verdict (lx2mjb). Only this costume's leg carries the "
-                    "gradient pair, so the edit is gated dressed"},
-        ],
         "hige": [
             {"removed": ["(frills:1.25)"],
              "why": "the dress collar it describes is out of frame and the "

@@ -1647,6 +1647,31 @@ POSES = {
         "(outstretched arm:1.3), (knee up:1.35), (smug:1.35), "
         "(half-closed eyes:1.3), full body"
     ),
+    # おねだり、胸より上。`tehe` の framing をそのまま使う -- 手が顔まわりに
+    # 来る構図として組まれているのはこのファイルでそれ一つで、その
+    # `(upper body:1.35)` が「胸より上」そのもの。
+    #
+    # `sip` / `brush` の二スロット則: `(begging:1.45)` が意図を持つ action 側、
+    # `(own hands together:1.4)` が形を持つ gesture 側。`(hands up:1.3)` は
+    # `stand` が「胸あたりに出す感じ」のために買った九本目のタグで、これが
+    # ないと同じ seed で手が腰に落ちる -- 胸より上の枠では腰は枠の外なので、
+    # 落ちた手はそのまま消える。
+    #
+    # `(from above:1.35)` は上目遣いのカメラ。顔だけを上げさせる語彙はこの
+    # ファイルにないので、`nape` / `prone` と同じくカメラで作る。negative の
+    # `(from below:1.35)` とは向きが逆で、衝突ではない。
+    #
+    # 目は FACE のまま -- own_eyes が落とすのは RESTING_EYES (`unamused` +
+    # `half-closed eyes`) だけで、それはおねだりの逆だから落とす。残るたれ目と
+    # 大きな瞳がそのまま上目遣いの顔になる。`sparkling eyes` 系は EYE_BAN が
+    # 禁じている側なので足さない。口も FACE の closed / small mouth のまま:
+    # 最初のスイープは手と目だけで読ませ、足りなければ口を買う。
+    "beg": (
+        "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
+        "(upper body:1.35), (face focus:1.3), (begging:1.45), "
+        "(own hands together:1.4), (hands up:1.3), (from above:1.35), "
+        "(blush:1.3)"
+    ),
 }
 
 
@@ -2087,6 +2112,14 @@ POSE_RECORDS = {
     # 嵩に読まれたからで、横向きはその面をシルエットとして見せる。最初の
     # スイープで下半身が重いなら、緩めるのはここ。
     "recover": Pose(POSES["recover"], (1536, 1024), own_eyes=True),
+    # 顔の前で手を組むので、`tehe` / `hige` と同じく両パスに手ガード。頭部
+    # framing は正方形 -- `portrait` が縦長で腿まで描いた記録がある。
+    "beg": Pose(
+        POSES["beg"], (1024, 1024), own_eyes=True, framing="head",
+        negative_edits=(
+            Edit("prepend", new=HAND_BAN, stage=S_POSE_GUARDS),
+        ),
+        hires_negative=HAND_BAN),
 }
 
 assert set(POSE_RECORDS) == set(POSES), (

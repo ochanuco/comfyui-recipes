@@ -10719,3 +10719,15 @@ lounge の彩度は生成側では下がらないと結論。対処は desat 演
 factor の眼の判定待ち（×0.55 = xgr543/9wn7x1 vs ×0.30 = yjsswf/hmtv18）。
 注意: タイツは S 振り切りで階調が失われている可能性があり、desat では
 戻らない — 気になるなら別の絵作りが要る。
+
+## 2026-08-28 lounge の desat ×0.30 を settled 化（「明らかに yjsswf だ！！」）
+
+factor 比較の眼の判定は即決で ×0.30 (yjsswf/hmtv18)。×0.55 (xgr543/9wn7x1)
+は退けられた。settled 化:
+
+- `yukari/delivery_style.py` に `POSE_DESAT = {"lounge": 0.30}` — 納品前に
+  raw へ HSV S のみ ×0.30 を掛ける。載っていないポーズは素通し
+- `.local/desat.py` → `scripts/desat.py` に昇格（factor は引数のまま、
+  値の所有は delivery_style — recolor_bg の --color と同じ規則）
+- 座りの最終納品は yjsswf (1886970040) / hmtv18 (737373737)。×0.55 版
+  4b7jiz と黒脚版 m79vmt の lounge 2枚は系譜として残る

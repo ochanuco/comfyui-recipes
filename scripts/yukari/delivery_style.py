@@ -61,5 +61,15 @@ FIGURE_MIDTONE_V = 80
 FIGURE_SAT_MEAN_MAX = 95.0
 FIGURE_SAT_P90_MAX = 230.0
 
+# Per-pose saturation correction, applied to the raw render (scripts/desat.py,
+# HSV S alone) before the layered delivery. lounge paints the whole picture --
+# dress and hair included, not just the tights -- about 3x stand's saturation,
+# on every seed and past every prompt lever tried (8/8 renders, six prompt
+# attempts, limited palette all on record). 0.30 is the factor that lands both
+# the dress band and the tights band on stand's measured values (dress 26-30,
+# tights 34-46), picked by eye over 0.55 (「明らかに yjsswf だ！！」,
+# 2026-08-28). A pose absent here delivers at its rendered saturation.
+POSE_DESAT = {"lounge": 0.30}
+
 # finalize's masked refine, the denoise a 2048 print's touch-up runs at.
 FINALIZE_DENOISE = 0.45

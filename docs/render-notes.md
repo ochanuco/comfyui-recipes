@@ -11023,3 +11023,37 @@ rd 4cu3gk/hkm8vh）はラフ側 positive を「pass-1 positive + sketch 系」�
 
 判定軸は手書き感のみ。第1波と第2波の差が仕上げタグの有無で説明できるかが、
 このラウンドで実際に測っていること。
+
+## 2026-08-29 再考: チェーン経路は自分の notes が既に殺していた
+
+「うーん再考」。ラフ→着色チェーン（第1波・第2波、計7腕）は handfeel の実測と
+正面から矛盾する経路だった:
+
+- 「同サイズの d0.6 パスは marks を**減らす**(36.9→17.4)。増やすのは upscale
+  が線を割ることであって第2パスではない」
+- 「lanczos の image-space 拡大は線を割らない(one-lanczos 35.3 vs latent
+  bicubic 127.9)」— そして `chain_pass` は ImageScale lanczos + img2img
+  そのもの。
+
+つまりチェーンは「線を割らない拡大 + 線を均すパス」の重ね掛けで、手書き感の
+実測が立った構成はその逆 — pass-1 に drawn-look tail、latent bicubic の
+--hires で線を割る（wide-ink 系譜、rb-hires 235.5）。語彙の問題ではなく
+経路の問題で、第2波で nxbdmu の語彙に替えても経路が同じなら届かない。
+
+刷り直し2腕、zdduvb と同 seed・同ポーズ・レシピの --hires 2048（d0.60）、
+差分は pass-1 末尾の tail のみ:
+
+- ta = d5wu7e (batch cq3qzz): 記録どおりの tail 全部
+  `(sketch:1.15), (rough sketch:1.1), (sketch lines:1.15), (muted colors:1.3),
+  (desaturated:1.2)` — **handfeel 244.7 marks/1k fig-h**
+- tb = 6dwvq7 (batch 9eools): sketch 三連のみ、muted/desat なし —
+  **handfeel 337.9**
+- 比較: marker タグ仕上げの fin-zdduvb は **14.7**（同キャンバス 2048・
+  同 fig h 2039、比較は有効）
+
+rb-hires（the feel restored）が 235.5 だったので、ta はちょうど承認系譜の
+水準に乗っている。tb が ta より高く出たのは意外な向き — muted colors は
+2026-08-18 に「marks を動かした2レバーの片方」と記録されたが、この構図では
+sketch 三連 + 割る upscale だけで足り、muted は彩度を下げる分だけ働いている
+可能性がある。判定は目（手書き感はどのみち数値で判定できない質だが、14.7 と
+244.7 の差は質の差ではなく経路の差として読める）。

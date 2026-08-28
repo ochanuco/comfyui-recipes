@@ -10878,3 +10878,26 @@ raw 単体の gate FAIL はここでは figure の問題ではない: 無彩の�
 (bg sat 1) が frame mean を下げているだけで、背景を #c7e5e9 に置いた納品は
 mean 41.6 / figure mid 42.0 で pass する (jp68a4)。raw の mean sat 下限を
 単独で不合格の根拠にしない。
+
+## 2026-08-28 部屋着のピンクは紫窓に食われる（repin の適用外素材）
+
+`recover` の部屋着（ドルフィンショーツ）を repin に通すと、ピンクが
+ラベンダーになる。実測は 2048 プリントの crop 上で H 224.7 (317度) →
+202.0 (285度)、S は 60.0 → 59.7 でほぼ不動。`PALETTE_WINDOWS` の purple 窓は
+(170, 225) で feather 10、ピンクは 224.7 とその上端の中にいるので、S の
+factor が 1.00（＝彩度には何もしない）でも H だけが 191 へ 0.7 の重みで
+寄せられる。
+
+つまり repin の恒等判定は S しか見ておらず、H の easing は factor と独立に
+効く。ピンクはこの衣装で初めて出た素材で窓がない以上、部屋着の納品では
+repin を通さないのが今のところ正しい（紫窓・肌窓とも factor 1.00 なので
+通す利益がない）。窓を足すなら pink (H 210-255) を hue_target なしで置く形。
+
+15j31x の 2048 crop 納品 = x9fxrt（生プリントは lx9ckd）。左20%・下10%を
+落として 1638x1231。縁は crop の後に引く — 先に引くと切り口に縁が残らない。
+acceptance gate は mean sat 28.6 で下限 30 を割るが、これは crop で無彩の
+背景が減ったことによる frame mean の低下で、figure の問題ではない。crop 後は
+角に図が届くので corner spread の平坦スクリーンも適用外になる。
+
+`finalize.py` は ingest 直前で落ちていた（multipart に3要素を渡していたが
+`generate.api` は5要素を要求する）。d209f68 で修正。

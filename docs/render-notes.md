@@ -10647,3 +10647,20 @@ costume_check は COSTUME_ONLY["default"]["lounge"] で宣言。他ポーズの
   flat の増量はしない。
 
 limited palette の常設（SURFACE 入り）はユーザーの眼の判定待ち。
+
+## 2026-08-28 立ち2+座り2 の演算納品 (bgeyzn/lobd30 → m79vmt)
+
+依頼「立ち絵2枚、座り絵2枚」。settled レシピ素通し（limited palette は
+判定待ちのため未搭載）、仕上げはレイヤー分離+AA（--model-band、白帯は
+モデル描画）。raw: stand 4eqpdv/holjzj (seed 2557902837/3409564303)、
+lounge sq6n89/6ci3pr (seed 1886970040/737373737)。納品 composite は
+batch m79vmt = 2nwiu4/aybq1i/99houl/g5l3da、各 generation にレイヤー
+（background/band-purple/figure/cutout）を asset role=layer で添付。
+
+測定（composite、palette_check 全 pass）:
+
+- stand: fig mid sat 39.4/72, 43.5/100 — 立ちは座りより一段低い
+- lounge: 68.1/165, 59.8/165 — グラデ廃止 Edit がレシピ経路で初めて
+  新規 seed に効いた値。採用時の校正 (59.9–66.5 / 123–191) と同帯で、
+  FIGURE_SAT ゲートが未見 seed でも採用側に収まることの確認になった
+- band 実測→紫幅: 6.4–10.0px、全数で band 健在（floor 未使用）

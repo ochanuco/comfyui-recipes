@@ -10553,3 +10553,26 @@ removed 扱いにする — 宣言と実態のズレを作らないため）。
 
 ドヤ顔（neki8u = tareme 1.3 + half-closed 1.3、unamused なし）はまだ
 どのポーズにも配線していない。smug 系ポーズの表情置換候補のまま。
+
+## 縁の出し方比較: モデル二重縁は不成立、white outline タグは背景平坦も担っていた (2026-08-28)
+
+紫縁がぽん出しに付かない件から、白帯+紫縁を「モデルで両方」「演算で両方」
+の2アームで比較した。stand、seed 555666777 / 111222333 の同一ペア。
+
+- モデル両方 (q932sp = 2p61y7 / 9wujaj): `(white outline:1.6)` に
+  `(purple outline:1.35), (double outline:1.25)` を追加。**紫縁はどちらの
+  seed でも描かれず**、白帯のみ。outline_stroke.py の docstring の予言
+  （二重同心の縁は seed 越しに保持できない）を実測で確認。555666777 は
+  repaint 14.1% しか塗れず、purple タグが背景側を乱した疑い。
+- 演算両方 (ramv1g = eq5uev / k6kha8): `(white outline:1.6), outline` を
+  外して生成し、repaint 後に白帯 21.6px（長辺1.3%、モデル実測比率）→
+  紫 17.3px（白の0.8倍）を outline_stroke で重ねた。縁自体は成立
+  (u864pi 比較用の仕上げは batch 4rkvd2)。
+- ただし **white outline タグは背景の平坦さも担っていた**: タグを外した
+  eq5uev (555666777) は背景が上170→下225のグラデーションになり、flood が
+  17.6% しか届かず repaint も切り抜きも不能。k6kha8 (111222333) は 65% で
+  正常。演算経路を採るなら背景平坦が前提条件で、backdrop_flatness の
+  事前スクリーニングが要る。
+- 透過PNG版: k6kha8 から人物+白帯+紫縁で背景 alpha=0 の切り抜きを作成
+  (6pr5ga、.local/edge_alpha.py)。mask は outline_stroke と同じ flood。
+  背景 #c7e5e9 を合成時に敷く前提なら repaint 工程ごと不要になる。

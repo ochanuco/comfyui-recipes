@@ -10586,3 +10586,15 @@ SWEEP_SEEDS 全6本で計測（repaint 到達率 / 角の輝度差）:
 スクリーニングはこの角差で足りそう。タグありのレシピで背景が
 割れた記録は無いので、演算経路の欠品率 3/6 はタグ削除の代償と読む。
 平坦だった2本の仕上げは batch c4pmz9 (xcwrfp / yq8i35)。
+
+### レイヤー分離+AA の演算納品 (2026-08-28)
+
+「演算側に寄せるなら背景/紫/白/絵を分離して持ちたい、縁はAAを」との方針を
+受けて、.local/edge_layers.py で平坦3 seed をレイヤー化した (batch vozxpj =
+a4mkw7 / ha9t39 / c0qnkq)。構成は straight alpha の RGBA 4層
+（background = #c7e5e9 平面、band-purple 17.3px、band-white 21.6px、
+figure = 生ピクセル+mask alpha）で、この順に重ねると composite に一致。
+cutout（背景抜き透過）も含め assets (role=layer) として各 generation に常在。
+AA は flood mask を 2x で切って stroke_alpha も 2x で計算し、alpha を
+2x2 平均で 1x に落とす方式 — 縁の階段が半ピクセル勾配になる。
+縁の幅・色はレイヤー再生成だけで変えられ、repaint 工程は不要になる。

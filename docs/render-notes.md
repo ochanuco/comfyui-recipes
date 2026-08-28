@@ -10766,3 +10766,23 @@ factor 比較の眼の判定は即決で ×0.30 (yjsswf/hmtv18)。×0.55 (xgr543
 （`light 29.5 (desat x0.95)`）。costume_check の delivery 指紋 payload に
 FIGURE_SAT 系と light 系を追加（schema 2、指紋 582d6e17b46b12ee — 従来
 これらの値は指紋の外にいた）。
+
+## 2026-08-28 正規化パイプラインのポン出し確認 + 背景平坦スクリーン常設 (cmfpby/2yrxuf/5gv906 → w1u6b8)
+
+新規 seed でのポン出し2枚を正規化 desat（人手の factor 選定なし）で納品:
+
+- stand 456456456 (36iycx → lu5qo7): factor 0.94 自動 — light 29.9 は目標
+  28 のすぐ上で、正規化がほぼ素通しに縮退する（設計どおり）
+- lounge 321321321 (y6gg4z → f3wynz): factor 0.34 自動 — light 83.1、
+  正規化後 28.3。lounge のドリフトは新規 seed でも約3倍で再現
+
+初回の stand seed 123123123 (2ocrdk) はグラデ背景のハズレ（corner spread
+41.1、flood 被覆 23.7% — 平坦組は spread <10・被覆 40%+）。これを機に
+手動測定だった平坦スクリーンを常設化: `BACKDROP_SPREAD_MAX = 25` を
+delivery_style に追加し、palette_check が raw の corner spread で FAIL を
+出す（グラデ背景では flood が届かず、以降の人物系の数値が全部信用できなく
+なるため）。delivery 指紋も更新 (29fda426a63c26f5)。
+
+raw の frame mean はグレー素背景で 30 を割るのが正常（SAT_BAND は納品
+composite 用の校正）。raw に効くのは平坦スクリーンと light band、composite
+に効くのが SAT_BAND — 使い分けをここに明記しておく。

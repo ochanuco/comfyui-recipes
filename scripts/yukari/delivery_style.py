@@ -77,5 +77,14 @@ FIGURE_SAT_P90_MAX = 230.0
 FIGURE_LIGHT_V = 150
 FIGURE_LIGHT_SAT_TARGET = 28.0
 
+# The backdrop flatness screen, on the RAW render's corner brightness spread.
+# A gradient backdrop starves the flood mask (23.7% coverage on cmfpby's
+# stand against ~40%+ when flat), and then every downstream number -- the
+# figure bands, the normalization factor, the repaint -- is measured against
+# a backdrop leak. Measured flat renders sit under 10, gradient failures at
+# 40+ (2026-08-28 white-outline sweep; confirmed by cmfpby at 41.1), so the
+# bound splits them mid-gap.
+BACKDROP_SPREAD_MAX = 25.0
+
 # finalize's masked refine, the denoise a 2048 print's touch-up runs at.
 FINALIZE_DENOISE = 0.45

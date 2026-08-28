@@ -30,8 +30,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import recolor_bg  # noqa: E402
 from yukari.delivery_style import (  # noqa: E402
-    BG_SAT_MAX, FIGURE_LIGHT_SAT_TARGET, FIGURE_LIGHT_V, FIGURE_MIDTONE_V,
-    FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX, SAT_BAND,
+    BACKDROP_SPREAD_MAX, BG_SAT_MAX, FIGURE_LIGHT_SAT_TARGET, FIGURE_LIGHT_V,
+    FIGURE_MIDTONE_V, FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX, SAT_BAND,
 )
 
 
@@ -50,6 +50,9 @@ def measure(data: bytes) -> dict:
     # means anything, so the leak is not worth a guard here.
     mask = recolor_bg.background_mask(im.astype(int), 18)
     mask |= recolor_bg.enclosed_mask(im.astype(int), mask, 4)
+    c = 40
+    corners = [im[:c, :c], im[:c, -c:], im[-c:, :c], im[-c:, -c:]]
+    corner_means = [x.reshape(-1, 3).mean() for x in corners]
     mid = ~mask & (hsv[..., 2] >= FIGURE_MIDTONE_V)
     fig_s = hsv[..., 1][mid] if mid.any() else np.zeros(1)
     light = ~mask & (hsv[..., 2] >= FIGURE_LIGHT_V)
@@ -60,7 +63,8 @@ def measure(data: bytes) -> dict:
             "fig_sat_p90": float(np.percentile(fig_s, 90)),
             "light_sat": light_s,
             "norm_factor": min(1.0, FIGURE_LIGHT_SAT_TARGET / light_s)
-            if light_s else 1.0}
+            if light_s else 1.0,
+            "corner_spread": float(max(corner_means) - min(corner_means))}
 
 
 def verdict(m: dict) -> list[str]:
@@ -75,6 +79,11 @@ def verdict(m: dict) -> list[str]:
     if m["fig_sat_p90"] > FIGURE_SAT_P90_MAX:
         fails.append(f"figure midtone p90 saturation {m['fig_sat_p90']:.1f} > "
                      f"{FIGURE_SAT_P90_MAX}")
+    if m["corner_spread"] > BACKDROP_SPREAD_MAX:
+        fails.append(f"backdrop not flat: corner spread "
+                     f"{m['corner_spread']:.1f} > {BACKDROP_SPREAD_MAX} "
+                     f"(gradient backdrop starves the flood mask; every "
+                     f"figure number above is suspect)")
     return fails
 
 

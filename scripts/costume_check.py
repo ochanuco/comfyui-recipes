@@ -106,7 +106,7 @@ COSTUME_FINGERPRINT = "6baf3a49c68abd92"
 # mixes them tells the reader the wrong thing moved. Hashed from an explicit
 # canonical payload (not from the module source), so a comment edit does not
 # move it and a value edit always does.
-DELIVERY_FINGERPRINT = "582d6e17b46b12ee"
+DELIVERY_FINGERPRINT = "29fda426a63c26f5"
 FINGERPRINT_SCHEMA = 2
 
 
@@ -518,6 +518,7 @@ def delivery_fingerprint() -> str:
         "figure_sat_p90_max": d.FIGURE_SAT_P90_MAX,
         "figure_light_v": d.FIGURE_LIGHT_V,
         "figure_light_sat_target": d.FIGURE_LIGHT_SAT_TARGET,
+        "backdrop_spread_max": d.BACKDROP_SPREAD_MAX,
         "finalize_denoise": d.FINALIZE_DENOISE,
     }, sort_keys=True)
     return hashlib.sha256(payload.encode()).hexdigest()[:16]

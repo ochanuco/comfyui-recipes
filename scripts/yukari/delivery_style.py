@@ -61,15 +61,21 @@ FIGURE_MIDTONE_V = 80
 FIGURE_SAT_MEAN_MAX = 95.0
 FIGURE_SAT_P90_MAX = 230.0
 
-# Per-pose saturation correction, applied to the raw render (scripts/desat.py,
-# HSV S alone) before the layered delivery. lounge paints the whole picture --
-# dress and hair included, not just the tights -- about 3x stand's saturation,
-# on every seed and past every prompt lever tried (8/8 renders, six prompt
-# attempts, limited palette all on record). 0.30 is the factor that lands both
-# the dress band and the tights band on stand's measured values (dress 26-30,
-# tights 34-46), picked by eye over 0.55 (「明らかに yjsswf だ！！」,
-# 2026-08-28). A pose absent here delivers at its rendered saturation.
-POSE_DESAT = {"lounge": 0.30}
+# Saturation normalization, applied to the raw render (scripts/desat.py, HSV
+# S alone) before the layered delivery. Poses drift by different amounts --
+# lounge paints the whole picture 3x stand's saturation on every seed (8/8),
+# lap about half that -- and no prompt lever moves it (six attempts, muted
+# color, limited palette, all on record). So the delivery normalizes instead
+# of holding a per-pose factor table: measure the figure's LIGHT band (the
+# pale dress and hair, V >= FIGURE_LIGHT_V), scale saturation by
+# target/measured, clamped to at most 1.0 so a pale render is never pushed
+# up. The light band is the anchor because it reproduced both settled
+# verdicts from one rule: lounge 28/98 -> 0.29 (the user's picked 0.30,
+# 「明らかに yjsswf だ！！」) and lap 28/51 -> 0.55 (the computed proposal).
+# The target is stand's own measured light band (26-30 across the delivered
+# pair) -- stand IS the palette reference, per 「立ちの方が正」.
+FIGURE_LIGHT_V = 150
+FIGURE_LIGHT_SAT_TARGET = 28.0
 
 # finalize's masked refine, the denoise a 2048 print's touch-up runs at.
 FINALIZE_DENOISE = 0.45

@@ -30,8 +30,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import recolor_bg  # noqa: E402
 from yukari.delivery_style import (  # noqa: E402
-    BG_SAT_MAX, FIGURE_MIDTONE_V, FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX,
-    SAT_BAND,
+    BG_SAT_MAX, FIGURE_LIGHT_SAT_TARGET, FIGURE_LIGHT_V, FIGURE_MIDTONE_V,
+    FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX, SAT_BAND,
 )
 
 
@@ -52,10 +52,15 @@ def measure(data: bytes) -> dict:
     mask |= recolor_bg.enclosed_mask(im.astype(int), mask, 4)
     mid = ~mask & (hsv[..., 2] >= FIGURE_MIDTONE_V)
     fig_s = hsv[..., 1][mid] if mid.any() else np.zeros(1)
+    light = ~mask & (hsv[..., 2] >= FIGURE_LIGHT_V)
+    light_s = float(hsv[..., 1][light].mean()) if light.any() else 0.0
     return {"bg": tuple(bg), "bg_sat": float(bg_hsv[1]),
             "sat": float(hsv[..., 1].mean()),
             "fig_sat_mean": float(fig_s.mean()),
-            "fig_sat_p90": float(np.percentile(fig_s, 90))}
+            "fig_sat_p90": float(np.percentile(fig_s, 90)),
+            "light_sat": light_s,
+            "norm_factor": min(1.0, FIGURE_LIGHT_SAT_TARGET / light_s)
+            if light_s else 1.0}
 
 
 def verdict(m: dict) -> list[str]:
@@ -100,7 +105,8 @@ def main() -> None:
         failed |= bool(fails)
         print(f"{name}: {status} | bg #%02x%02x%02x sat {m['bg_sat']:.0f} "
               f"| mean sat {m['sat']:.1f} | fig mid sat {m['fig_sat_mean']:.1f} "
-              f"p90 {m['fig_sat_p90']:.0f}" % m["bg"]
+              f"p90 {m['fig_sat_p90']:.0f} | light {m['light_sat']:.1f} "
+              f"(desat x{m['norm_factor']:.2f})" % m["bg"]
               + ("".join(f"\n  - {f}" for f in fails)))
     raise SystemExit(1 if failed else 0)
 

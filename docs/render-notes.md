@@ -10744,3 +10744,25 @@ factor 比較の眼の判定は即決で ×0.30 (yjsswf/hmtv18)。×0.55 (xgr543
 で持てるのか、それとも実測から factor を出す正規化（目標値駆動）にすべきか
 は、この判定で決まる — lap と lounge で素の彩度が2倍違う時点で、固定値は
 ポーズごとに測って決めるしかない。
+
+## 2026-08-28 パレットを明示化: 固定 factor 廃止、light band 正規化 + 基準カード
+
+「カラーパレットHTML/pngみたいなの用意した方が制御しやすいのかな」→ 演算側
+の基準として実装。3点セット:
+
+- `delivery_style.py`: `POSE_DESAT`（固定 factor 表）を廃止し、
+  `FIGURE_LIGHT_V = 150` / `FIGURE_LIGHT_SAT_TARGET = 28.0` に置換。淡い服・
+  髪の帯（V≥150）を anchor に target/実測 で factor を毎レンダー算出、
+  上限 1.0（淡い絵は持ち上げない）。stand の実測 26–30 がそのまま target
+  — 「立ちの方が正」の数値化。
+- `scripts/desat.py`: 引数なしで正規化（factor 明示は probe 用に残す）。
+  検証: stand 1.00 / lounge 0.29, 0.35 / lap 0.54 — 今日の採用値 0.30 と
+  計算値 0.55 を一本のルールが再現する。固定 factor だと lounge 用 0.30 が
+  lap を漂白する問題（f7b4263）はこれで消える。
+- `scripts/palette_card.py`: delivery_style の数値から swatch カード PNG を
+  描画。chimera ms0uoz に記録（値を変えたら再生成・再ingest）。
+
+配線: palette_check の出力に light band と implied factor を追加
+（`light 29.5 (desat x0.95)`）。costume_check の delivery 指紋 payload に
+FIGURE_SAT 系と light 系を追加（schema 2、指紋 582d6e17b46b12ee — 従来
+これらの値は指紋の外にいた）。

@@ -78,7 +78,12 @@ def chain_pass(base, size, denoise, prefix, prompt=None):
     # same number for the square renders it had only ever been run on and a
     # squash for anything else -- found when `kick` arrived at 1024x1536. The
     # sizes() helper is what the other two routes already use.
-    w, h = sizes(g)
+    #
+    # And it read `sizes(g)`, which ignored this function's own `size`
+    # argument and always scaled to 2048. Every existing caller passes 2048,
+    # so nothing already measured moves; what it unlocks is a chain whose
+    # passes run at DIFFERENT sizes -- a rough at 1024, coloured at 2048.
+    w, h = sizes(g, size)
     g[scale] = {"class_type": "ImageScale", "inputs": {
         "image": [tail, 0], "upscale_method": "lanczos",
         "width": w, "height": h, "crop": "disabled"}}
@@ -96,11 +101,11 @@ def chain_pass(base, size, denoise, prefix, prompt=None):
     return g
 
 
-def sizes(base):
+def sizes(base, size=HIRES):
     w = base["5"]["inputs"]["width"]
     h = base["5"]["inputs"]["height"]
     longest = max(w, h)
-    return (round(HIRES * w / longest / 8) * 8, round(HIRES * h / longest / 8) * 8)
+    return (round(size * w / longest / 8) * 8, round(size * h / longest / 8) * 8)
 
 
 def latent_route(base, denoise, prefix):

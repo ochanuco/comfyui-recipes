@@ -10804,3 +10804,17 @@ probe した (.local/repin_probe.py)。
 比較は f3wynz (S一律) vs 08ow4z (素材別ピン)。眼の判定待ち。採用なら
 repin を scripts/ へ昇格して正規化 desat を置き換え、基準統計（窓定義と
 band 別目標）は delivery_style に持たせる。
+
+## 2026-08-28 repin の追加2枚 (6bzcbf): stand で恒等縮退を確認、lap で screen の適用限界が出た
+
+- stand 36iycx → yvofih: 補正僅少（紫 0.95/0.77、肌 0.67/1.00）。基準近傍の
+  絵に対してピン留めがほぼ恒等になることの確認が取れた
+- lap glo2s4 → 5xzjkd: 紫 0.82/0.29。ただし glo2s4 の raw は非平坦
+  （corner spread 60.1、flood 被覆 28.6% — 左下角に床・持ち物が届く構図）で、
+  BACKDROP_SPREAD_MAX スクリーンは FAIL。膝枕系のシーン構図では角に図が
+  届くのが正常で、単身+背景向けに校正したスクリーンの適用外。lap の彩度
+  数値（今日の 51.4 も nup35j/c8yile も）は mask 漏れ込みの但し書き付き
+
+平坦スクリーンの適用範囲をここに明記: 単身+素背景の構図の raw に限る。
+シーン構図 (lap 等) は spread FAIL が構図由来で出るので、スクリーンの
+FAIL を機械的にハズレ扱いしない。

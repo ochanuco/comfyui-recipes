@@ -1672,6 +1672,34 @@ POSES = {
         "(own hands together:1.4), (hands up:1.3), (from above:1.35), "
         "(blush:1.3)"
     ),
+    # したり顔で、指先だけ合わせた祈り手を口元に。あざとい方の顔。
+    # framing は `beg` と同じ `tehe` verbatim -- 手が顔まわりに来る構図として
+    # 組まれているのはこのファイルでそれ一つ。
+    #
+    # `(steepled fingers:1.45)` が「指先だけくっつけた」そのもののタグで、掌を
+    # 離して指先だけ合わせる形を名指しているのはこれ一つ。祈り手の土台として
+    # `(own hands together:1.35)` を下に敷き、`(hands up:1.3)` で `stand` の
+    # 理由どおり胸まで上げる。口元に置くのは `(covered mouth:1.35)` --
+    # `hige` が毛先を口へ持っていくときに使ったタグで、口が隠れると言うことで
+    # 手の高さを口の位置に固定する。`finger to mouth` は片手一本の形なので、
+    # 両手の祈り手とは別物。
+    #
+    # 顔は neki8u をそのまま配線したもの: FACE の `(tareme:1.3)` を残し、
+    # own_eyes で `unamused` を落として `(half-closed eyes:1.3)` を自前で持つ。
+    # 「自信ありげ、ドヤってる時の表情」と評価された組み合わせで、2026-08-28
+    # の時点ではどのポーズにも配線されていなかった。態度は `(smug:1.35)` --
+    # `stand` / `prone` が積んでいる重み。
+    #
+    # 口は FACE の closed / small mouth のまま。`kick` の ドヤ 探索は「閉じた口
+    # は composure、同じ smirk で口を開けると ドヤ」に着いたが、ここは口を手で
+    # 隠す構図なので開けない。ドヤが足りなければ `(open mouth:1.35)` が次の
+    # ダイヤルで、そのときは覆いとの兼ね合いを見る。
+    "sly": (
+        "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
+        "(upper body:1.35), (face focus:1.3), (steepled fingers:1.45), "
+        "(own hands together:1.35), (hands up:1.3), (covered mouth:1.35), "
+        "(smug:1.35), (half-closed eyes:1.3)"
+    ),
 }
 
 
@@ -2120,6 +2148,18 @@ POSE_RECORDS = {
             Edit("prepend", new=HAND_BAN, stage=S_POSE_GUARDS),
         ),
         hires_negative=HAND_BAN),
+    # 顔の前で両手を組むので `beg` / `tehe` / `hige` と同じく両パスに手ガード。
+    # 隣に `(interlocked fingers:1.5)` を置いてあるのは、これが「指先だけ」の
+    # 直接の反対 -- 指を絡めた祈り手は steepled と同じ語彙圏にいて、名指しで
+    # 断らないと出てくる側。`_splice` の when= と同じ「そんな garment はない」
+    # の言い方を negative でやっている。
+    "sly": Pose(
+        POSES["sly"], (1024, 1024), own_eyes=True, framing="head",
+        negative_edits=(
+            Edit("prepend", new=HAND_BAN + "(interlocked fingers:1.5), ",
+                 stage=S_POSE_GUARDS),
+        ),
+        hires_negative=HAND_BAN + "(interlocked fingers:1.5), "),
 }
 
 assert set(POSE_RECORDS) == set(POSES), (

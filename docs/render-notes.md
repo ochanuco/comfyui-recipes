@@ -10901,3 +10901,75 @@ acceptance gate は mean sat 28.6 で下限 30 を割るが、これは crop で
 
 `finalize.py` は ingest 直前で落ちていた（multipart に3要素を渡していたが
 `generate.api` は5要素を要求する）。d209f68 で修正。
+
+## 2026-08-29 頭部 framing の2ポーズ: `beg` と `sly`、そして ドヤ目の初配線
+
+胸より上のクロップを2つ足した。どちらも framing は `tehe` verbatim
+（`(portrait:1.5), (head and shoulders:1.4), (upper body:1.35),
+(face focus:1.3)`）— このファイルで手が顔まわりに来る前提で組まれた枠は
+それ一つで、その `(upper body:1.35)` が「胸より上」そのものだから。
+
+- `beg`（おねだり、batch x3f03t）: `(begging:1.45)` が意図の action 側、
+  `(own hands together:1.4)` が形の gesture 側、`(hands up:1.3)` が高さ。
+  三つ目は `stand` が「胸あたりに出す感じ」で買ったタグで、頭部 framing では
+  これがないと手が腰＝枠外に落ちてそのまま消える。上目遣いは
+  `(from above:1.35)` のカメラで作った — 顔だけ上げさせる語彙はこのファイルに
+  ない。
+- `sly`（したり顔＋指先だけ合わせた祈り手を口元に、batch yza8qg）: 手は
+  `(steepled fingers:1.45)` / `(own hands together:1.35)` / `(hands up:1.3)`
+  の三段で、口元への固定は `hige` の `(covered mouth:1.35)`。口が隠れると
+  言うことで手の高さを口の位置に決めている。negative は HAND_BAN の隣に
+  `(interlocked fingers:1.5)` — 指を絡めた祈り手は steepled と同じ語彙圏に
+  いて、名指しで断らないと出てくる側。
+
+**ドヤ目（neki8u）がようやくポーズに配線された。** 「2026-08-28 目の役割割当」
+は `tareme 1.3 + half-closed 1.3、unamused なし` を「自信ありげ、ドヤってる時
+の表情」と評価しながら、どのポーズにも配線されていないと書いて終わっている。
+`sly` がそれで、実装は `own_eyes=True` + ポーズブロックの
+`(half-closed eyes:1.3)`: FACE の tareme が残り RESTING_EYES の unamused だけ
+落ちるので、合成結果が neki8u と同じ組になる。態度は `(smug:1.35)` を併置。
+口は閉じたまま — `kick` の探索は「閉じた口は composure、開けると ドヤ」に
+着いているが、ここは手で口を隠す構図なので開けていない。足りなければ
+`(open mouth:1.35)` が次のダイヤル。
+
+人間のピックは zdduvb（`sly`）。
+
+## 2026-08-29 `finalize.py --handdrawn`: 手書き風はプリントのパスに乗る
+
+「手書き感出してから再着色」。手書き風は第2パスの仕上げで、それを打つパスは
+finalize がすでに走らせている — 足りなかったのはフラグ一つ。
+`HANDDRAWN_FINISH = ", (traditional media:1.4), (marker (medium):1.35)"` を
+`prompt_style.py` に名前として置き、`winded` の `hires_finish` の literal と
+finalize の両方がそれを指す。costume/delivery fingerprint はどちらも不動:
+両者はブロック名の列を hash していて、定数の追加は入らない。
+
+**THIN は「あれば外す」であって assert しない。** `recipe.build` の
+`hires_finish` 経路は `assert text.count(", " + THIN) == 1` を置いている
+（無音の `.replace` を防ぐため正しい）が、頭部 framing は
+`positive()` が `full_figure` で THIN を落とすので、そもそも持っていない。
+finalize は完成済みの graph を渡されるだけでポーズ記録を持たないため、
+どちらを握っているか知りようがない — なので finalize 側は present なら外す。
+`sly` の 2048 プリントでは外すものがなかった。
+
+fin-zdduvb: 生 i92ti8 / 納品 17736q（batch kga5an）。
+
+**手書き風の効きは数値では判定できない**、これは既知の再確認。
+「『手書き風』 is a second-pass finish, and it barely moves the numbers」の
+とおり ink coverage も saturation も腕を分けられず、handfeel も今回は使えない
+— 頭部クロップは図の内部に描くもの（コートの皺、脚の線）が単純に少なく、
+fin-zdduvb は 14.7 marks/1k fig-h、全身の fin-15j31x は 69.5。framing 違いを
+またいだ比較は handfeel の設計外（「Compare at one canvas size only」の同型）。
+採用は目でやる。
+
+## 2026-08-29 palette_check の背景平坦チェックは頭部 framing で偽陽性
+
+fin-zdduvb は生・納品とも corner spread 177-182 で FAIL するが、背景の勾配
+ではない。塗り替え後の四隅を実測すると、三隅は std 0.0 の完全な #c7e5e9 で、
+右下だけが (40.8, 37.0, 50.4) — 胸より上のクロップでは黒いフーデッド
+カーディガンが隅まで来る。finalize の clean_background は最大成分以外を背景色に
+潰すので、残っている以上その隅は図の一部であることが構造的に保証されている。
+
+前項（15j31x の crop 納品）の「crop 後は角に図が届くので corner spread の平坦
+スクリーンも適用外」と同じ話で、原因が crop ではなく framing なのが違い。
+**角が背景であることを前提にした指標は、頭部 framing に適用しない。**
+納品 17736q の mean sat は 36.8 でバンド内。

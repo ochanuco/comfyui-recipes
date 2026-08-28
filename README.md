@@ -57,6 +57,12 @@ uv venv --python 3.12 .venv
 VIRTUAL_ENV=.venv uv pip install pillow numpy opencv-python scipy
 ```
 
+uv is how this machine holds that environment, not something the scripts ask
+for. The queueing and recording path — `comfy_host.py`, `queue_*.py`,
+`generate.py`, `post_renders.py` — imports only the standard library and runs
+under a bare `python3` anywhere. The packages above are for the
+post-processing scripts that open the rendered PNGs.
+
 Models are not included and not downloaded automatically.
 [`docs/models.md`](docs/models.md) lists the exact upstream and SHA256 of every
 model these recipes were tuned against.

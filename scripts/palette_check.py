@@ -115,7 +115,7 @@ def main() -> None:
         print(f"{name}: {status} | bg #%02x%02x%02x sat {m['bg_sat']:.0f} "
               f"| mean sat {m['sat']:.1f} | fig mid sat {m['fig_sat_mean']:.1f} "
               f"p90 {m['fig_sat_p90']:.0f} | light {m['light_sat']:.1f} "
-              f"(desat x{m['norm_factor']:.2f})" % m["bg"]
+              f"(drift x{m['norm_factor']:.2f})" % m["bg"]
               + ("".join(f"\n  - {f}" for f in fails)))
     raise SystemExit(1 if failed else 0)
 

@@ -77,6 +77,22 @@ FIGURE_SAT_P90_MAX = 230.0
 FIGURE_LIGHT_V = 150
 FIGURE_LIGHT_SAT_TARGET = 28.0
 
+# The palette proper: per-material colour targets, applied by scripts/repin.py
+# (V untouched -- the brushwork is the render's own; hue and saturation are
+# the delivery's). Values are stand 4eqpdv's measurement frozen as numbers --
+# stand IS the reference, per 「立ちの方が正」 -- and each window's saturation
+# target is per V band (light >= FIGURE_LIGHT_V / mid below), blended
+# continuously so no band boundary shows. Chosen over the uniform S scale by
+# eye across stand/lounge/lap (「安定してそう」, 2026-08-28): the materials
+# drift by different amounts (purple mid 0.18 against skin mid 0.37 on the
+# same render), which one global factor can only average.
+PALETTE_WINDOWS = (
+    {"name": "purple", "hue": (170.0, 225.0), "hue_target": 191.0,
+     "sat_light": 50.4, "sat_mid": 45.1},
+    {"name": "skin", "hue": (0.0, 48.0), "hue_target": None,
+     "sat_light": 24.7, "sat_mid": 58.5},
+)
+
 # The backdrop flatness screen, on the RAW render's corner brightness spread.
 # A gradient backdrop starves the flood mask (23.7% coverage on cmfpby's
 # stand against ~40%+ when flat), and then every downstream number -- the

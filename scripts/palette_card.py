@@ -16,8 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from yukari.delivery_style import (  # noqa: E402
     BACKDROP, BG_SAT_MAX, FIGURE_LIGHT_SAT_TARGET, FIGURE_LIGHT_V,
-    FIGURE_MIDTONE_V, FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX, SAT_BAND,
-    STROKE,
+    FIGURE_MIDTONE_V, FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX,
+    PALETTE_WINDOWS, SAT_BAND, STROKE,
 )
 
 W, PAD, CHIP = 860, 24, 96
@@ -35,12 +35,19 @@ def main() -> None:
         (f"stroke    {STROKE}", STROKE),
         ("figure saturation (hue: the dress purple, for scale only)", None),
         (f"light band target {FIGURE_LIGHT_SAT_TARGET:.0f}  "
-         f"(V>={FIGURE_LIGHT_V}; desat normalizes here)", "light"),
+         f"(V>={FIGURE_LIGHT_V}; drift indicator)", "light"),
         (f"midtone gate mean<={FIGURE_SAT_MEAN_MAX:.0f} p90<={FIGURE_SAT_P90_MAX:.0f}  "
          f"(V>={FIGURE_MIDTONE_V})", "mid"),
         (f"frame mean {SAT_BAND[0]:.0f}-{SAT_BAND[1]:.0f}   "
          f"backdrop sat<={BG_SAT_MAX:.0f}", None),
+        ("material windows (repin targets; chips: hue at light/mid sat)", None),
     ]
+    for w in PALETTE_WINDOWS:
+        hue = w["hue_target"] if w["hue_target"] is not None else sum(w["hue"]) / 2
+        rows.append((f"{w['name']}  H {w['hue'][0]:.0f}-{w['hue'][1]:.0f}"
+                     + (f" ->{w['hue_target']:.0f}" if w["hue_target"] else "")
+                     + f"  S light {w['sat_light']:.0f} / mid {w['sat_mid']:.0f}",
+                     ("window", hue, w["sat_light"], w["sat_mid"])))
     H = PAD + len(rows) * (CHIP // 2 + 18) + PAD
     im = Image.new("RGB", (W, H), "#ffffff")
     d = ImageDraw.Draw(im)
@@ -54,6 +61,16 @@ def main() -> None:
             d.rectangle([PAD, y, PAD + CHIP, y + CHIP // 2], fill=spec,
                         outline="#222222")
             d.text((PAD + CHIP + 14, y + CHIP // 4 - 6), label, fill="#222222")
+        elif isinstance(spec, tuple) and spec[0] == "window":
+            _, hue, s_light, s_mid = spec
+            d.rectangle([PAD, y, PAD + CHIP, y + CHIP // 2],
+                        fill=hsv_chip(int(s_light), 200, int(hue)),
+                        outline="#222222")
+            d.rectangle([PAD + CHIP + 8, y, PAD + 2 * CHIP + 8, y + CHIP // 2],
+                        fill=hsv_chip(int(s_mid), 115, int(hue)),
+                        outline="#222222")
+            d.text((PAD + 2 * CHIP + 22, y + CHIP // 4 - 6), label,
+                   fill="#222222")
         else:
             # A saturation ruler 0..255 in the dress hue, with the markers
             # that delivery actually uses drawn on it.

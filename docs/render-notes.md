@@ -10818,3 +10818,21 @@ band 別目標）は delivery_style に持たせる。
 平坦スクリーンの適用範囲をここに明記: 単身+素背景の構図の raw に限る。
 シーン構図 (lap 等) は spread FAIL が構図由来で出るので、スクリーンの
 FAIL を機械的にハズレ扱いしない。
+
+## 2026-08-28 repin 採用・settled 化（「安定してそう。良さそう。」）
+
+方式比較 (yvofih/08ow4z/5xzjkd) の判定は素材別ピン留めの採用。settled 化:
+
+- `scripts/repin.py` 新設: PALETTE_WINDOWS の窓別に S を band 別目標へ、
+  紫は H も 191 へ（V 不触、feather 付き）。probe (.local/repin_probe.py)
+  との一致は確認済み（差分は基準値の丸め由来、最大6）
+- `delivery_style.py` に `PALETTE_WINDOWS` を凍結 — stand 4eqpdv 実測を
+  数値化した purple (H170-225→191, S 50.4/45.1)・skin (H0-48, S 24.7/58.5)。
+  素材でドリフト量が違う（同一レンダーで紫 mid 0.18 vs 肌 mid 0.37）のが
+  一律 S スケールを捨てた理由
+- `scripts/desat.py` は削除。light band 指標は palette_check に残し、表示を
+  `drift x..` に改称（正規化ではなくドリフト指標として）
+- カード v2 = fw0m7a（素材窓チップ追加、ms0uoz を置換）。delivery 指紋
+  3841eeba3434ae0f（palette_windows を payload に追加）
+- 納品フロー: raw → 平坦スクリーン (単身+素背景のみ) → repin →
+  edge_layers → palette_check → ingest

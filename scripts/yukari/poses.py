@@ -1624,6 +1624,29 @@ POSES = {
         "(upper body:1.35), (face focus:1.3), (holding own hair:1.5), "
         "(smelling hair:1.45), (playing with own hair:1.3), (smile:1.2)"
     ),
+    # 回復体位っぽい横寝。`flop` はこの体を仰向けに、`prone` はうつ伏せに置いた
+    # ものなので、このブロックが新しく買うのは「横向き」と「曲げた上の膝」の
+    # 二つだけ -- 残りはその二つのポーズの語彙を、その重みのまま使っている。
+    #
+    #   `(on side:1.5)`      `on back` / `on stomach` と同じ位置・同じ重み。
+    #                        `lying` 単独だと模型は仰向けを描くので、ポーズ
+    #                        そのものを言っているのはこのタグ。
+    #   `(knee up:1.35)`     回復体位を回復体位として読ませている側の半分。
+    #                        横向きで両脚とも伸びていればただの寝姿で、上の膝
+    #                        が前に折れて初めてあの形になる。
+    #   `(outstretched arm:1.3)`  `flop` の複数形を単数にしたもの。下側の腕が
+    #                        体の前に伸びる。
+    #   `(from above:1.35)`  `prone` のカメラ。真横からでは手前の脚が奥の膝を
+    #                        隠してしまい、折った膝が絵に出ない。
+    #
+    # 表情は共有のまま(`smug` + `half-closed eyes`)。寝姿に対して目を閉じる
+    # のは分かりやすい次の腕だが、まず体で判断できるように、prone / flop と
+    # 同じ顔で最初のスイープを回す。
+    "recover": (
+        "(solo:1.5), (lying:1.45), (on side:1.5), (from above:1.35), "
+        "(outstretched arm:1.3), (knee up:1.35), (smug:1.35), "
+        "(half-closed eyes:1.3), full body"
+    ),
 }
 
 
@@ -2059,6 +2082,11 @@ POSE_RECORDS = {
         # kts2c3, picked over six fresh seeds on the identical prompt (batch
         # wekzha) -- the seed is carrying something the words do not.
         settled_seed=3409564303),
+    # 横になった体は横長の枠に入る -- `prone` / `flop` と同じ 1536x1024。
+    # BODY の腰/腿は素のまま: `prone` がそこを緩めたのは真後ろからの短縮で
+    # 嵩に読まれたからで、横向きはその面をシルエットとして見せる。最初の
+    # スイープで下半身が重いなら、緩めるのはここ。
+    "recover": Pose(POSES["recover"], (1536, 1024), own_eyes=True),
 }
 
 assert set(POSE_RECORDS) == set(POSES), (

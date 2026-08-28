@@ -10418,3 +10418,17 @@ nxbdmu（1g414b のラフ絵）をベースにした着色で、経路を3つ試
 1g414b の watertight マスク4層（skin/hair/clothes/accent）は chimera の
 assets に登録済み。目・髪飾りの帰属は雑（clothes 扱い）だが、画素切り出し
 方式では見た目に影響しない。色替え運用に使う時だけ直せばよい。
+
+### ラフ→仕上げ経路は目のアイデンティティを運ばない (2026-08-28)
+
+28bgoa（bkkd1t からの一発仕上げ d0.70）に人間の評価:「目のデザインが
+私の作品っぽくない」。原因は構造的で、レシピ経由の生成は FACE ブロックの
+目スペック一式（tareme / large eyes / thick eyelashes / large iris /
+thin eyebrows + flat color の目の塗り）が必ず通るのに対し、ラフ→仕上げの
+img2img 経路は手書きの簡略プロンプトで走っており、denoise が高い段で
+hassaku 既定の描き込み系の目が入ってくる。
+
+対応は後日ユーザーが目スペックを設定してから。方針候補だけ記す:
+(a) 仕上げ段のプロンプトに FACE ブロックをそのまま差し込む（recipe.py の
+positive() から取れる）、(b) 目領域だけ低 denoise で保護（色ラフの目を
+形として尊重）、(c) 仕上げ後に目だけ Crop&Stitch でレシピ調に描き直す。

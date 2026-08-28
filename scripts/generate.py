@@ -72,7 +72,7 @@ def credentials() -> dict[str, str]:
 
 
 def api(method: str, path: str, payload: dict | None = None,
-        multipart: tuple[dict, str, bytes] | None = None) -> dict:
+        multipart: tuple[dict, str, str, bytes, str] | None = None) -> dict:
     """One Management API call. Retries transport errors and 5xx; a non-JSON
     response is Cloudflare Access bouncing us to login, not data."""
     url = BASE + path
@@ -80,14 +80,14 @@ def api(method: str, path: str, payload: dict | None = None,
     # exactly as it does for the Discord webhook in post_renders.py.
     headers = {**_CREDS, "User-Agent": post_renders.USER_AGENT}
     if multipart:
-        meta, filename, image = multipart
+        meta, field, filename, data, ctype = multipart
         boundary = uuid.uuid4().hex
         body = b"".join([
             f'--{boundary}\r\nContent-Disposition: form-data; name="metadata"\r\n'
             f"Content-Type: application/json\r\n\r\n{json.dumps(meta)}\r\n".encode(),
-            f'--{boundary}\r\nContent-Disposition: form-data; name="image"; '
-            f'filename="{filename}"\r\nContent-Type: image/png\r\n\r\n'.encode(),
-            image,
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{field}"; '
+            f'filename="{filename}"\r\nContent-Type: {ctype}\r\n\r\n'.encode(),
+            data,
             f"\r\n--{boundary}--\r\n".encode(),
         ])
         headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
@@ -283,6 +283,29 @@ def add_tag(generation_id: str, name: str) -> dict:
                {"name": name, "created_by": "claude"})
 
 
+ASSET_CONTENT_TYPES = {
+    ".png": "image/png",
+    ".json": "application/json",
+    ".psd": "image/vnd.adobe.photoshop",
+}
+
+
+def upload_asset(generation_id: str, role: str, path: Path,
+                 region: str = "") -> dict:
+    """Attach one analysis asset (mask, lineart, layer, ...) to a generation.
+    The server upserts on (generation, role, region) -- re-sending replaces,
+    which is the contract: analysis assets only mean anything in their latest
+    version. Roles and regions are free text; the recommended vocabulary lives
+    in chimera's docs/domain-model.md."""
+    ctype = ASSET_CONTENT_TYPES.get(path.suffix.lower(),
+                                    "application/octet-stream")
+    meta: dict = {"role": role}
+    if region:
+        meta["region"] = region
+    return api("POST", f"/api/v1/generations/{generation_id}/assets",
+               multipart=(meta, "file", path.name, path.read_bytes(), ctype))
+
+
 def resolve_character(name: str) -> str:
     """Name to UUID; the ingest metadata wants the id, not the name."""
     listing = api("GET", "/api/v1/characters")
@@ -344,10 +367,17 @@ def main() -> None:
                              "generation (enrich or backfill; replaces)")
     parser.add_argument("--tag", nargs=2, metavar=("GEN_ID", "NAME"),
                         help="add a tag to a generation (created_by claude)")
+    parser.add_argument("--asset", nargs=3, metavar=("GEN_ID", "ROLE", "FILE"),
+                        help="upload an analysis asset (upsert on "
+                             "generation+role+region)")
+    parser.add_argument("--region", default="",
+                        help="asset region (with --asset); empty = whole image")
+    parser.add_argument("--list-assets", metavar="GEN_ID",
+                        help="list a generation's assets")
     args = parser.parse_args()
     global _CREDS
 
-    if args.semantic or args.tag:
+    if args.semantic or args.tag or args.asset or args.list_assets:
         _CREDS = credentials()
         if args.semantic:
             gid, path = args.semantic
@@ -357,6 +387,18 @@ def main() -> None:
             gid, name = args.tag
             add_tag(gid, name)
             print(f"tag {name!r} -> {gid}")
+        if args.asset:
+            gid, role, path = args.asset
+            row = upload_asset(gid, role, Path(path), args.region)
+            where = f"{role}" + (f".{args.region}" if args.region else "")
+            print(f"asset {where} -> {gid} ({row.get('size', '?')} bytes)")
+        if args.list_assets:
+            listing = api("GET",
+                          f"/api/v1/generations/{args.list_assets}/assets")
+            for row in listing.get("assets", []):
+                region = row.get("region") or ""
+                name = row["role"] + (f".{region}" if region else "")
+                print(f"{name}  {row['content_type']}  {row['size']}")
         return
     if not args.request:
         parser.error("--request is required (unless --semantic/--tag)")
@@ -457,7 +499,8 @@ def main() -> None:
                     meta["character_id"] = character_id
                 generation = api(
                     "POST", f"/api/v1/jobs/{job['job_id']}/generations",
-                    multipart=(meta, image["filename"], data))
+                    multipart=(meta, "image", image["filename"], data,
+                               "image/png"))
                 job["generations"].append(
                     {k: generation[k]
                      for k in ("id", "short_id", "canonical_url")})

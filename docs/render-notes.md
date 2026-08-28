@@ -10454,3 +10454,29 @@ Crop&Stitch 描き直し）で使ったものそのまま。両腕とも未評�
 生成の中にある」— good 評価レンダーから正準の目を選んでもらい、正準アセット
 化（目クロップ）ないし LoRA 化を検討する。タグはカテゴリしか言えず、同一
 カテゴリ内のブレはタグでは止まらない（eye size の教訓と同型）。
+
+### 目の種類シート: 勝ったのは jitome でなく half-closed (2026-08-28)
+
+顔だけ・目タグだけ変えた統制比較14腕（batch 8bgui8 / ypbj6f、seed 42・
+896x1152・portrait 語彙から表情タグを除いた中立ベース）への人間のピック:
+
+    neki8u > j3ejne > 2p810d >= sne962
+
+- 1位 neki8u = (tareme:1.3) + (half-closed eyes:1.3)
+- 2位 j3ejne = (tareme:1.5) 単独
+- 3位 2p810d = (smug:1.35) + (half-closed:1.3)（portrait 現行）
+- 4位 sne962 = (jitome:1.3) 単独（tareme 置換）
+
+ユーザーの言葉による目スペックは「タレ目、ジト目系。目の上が丸みを帯びて
+るより凹んでる感じ」だったが、それをタグに翻訳すると勝つのは jitome では
+なく half-closed eyes + tareme。jitome の併記腕（cgosa1/l6ljsl/2exo6h ほか
+6腕）は全て圏外で、28bgoa 系の目領域プローブ（jitome/smug/sleepy 各腕）も
+この時点で追い越された。「ジト目」という語の直訳タグは正解ではなかった —
+語彙の翻訳はレンダーで検証してから使うこと。
+
+ピックは一時。標準化（FACE への half-closed 取り込み）前に別 seed での
+再現性確認が要る。取り込み時の既知の衝突: boss 系統の pass-2 eye guard
+`(half-closed eyes:1.4), (closed eyes:1.4)` は目を開くための negative で、
+FACE 側に half-closed を入れると正面衝突する（negative-bans-outlive-
+their-look の型）。boss 系だけ guard を守るか、FACE 側を per-pose Edit で
+抜くか、標準化時に決める。

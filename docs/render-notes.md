@@ -10973,3 +10973,53 @@ fin-zdduvb は生・納品とも corner spread 177-182 で FAIL するが、背�
 スクリーンも適用外」と同じ話で、原因が crop ではなく framing なのが違い。
 **角が背景であることを前提にした指標は、頭部 framing に適用しない。**
 納品 17736q の mean sat は 36.8 でバンド内。
+
+## 2026-08-29 ラフに崩してから着色: 第1波は仕上げタグを残したまま崩そうとしていた
+
+「全然手描き感ない」（fin-zdduxx の marker 仕上げに対して）→「ラフ絵に一度
+崩す→着色でいけない？」。`refine_from_history.chain_pass` を二段重ねる形で
+組んだ。パス1は zdduvb の graph を seed ごとそのまま再生し、その上に
+(1) 1024 でラフ化、(2) 2048 で着色、を image space で重ねる。ラフ化を 1024 に
+置くのは handfeel の「marks を増やすのは upscale であって第2パスではない」に
+従って、崩した線を上げる順にするため。
+
+**`chain_pass` は渡された `size` を無視して常に 2048 へ拡大していた。**
+`w, h = sizes(g)` が引数を見ておらず、既存の呼び出しは全部 2048 なので実害は
+なかった（動きは一切変わらない）。パスごとに違うサイズで打つにはこれが要る。
+
+第1波 4腕（ra upsbff/p0qrom、rb kb793s/xvf4k3、rc dlf2tf/lmxda5、
+rd 4cu3gk/hkm8vh）はラフ側 positive を「pass-1 positive + sketch 系」で
+組んだ。これは設計として弱い: `(flat color:1.3)`、`(white outline:1.6)`、
+`soft shading` — 仕上がり側のタグがそのまま残っていて、崩しと綱引きになる。
+
+## 2026-08-29 ラフ化の語彙は b2ooik の派生元 nxbdmu が持っていた
+
+「b2ooik の要素から手描きラフ風に崩す要素は見つからない？」→ ある。b2ooik
+自体は仕上げ側（ラフ→仕上げ塗り2腕、d0.55/0.70）で、崩す側はその派生元
+`nxbdmu` の graph。実物のプロンプトはこれ:
+
+    pos: monochrome, greyscale, (sketch:1.45), (rough sketch:1.4),
+         rough lines, sketchy lines, pencil sketch, (unfinished:1.2),
+         construction lines, white background, + 誰か/何を着ているかの最小限
+    neg: color, colored, shading, gradient, gray fill, screentone, ...,
+         (clean lineart:1.3), (smooth lines:1.2)
+
+第1波との差は語彙が足りないことではなく、**仕上げタグを落としていること**と
+**きれいな線を negative で名指しで断っていること**の二点。`(clean lineart)`
+`(smooth lines)` は第1波の negative に一語も入っていなかった。`pencil sketch`
+`construction lines` `rough lines` `sketchy lines` も同様。
+
+第2波 3腕（sa 9mcqj5/0qyjbb、sb lu4rdg/vhjhb4、sc nsna8t/bcy6jt）はその語彙で
+ラフ側を書き直したもの。nxbdmu から意図的に変えたのは二点だけ:
+
+- **ラフ側にも FACE を付ける。** nxbdmu は落としていて、その系統が
+  「目のデザインが私の作品っぽくない」(28bgoa) を受けている。両パスの
+  negative に EYE_BAN。
+- **着色側は sketch 系を negative に回さない。** b2ooik はそこで回している
+  （その summary に明記されている）が、2026-08-18 の訂正は「sketch 系は
+  positive に 1.1-1.15、禁じると手書き感ごと消える」で、下書き感と手書き感は
+  レバーを共有しない。着色側は pass-1 positive + `(sketch:1.15),
+  (rough sketch:1.1)` + marker ペア。
+
+判定軸は手書き感のみ。第1波と第2波の差が仕上げタグの有無で説明できるかが、
+このラウンドで実際に測っていること。

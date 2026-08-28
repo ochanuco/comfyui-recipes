@@ -10400,3 +10400,21 @@ socks マスクを作ってから。
 負の発見も一つ: lap 系 negative は (socks:1.45) (kneehighs:1.5)
 (two-tone legwear:1.4) 等を ban しており、socks 系の実験では外さないと
 黙って衝突する（negative-bans-outlive-their-look の再演）。
+
+### ラフに色を乗せる: 白黒 init からは色が生まれない (2026-08-28)
+
+nxbdmu（1g414b のラフ絵）をベースにした着色で、経路を3つ試した。
+
+- doo32y: 元絵の watertight レイヤーをラフ線の下に敷く決定的合成。色は
+  完璧だが「元絵の形」に従う — ラフをベースにしたいという意図とは別物。
+- auydob（棄却）: ラフを白黒のまま latent に渡し (colored sketch:1.4) で
+  img2img。denoise 0.45/0.60 とも彩度 2/255 でほぼモノクロのまま。
+  **無彩色の init からは中 denoise で色が生まれない** — flat-color-first の
+  教訓の裏返しで、色統計は init が持っていなければならない。
+- 5gi798（採用）: init = ラフ線 × σ30 ガウスの色場（doo32y のレイヤー色を
+  ぼかして形の情報を潰し、色相だけ残す）。d0.50 でラフの筆致を残した
+  水彩調の色ラフになった。形は線が支配し、色は色場が供給する分業。
+
+1g414b の watertight マスク4層（skin/hair/clothes/accent）は chimera の
+assets に登録済み。目・髪飾りの帰属は雑（clothes 扱い）だが、画素切り出し
+方式では見た目に影響しない。色替え運用に使う時だけ直せばよい。

@@ -10836,3 +10836,45 @@ FAIL を機械的にハズレ扱いしない。
   3841eeba3434ae0f（palette_windows を payload に追加）
 - 納品フロー: raw → 平坦スクリーン (単身+素背景のみ) → repin →
   edge_layers → palette_check → ingest
+
+## 2026-08-28 新ポーズ `recover`（回復体位っぽい横寝）と、肌が紫に塗られる個体
+
+ポーズは POSES/POSE_RECORDS 各1エントリのみ。`flop`(仰向け)・`prone`
+(うつ伏せ) と同じ 1536x1024・同じ表情で、新しく買っているのは
+`(on side:1.5)` と `(knee up:1.35)` の二つだけ。初回スイープ (yjch2g)・
+再ランダム (5y6j5s) とも 12/12 で単独 figure。
+
+表情の派生は pose block の `(smug:1.35)` スロットを丸ごと差し替える形で
+撃った（途中挿入は以降のトークンを全部振り直すので、位置は動かさない）。
+「マスターに文句を言ってる感じ」の採用は scold =
+`(angry:1.3), (v-shaped eyebrows:1.35), (open mouth:1.35), (half-closed eyes:1.3)`。
+
+部屋着 + タイツ (oypcsy) は二か所を同時に直して初めて成立する: positive の
+脚を `ROOMWEAR_LEGWEAR` から `LEGWEAR` に戻し、negative からは roomwear の
+`S_BARE_LEGS` ガード `(pantyhose:1.5), (black pantyhose:1.45)` を外す。片方
+だけでは頼んだ garment をガードが消す。
+
+### 「肌の色がちょっと紫だね」— 納品側では直らない
+
+oypcsy の raw は明部（figure, V>=150, S>20）の 96.2% が紫の色相にあり、
+肌色の色相（PIL H 0-48）の画素は 8 個。参照 stand 4eqpdv は同じ帯の 76.8%
+が肌色 (H 17.8, S 24.7)。白Tシャツも #faf0fc に塗られていて、絵全体が
+ラベンダーに寄っている。repin は S を落とすだけで H は紫窓の目標 191 へ
+寄せるので、この状態は納品側では直せない — 生成側の問題。
+
+禁止語を撃った3腕、いずれも明部の肌色を戻したが raw の mean sat は落ちた:
+
+| 腕 | negative 追加 | 肌色 share | mean sat | 紫窓 S |
+|---|---|---|---|---|
+| oypcsy | （なし） | 0.0% | 69.9 | 111.4 |
+| vawbkz | purple skin 1.5 + colored skin 1.45 | 33.8% | 19.5 | 31.6 |
+| 14w2xw | purple skin 1.5 のみ | 13.8% | 19.4 | 35.9 |
+| zv9zho | colored skin 1.45 のみ | 13.5% | 25.8 | 48.0 |
+
+`colored skin` 単独 (zv9zho) が最も基準に近い: 紫窓 S 48.0 は PALETTE_WINDOWS
+の目標 50.4/45.1 とほぼ同値で、repin が恒等（factor 1.00/1.00）になる。
+
+raw 単体の gate FAIL はここでは figure の問題ではない: 無彩の背景
+(bg sat 1) が frame mean を下げているだけで、背景を #c7e5e9 に置いた納品は
+mean 41.6 / figure mid 42.0 で pass する (jp68a4)。raw の mean sat 下限を
+単独で不合格の根拠にしない。

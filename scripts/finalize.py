@@ -8,9 +8,17 @@ route every approved print has used), flattens background junk and strokes
 the figure, then ingests both the raw print and the delivered version into
 chimera as a refinement batch and posts the delivered one to Discord.
 
+    uv run scripts/finalize.py <short_id> --handdrawn
+
 The pass-2 negative gets the kick toe ban and SHADE_BAN. (closed eyes:1.4)
 is deliberately NOT added: the jelly line renders with ^_^ and the ban would
 fight it. If an open-eyed pose comes through here, add it per-run.
+
+--handdrawn is 「手書き風」 on the pass this script already runs: THIN off and
+the marker pair appended at the END of the pass-2 positive, which is what
+`winded` buys with `hires_finish`. Here it is a per-run flag rather than a
+pose record, because the picked generation's own graph is what gets replayed
+and a pose record would not reach it.
 """
 from __future__ import annotations
 
@@ -76,6 +84,9 @@ def main() -> None:
     parser.add_argument("short_id")
     parser.add_argument("--denoise", type=float,
                         default=delivery_style.FINALIZE_DENOISE)
+    parser.add_argument("--handdrawn", action="store_true",
+                        help="手書き風の仕上げ: THIN を外し、marker ペアを"
+                             "パス2のプロンプト末尾に足す")
     args = parser.parse_args()
 
     generate._CREDS = generate.credentials()
@@ -90,6 +101,14 @@ def main() -> None:
 
     prefix = f"fin-{args.short_id}"
     pos = base["6"]["inputs"]["text"]
+    if args.handdrawn:
+        # At the END, not spliced: a mid-prompt insertion re-rolls every token
+        # after it, which is why HIRES_FINISH exists apart from HIRES_POSITIVE.
+        # THIN is REMOVED IF PRESENT rather than asserted -- head framings never
+        # carry it (`recipe.positive` gates it on the full figure), and this
+        # script is handed a finished graph rather than a pose record, so it
+        # cannot know which it is holding.
+        pos = pos.replace(", " + yr.THIN, "") + yr.HANDDRAWN_FINISH
     # The kick toe ban, unless the costume is barefoot on purpose -- banning
     # toes under `(barefoot:1.35)` redraws the feet as mittens in pass 2.
     toe_ban = "" if "barefoot" in pos else "(toes:1.55), "
@@ -122,11 +141,13 @@ def main() -> None:
     git = generate.git_metadata()
     batch = generate.api("POST", "/api/v1/batches", {
         "idempotency_key": str(uuid.uuid4()),
-        "raw_instruction": f"{args.short_id} を高解像度化",
+        "raw_instruction": (f"{args.short_id} を高解像度化"
+                            + ("・手書き風の仕上げ" if args.handdrawn else "")),
         "recipe": "yukari",
         "parameters": {"kind": "hires-chain",
                        "base_generation": args.short_id,
-                       "size": 2048, "denoise": args.denoise},
+                       "size": 2048, "denoise": args.denoise,
+                       **({"finish": "handdrawn"} if args.handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": args.short_id,
                         "purpose": "rebuild", "aspect": "composition",

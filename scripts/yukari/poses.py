@@ -24,7 +24,11 @@ from .model import (
     S_POSE_SCENE,
     S_POSE_SHOES,
 )
-from .prompt_style import HAND_BAN, HIRES_NEGATIVE_PAINT
+from .prompt_style import (
+    HAND_BAN,
+    HANDDRAWN_FINISH,
+    HIRES_NEGATIVE_PAINT,
+)
 
 # The one place a SCENE replaces the backdrop, and it is a deliberate break of
 # the contract everything else in this file keeps. `ride` puts her on a bike in
@@ -1993,7 +1997,7 @@ POSE_RECORDS = {
         # instead, and token order changes the encoding; separate mechanisms
         # on purpose. `sketch` is NOT here: it means unfinished, which is the
         # state HIRES_NEGATIVE_PAINT exists to remove.
-        hires_finish=", (traditional media:1.4), (marker (medium):1.35)",
+        hires_finish=HANDDRAWN_FINISH,
         # --hires is a longest-side number, not a scale: 1416 is this pose's
         # 1.23x, the ratio every portrait pose prints at. The 1152 (1.0x)
         # conclusion before it was measured on the sweep's most saturated

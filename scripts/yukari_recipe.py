@@ -144,6 +144,7 @@ from yukari.prompt_style import (
     BODY,
     FACE,
     HAND_BAN,
+    HANDDRAWN_FINISH,
     HIRES_DENOISE,
     HIRES_NEGATIVE_PAINT,
     NEGATIVE,

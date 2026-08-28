@@ -165,6 +165,16 @@ HIRES_DENOISE = 0.60
 HAND_BAN = ("(bad hands:1.5), (mutated hands:1.5), (extra digits:1.5), "
             "(fused fingers:1.45), (long fingers:1.4), ")
 
+# 「手書き風」の仕上げ、パス2の末尾に足す一対。`traditional_media` 125k +
+# `marker_(medium)` 18k で、`sketch` 194k はこの家族で一番大きいタグだが入れて
+# いない -- 意味が「未完成」で、それは HIRES_NEGATIVE_PAINT が消すために書かれた
+# 状態そのものだから。`winded` が買い、finalize.py の --handdrawn が同じ文字列を
+# 使う: 二か所が同じものを名乗るなら、文字列は一つ。
+#
+# 末尾に足すことが仕様の一部。HIRES_POSITIVE はプロンプトの途中に差し込む別機構
+# で、途中への挿入はそれ以降のトークンを全部振り直す。
+HANDDRAWN_FINISH = ", (traditional media:1.4), (marker (medium):1.35)"
+
 # Named once because two poses use it and a second literal is a second thing to
 # keep in step. `swelter` earned it; `straw` inherited it.
 HIRES_NEGATIVE_PAINT = ("(sketch:1.45), (lineart:1.45), (unfinished:1.4), "

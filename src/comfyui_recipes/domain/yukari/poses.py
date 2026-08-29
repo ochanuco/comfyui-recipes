@@ -480,6 +480,19 @@ POSES = {
         "(open mouth:1.4), (smug:1.35), (half-closed eyes:1.3), "
         "(full body:1.45)"
     ),
+    # コーヒーで超ゴキゲン、`tehe` の顔に手のクロップに `sip` の器トリオ。
+    # `coffee mug` + `holding cup` の二枚で陶器のマグが決まり、`drinking` が
+    # それを口へ運ぶ (これを外すと器は足元へ落ちる)。
+    #
+    # 上機嫌は口以外で出す: 口はマグの縁が占めているので `open mouth` は
+    # 入れず FACE の `closed mouth` を残し、`smile` と `blush` を顔に、
+    # 音符は顔から離して浮かせる。
+    "perk": (
+        "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
+        "(upper body:1.35), (face focus:1.3), (holding cup:1.3), "
+        "(coffee mug:1.3), (drinking:1.2), (smile:1.4), (blush:1.35), "
+        "(musical note:1.35)"
+    ),
 }
 
 
@@ -927,6 +940,15 @@ POSE_RECORDS = {
                  stage=S_POSE_GUARDS),
         ),
         hires_negative=HAND_BAN + "(buttons:1.5), (button placket:1.4), "),
+    # マグを口元へ持つ手は `tehe` の顔に手のクラスなので HAND_BAN を両パスに。
+    # `own_eyes`: RESTING_EYES の `unamused` は上機嫌の逆で、外すと FACE の
+    # たれ目が残る。
+    "perk": Pose(
+        POSES["perk"], (1024, 1024), own_eyes=True, framing="head",
+        negative_edits=(
+            Edit("prepend", new=HAND_BAN, stage=S_POSE_GUARDS),
+        ),
+        hires_negative=HAND_BAN),
 }
 
 assert set(POSE_RECORDS) == set(POSES), (

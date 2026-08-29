@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from yukari.delivery_style import (  # noqa: E402
+from comfyui_recipes.domain.yukari.delivery_style import (  # noqa: E402
     BACKDROP, BG_SAT_MAX, FIGURE_LIGHT_SAT_TARGET, FIGURE_LIGHT_V,
     FIGURE_MIDTONE_V, FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX,
     PALETTE_WINDOWS, SAT_BAND, STROKE,

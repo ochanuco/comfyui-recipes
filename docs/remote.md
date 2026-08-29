@@ -5,8 +5,7 @@ The GPU doing the work does not have to be the one you are typing on.
 
 ```bash
 export COMFYUI_HOST=192.168.x.x   # COMFYUI_PORT too, if it is not 8188
-uv run scripts/yukari_recipe.py --seed 555666777
-uv run scripts/post_renders.py
+uv run comfy-recipes generate --request request.json
 ```
 
 Unset it and everything falls back to `127.0.0.1:8188`, which is what the
@@ -24,7 +23,7 @@ other machine's `output/`, and `LoadImage` reads the other machine's `input/`.
 `.local/ComfyUI/output` before anything opens it, and `stage_input()` pushes an
 input through `/upload/image` after making the usual local copy. Both do nothing
 when the server is local — they do not open a socket at all — which is why the
-post-processing scripts (`recolor_bg.py`, `legcrop.py`, `inpaint_composite.py`
+post-processing scripts (`recolor_bg.py`, `analysis/legcrop.py`, `analysis/inpaint_composite.py`
 and the rest) needed no changes. What reaches them is still a plain local path.
 
 Uploads are capped at 100MB by the server.

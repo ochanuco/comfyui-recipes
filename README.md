@@ -1,17 +1,16 @@
 # comfyui-recipes
 
 A command-line front end for [ComfyUI](https://github.com/Comfy-Org/ComfyUI).
-No web UI, no custom nodes of its own — just scripts that build a graph, POST it
-to `/prompt`, and pull the result back.
+No web UI and no custom nodes of its own. The public entry point is
+`comfy-recipes`; it builds a graph, records the run in Chimera, submits it to
+ComfyUI, and pulls the result back.
 
 Two things make it more than a thin API wrapper:
 
-**The defaults are the recipe.** `scripts/queue_dq3.py --job sage` is a complete
-command. Checkpoint, sampler, resolution, LoRA stack and the tag preset
-blocks are already set to values that took batches of rendering to find, so the
-bare command reproduces the look it was tuned to. Overriding any one of them is
-a normal flag, and `--print-prompt` shows what a given combination would send
-without queueing anything.
+**The defaults are the recipe.** The Yukari domain owns the checkpoint,
+sampler, resolution and prompt blocks that took batches of rendering to find.
+`comfy-recipes yukari prompt --pose lounge` inspects the exact prompt without
+queueing; actual generation always uses a recorded request.
 
 **The GPU does not have to be local.** One environment variable points every
 script at a ComfyUI on another machine, and nothing else changes — including the
@@ -21,7 +20,7 @@ post-processing scripts, which still receive plain local paths.
 
 ```bash
 export COMFYUI_HOST=192.168.x.x        # omit for a local ComfyUI
-uv run scripts/queue_dq3.py --job sage --count 3
+uv run comfy-recipes generate --request request.json
 ```
 
 ## Finding your way
@@ -54,15 +53,12 @@ packages below; nothing here imports torch.
 
 ```bash
 uv venv --python 3.12 .venv
-VIRTUAL_ENV=.venv uv pip install pillow numpy opencv-python scipy
+VIRTUAL_ENV=.venv uv pip install -e . pillow numpy opencv-python scipy
 ```
 
-uv is how this machine holds that environment, not something the scripts ask
-for. The queueing and recording path — `comfy_host.py`, `queue_*.py`,
-`generate.py` — imports only the standard library and runs under a bare
-`python3` anywhere. The packages above are for the post-processing scripts
-that open the rendered PNGs, which includes `generate.py --finalize`: its
-delivery pass opens the print to flatten the backdrop and stroke the figure.
+The image packages are needed by `comfy-recipes finalize`, which opens the
+print to flatten the backdrop and stroke the figure. The editable install adds
+the single CLI while keeping this personal environment under uv's control.
 
 Models are not included and not downloaded automatically.
 [`docs/models.md`](docs/models.md) lists the exact upstream and SHA256 of every
@@ -70,14 +66,14 @@ model these recipes were tuned against.
 
 ## Recording runs in chimera
 
-`scripts/generate.py` runs a batch the same way the recipes do, but records it
+`comfy-recipes generate` runs a batch from a request and records it
 in the [chimera](https://chimera.chanu.co) Management API on the way through:
 Batch and Job registration, image ingest into R2, and a Discord notification
 that carries the generation's canonical URL.
 
 ```bash
-uv run scripts/generate.py --request request.json            # run and record
-uv run scripts/generate.py --request request.json --dry-run  # show what would be sent
+uv run comfy-recipes generate --request request.json            # run and record
+uv run comfy-recipes generate --request request.json --dry-run  # show what would be sent
 ```
 
 `request.json` follows the contract in the chimera repository's
@@ -106,9 +102,9 @@ stopped instead of creating duplicates.
 This is personal tooling, published because the measurements in
 [`docs/render-notes.md`](docs/render-notes.md) are worth more written down than
 kept — a record of what was tried, what worked, and the several occasions where
-the first conclusion turned out to be wrong. The recipes are tuned to specific
-Illustrious-family checkpoints and to one set of characters. Nothing here is
-packaged, versioned, or supported, and it is not trying to be.
+the first conclusion turned out to be wrong. The recipe is tuned to a specific
+Illustrious-family checkpoint and Yuzuki Yukari. It is installable only to
+provide its local CLI; it is not a supported library or service.
 
 Read it as a notebook rather than as a tool you are meant to adopt.
 
@@ -119,19 +115,13 @@ about the code, so it belongs above the licence and not in a footnote.
 
 | character | source work |
 |---|---|
-| sage, priest, mage | Dragon Quest III |
-| Takao, Hamakaze | Kantai Collection |
-| Momiji | Touhou Project |
 | Yuzuki Yukari | VOICEROID / VOCALOID |
 
-Every right in those characters and their source works belongs to the original
-creators and their rights holders. Nothing here claims any part of it, and
+Every right in that character and its source works belongs to the original
+creators and rights holders. Nothing here claims any part of it, and
 nothing here could grant it.
 
-Each work also sets its own terms for derivative work, and those terms are not
-the same from one to the next — Touhou publishes a permissive guideline, others
-do not. Anyone acting on what is written here answers to those terms. This
-repository does not stand between them.
+Consult the original rights holders before redistributing derivative work.
 
 ## No licence
 

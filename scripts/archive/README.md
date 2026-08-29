@@ -1,6 +1,6 @@
 # Ran once, kept as a record
 
-Fourteen scripts that each answered one question and were never meant to answer
+Scripts here each answered one question and were never meant to answer
 another. They are not tools and nothing imports them; they are here so the
 render they produced can be reproduced, and so the tag weights they tried are
 not retried.
@@ -12,7 +12,7 @@ cheapest thing that makes the live surface readable.
 
 Two families:
 
-- `yk_*.py` — Yukari's design being rebuilt one block at a time, back when it
+- `yk_*.py` and `lap_invite.py` — Yukari's design being rebuilt one block at a time, back when it
   lived in the `queue_dq3.py` pipeline. Superseded by `scripts/yukari_recipe.py`,
   which is where the settled answers ended up.
 - `style_sweep2.py` … `style_sweep6.py` — the Hamakaze art-style sweeps, one

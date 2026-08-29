@@ -5,11 +5,10 @@ This is `fb-b` (prompt id 4c012937), chosen after the design was restored from
 gl-lounge-555666777 / job 38918ed3. Everything here is the reference's own
 vocabulary; the port onto the Hamakaze graph is not part of it.
 
-    uv run scripts/yukari_recipe.py --seeds 6          # sweep fresh seeds
-    uv run scripts/yukari_recipe.py --seed 555666777   # the settled render
-    uv run scripts/yukari_recipe.py --pose portrait    # head and shoulders
-    uv run scripts/yukari_recipe.py --pose peace       # double v, v over eye
-    uv run scripts/yukari_recipe.py --pose invite      # patting her lap, one girl
+    uv run comfy-recipes yukari prompt --pose portrait
+
+This module remains as a compatibility import facade. Actual renders go through
+``comfy-recipes generate --request REQUEST.json`` so every job is recorded.
 
 **There are two costumes now, and `default` is still the settled one.** The
 second is `sporty` -- grey oversized tee, denim shorts, plain black tights,
@@ -18,7 +17,7 @@ flag away and unchanged: both hang on the same `IDENTITY`, and `--costume
 default` builds the same prompt and the same graph, tag for tag, as the commit
 before it existed. That was checked across every pose rather than assumed.
 
-    uv run scripts/yukari_recipe.py --pose hype --costume sporty --seeds 6
+    uv run comfy-recipes yukari prompt --pose hype --costume sporty
 
 What a costume owns is three blocks -- character, legwear, hood -- and nothing
 else. FACE, SURFACE, BODY, THIN, every pose and the whole negative are shared,
@@ -43,9 +42,7 @@ added -- same seed, same latent, same picture -- so a seed picked at the sweep
 size comes back as the same drawing, only with detail the small render had no
 room for:
 
-    uv run scripts/yukari_recipe.py --pose sip --seeds 8              # find one
-    uv run scripts/yukari_recipe.py --pose sip --seed 999999999 \
-        --hires 2048                                                  # keep it
+    uv run comfy-recipes generate --request request.json
 
 Which also means a render the sweep did not produce is not waiting at 2048.
 The arc that 1029384756 refuses to draw at 1024 is refused there too: the
@@ -100,17 +97,13 @@ would quietly ship a different picture than the one that was chosen.
 from __future__ import annotations
 
 import argparse
-import json
-import urllib.request
 
-from comfy_host import DEFAULT_HOST, DEFAULT_PORT
-
-# The recipe lives in the `yukari` package now -- prompt_style / costumes /
-# poses / recipe -- and this file is the CLI plus the public surface. Every
+# The recipe lives in the package domain now -- prompt_style / costumes /
+# poses / recipe -- and this file is the temporary CLI plus public facade. Every
 # name below is re-exported explicitly because a decade of scripts (and
 # .local probes) import them from here; `costume_check.py` fingerprints them
 # from here too. Adding to the package? Export it here or it does not exist.
-from yukari.costumes import (
+from comfyui_recipes.domain.yukari.costumes import (
     CHARACTER,
     COSTUME_NEGATIVE_EDITS,
     COSTUMES,
@@ -130,8 +123,8 @@ from yukari.costumes import (
     SPORTY_HOOD,
     SPORTY_LEGWEAR,
 )
-from yukari.model import Edit, Pose
-from yukari.poses import (
+from comfyui_recipes.domain.yukari.models import Edit, Pose
+from comfyui_recipes.domain.yukari.poses import (
     CROWD_BAN,
     GAO_FACE,
     GAO_HANDS,
@@ -139,7 +132,7 @@ from yukari.poses import (
     POSES,
     SCENE_TRAIN,
 )
-from yukari.prompt_style import (
+from comfyui_recipes.domain.yukari.prompt_style import (
     RESTING_EYES,
     BODY,
     FACE,
@@ -152,7 +145,7 @@ from yukari.prompt_style import (
     SURFACE,
     THIN,
 )
-from yukari.recipe import (
+from comfyui_recipes.domain.yukari.recipe import (
     HEAD_FRAMINGS,
     HIRES_FINISH,
     HIRES_NEGATIVE,
@@ -164,11 +157,11 @@ from yukari.recipe import (
     SWEEP_SEEDS,
     _apply,
     _splice,
-    build,
     negative,
     pose_block,
     positive,
 )
+from comfyui_recipes.infrastructure.comfyui.yukari_graph import build
 
 
 def _negative_base(pose: str) -> str:
@@ -178,58 +171,25 @@ def _negative_base(pose: str) -> str:
     monkeypatching it (as old .local probes did) no longer reaches the
     recipe. Patch the record's `negative_base` instead.
     """
-    from yukari.recipe import _apply as apply_edits
+    from comfyui_recipes.domain.yukari.recipe import _apply as apply_edits
     return apply_edits(NEGATIVE, POSE_RECORDS[pose].negative_base, "default")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description="Inspect Yukari prompts. Rendering runs through "
+                    "`comfy-recipes generate --request ...` so it is recorded.")
     parser.add_argument("--pose", choices=sorted(POSES), default="lounge")
     parser.add_argument("--costume", choices=sorted(COSTUMES), default="default",
                         help="which set of clothes; the settled one is `default`")
-    parser.add_argument("--seed", type=int, action="append", default=[])
-    parser.add_argument("--seeds", type=int, default=0,
-                        help="take this many from the fixed sweep list")
-    parser.add_argument("--prefix", default="yk")
-    parser.add_argument(
-        "--hires",
-        type=int,
-        default=0,
-        help="redraw at this size on a second pass (1536 and 2048 are measured)",
-    )
-    parser.add_argument(
-        "--hires-denoise",
-        type=float,
-        help="override the second pass denoise; the default follows the upscale",
-    )
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--print-prompt", action="store_true")
     args = parser.parse_args()
-
-    if args.print_prompt:
-        print(positive(args.pose, args.costume), "\n\n---\n\n",
-              negative(args.pose, args.costume))
-        return
-
-    # The costume goes in the filename. Two sets of clothes through one pose at
-    # one seed are otherwise two files a letter apart in the output directory,
-    # and the second one is the one nobody can name afterwards.
-    prefix = (args.prefix if args.costume == "default"
-              else f"{args.prefix}-{args.costume}")
-    seeds = args.seed or SWEEP_SEEDS[:args.seeds] or [SWEEP_SEEDS[0]]
-    for seed in seeds:
-        req = urllib.request.Request(
-            f"http://{args.host}:{args.port}/prompt",
-            data=json.dumps({"prompt": build(args.pose, seed, prefix,
-                                             args.hires or HIRES_PRINT.get(
-                                                 args.pose, (0,))[0],
-                                             args.hires_denoise,
-                                             args.costume)}).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            print(seed, json.load(resp)["prompt_id"], flush=True)
+    if not args.print_prompt:
+        parser.error(
+            "direct rendering was retired; use `comfy-recipes generate "
+            "--request REQUEST.json` (or add --print-prompt)")
+    print(positive(args.pose, args.costume), "\n\n---\n\n",
+          negative(args.pose, args.costume))
 
 
 if __name__ == "__main__":

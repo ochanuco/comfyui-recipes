@@ -122,7 +122,7 @@ class GenerateApplicationTest(unittest.TestCase):
 
     def test_output_paths_must_remain_inside_configured_directories(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
+            root = Path(directory).resolve()
             self.assertEqual(_output_directory(root, "batch"), root / "batch")
             for identifier in ("../escape", "/tmp/escape", r"..\escape"):
                 with self.subTest(identifier=identifier), self.assertRaises(ValueError):

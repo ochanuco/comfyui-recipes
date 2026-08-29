@@ -480,13 +480,9 @@ POSES = {
         "(open mouth:1.4), (smug:1.35), (half-closed eyes:1.3), "
         "(full body:1.45)"
     ),
-    # コーヒーで超ゴキゲン、`tehe` の顔に手のクロップに `sip` の器トリオ。
-    # `coffee mug` + `holding cup` の二枚で陶器のマグが決まり、`drinking` が
-    # それを口へ運ぶ (これを外すと器は足元へ落ちる)。
-    #
-    # 上機嫌は口以外で出す: 口はマグの縁が占めているので `open mouth` は
-    # 入れず FACE の `closed mouth` を残し、`smile` と `blush` を顔に、
-    # 音符は顔から離して浮かせる。
+    # コーヒーで超ゴキゲン、`tehe` の顔に手のクロップ。器は `sip` の三点で
+    # 一組: マグの名指しは二枚必要で、`drinking` を外すと器は足元へ落ちる。
+    # 縁が口を占めるので `open_mouth` には入れない -- 上機嫌は口以外で出す。
     "perk": (
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
         "(upper body:1.35), (face focus:1.3), (holding cup:1.3), "
@@ -940,9 +936,8 @@ POSE_RECORDS = {
                  stage=S_POSE_GUARDS),
         ),
         hires_negative=HAND_BAN + "(buttons:1.5), (button placket:1.4), "),
-    # マグを口元へ持つ手は `tehe` の顔に手のクラスなので HAND_BAN を両パスに。
-    # `own_eyes`: RESTING_EYES の `unamused` は上機嫌の逆で、外すと FACE の
-    # たれ目が残る。
+    # 口元のマグは `tehe` の顔に手のクラス、HAND_BAN は両パス。`own_eyes` は
+    # RESTING_EYES の `unamused` が上機嫌の正反対だから。
     "perk": Pose(
         POSES["perk"], (1024, 1024), own_eyes=True, framing="head",
         negative_edits=(

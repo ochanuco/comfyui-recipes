@@ -4,8 +4,8 @@
 
 .DESCRIPTION
     The recipe in scripts/yukari_recipe.py needs exactly one thing: the
-    hassaku-il-v22 diffusers folder. The two LoRAs are only used by the
-    queue_dq3.py "yukari" job, so they are optional here.
+    hassaku-il-v22 diffusers folder. The two LoRAs are legacy optional files
+    and are not used by the current Yukari recipe.
 
     Every SHA256 below was taken from the mac's own copy and matched against
     the Hugging Face mirror, so what lands here is bit-for-bit the model the
@@ -80,7 +80,7 @@ $CheckpointFiles = @(
     @{ Path = 'vae/diffusion_pytorch_model.safetensors'; Size = 167335342;  Sha256 = '6353737672c94b96174cb590f711eac6edf2fcce5b6e91aa9d73c5adc589ee48' }
 )
 
-# The filenames on the left are what queue_dq3.py's DEFAULT_LORAS asks for.
+# The filenames on the left are legacy optional model files.
 # Civitai serves them under their own longer names, so they get renamed on the
 # way in -- keep the left column exactly as it is or the graph will not build.
 $LoraFiles = @(
@@ -244,7 +244,7 @@ elseif (-not $CivitaiToken) {
         Write-Host "    sha256 $($lora.Sha256)"
     }
     Write-Host ""
-    Write-Host "Only queue_dq3.py's yukari job uses them. yukari_recipe.py does not."
+    Write-Host "The Yukari recipe does not require these optional files."
 }
 else {
     Write-Step "LoRAs (~0.7 GB) from Civitai"

@@ -10,7 +10,7 @@ A command-line front end for ComfyUI: scripts build a graph, POST it to
 of its own. **The defaults are the recipe** — a bare `--job` or `--pose` is a
 complete command, and every preset in it was arrived at by rendering.
 
-Two recipes are live, and they do not share code beyond `comfy_host.py`:
+One recipe is live:
 
 - `scripts/yukari_recipe.py` — Yukari; this is where the current work happens.
   The CLI plus the public surface: the recipe itself is the `scripts/yukari/`
@@ -19,8 +19,6 @@ Two recipes are live, and they do not share code beyond `comfy_host.py`:
   `recipe.py` (the interpreter that owns the assembly order), `model.py`
   (the `Pose`/`Edit` dataclasses). A new pose is one `POSES` entry plus one
   `POSE_RECORDS` entry in `poses.py`, nothing else.
-- `scripts/queue_dq3.py` — the DQ3 / KanColle / Touhou jobs, `--job` per
-  character.
 
 Everything measured goes in `docs/render-notes.md`, including the measurements
 that came back null and the conclusions that were later wrong. That file is the
@@ -29,25 +27,17 @@ point of the repository; the scripts are how it was produced.
 Run everything through `uv run` — the client env is pillow, numpy,
 opencv-python and scipy, and nothing here imports torch.
 
-## Branch strategy: `main` only
+## Branch strategy: task branches
 
-**Work on `main`. Commit to `main`. Do not open a task branch for this repo.**
+Work on a task branch; do not commit directly to protected branches.
 
-This is a deliberate, standing override of the global "never commit to a
-protected branch" rule — the user has asked for it repeatedly and by name
-(「mainのみで作業してください」). Nothing here is shared, reviewed or deployed;
-a branch only splits the record of what was rendered from the renders.
-
-If you find yourself on another branch, someone else's session put you there.
-Finish on the branch you are on rather than switching under them, then
-fast-forward `main` onto it with `git branch -f main HEAD` — that leaves the
-working tree and their `HEAD` untouched.
+Use `dev/<topic>` branches for implementation and merge only after review.
 
 ## Look things up; do not read them
 
-Three files are more than half this repository — `docs/render-notes.md` (~68k
-tokens), `scripts/yukari/poses.py` (~30k) and `scripts/queue_dq3.py` (~21k) —
-and all three are exactly what a one-line question tempts you to open whole.
+Two files dominate this repository: `docs/render-notes.md` (~68k tokens) and
+`scripts/yukari/poses.py` (~30k). Both are exactly what a one-line question
+tempts you to open whole.
 Opening any of them without a line range is a mistake, not a thorough approach.
 
 ```bash
@@ -65,7 +55,6 @@ For what a recipe actually sends, ask the recipe instead of reading it:
 
 ```bash
 uv run scripts/yukari_recipe.py --pose prone --print-prompt      # ~0.6k, not 30k
-uv run scripts/queue_dq3.py --job sage --print-prompt            # ~0.9k, not 21k
 uv run scripts/costume_check.py                                  # the blocks, verified
 ```
 

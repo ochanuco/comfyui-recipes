@@ -2,8 +2,8 @@
 """Where things are, without reading them.
 
 This repo is expensive to look at. `docs/render-notes.md` is ~68k tokens,
-`scripts/yukari/poses.py` ~30k and `scripts/queue_dq3.py` ~21k -- between them
-more than half the repository, and all three are files an agent is tempted to
+`scripts/yukari/poses.py` ~30k -- the largest active recipe file; together these
+are more than half the repository, and both are files an agent is tempted to
 open whole to answer a one-line question. This prints the answer instead.
 
     uv run scripts/atlas.py                 # every script: role, size, one line

@@ -6,12 +6,12 @@ to `/prompt`, and pull the result back.
 
 Two things make it more than a thin API wrapper:
 
-**The defaults are the recipe.** `scripts/queue_dq3.py --job sage` is a complete
-command. Checkpoint, sampler, resolution, LoRA stack and the tag preset
-blocks are already set to values that took batches of rendering to find, so the
-bare command reproduces the look it was tuned to. Overriding any one of them is
-a normal flag, and `--print-prompt` shows what a given combination would send
-without queueing anything.
+**The defaults are the recipe.** `scripts/yukari_recipe.py --pose lounge` is a
+complete command. Checkpoint, sampler, resolution and prompt blocks are already
+set to values that took batches of rendering to find, so the bare command
+reproduces the look it was tuned to. Overriding any one of them is a normal
+flag, and `--print-prompt` shows what a given combination would send without
+queueing anything.
 
 **The GPU does not have to be local.** One environment variable points every
 script at a ComfyUI on another machine, and nothing else changes — including the
@@ -21,7 +21,7 @@ post-processing scripts, which still receive plain local paths.
 
 ```bash
 export COMFYUI_HOST=192.168.x.x        # omit for a local ComfyUI
-uv run scripts/queue_dq3.py --job sage --count 3
+uv run scripts/generate.py --request request.json
 ```
 
 ## Finding your way
@@ -119,19 +119,13 @@ about the code, so it belongs above the licence and not in a footnote.
 
 | character | source work |
 |---|---|
-| sage, priest, mage | Dragon Quest III |
-| Takao, Hamakaze | Kantai Collection |
-| Momiji | Touhou Project |
 | Yuzuki Yukari | VOICEROID / VOCALOID |
 
-Every right in those characters and their source works belongs to the original
-creators and their rights holders. Nothing here claims any part of it, and
+Every right in that character and its source works belongs to the original
+creators and rights holders. Nothing here claims any part of it, and
 nothing here could grant it.
 
-Each work also sets its own terms for derivative work, and those terms are not
-the same from one to the next — Touhou publishes a permissive guideline, others
-do not. Anyone acting on what is written here answers to those terms. This
-repository does not stand between them.
+Consult the original rights holders before redistributing derivative work.
 
 ## No licence
 

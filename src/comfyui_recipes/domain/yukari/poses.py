@@ -268,6 +268,18 @@ POSES = {
         "(on back:1.4), (knees up:1.4), (hands behind head:1.35), "
         "(slouching:1.35), (clenched teeth:1.35), full body"
     ),
+    # 長座体前屈 that does not reach. `(sitting:1.5)` outranks the stretch:
+    # led by `stretching`, the model draws a STANDING bend and the seat is
+    # gone. `(from side:1.4)` is what makes the silhouette read as the
+    # exercise, the fix `situp` needed for the same reason. `(knees up:1.2)`
+    # is the stiffness and stays eased, or the legs fold and take the long
+    # sit with them. The thighs are framed by `thigh focus` on the near leg;
+    # do NOT restore a `from above` camera, which draws a top-down crouch.
+    "reach": (
+        "(solo:1.5), (sitting:1.5), (from side:1.4), (legs together:1.35), "
+        "(stretching:1.3), (leaning forward:1.35), (outstretched arms:1.3), "
+        "(knees up:1.2), (thigh focus:1.4), full body"
+    ),
     # Double V thrown out and down, weight forward -- `peace` is the still
     # one. `(arms out:1.3)` keeps the Vs off her face; without it `double v`
     # is drawn at the chin, which is `peace` again. `(grin:1.4)` needs
@@ -666,6 +678,23 @@ POSE_RECORDS = {
             Edit("append", new=", (arched back:1.4), (bridge (pose):1.3)",
                  stage=S_POSE_SCENE),
         )),
+    # Landscape: the extended legs run the long side, and the width is what
+    # keeps them in frame beside her rather than cropped at the shin.
+    "reach": Pose(
+        POSES["reach"], (1536, 1024),
+        negative_edits=(
+            # `stretching` brings the gym with it exactly as `sit-up` does,
+            # and the same guard answers it.
+            Edit("append", new=", (sportswear:1.45), (gym uniform:1.4)",
+                 gate="default_or_roomwear", stage=S_POSE_SCENE),
+            # This pose's own risk: a seated stretch is one weight away from
+            # a straddle, and `legs together` alone does not hold it.
+            Edit("append", new=", (split:1.45), (spread legs:1.4)",
+                 stage=S_POSE_SCENE),
+        ),
+        # The soles come at the lens, so the toe guard the delivery adds is
+        # already needed a pass earlier.
+        hires_negative="(toes:1.55), "),
     # 832 wide: width beside her is room for someone else to stand -- the
     # 1024 form kept drawing a second figure.
     "stand": Pose(

@@ -1,0 +1,132 @@
+from __future__ import annotations
+
+import io
+import unittest
+
+import numpy as np
+from PIL import Image
+
+from comfyui_recipes.domain.yukari.delivery_style import (
+    ACCENT_KEEP, REPIN_LIGHT,
+)
+from comfyui_recipes.infrastructure.imaging.palette import (
+    repin, repin_png, summarize,
+)
+
+KNEE, RATIO = REPIN_LIGHT
+
+
+def compressed(saturation: float) -> float:
+    """The light-band curve for a field pixel (below the accent ramp)."""
+    return KNEE + (saturation - KNEE) * RATIO
+
+
+def png(pixels: np.ndarray) -> bytes:
+    output = io.BytesIO()
+    Image.fromarray(pixels.astype(np.uint8)).save(output, "PNG")
+    return output.getvalue()
+
+
+def swatch(hsv_center: tuple[int, int, int]) -> np.ndarray:
+    """64x64 flat #808080 backdrop, a 32x32 centre block at the given HSV."""
+    pixels = np.full((64, 64, 3), 0x80, dtype=np.uint8)
+    hsv = np.zeros((32, 32, 3), dtype=np.uint8)
+    hsv[..., 0], hsv[..., 1], hsv[..., 2] = hsv_center
+    block = np.array(Image.fromarray(hsv, "HSV").convert("RGB"))
+    pixels[16:48, 16:48] = block
+    return pixels
+
+
+class RepinTest(unittest.TestCase):
+    def test_field_saturation_purple_is_compressed_toward_the_knee(self):
+        # S 120 is field grade -- vivid cloth, below the accent ramp -- so
+        # only the excess over the knee survives, at the band's ratio.
+        pixels = swatch((191, 120, 200))
+        rgb, report = repin(pixels)
+        hsv = np.array(Image.fromarray(rgb).convert("HSV")).astype(float)
+        center = hsv[16:48, 16:48]
+        self.assertAlmostEqual(center[..., 1].mean(), compressed(120), delta=8)
+        self.assertAlmostEqual(center[..., 2].mean(), 200, delta=2)
+        backdrop = rgb[:8, :8]
+        self.assertTrue(np.all(backdrop == 0x80))
+        self.assertTrue(any("compressed" in line for line in report))
+
+    def test_accent_saturation_keeps_most_of_its_excess(self):
+        # Iris-grade saturation sits above the accent ramp and keeps
+        # ACCENT_KEEP of its excess instead of the field ratio.
+        pixels = swatch((191, 230, 200))
+        rgb, _ = repin(pixels)
+        hsv = np.array(Image.fromarray(rgb).convert("HSV")).astype(float)
+        s = hsv[16:48, 16:48, 1].mean()
+        self.assertGreater(s, 140)
+        self.assertAlmostEqual(s, KNEE + (230 - KNEE) * ACCENT_KEEP, delta=10)
+
+    def test_pale_purple_is_left_nearly_unchanged(self):
+        pixels = swatch((191, 30, 200))
+        rgb, _ = repin(pixels)
+        hsv_before = np.array(Image.fromarray(pixels).convert("HSV")).astype(float)
+        hsv_after = np.array(Image.fromarray(rgb).convert("HSV")).astype(float)
+        before_s = hsv_before[16:48, 16:48, 1].mean()
+        after_s = hsv_after[16:48, 16:48, 1].mean()
+        # Scaling only ever goes down, and a render already paler than the
+        # palette target should not move much.
+        self.assertLessEqual(after_s, before_s + 1)
+        self.assertGreater(after_s, before_s - 3)
+
+    def test_repin_png_roundtrips_through_pil(self):
+        data = png(swatch((191, 200, 200)))
+        out, report = repin_png(data)
+        self.assertIsInstance(out, bytes)
+        image = Image.open(io.BytesIO(out))
+        self.assertEqual(image.size, (64, 64))
+        self.assertTrue(report)
+
+
+class SummarizeTest(unittest.TestCase):
+    def test_high_saturation_render_fails(self):
+        data = png(swatch((191, 200, 200)))
+        summary = summarize(data)
+        self.assertTrue(summary["fails"])
+
+    def test_low_saturation_render_passes_figure_bands(self):
+        data = png(swatch((191, 30, 200)))
+        summary = summarize(data)
+        figure_fails = [f for f in summary["fails"] if "figure midtone" in f]
+        self.assertEqual(figure_fails, [])
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+class ProtectedRepinTest(unittest.TestCase):
+    def wide(self) -> np.ndarray:
+        """128 wide: saturated purple legs left, saturated purple hair right."""
+        pixels = np.full((64, 128, 3), 0x80, dtype=np.uint8)
+        hsv = np.zeros((32, 32, 3), dtype=np.uint8)
+        hsv[..., 0], hsv[..., 1], hsv[..., 2] = (191, 120, 200)
+        block = np.array(Image.fromarray(hsv, "HSV").convert("RGB"))
+        pixels[16:48, 8:40] = block
+        pixels[16:48, 88:120] = block
+        return pixels
+
+    def test_protected_pixels_survive_while_the_rest_is_pinned(self):
+        pixels = self.wide()
+        protect = np.zeros(pixels.shape[:2], dtype=bool)
+        protect[:, :64] = True
+        rgb, _ = repin(pixels, protect)
+        hsv = np.array(Image.fromarray(rgb).convert("HSV")).astype(float)
+        legs_s = hsv[16:48, 12:36, 1].mean()
+        hair_s = hsv[16:48, 92:116, 1].mean()
+        self.assertGreater(legs_s, 110)
+        self.assertAlmostEqual(hair_s, compressed(120), delta=10)
+
+    def test_repin_png_keep_legwear_reports_the_kept_share(self):
+        pixels = self.wide()
+        data = png(pixels)
+        out, report = repin_png(data, keep_legwear=0.5)
+        self.assertIn("legwear kept verbatim", report[0])
+        hsv = np.array(
+            Image.open(io.BytesIO(out)).convert("HSV")).astype(float)
+        self.assertGreater(hsv[16:48, 12:36, 1].mean(),
+                           hsv[16:48, 92:116, 1].mean() + 40)

@@ -63,6 +63,7 @@ class GenerateServices:
     conflicts: ConflictFinder
     output_root: Path
     emit: Callable[[str], None] = print
+    measure: Callable[[bytes], dict] | None = None
 
 
 def validate_request(req: object) -> None:
@@ -344,6 +345,23 @@ def generate(request_path: Path, services: GenerateServices, *,
                 services.state.save(state_path, state)
                 data = services.comfyui.fetch(image)
                 output_path.write_bytes(data)
+                palette = None
+                if services.measure is not None:
+                    try:
+                        summary = services.measure(data)
+                    except Exception as error:
+                        services.emit(f"  ! palette measure failed: {error}")
+                    else:
+                        palette = {key: round(value, 1) for key, value in summary.items()
+                                   if isinstance(value, (int, float))
+                                   and not isinstance(value, bool)}
+                        palette["verdict"] = (
+                            "FAIL: " + "; ".join(summary["fails"])
+                            if summary["fails"] else "pass")
+                        services.emit(
+                            f"  palette {'FAIL' if summary['fails'] else 'pass'}: "
+                            f"fig mid {summary['fig_sat_mean']:.1f} "
+                            f"light {summary['light_sat']:.1f}")
                 meta = {"seed": seed, "original_filename": image["filename"],
                         "comfy_output_index": output_index,
                         "idempotency_key": output["idempotency_key"]}
@@ -364,6 +382,8 @@ def generate(request_path: Path, services: GenerateServices, *,
                                       if key in ("arm", "pose", "costume")}})
                 if generation.get("patches"):
                     semantic["attributes"]["patches"] = generation["patches"]
+                if palette:
+                    semantic["attributes"]["palette"] = palette
                 try:
                     services.management.put_semantic(rendered["id"], semantic)
                 except SystemExit as error:

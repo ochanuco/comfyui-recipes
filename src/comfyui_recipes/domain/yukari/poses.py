@@ -1705,6 +1705,28 @@ POSES = {
         "(own hands together:1.35), (hands up:1.3), (covered mouth:1.35), "
         "(smug:1.35), (half-closed eyes:1.3)"
     ),
+    # 指を指してケタケタ笑う。体は `hype` の立ち骨格 -- (standing:1.45),
+    # (from front:1.3), (leaning forward:1.35), (full body:1.45) -- をそのまま
+    # 使い、腕の仕事だけ差し替える。
+    #
+    # `(pointing at viewer:1.5)` が構図の主。腕がカメラへ出る分は
+    # `(outstretched arm:1.3)` が持ち、空いた側は `(hand on own hip:1.15)` --
+    # 指差し笑いの立ち姿の定番で、遊んだ手が顔へ行くのを軽く止める。重みが
+    # 低いのは `tehe` の頬手 1.05 と同じ理由: 主役の腕と張り合わせない。
+    #
+    # 笑いは `(laughing:1.45)` + `(open mouth:1.4)`。open_mouth で FACE の
+    # closed mouth を落とす (`hype` と同型)。目はドヤ配線 (`sly` と同じ):
+    # own_eyes で unamused を落とし、`(half-closed eyes:1.3)` を自前で持って
+    # FACE の tareme と合わせて neki8u の組にする。態度は `(smug:1.35)` --
+    # ケタケタの見下ろし成分は目と態度のこの2枚で作り、嘲りの冷たさは
+    # laughing 側に持たせない。
+    "cackle": (
+        "(solo:1.5), (standing:1.45), (from front:1.3), "
+        "(leaning forward:1.35), (pointing at viewer:1.5), "
+        "(outstretched arm:1.3), (hand on own hip:1.15), (laughing:1.45), "
+        "(open mouth:1.4), (smug:1.35), (half-closed eyes:1.3), "
+        "(full body:1.45)"
+    ),
 }
 
 
@@ -2165,6 +2187,13 @@ POSE_RECORDS = {
                  stage=S_POSE_GUARDS),
         ),
         hires_negative=HAND_BAN + "(interlocked fingers:1.5), "),
+    # 832 は `hype` / `roar` の立ち幅。指差しの人差し指は HAND_BAN の守備範囲。
+    "cackle": Pose(
+        POSES["cackle"], (832, 1664), own_eyes=True, open_mouth=True,
+        negative_edits=(
+            Edit("prepend", new=HAND_BAN, stage=S_POSE_GUARDS),
+        ),
+        hires_negative=HAND_BAN),
 }
 
 assert set(POSE_RECORDS) == set(POSES), (

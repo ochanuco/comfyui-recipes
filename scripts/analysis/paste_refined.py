@@ -6,7 +6,7 @@ crop a square at print resolution, Lanczos it up so the model draws that region
 at a size it can draw, refine in place with `queue_refine.py --mask`, then paste
 back. This is the paste.
 
-    uv run scripts/paste_refined.py print.png refined-1024.png \\
+    uv run scripts/analysis/paste_refined.py print.png refined-1024.png \\
         --box 1280 450 768 --mask recolour-mask.png --out fixed.png
 
 `inpaint_composite.py` is NOT this tool and the difference is worth knowing.

@@ -24,7 +24,7 @@ other machine's `output/`, and `LoadImage` reads the other machine's `input/`.
 `.local/ComfyUI/output` before anything opens it, and `stage_input()` pushes an
 input through `/upload/image` after making the usual local copy. Both do nothing
 when the server is local — they do not open a socket at all — which is why the
-post-processing scripts (`recolor_bg.py`, `legcrop.py`, `inpaint_composite.py`
+post-processing scripts (`recolor_bg.py`, `analysis/legcrop.py`, `analysis/inpaint_composite.py`
 and the rest) needed no changes. What reaches them is still a plain local path.
 
 Uploads are capped at 100MB by the server.

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """`prone` with ニーハイ over tights, done by REGION instead of by tag.
 
-    uv run scripts/yk_prone_legwear.py                 # 1536x1024
-    uv run scripts/yk_prone_legwear.py --hires 2048    # the print
+    PYTHONPATH=scripts uv run scripts/archive/yk_prone_legwear.py
+    PYTHONPATH=scripts uv run scripts/archive/yk_prone_legwear.py --hires 2048
 
 **ニーハイ is `thighhighs`.** It goes over the knee and ends on the thigh.
 ハイソックス is `kneehighs` and stops below the knee. The first cut of this
@@ -68,7 +68,7 @@ from pathlib import Path
 import yukari_recipe as yk
 from comfy_host import DEFAULT_HOST, DEFAULT_PORT, stage_input
 
-REPO = Path(__file__).resolve().parent.parent
+REPO = Path(__file__).resolve().parents[2]
 INPUT_DIR = REPO / ".local/ComfyUI/input"
 MASKS = {"dress": REPO / "assets/prone-dress-mask.png",
          "tights": REPO / "assets/prone-tights-mask.png",

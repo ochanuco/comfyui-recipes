@@ -19,7 +19,7 @@ being backdrop:
 the silhouette happens to be, and this project's record of image statistics
 against the user's eye is 0-7.
 
-    uv run scripts/edge_profile.py a.png b.png
+    uv run scripts/analysis/edge_profile.py a.png b.png
 """
 
 from __future__ import annotations
@@ -30,7 +30,10 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from recolor_bg import background_mask, enclosed_mask
+from comfyui_recipes.infrastructure.imaging.delivery import (
+    background_mask,
+    enclosed_mask,
+)
 
 
 def parse_args() -> argparse.Namespace:

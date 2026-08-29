@@ -33,7 +33,7 @@ Prompt-side removal was tried first and is not available: adding the object
 whole composition and in one case summoned a bigger plush. Seed-baked clutter
 does not answer to the negative; it answers to redrawing.
 
-    uv run scripts/inpaint_composite.py original.png inpainted.png mask.png \
+    uv run scripts/analysis/inpaint_composite.py original.png inpainted.png mask.png \
         --out fixed.png
 
 The mask is expected to be an axis-aligned rectangle (white = redraw); the

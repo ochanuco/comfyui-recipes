@@ -20,7 +20,7 @@ from ..infrastructure.comfyui.yukari_graph import build as build_yukari
 from ..infrastructure.imaging.delivery import clean_background, graph_from_png
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
-from ..infrastructure.repository import git_metadata
+from ..infrastructure.repository import discover_repository, git_metadata
 
 
 def parser() -> argparse.ArgumentParser:
@@ -65,7 +65,6 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = parser().parse_args(argv)
-    repository = Path.cwd()
     if args.command == "yukari":
         prompts = {
             "positive": positive(args.pose, args.costume),
@@ -77,6 +76,7 @@ def main(argv: list[str] | None = None) -> None:
             print(prompts["positive"], "\n\n---\n\n", prompts["negative"])
         return
 
+    repository = discover_repository()
     chimera = ChimeraClient(repository)
     comfyui = ComfyUIClient()
     notifier = DiscordNotifier(repository)

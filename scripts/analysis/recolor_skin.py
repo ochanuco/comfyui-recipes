@@ -8,7 +8,7 @@ That is the case render-notes already settled once, on a thigh that came out
 warm-taupe: **recolour a wrong-coloured but well-shaped mass before re-rolling
 it.** This is that operation, as a tool.
 
-    uv run scripts/recolor_skin.py in.png --box 1400 500 1900 950 \
+    uv run scripts/analysis/recolor_skin.py in.png --box 1400 500 1900 950 \
         --color '#d8c8ee' --out out.png
 
 Method, and why each half is there:

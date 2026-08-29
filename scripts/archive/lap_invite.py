@@ -1,4 +1,6 @@
-"""Inviting a lap pillow, one girl, patting her thigh. Diagnosis then patterns.
+"""Archived invitation-pose sweep; the settled answer is in the Yukari domain.
+
+Inviting a lap pillow, one girl, patting her thigh. Diagnosis then patterns.
 
 `lap pillow` was the wrong tag. Its wiki says so in as many words: it is for a
 head already resting on someone, and "if a character is merely inviting someone

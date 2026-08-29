@@ -7,8 +7,8 @@ and why it can also change what is there. When a render has already been picked
 and the only thing wanted is more pixels, this is the other tool -- a plain
 resample, no diffusion, no model.
 
-    uv run scripts/upscale_plain.py out/pick.png --size 2048
-    uv run scripts/upscale_plain.py out/pick.png --size 3072 --filter bicubic
+    uv run scripts/analysis/upscale_plain.py out/pick.png --size 2048
+    uv run scripts/analysis/upscale_plain.py out/pick.png --size 3072 --filter bicubic
 
 **It adds nothing.** There is no detail in the output that was not in the input,
 and that is the point rather than a caveat: the drawing that was approved is the

@@ -98,8 +98,6 @@ from __future__ import annotations
 
 import argparse
 
-from comfy_host import DEFAULT_HOST, DEFAULT_PORT
-
 # The recipe lives in the package domain now -- prompt_style / costumes /
 # poses / recipe -- and this file is the temporary CLI plus public facade. Every
 # name below is re-exported explicitly because a decade of scripts (and

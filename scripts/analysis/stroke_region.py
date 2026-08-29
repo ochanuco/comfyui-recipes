@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Stroke width inside a mask against the same picture outside it.
 
-`stroke_width.py` measures a whole canvas, which cannot answer 「脚だけ線が太い」
+`scripts/analysis/stroke_width.py` measures a whole canvas, which cannot answer 「脚だけ線が太い」
 -- a masked refine only redraws its own region, so the complaint is about the
 difference between two halves of one image, not between two images. Same
 statistic as the tool (mean dark-run length, runs over --max-run dropped as
 fills), applied twice: once to the pixels the mask covers and once to the rest.
 
-    uv run scripts/stroke_region.py <mask.png> <render.png> [more.png ...]
+    uv run scripts/analysis/stroke_region.py <mask.png> <render.png> [more.png ...]
 """
 import sys
 from pathlib import Path

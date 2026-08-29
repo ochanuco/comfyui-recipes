@@ -11,8 +11,8 @@ something it does not control and set it afterwards. Median-cut quantisation
 with dithering off maps every pixel to the nearest of N colours, which is what
 flat cel shading already is -- the gradients collapse back into bands.
 
-    uv run scripts/flatten_palette.py out/ns-1886970040_00001_.png --colors 30
-    uv run scripts/flatten_palette.py out/*.png --colors 30 --measure-only
+    uv run scripts/analysis/flatten_palette.py out/ns-1886970040_00001_.png --colors 30
+    uv run scripts/analysis/flatten_palette.py out/*.png --colors 30 --measure-only
 
 DO NOT USE THIS ON YUKARI'S RENDERS. It costs her the colour it was meant to
 tidy. At --colors 30 her purple went from 9.3% of the frame to 4.0% and its

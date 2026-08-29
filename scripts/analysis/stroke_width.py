@@ -10,8 +10,8 @@ dark are collected and the median taken. Runs longer than `--max-run` are
 dropped as fills rather than lines -- the black cardigan is a large dark area
 and would otherwise drown the contours it is drawn with.
 
-    uv run scripts/stroke_width.py .local/ComfyUI/output/one-d60_00001_.png
-    uv run scripts/stroke_width.py out/*.png --max-run 24
+    uv run scripts/analysis/stroke_width.py .local/ComfyUI/output/one-d60_00001_.png
+    uv run scripts/analysis/stroke_width.py out/*.png --max-run 24
 
 **Absolute px is the less useful half.** The line reads heavy or fine relative
 to the figure, not to the canvas, so a render twice the size with twice the

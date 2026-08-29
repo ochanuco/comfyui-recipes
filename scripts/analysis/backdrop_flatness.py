@@ -24,7 +24,7 @@ tags. And 25 is permissive -- a render at 19 can still come out of recolor_bg
 with visible patches, because the mottle that survives is the part inside the
 tolerance. Look at the result.
 
-    uv run scripts/backdrop_flatness.py out/fin-*.png
+    uv run scripts/analysis/backdrop_flatness.py out/fin-*.png
 
 Measured on the top 4.5% of rows, full width, which is backdrop in every
 composition this repo produces. A render framed differently needs a different

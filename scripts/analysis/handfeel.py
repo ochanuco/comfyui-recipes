@@ -20,7 +20,7 @@ size rather than the canvas's.
 it, because a line's width in pixels does not scale with the figure. Compare
 renders at one size only.
 
-    uv run scripts/handfeel.py <render.png> ...
+    uv run scripts/analysis/handfeel.py <render.png> ...
 """
 import sys
 

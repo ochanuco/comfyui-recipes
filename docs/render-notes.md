@@ -11057,3 +11057,23 @@ rb-hires（the feel restored）が 235.5 だったので、ta はちょうど承
 sketch 三連 + 割る upscale だけで足り、muted は彩度を下げる分だけ働いている
 可能性がある。判定は目（手書き感はどのみち数値で判定できない質だが、14.7 と
 244.7 の差は質の差ではなく経路の差として読める）。
+
+## 2026-08-29 新ポーズ `cackle`: 指を指してケタケタ笑う (batch 7mvsj4)
+
+「指を指してケタケタ笑ってるゆかりさん」。体は `hype` の立ち骨格 verbatim —
+(standing:1.45), (from front:1.3), (leaning forward:1.35), (full body:1.45)、
+832x1664 も hype/roar の立ち幅 — で、腕の仕事だけ差し替えた。
+
+- (pointing at viewer:1.5) が構図の主。腕をカメラへ出す分は
+  (outstretched arm:1.3)、空いた側は (hand on own hip:1.15) — 重みが低いのは
+  `tehe` の頬手 1.05 と同じ理由で、主役の腕と張り合わせない。
+- 笑いは (laughing:1.45) + (open mouth:1.4)。open_mouth フラグで FACE の
+  closed mouth を落とす（`hype` と同型、costume_check に declared 済み）。
+- 目はドヤ配線（`sly` と同じ）: own_eyes で unamused を落とし
+  (half-closed eyes:1.3) を自前で持って FACE の tareme と neki8u の組にする。
+  態度は (smug:1.35)。ケタケタの見下ろし成分は目と態度の2枚で作り、
+  嘲りの冷たさは laughing 側に持たせない。
+- negative は HAND_BAN — 指差しの人差し指はその守備範囲。
+
+初回スイープ 6 seed、recipe そのまま（batch 7mvsj4、arm cackle-a）。
+contract fixture は 41 ポーズで再生成済み。評価待ち。

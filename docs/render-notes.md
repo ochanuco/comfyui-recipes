@@ -11077,3 +11077,25 @@ sketch 三連 + 割る upscale だけで足り、muted は彩度を下げる分�
 
 初回スイープ 6 seed、recipe そのまま（batch 7mvsj4、arm cackle-a）。
 contract fixture は 41 ポーズで再生成済み。評価待ち。
+
+## 2026-08-29 `cackle` の服割れ: oversized shirt がここでもシャツワンピを呼ぶ (batch msmela)
+
+初回2バッチ (7mvsj4 / a53vkq) への評価は「服は c8a3ik、ポーズは dux7xp」。
+dux7xp は (pointing at viewer:1.5) が短縮遠近で決まった当たりだが、服が
+ボタン前立てのシャツワンピに振れている。c8a3ik はリボン+素の紫ワンピースが
+正しく出た個体で、指は自分の顔の横（カメラを指していない）。
+
+シャツワンピの犯人は `boss` が測定済みの `(oversized shirt:1.3)` の
+リクルート現象。boss では `mature female` が引き金だったが、cackle は
+引き金なしでも seed 次第で同じ割れ方をする — つまりこのタグは常に
+シャツワンピ側の圧を掛けていて、seed がどちらに倒すかだけの差。
+
+是正 (arm cackle-b):
+
+- character_edits で `(oversized shirt:1.3)` を除去 (gate=dressed)。
+  boss と同じ動きで、mature female 抜き。
+- negative に (buttons:1.5), (button placket:1.4)。glo2s4 の「ボタンは
+  negative では消えない」は既存画素の refine の話で、新規生成の操舵は別。
+
+それ以外は cackle-a と同一。狙いは服を c8a3ik に固定した上で dux7xp 級の
+カメラ向き指差しを引くこと。batch msmela、6 seed。評価待ち。

@@ -59,7 +59,9 @@ from comfyui_recipes.domain.yukari import delivery_style
 # these names stay because they are this tool's API -- callers read them.
 DEFAULT_COLOR = delivery_style.STROKE
 DEFAULT_WIDTH_BAND = delivery_style.STROKE_WIDTH_BAND
-DEFAULT_WIDTH_PCT = delivery_style.STROKE_WIDTH_PCT
+# This tool's own floor. The delivery sizes its bands from
+# delivery_style.WHITE_WIDTH_PCT and no longer needs one.
+DEFAULT_WIDTH_PCT = 0.3
 
 
 def parse_args() -> argparse.Namespace:

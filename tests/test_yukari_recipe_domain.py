@@ -6,6 +6,7 @@ from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.yukari.prompt_style import (
     HANDDRAWN_FINISH,
     SHADE_BAN,
+    SURFACE,
     THIN,
 )
 from comfyui_recipes.domain.yukari.recipe import refinement_prompt, render_spec
@@ -29,6 +30,11 @@ class YukariRecipeDomainTest(unittest.TestCase):
             with self.subTest(hires=hires), self.assertRaises(ValueError):
                 render_spec("lounge", 42, "test", hires=hires)
         self.assertIsNone(render_spec("lounge", 42, "test").hires)
+
+    def test_surface_carries_no_outline_tag(self):
+        # The die-cut edge is drawn by the delivery now; a tag creeping back
+        # in here would draw it twice without either side noticing.
+        self.assertNotIn("outline", SURFACE)
 
 
 if __name__ == "__main__":

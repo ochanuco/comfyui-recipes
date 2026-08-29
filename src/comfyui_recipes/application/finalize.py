@@ -21,6 +21,7 @@ class FinalizeServices:
     graph_from_png: Callable[[bytes], dict]
     chain_pass: Callable[..., dict]
     deliver: Callable[[bytes], tuple[bytes, str]]
+    corner_spread: Callable[[bytes], float]
     git_metadata: Callable[[], dict]
     notifier: object
     output_root: Path
@@ -48,11 +49,16 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     services.emit(f"{prefix} {prompt_id}")
     image = services.comfyui.wait_for(prompt_id)[-1]
     raw = services.comfyui.fetch(image)
-    delivered, tag = services.deliver(raw)
     services.output_root.mkdir(parents=True, exist_ok=True)
+    (services.output_root / image["filename"]).write_bytes(raw)
+    spread = services.corner_spread(raw)
+    if spread > delivery_style.BACKDROP_SPREAD_MAX:
+        raise SystemExit(
+            f"backdrop not flat: corner spread {spread:.1f} > "
+            f"{delivery_style.BACKDROP_SPREAD_MAX}")
+    delivered, tag = services.deliver(raw)
     stem = Path(image["filename"]).stem
     delivered_name = f"{stem}-{tag}-delivered.png"
-    (services.output_root / image["filename"]).write_bytes(raw)
     (services.output_root / delivered_name).write_bytes(delivered)
 
     git = services.git_metadata()

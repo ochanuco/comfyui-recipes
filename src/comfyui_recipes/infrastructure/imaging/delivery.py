@@ -46,10 +46,22 @@ def background_mask(pixels: np.ndarray, tolerance: int) -> np.ndarray:
     return np.isin(labels, reaching)
 
 
-def enclosed_mask(pixels: np.ndarray, found: np.ndarray,
-                  tolerance: int) -> np.ndarray:
+def enclosed_mask(pixels: np.ndarray, found: np.ndarray, tolerance: int, *,
+                  minimum_area: int = 16) -> np.ndarray:
+    """Backdrop the figure encloses, as regions rather than as pixels.
+
+    Interior linework holds pixels within the tolerance of the backdrop, so
+    the colour test alone claims specks along every stroke. Only components
+    of at least `minimum_area` survive.
+    """
     seed = pixels[0, 0]
-    return (np.abs(pixels - seed).max(axis=2) <= tolerance) & ~found
+    candidates = (np.abs(pixels - seed).max(axis=2) <= tolerance) & ~found
+    labels, count = ndimage.label(
+        candidates, ndimage.generate_binary_structure(2, 2))
+    if not count:
+        return candidates
+    sizes = ndimage.sum(candidates, labels, range(1, count + 1))
+    return np.isin(labels, 1 + np.nonzero(sizes >= minimum_area)[0])
 
 
 def repaint(pixels: np.ndarray, color: tuple[int, int, int], *,
@@ -73,50 +85,75 @@ def repaint(pixels: np.ndarray, color: tuple[int, int, int], *,
     return pixels, share
 
 
-def band_thickness(pixels: np.ndarray, mask: np.ndarray,
-                   dark: int = 120) -> float:
-    inward = ndimage.distance_transform_edt(~mask)
-    to_line = ndimage.distance_transform_edt(pixels.mean(axis=2) >= dark)
-    contour = (inward > 0) & (inward <= 1)
-    if not contour.any():
-        return 0.0
-    distances = to_line[contour]
-    if float((distances > 20.0).mean()) >= 0.5:
-        return 0.0
-    return float(np.median(distances))
+def corner_spread(data: bytes) -> float:
+    """Brightness spread across the four 40px corners of a decoded PNG."""
+    pixels = np.array(Image.open(io.BytesIO(data)).convert("RGB"))
+    c = 40
+    corners = [pixels[:c, :c], pixels[:c, -c:], pixels[-c:, :c], pixels[-c:, -c:]]
+    means = [corner.reshape(-1, 3).mean() for corner in corners]
+    return float(max(means) - min(means))
 
 
-def stroke(pixels: np.ndarray, color: str, *, tolerance: int = 18,
-           enclosed_tolerance: int = 4) -> tuple[np.ndarray, float]:
-    mask = background_mask(pixels.astype(int), tolerance)
-    mask |= enclosed_mask(pixels.astype(int), mask, enclosed_tolerance)
-    width = max(
-        band_thickness(pixels, mask) * delivery_style.STROKE_WIDTH_BAND,
-        max(pixels.shape[:2]) * delivery_style.STROKE_WIDTH_PCT / 100,
-    )
+def down2(pixels: np.ndarray) -> np.ndarray:
+    """2x2 box-downsample."""
+    height, width = pixels.shape[:2]
+    trimmed = pixels[:height - height % 2, :width - width % 2]
+    return trimmed.reshape(
+        height // 2, 2, width // 2, 2, *pixels.shape[2:]).mean(axis=(1, 3))
+
+
+def stroke_alpha(mask: np.ndarray, gap: float, width: float) -> np.ndarray:
+    """Coverage of the band, gap..gap+width pixels out into the backdrop.
+
+    `distance_transform_edt` on the backdrop gives each backdrop pixel its
+    distance to the nearest figure pixel, so the first ring out is 1. Both
+    edges are ramped over one pixel; the inner ramp does nothing at gap 0 and
+    keeps the stroke from stepping when it is pushed away from the figure.
+    """
     distance = ndimage.distance_transform_edt(mask)
-    alpha = np.clip(width + 0.5 - distance, 0.0, 1.0)
-    alpha *= np.clip(distance + 0.5, 0.0, 1.0)
+    outer = np.clip(gap + width + 0.5 - distance, 0.0, 1.0)
+    inner = np.clip(distance - gap + 0.5, 0.0, 1.0)
+    alpha = outer * inner
     alpha[~mask] = 0.0
-    rgb = np.array(parse_color(color), dtype=float)
-    return pixels + alpha[..., None] * (rgb - pixels), width
+    return alpha
 
 
 def clean_background(data: bytes) -> tuple[bytes, str]:
-    backdrop = parse_color(delivery_style.BACKDROP)
+    backdrop_rgb = parse_color(delivery_style.BACKDROP)
     pixels = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(int)
     background = background_mask(pixels, 18)
     labels, count = ndimage.label(~background)
     if count > 1:
         sizes = ndimage.sum(np.ones_like(labels), labels, range(1, count + 1))
-        pixels[(~background) & (labels != 1 + int(np.argmax(sizes)))] = backdrop
-    pixels, _ = repaint(pixels, backdrop, enclosed_tolerance=4)
-    off_backdrop = np.abs(pixels - backdrop).sum(axis=2) > 30
+        pixels[(~background) & (labels != 1 + int(np.argmax(sizes)))] = backdrop_rgb
+    pixels, _ = repaint(pixels, backdrop_rgb, enclosed_tolerance=4)
+    off_backdrop = np.abs(pixels - backdrop_rgb).sum(axis=2) > 30
     labels, count = ndimage.label(off_backdrop)
     if count > 1:
         sizes = ndimage.sum(np.ones_like(labels), labels, range(1, count + 1))
-        pixels[off_backdrop & (labels != 1 + int(np.argmax(sizes)))] = backdrop
-    pixels, width = stroke(pixels.astype(float), delivery_style.STROKE)
+        pixels[off_backdrop & (labels != 1 + int(np.argmax(sizes)))] = backdrop_rgb
+
+    px = pixels.astype(float)
+    height, width = px.shape[:2]
+    px2 = np.array(Image.fromarray(np.clip(px, 0, 255).astype(np.uint8))
+                   .resize((width * 2, height * 2), Image.BILINEAR)).astype(float)
+    bg2 = background_mask(px2.astype(int), 18)
+    bg2 |= enclosed_mask(px2.astype(int), bg2, 4)
+
+    white_w = max(height, width) * delivery_style.WHITE_WIDTH_PCT / 100
+    purple_w = white_w * delivery_style.STROKE_WIDTH_BAND
+    white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2))
+    purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2))
+    fig_a = down2((~bg2).astype(float))
+
+    white_rgb = np.array([255.0, 255.0, 255.0])
+    purple_rgb = np.array(parse_color(delivery_style.STROKE), dtype=float)
+    flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
+
+    composite = flat + purple_a[..., None] * (purple_rgb - flat)
+    composite = composite + white_a[..., None] * (white_rgb - composite)
+    composite = composite + fig_a[..., None] * (px - composite)
+
     output = io.BytesIO()
-    Image.fromarray(np.clip(pixels, 0, 255).astype(np.uint8)).save(output, "PNG")
-    return output.getvalue(), f"clean-p{width:.0f}"
+    Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
+    return output.getvalue(), f"clean-w{white_w:.0f}-p{purple_w:.0f}"

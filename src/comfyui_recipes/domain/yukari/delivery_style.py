@@ -19,18 +19,16 @@ docs/yukari/delivery_style.md.
 # the delivery, not to the tool.
 BACKDROP = "#c7e5e9"
 
-# The purple marker drawn outside the figure's own white band. The white
-# band itself is the model's (`(white outline:1.6)` in SURFACE); this is the
-# second edge outside it, deliberately darker than the hair accent.
-STROKE = "#6a3494"
-# Width as a share of the white band it sits against, which is what it was
-# actually chosen as (see outline_stroke.band_thickness).
-STROKE_WIDTH_BAND = 0.80
-# The share-of-canvas rule the band rule replaced, kept as a FLOOR under it:
-# both rules only ever failed by drawing too thin, so the larger of the two
-# is the one that is never the failure.
-STROKE_WIDTH_PCT = 0.3
+# The white band drawn directly against the figure's die-cut edge, as a
+# share of the longest side. Both this and the purple band outside it are
+# computed by the delivery, not carried by the prompt.
+WHITE_WIDTH_PCT = 1.3
 
+# The purple marker drawn outside the white band, at Yukari's own hue,
+# deliberately darker than the hair accent.
+STROKE = "#6a3494"
+# Width as a share of the white band's own width, both computed together.
+STROKE_WIDTH_BAND = 0.80
 # The acceptance band, from measured approved work. A pass is not approval
 # -- the human still judges -- but a FAIL never goes forward. The frame mean
 # moves with the figure's share of the canvas, so the upper bound is only an

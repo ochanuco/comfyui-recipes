@@ -359,6 +359,12 @@ COSTUME_ONLY: dict[str, dict[str, list[dict]]] = {
              "why": "the dress's own crossed straps, taken with the backdrop "
                     "cost known and accepted"},
         ],
+        "cackle": [
+            {"removed": ["(oversized shirt:1.3)"],
+             "why": "seed-dependent it recruits a button-front shirt dress "
+                    "(dux7xp); dropping it restores the ribboned purple dress "
+                    "(c8a3ik), boss's mechanism without mature female"},
+        ],
         "boss": [
             {"removed": ["(oversized shirt:1.3)"],
              "why": "`mature female` recruits it into a pale button-front shirt "

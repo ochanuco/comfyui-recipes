@@ -2188,12 +2188,22 @@ POSE_RECORDS = {
         ),
         hires_negative=HAND_BAN + "(interlocked fingers:1.5), "),
     # 832 は `hype` / `roar` の立ち幅。指差しの人差し指は HAND_BAN の守備範囲。
+    #
+    # 初回2バッチ (7mvsj4 / a53vkq) の服はシード次第でボタン前立てシャツワンピ
+    # に振れた (dux7xp)。`boss` が測った通り犯人は `oversized shirt` で、服の
+    # 正解 (c8a3ik) はリボン+素の紫ワンピース。除去は positive 側、ボタンの
+    # 名指し ban は新規生成なら効く (glo2s4 の「消えない」は既存画素の話)。
     "cackle": Pose(
         POSES["cackle"], (832, 1664), own_eyes=True, open_mouth=True,
+        character_edits=(
+            Edit("remove", "(oversized shirt:1.3), ", gate="dressed"),
+        ),
         negative_edits=(
             Edit("prepend", new=HAND_BAN, stage=S_POSE_GUARDS),
+            Edit("prepend", new="(buttons:1.5), (button placket:1.4), ",
+                 stage=S_POSE_GUARDS),
         ),
-        hires_negative=HAND_BAN),
+        hires_negative=HAND_BAN + "(buttons:1.5), (button placket:1.4), "),
 }
 
 assert set(POSE_RECORDS) == set(POSES), (

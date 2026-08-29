@@ -270,15 +270,16 @@ POSES = {
     ),
     # 長座体前屈 that does not reach. `(sitting:1.5)` outranks the stretch:
     # led by `stretching`, the model draws a STANDING bend and the seat is
-    # gone. `(from side:1.4)` is what makes the silhouette read as the
-    # exercise, the fix `situp` needed for the same reason. `(knees up:1.2)`
-    # is the stiffness and stays eased, or the legs fold and take the long
-    # sit with them. The thighs are framed by `thigh focus` on the near leg;
-    # do NOT restore a `from above` camera, which draws a top-down crouch.
+    # gone. `(from side:1.4)` makes the silhouette read as the exercise, the
+    # fix `situp` needed for the same reason, and `(foreshortening:1.35)` is
+    # what gives the near thigh its mass -- the side camera alone draws the
+    # body flat. `(knees up:1.2)` is the stiffness and stays eased, or the
+    # legs fold and take the long sit with them. Do NOT restore a `from
+    # above` camera, which draws a top-down crouch with a hand at the lens.
     "reach": (
-        "(solo:1.5), (sitting:1.5), (from side:1.4), (legs together:1.35), "
-        "(stretching:1.3), (leaning forward:1.35), (outstretched arms:1.3), "
-        "(knees up:1.2), (thigh focus:1.4), full body"
+        "(solo:1.5), (sitting:1.5), (from side:1.4), (foreshortening:1.35), "
+        "(legs together:1.35), (stretching:1.3), (leaning forward:1.35), "
+        "(outstretched arms:1.3), (knees up:1.2), (thigh focus:1.4), full body"
     ),
     # Double V thrown out and down, weight forward -- `peace` is the still
     # one. `(arms out:1.3)` keeps the Vs off her face; without it `double v`

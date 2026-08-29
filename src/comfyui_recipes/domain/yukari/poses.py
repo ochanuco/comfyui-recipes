@@ -480,13 +480,14 @@ POSES = {
         "(open mouth:1.4), (smug:1.35), (half-closed eyes:1.3), "
         "(full body:1.45)"
     ),
-    # コーヒーで超ゴキゲン、`tehe` の顔に手のクロップ。器は `sip` の三点で
-    # 一組: マグの名指しは二枚必要で、`drinking` を外すと器は足元へ落ちる。
-    # 縁が口を占めるので `open_mouth` には入れない -- 上機嫌は口以外で出す。
+    # コーヒーで超ゴキゲン、`tehe` の顔に手のクロップ。マグは `sip` の通り
+    # 二枚で名指す。`drinking` は入れない -- `sip`/`straw` の全身と違いこの
+    # クロップでは器を持ち上げず、`straw` の重みの `holding cup` が持つ。
+    # 上機嫌は `hype` と同じ開いた口で出す (閉じた口では薄笑みにしかならない)。
     "perk": (
         "(solo:1.5), (portrait:1.5), (head and shoulders:1.4), "
-        "(upper body:1.35), (face focus:1.3), (holding cup:1.3), "
-        "(coffee mug:1.3), (drinking:1.2), (smile:1.4), (blush:1.35), "
+        "(upper body:1.35), (face focus:1.3), (holding cup:1.45), "
+        "(coffee mug:1.3), (grin:1.4), (open mouth:1.4), (blush:1.35), "
         "(musical note:1.35)"
     ),
 }
@@ -940,6 +941,7 @@ POSE_RECORDS = {
     # RESTING_EYES の `unamused` が上機嫌の正反対だから。
     "perk": Pose(
         POSES["perk"], (1024, 1024), own_eyes=True, framing="head",
+        open_mouth=True,
         negative_edits=(
             Edit("prepend", new=HAND_BAN, stage=S_POSE_GUARDS),
         ),

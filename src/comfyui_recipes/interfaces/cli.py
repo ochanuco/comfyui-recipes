@@ -17,7 +17,9 @@ from ..infrastructure.chimera.client import ChimeraClient
 from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
 from ..infrastructure.comfyui.yukari_graph import build as build_yukari
-from ..infrastructure.imaging.delivery import clean_background, graph_from_png
+from ..infrastructure.imaging.delivery import (
+    clean_background, corner_spread, graph_from_png,
+)
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
 from ..infrastructure.repository import discover_repository, git_metadata
@@ -105,6 +107,7 @@ def main(argv: list[str] | None = None) -> None:
             graph_from_png=graph_from_png,
             chain_pass=chain_pass,
             deliver=clean_background,
+            corner_spread=corner_spread,
             git_metadata=repository_metadata,
             notifier=notifier,
             output_root=repository / ".local/_nogit/finalize",

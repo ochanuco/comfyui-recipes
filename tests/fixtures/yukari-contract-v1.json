@@ -1,31 +1,31 @@
 {
   "by_costume": {
     "default": {
-      "base_graph_sha256": "bfc5226c11a8c56a52f60ae80c32b0fa3f857ef499d62b0dcc41f22700ca395d",
-      "hires_2048_graph_sha256": "8e8f717de3e6c83d22d1931ab72f9cc68fb7ae060400b7ae5850877b7e1d7f3f",
+      "base_graph_sha256": "994d85be5bcd34e7f26a5695d7e99217215adb067446d0de4e33127997c56e4e",
+      "hires_2048_graph_sha256": "364efd0bd0aedd630e7461fae52876f6a4df6b4d3a25fad710ab8a176d9a1af6",
       "negative_sha256": "93850a958398103951929b5503b4b656f334e29a3a69afd80c539231a5d6c54c",
-      "positive_sha256": "9afd2d0e8755c3a5d37bdce81e723d448f3ad09297f1243cead3bd44c22c1879"
+      "positive_sha256": "92d919368cd76bda389f2384fbda71bbe879d0fac7bc5b4d375a95cd491e2f46"
     },
     "fitness": {
-      "base_graph_sha256": "9ffb48d87447b09a277bc0fc9792ba36ab9aaa3add0eb54034e4889d0a44d32c",
-      "hires_2048_graph_sha256": "2108c40d14ce0a2da24fabff8cc5630345a4afcfe6eea5d80f73a2d654973b7a",
+      "base_graph_sha256": "4abf7e31908657378ef2d174a705afe538cfa1e25fa0d885e9270cbc152f274b",
+      "hires_2048_graph_sha256": "5c222e10ea22ba05f644c779682d330abd9eb4a2783b47e77311b88cca2377df",
       "negative_sha256": "2340a43bcba39aaeb9b00d86ea822c005506dbbe4e8a90e19e6036ff0acd2ea2",
-      "positive_sha256": "a0eb961d6db6e33b044d3b6f55844c985fb1852726a1617e9a46ec890d5a2000"
+      "positive_sha256": "6060755748e9791de22aa49972000c58ba649f44c7f8377b30ce9bbd2d16c60c"
     },
     "roomwear": {
-      "base_graph_sha256": "6bdbbecba84dd7942bcc4e00a59cb8053651bc6f06e5f3ff12885cf4328f4b42",
-      "hires_2048_graph_sha256": "a78ea83d58e9b038eff9f183916b5c3b1c605f7632914bfbc350d09336411a5b",
+      "base_graph_sha256": "ec66967d99985f3695f29842b9b3b07851187bae71f96bb1b458b13af4624278",
+      "hires_2048_graph_sha256": "97a87ce5c21aee3b6267b9de337d5de596b96d1fb9d49d74b91268d64fe47caa",
       "negative_sha256": "ce74aab5f71c26cbfe7ea92dec4a8727b2c02cd3aa6318d100170f54932ab060",
-      "positive_sha256": "16a9d1f37e3f1aab51ca32b08eb8b778fcb4df600fc41c404b4380de530e84ac"
+      "positive_sha256": "9ba083aa7cdcf2becde6c08140a79223d59a732c63cb4bc4110cb8bdc6a2801a"
     },
     "sporty": {
-      "base_graph_sha256": "ac590a48d505a8c69f650afa6958a9c9c359192eb135fdac68b3d8f71268f7ac",
-      "hires_2048_graph_sha256": "66e334db8ea2139bdebbb0407f88bc3701d05d117bc120ffa60f54f81fb65abd",
+      "base_graph_sha256": "a434c65d43fc450b3483fbd6ffe90f7f2906254f6056a7f97f3c66f1dd314828",
+      "hires_2048_graph_sha256": "5cb9551a17c7df35d67f988f2c0eff2f5eb662e78460cfea49fdd1e75bc629f8",
       "negative_sha256": "2496cdf6d22bc7b189f4b4c9201e305dda4f44127ad1c86a0be23138a7f28b55",
-      "positive_sha256": "031fef2efb0541868358b2774f8ec16ee2fba2fb11177fc9cc3e807b763d5088"
+      "positive_sha256": "436817130a5487db08a040a79ee4edddcf1a3bf5dc18e8ca344040fe77ab2e95"
     }
   },
-  "costume_fingerprint": "6baf3a49c68abd92",
+  "costume_fingerprint": "b3b98896c4629649",
   "costume_records_sha256": "5cec3c4fc9f733a96350c5a5a83d6b7688d0f5035c54e0db3a2e3558288d7e16",
   "costumes": [
     "default",
@@ -33,7 +33,7 @@
     "roomwear",
     "sporty"
   ],
-  "delivery_fingerprint": "3841eeba3434ae0f",
+  "delivery_fingerprint": "5ab12cf671e6b4e0",
   "pose_count": 41,
   "pose_records_sha256": "926619c6bcb006dc338bf028dfa8a9b64f4c8973f6cfa9991fa2422ff5d62b1e",
   "poses": [

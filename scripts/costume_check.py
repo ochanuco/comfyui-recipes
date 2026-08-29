@@ -107,7 +107,7 @@ COSTUME_FINGERPRINT = "6baf3a49c68abd92"
 # canonical payload (not from the module source), so a comment edit does not
 # move it and a value edit always does.
 DELIVERY_FINGERPRINT = "3841eeba3434ae0f"
-FINGERPRINT_SCHEMA = 2
+FINGERPRINT_SCHEMA = 3
 
 
 def tags(text: str) -> list[str]:
@@ -519,7 +519,7 @@ def delivery_fingerprint() -> str:
         "backdrop": d.BACKDROP,
         "stroke": d.STROKE,
         "stroke_width_band": d.STROKE_WIDTH_BAND,
-        "stroke_width_pct": d.STROKE_WIDTH_PCT,
+        "white_width_pct": d.WHITE_WIDTH_PCT,
         "sat_band": list(d.SAT_BAND),
         "bg_sat_max": d.BG_SAT_MAX,
         "figure_midtone_v": d.FIGURE_MIDTONE_V,

@@ -30,11 +30,11 @@ FACE = (
 SURFACE = (
     # `sticker` is out: it draws literal stickers (a decal on her cheek,
     # loose cut-outs) and was the measured source of the second figure.
-    # `(white outline:1.6)`, `outline` are the die-cut edge and survive its
-    # removal -- which does NOT remove all decoration; there is at least one
-    # more source.
+    # The die-cut edge is drawn by the delivery now, not this block --
+    # which does NOT remove all decoration; there is at least one more
+    # source.
     "(flat color:1.3), (simple background:1.3), (grey background:1.2), "
-    "(white outline:1.6), outline, (soft shading:1.3), smooth shading"
+    "(soft shading:1.3), smooth shading"
 )
 
 BODY = (

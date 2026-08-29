@@ -15,6 +15,17 @@ def sizes(graph: dict, longest_side: int) -> tuple[int, int]:
 
 def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                prompt: tuple[str, str] | None = None) -> dict:
+    required = {"3", "4", "5", "6", "7", "9"}
+    missing = sorted(required - base.keys(), key=int)
+    if missing:
+        raise ValueError(
+            f"base graph is missing required node IDs: {', '.join(missing)}")
+    unsupported = [key for key in base
+                   if not isinstance(key, str) or not key.isdecimal()]
+    if unsupported:
+        raise ValueError(
+            "base graph has unsupported non-numeric node IDs: "
+            + ", ".join(map(repr, unsupported)))
     graph = json.loads(json.dumps(base))
     next_id = max(int(key) for key in graph) + 1
     scale, encode, sample, decode = (str(next_id + offset) for offset in range(4))

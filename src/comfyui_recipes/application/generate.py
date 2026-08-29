@@ -9,9 +9,10 @@ from __future__ import annotations
 import json
 import secrets
 import uuid
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Protocol
 
 
 class Management(Protocol):
@@ -58,16 +59,34 @@ class GenerateServices:
     emit: Callable[[str], None] = print
 
 
-def validate_request(req: dict) -> None:
+def validate_request(req: object) -> None:
+    if not isinstance(req, Mapping):
+        raise SystemExit("request root must be an object")
     if req.get("schema_version") != 1:
         raise SystemExit("schema_version must be 1")
-    count = req.get("request", {}).get("count")
-    if not isinstance(count, int) or count < 1:
+    request = req.get("request")
+    if not isinstance(request, Mapping):
+        raise SystemExit("request must be an object")
+    generation = req.get("generation")
+    if not isinstance(generation, Mapping):
+        raise SystemExit("generation must be an object")
+    semantic = req.get("semantic")
+    if not isinstance(semantic, Mapping):
+        raise SystemExit("semantic must be an object")
+    parameters = generation.get("parameters", {})
+    if not isinstance(parameters, Mapping):
+        raise SystemExit("generation.parameters must be an object")
+    count = request.get("count")
+    if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         raise SystemExit("request.count must be an integer >= 1")
-    seeds = req.get("request", {}).get("seeds")
-    if seeds is not None and len(seeds) != count:
-        raise SystemExit(f"len(seeds)={len(seeds)} but count={count}")
-    generation = req.get("generation", {})
+    seeds = request.get("seeds")
+    if seeds is not None:
+        if (not isinstance(seeds, list)
+                or any(not isinstance(seed, int) or isinstance(seed, bool)
+                       for seed in seeds)):
+            raise SystemExit("request.seeds must be an array of integers")
+        if len(seeds) != count:
+            raise SystemExit(f"len(seeds)={len(seeds)} but count={count}")
     if generation.get("graph"):
         if not isinstance(generation["graph"], dict) or not generation["graph"]:
             raise SystemExit("generation.graph must be a non-empty graph dict")
@@ -75,9 +94,9 @@ def validate_request(req: dict) -> None:
             raise SystemExit("generation.recipe must name what this graph is")
     elif generation.get("recipe") != "yukari":
         raise SystemExit(f"recipe {generation.get('recipe')!r} not supported yet")
-    elif not generation.get("parameters", {}).get("pose"):
+    elif not parameters.get("pose"):
         raise SystemExit("generation.parameters.pose is required for yukari")
-    if not req.get("semantic", {}).get("summary"):
+    if not semantic.get("summary"):
         raise SystemExit(
             "request.semantic.summary is required: state this arm's intent "
             "(what it tries, what it varies from the base) -- it is written "
@@ -147,6 +166,28 @@ def _seeds(req: dict) -> list[int]:
                 for _ in range(req["request"]["count"])])
 
 
+def _output_directory(root: Path, identifier: object) -> Path:
+    if (not isinstance(identifier, str) or not identifier
+            or identifier in (".", "..")
+            or "/" in identifier or "\\" in identifier):
+        raise ValueError(f"invalid batch output identifier: {identifier!r}")
+    resolved_root = root.resolve()
+    output_dir = (root / identifier).resolve()
+    if output_dir.parent != resolved_root:
+        raise ValueError(f"batch output escapes output root: {identifier!r}")
+    return output_dir
+
+
+def _image_output_path(output_dir: Path, filename: object) -> Path:
+    if not isinstance(filename, str) or not filename:
+        raise ValueError(f"invalid ComfyUI output filename: {filename!r}")
+    resolved_dir = output_dir.resolve()
+    output_path = (output_dir / filename).resolve()
+    if output_path == resolved_dir or not output_path.is_relative_to(resolved_dir):
+        raise ValueError(f"ComfyUI output escapes batch directory: {filename!r}")
+    return output_path
+
+
 def generate(request_path: Path, services: GenerateServices, *,
              dry_run: bool = False, force: bool = False) -> None:
     req = json.loads(request_path.read_text())
@@ -196,7 +237,7 @@ def generate(request_path: Path, services: GenerateServices, *,
     services.management.request(
         "PATCH", f"/api/v1/batches/{state['batch_id']}", {"status": "running"})
 
-    output_dir = services.output_root / short
+    output_dir = _output_directory(services.output_root, short)
     output_dir.mkdir(parents=True, exist_ok=True)
     params = generation.get("parameters", {})
     character_id = params.get("character_id")
@@ -236,19 +277,43 @@ def generate(request_path: Path, services: GenerateServices, *,
                 "PATCH", f"/api/v1/jobs/{job['job_id']}", {"status": "completed"})
             job.setdefault("generations", [])
             for output_index, image in enumerate(images):
+                output_path = _image_output_path(output_dir, image.get("filename"))
+                output = next(
+                    (item for item in job["generations"]
+                     if item.get("comfy_output_index") == output_index),
+                    None,
+                )
+                if (output is None and output_index < len(job["generations"])
+                        and "comfy_output_index"
+                        not in job["generations"][output_index]):
+                    output = job["generations"][output_index]
+                if output is None:
+                    output = {
+                        "idempotency_key": str(uuid.uuid4()),
+                        "comfy_output_index": output_index,
+                    }
+                    job["generations"].append(output)
+                if output.get("status") == "registered" or output.get("id"):
+                    continue
+                if "idempotency_key" not in output:
+                    output["idempotency_key"] = str(uuid.uuid4())
+                output.setdefault("comfy_output_index", output_index)
+                services.state.save(state_path, state)
                 data = services.comfyui.fetch(image)
-                (output_dir / image["filename"]).write_bytes(data)
+                output_path.write_bytes(data)
                 meta = {"seed": seed, "original_filename": image["filename"],
-                        "comfy_output_index": output_index}
+                        "comfy_output_index": output_index,
+                        "idempotency_key": output["idempotency_key"]}
                 if character_id:
                     meta["character_id"] = character_id
                 rendered = services.management.request(
                     "POST", f"/api/v1/jobs/{job['job_id']}/generations",
                     multipart=(meta, "image", image["filename"], data, "image/png"),
                 )
-                job["generations"].append(
+                output.update(
                     {key: rendered[key]
                      for key in ("id", "short_id", "canonical_url")})
+                output["status"] = "registered"
                 services.state.save(state_path, state)
                 semantic = json.loads(json.dumps(req["semantic"]))
                 semantic.setdefault("attributes", {}).update(

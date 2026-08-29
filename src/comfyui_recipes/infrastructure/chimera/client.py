@@ -11,7 +11,6 @@ import urllib.request
 import uuid
 from pathlib import Path
 
-
 USER_AGENT = "comfyui-recipes-generate/1.0 (+local)"
 OP_ITEM = "yml6r5qgx3zt57pryokgi3xdqy"
 
@@ -41,9 +40,10 @@ class ChimeraClient:
                 ).stdout.strip()
             client_id = field("CF-Access-Client-Id")
             secret = field("CF-Access-Client-Secret")
-            self.token_cache.parent.mkdir(parents=True, exist_ok=True)
-            self.token_cache.touch(mode=0o600)
+            self.token_cache.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            self.token_cache.parent.chmod(0o700)
             self.token_cache.write_text(f"{client_id}\n{secret}\n")
+            self.token_cache.chmod(0o600)
         self._credentials = {
             "CF-Access-Client-Id": client_id,
             "CF-Access-Client-Secret": secret,
@@ -90,7 +90,8 @@ class ChimeraClient:
                 last = f"HTTP {error.code} {detail!r}"
             except urllib.error.URLError as error:
                 last = str(error)
-            time.sleep(2 ** (attempt + 1))
+            if attempt < 2:
+                time.sleep(2 ** (attempt + 1))
         raise SystemExit(f"{method} {path}: giving up after retries ({last})")
 
     def fetch_generation_image(self, generation_id: str) -> bytes:

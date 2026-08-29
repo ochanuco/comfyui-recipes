@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import json
-from collections import deque
+import string
 
 import numpy as np
 from PIL import Image
@@ -14,45 +14,33 @@ from ...domain.yukari import delivery_style
 
 
 def graph_from_png(data: bytes) -> dict:
-    return json.loads(Image.open(io.BytesIO(data)).info["prompt"])
+    prompt = Image.open(io.BytesIO(data)).info.get("prompt")
+    if prompt is None:
+        raise SystemExit("PNG has no ComfyUI prompt metadata")
+    try:
+        graph = json.loads(prompt)
+    except (json.JSONDecodeError, TypeError) as error:
+        raise SystemExit("PNG has invalid ComfyUI prompt metadata") from error
+    if not isinstance(graph, dict):
+        raise SystemExit("PNG has invalid ComfyUI prompt metadata")
+    return graph
 
 
 def parse_color(text: str) -> tuple[int, int, int]:
     value = text.lstrip("#")
-    if len(value) != 6:
+    if len(value) != 6 or any(character not in string.hexdigits
+                              for character in value):
         raise SystemExit(f"expected a 6-digit hex colour, got {text!r}")
     return tuple(int(value[index:index + 2], 16) for index in (0, 2, 4))
 
 
 def background_mask(pixels: np.ndarray, tolerance: int) -> np.ndarray:
-    height, width, _ = pixels.shape
     seed = pixels[0, 0]
-    mask = np.zeros((height, width), dtype=bool)
-    queue: deque[tuple[int, int]] = deque()
-
-    def push(y: int, x: int) -> None:
-        if (not mask[y, x]
-                and int(np.abs(pixels[y, x] - seed).max()) <= tolerance):
-            mask[y, x] = True
-            queue.append((y, x))
-
-    for x in range(width):
-        push(0, x)
-        push(height - 1, x)
-    for y in range(height):
-        push(y, 0)
-        push(y, width - 1)
-    while queue:
-        y, x = queue.popleft()
-        if y > 0:
-            push(y - 1, x)
-        if y < height - 1:
-            push(y + 1, x)
-        if x > 0:
-            push(y, x - 1)
-        if x < width - 1:
-            push(y, x + 1)
-    return mask
+    candidates = np.abs(pixels - seed).max(axis=2) <= tolerance
+    structure = ndimage.generate_binary_structure(2, 1)
+    labels, _ = ndimage.label(candidates, structure=structure)
+    seed_label = labels[0, 0]
+    return candidates & (labels == seed_label)
 
 
 def enclosed_mask(pixels: np.ndarray, found: np.ndarray,

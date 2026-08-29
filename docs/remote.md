@@ -5,8 +5,7 @@ The GPU doing the work does not have to be the one you are typing on.
 
 ```bash
 export COMFYUI_HOST=192.168.x.x   # COMFYUI_PORT too, if it is not 8188
-uv run scripts/yukari_recipe.py --seed 555666777
-uv run scripts/post_renders.py
+uv run comfy-recipes generate --request request.json
 ```
 
 Unset it and everything falls back to `127.0.0.1:8188`, which is what the

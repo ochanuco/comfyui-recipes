@@ -48,9 +48,12 @@ class DiscordNotifier:
             "User-Agent": USER_AGENT,
         })
         try:
-            urllib.request.urlopen(request, timeout=120)
+            with urllib.request.urlopen(request, timeout=120):
+                pass
         except urllib.error.HTTPError as error:
             print(f"  ! Discord: HTTP {error.code} {error.read()[:200]!r}")
+        except (urllib.error.URLError, OSError) as error:
+            print(f"  ! Discord: {error}")
 
 
 class NullNotifier:

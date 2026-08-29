@@ -10,13 +10,14 @@ record and no changes to this file.
 
 from __future__ import annotations
 
-from .costumes import COSTUME_NEGATIVE_EDITS, COSTUMES, SHOD
 from ..generation.models import HiresSpec, PromptPair, RenderSpec
+from .costumes import COSTUME_NEGATIVE_EDITS, COSTUMES, LEGWEAR_BAN, SHOD
 from .models import S_MIDRIFF, Edit
 from .poses import POSE_RECORDS, POSES
 from .prompt_style import (
     BODY,
     FACE,
+    HANDDRAWN_FINISH,
     HIRES_DENOISE,
     NEGATIVE,
     RESTING_EYES,
@@ -24,7 +25,6 @@ from .prompt_style import (
     SURFACE,
     THIN,
 )
-from .costumes import LEGWEAR_BAN
 
 # Fixed list rather than random: a sweep that cannot be repeated cannot be
 # used to show that a later change did or did not break something.
@@ -157,6 +157,19 @@ def negative(pose: str, costume: str = "default") -> str:
                   costume)
 
 
+def refinement_prompt(base: PromptPair, *, handdrawn: bool = False) -> PromptPair:
+    """Build the Yukari-specific prompt used by the delivery redraw."""
+    positive_prompt = base.positive
+    if handdrawn:
+        positive_prompt = (
+            positive_prompt.replace(", " + THIN, "") + HANDDRAWN_FINISH)
+    toe_ban = "" if "barefoot" in positive_prompt else "(toes:1.55), "
+    return PromptPair(
+        positive_prompt,
+        toe_ban + SHADE_BAN + base.negative,
+    )
+
+
 def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
                 denoise: float | None = None,
                 costume: str = "default") -> RenderSpec:
@@ -217,9 +230,15 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
         # second negative, and the record only decides what goes in FRONT of
         # it. (The architecture note above HAND_BAN in `prompt_style.py` is
         # why a subtractive guard belongs to the late pass.)
+        hires_width = round(hires * width / longest / 8) * 8
+        hires_height = round(hires * height / longest / 8) * 8
+        if hires_width < 8 or hires_height < 8:
+            raise ValueError(
+                "hires dimensions must both be at least 8 pixels, got "
+                f"{hires_width}x{hires_height}")
         hires_spec = HiresSpec(
-            width=round(hires * width / longest / 8) * 8,
-            height=round(hires * height / longest / 8) * 8,
+            width=hires_width,
+            height=hires_height,
             denoise=(rec.hires_print[1] if denoise is None and rec.hires_print
                      else HIRES_DENOISE if denoise is None else denoise),
             positive=hires_positive,

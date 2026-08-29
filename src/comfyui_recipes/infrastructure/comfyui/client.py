@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -42,12 +43,16 @@ class ComfyUIClient:
     def wait_for(self, prompt_id: str) -> list[dict]:
         deadline = time.time() + self.poll_timeout
         while time.time() < deadline:
-            entry = self.request(f"/history/{prompt_id}").get(prompt_id)
+            try:
+                entry = self.request(f"/history/{prompt_id}").get(prompt_id)
+            except urllib.error.URLError:
+                entry = None
             if entry:
-                if entry.get("status", {}).get("status_str") == "error":
+                status = entry.get("status", {}).get("status_str")
+                if status == "error":
                     raise RuntimeError(f"comfy job {prompt_id} failed")
                 images = images_of(entry)
-                if images:
+                if images or status == "success":
                     return images
             time.sleep(self.poll_interval)
         raise RuntimeError(f"comfy job {prompt_id} timed out")

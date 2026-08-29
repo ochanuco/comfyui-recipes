@@ -6,9 +6,9 @@ import argparse
 import json
 from pathlib import Path
 
+from ..application import metadata
 from ..application.finalize import FinalizeServices, finalize
 from ..application.generate import GenerateServices, generate, request_graph
-from ..application import metadata
 from ..domain.generation.prompt_lint import conflicts
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.poses import POSES
@@ -80,7 +80,10 @@ def main(argv: list[str] | None = None) -> None:
     chimera = ChimeraClient(repository)
     comfyui = ComfyUIClient()
     notifier = DiscordNotifier(repository)
-    repository_metadata = lambda: git_metadata(repository)
+
+    def repository_metadata() -> dict:
+        return git_metadata(repository)
+
     if args.command == "generate":
         services = GenerateServices(
             management=chimera,

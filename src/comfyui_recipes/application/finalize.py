@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
+from ..domain.generation.models import PromptPair
 from ..domain.yukari import delivery_style
-from ..domain.yukari.prompt_style import HANDDRAWN_FINISH, SHADE_BAN, THIN
+from ..domain.yukari.recipe import refinement_prompt
+
+FINALIZE_SIZE = 2048
 
 
 @dataclass(frozen=True)
@@ -34,13 +37,13 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     base = services.graph_from_png(picked)
     seed = base["3"]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"
-    positive = base["6"]["inputs"]["text"]
-    if handdrawn:
-        positive = positive.replace(", " + THIN, "") + HANDDRAWN_FINISH
-    toe_ban = "" if "barefoot" in positive else "(toes:1.55), "
-    negative = toe_ban + SHADE_BAN + base["7"]["inputs"]["text"]
+    prompt = refinement_prompt(PromptPair(
+        base["6"]["inputs"]["text"],
+        base["7"]["inputs"]["text"],
+    ), handdrawn=handdrawn)
     graph = services.chain_pass(
-        base, 2048, denoise, prefix, prompt=(positive, negative))
+        base, FINALIZE_SIZE, denoise, prefix,
+        prompt=(prompt.positive, prompt.negative))
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     image = services.comfyui.wait_for(prompt_id)[-1]
@@ -60,7 +63,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         "recipe": "yukari",
         "parameters": {"kind": "hires-chain",
                        "base_generation": generation_id,
-                       "size": 2048, "denoise": denoise,
+                       "size": FINALIZE_SIZE, "denoise": denoise,
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,

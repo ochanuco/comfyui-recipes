@@ -12,11 +12,11 @@ from ..application.generate import GenerateServices, generate, request_graph
 from ..domain.generation.prompt_lint import conflicts
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.poses import POSES
-from ..domain.yukari.recipe import negative, positive
+from ..domain.yukari.recipe import negative, positive, render_spec
 from ..infrastructure.chimera.client import ChimeraClient
 from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
-from ..infrastructure.comfyui.yukari_graph import build as build_yukari
+from ..infrastructure.comfyui.yukari_graph import build_graph
 from ..infrastructure.imaging.delivery import (
     clean_background, corner_spread, graph_from_png,
 )
@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> None:
             state=JsonRunState(),
             notifier=notifier,
             graph_builder=lambda generation, seed, prefix: request_graph(
-                generation, seed, prefix, build_yukari),
+                generation, seed, prefix, render_spec, build_graph),
             git_metadata=repository_metadata,
             conflicts=conflicts,
             output_root=repository / ".local/_nogit/chimera",

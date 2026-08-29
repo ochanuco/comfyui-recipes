@@ -22,6 +22,49 @@ The ComfyUI server may be local or remote. Set `COMFYUI_HOST` and optionally
 `COMFYUI_PORT`; inputs and outputs are transferred through the server API when
 the host is remote. See [remote.md](remote.md).
 
+## `generation.patches`
+
+`generation.patches` declares typed diffs applied to the resolved render
+spec, for draft arms and revisions that must not touch the settled recipe.
+Text targets are `prompt.positive`, `prompt.negative`,
+`prompt.hires.positive`, and `prompt.hires.negative`, with ops `append`,
+`prepend`, `replace`, and `remove`; `replace` and `remove` require an `old`
+needle, and a needle absent from the text is an immediate error rather than
+a silent no-op. Number targets are `render.cfg`, `render.steps`, and
+`hires.denoise`, with op `set`; `render.cfg` and `render.steps` govern both
+sampling passes, since the spec holds one value for each.
+
+Every patch requires a one-line `reason`. The patch list is recorded into
+each generation's semantic attributes at ingest, and the submitted graph
+remains the effective record. Patches apply in list order after the recipe
+compiles, and are mutually exclusive with `generation.graph` (which stays
+available as the escape hatch for structural experiments) and with full
+`prompt`/`negative_prompt` overrides.
+
+`generation.parameters` is a closed set: `pose`, `costume`, `hires`,
+`denoise`, `character`, `character_id`, `arm`. Unknown keys are rejected --
+annotations belong in `semantic.attributes`, executable diffs in
+`generation.patches`.
+
+```json
+"generation": {
+  "recipe": "yukari",
+  "parameters": {"pose": "lounge"},
+  "patches": [
+    {"target": "prompt.positive", "op": "replace",
+     "old": "(pale skin:1.25)", "value": "(pale skin:1.2)",
+     "reason": "softer skin tone for this arm"},
+    {"target": "render.cfg", "op": "set", "value": 4.5,
+     "reason": "lower guidance for the draft pass"}
+  ]
+}
+```
+
+`--dry-run` compiles the patched spec without submitting anything: it prints
+the resolved positive prompt, the graph nodes, and the applied patch count,
+and a patch that cannot compile (an absent needle, a bad type) fails there
+-- and on a real run it fails before the batch is created.
+
 ## A minimal prompt
 
 ```bash

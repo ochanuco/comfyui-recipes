@@ -50,23 +50,23 @@ class DeliveryTest(unittest.TestCase):
         # piece that still reaches an edge is backdrop; keeping only the
         # corner's piece is what left half a head crop at the render's own
         # colour, with the stroke drawn along the seam between the two halves.
-        pixels = np.full((3, 3, 3), 255, dtype=int)
-        pixels[0, 0] = 0
-        pixels[2, 2] = 0
+        pixels = np.zeros((12, 12, 3), dtype=int)
+        pixels[:, 5:7] = 255
         mask = background_mask(pixels, 0)
-        self.assertEqual(int(mask.sum()), 2)
+        self.assertEqual(int(mask.sum()), 12 * 12 - 24)
         self.assertTrue(mask[0, 0])
-        self.assertTrue(mask[2, 2])
+        self.assertTrue(mask[0, 11])
+        self.assertFalse(mask[0, 5])
 
     def test_background_mask_leaves_regions_walled_off_from_the_frame(self):
         # Backdrop enclosed by the figure is `enclosed_mask`'s job, on its own
         # much tighter tolerance; the flood must not reach it.
-        pixels = np.full((5, 5, 3), 255, dtype=int)
-        pixels[0, 0] = 0
-        pixels[2, 2] = 0
+        pixels = np.zeros((12, 12, 3), dtype=int)
+        pixels[4:9, 4:9] = 255
+        pixels[6, 6] = 0
         mask = background_mask(pixels, 0)
         self.assertTrue(mask[0, 0])
-        self.assertFalse(mask[2, 2])
+        self.assertFalse(mask[6, 6])
 
     def test_clean_background_preserves_size_and_clean_width_tag(self):
         pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)

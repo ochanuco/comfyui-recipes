@@ -20,6 +20,7 @@ from ..infrastructure.comfyui.yukari_graph import build_graph
 from ..infrastructure.imaging.delivery import (
     clean_background, corner_spread, graph_from_png,
 )
+from ..infrastructure.imaging.palette import repin_png, summarize
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
 from ..infrastructure.repository import discover_repository, git_metadata
@@ -38,6 +39,12 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument("generation_id")
     finalize_parser.add_argument("--denoise", type=float)
     finalize_parser.add_argument("--handdrawn", action="store_true")
+    finalize_parser.add_argument("--no-repin", action="store_true")
+    finalize_parser.add_argument(
+        "--keep-legwear", nargs="?", const=0.62, type=float, default=None,
+        metavar="COL_CUT",
+        help="keep the asserted legwear verbatim through repin; the value is "
+             "the width share the legs stay left of (default 0.62)")
 
     metadata_parser = commands.add_parser("metadata", help="manage generation metadata")
     metadata_commands = metadata_parser.add_subparsers(
@@ -97,6 +104,7 @@ def main(argv: list[str] | None = None) -> None:
             git_metadata=repository_metadata,
             conflicts=conflicts,
             output_root=repository / ".local/_nogit/chimera",
+            measure=summarize,
         )
         generate(args.request, services, dry_run=args.dry_run, force=args.force)
         return
@@ -111,9 +119,12 @@ def main(argv: list[str] | None = None) -> None:
             git_metadata=repository_metadata,
             notifier=notifier,
             output_root=repository / ".local/_nogit/finalize",
+            repin=lambda data: repin_png(data, keep_legwear=args.keep_legwear),
+            measure=summarize,
         )
         finalize(args.generation_id, services, denoise=args.denoise,
-                 handdrawn=args.handdrawn)
+                 handdrawn=args.handdrawn, apply_repin=not args.no_repin,
+                 keep_legwear=args.keep_legwear)
         return
 
     if args.metadata_command == "semantic":

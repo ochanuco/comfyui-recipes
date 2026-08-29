@@ -34,9 +34,19 @@ def parse_color(text: str) -> tuple[int, int, int]:
     return tuple(int(value[index:index + 2], 16) for index in (0, 2, 4))
 
 
+def _corner_seed(pixels: np.ndarray) -> np.ndarray:
+    """The backdrop colour, as the corner patch's median.
+
+    The single pixel (0, 0) can be a lone grain spike 20+ off the field it
+    sits in, and the whole flood dies against it while every corner still
+    averages flat -- a delivered picture with no die-cut at all.
+    """
+    return np.median(pixels[:8, :8].reshape(-1, 3), axis=0)
+
+
 def background_mask(pixels: np.ndarray, tolerance: int) -> np.ndarray:
     """Every backdrop region that reaches the frame edge."""
-    seed = pixels[0, 0]
+    seed = _corner_seed(pixels)
     candidates = np.abs(pixels - seed).max(axis=2) <= tolerance
     structure = ndimage.generate_binary_structure(2, 1)
     labels, _ = ndimage.label(candidates, structure=structure)
@@ -54,7 +64,7 @@ def enclosed_mask(pixels: np.ndarray, found: np.ndarray, tolerance: int, *,
     the colour test alone claims specks along every stroke. Only components
     of at least `minimum_area` survive.
     """
-    seed = pixels[0, 0]
+    seed = _corner_seed(pixels)
     candidates = (np.abs(pixels - seed).max(axis=2) <= tolerance) & ~found
     labels, count = ndimage.label(
         candidates, ndimage.generate_binary_structure(2, 2))
@@ -71,7 +81,7 @@ def repaint(pixels: np.ndarray, color: tuple[int, int, int], *,
     if enclosed_tolerance >= 0:
         mask |= enclosed_mask(pixels, mask, enclosed_tolerance)
     share = mask.mean() * 100
-    seed = pixels[0, 0]
+    seed = _corner_seed(pixels)
     if feather > 0:
         band = ndimage.binary_dilation(mask, iterations=feather) & ~mask
         distance = np.abs(pixels - seed).max(axis=2)

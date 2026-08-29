@@ -71,6 +71,25 @@ PALETTE_WINDOWS = (
      "sat_light": 24.7, "sat_mid": 58.5},
 )
 
+# repin's compression curve, per V band: (knee, ratio). Saturation below the
+# knee is untouched; only the excess is kept, at the ratio. A single factor
+# per band was rejected twice by eye: tuned for the vivid skirt it crushed
+# the hair to white, and the near-black hoodie carries saturation up to 180
+# that the old V floor exempted. Knees are tv639u's own band measurements --
+# the picked reference for the whole palette. The dark band applies on every
+# hue except warm skin shadows (REPIN_WARM_EXEMPT).
+REPIN_LIGHT = (28.0, 0.25)   # V >= FIGURE_LIGHT_V
+REPIN_MID = (60.0, 0.15)     # midtones inside the purple window
+REPIN_DARK = (29.0, 0.08)    # V < 80, any hue
+REPIN_WARM_EXEMPT = (0.0, 48.0)
+
+# Accents -- the iris and the hair pins -- sit far above any field's
+# saturation (iris ~211 vs skirt ~130), so a ramp over this S range lets
+# them keep ACCENT_KEEP of their excess and their own hue while the fields
+# pin pale. Without it the eyes wash out to white.
+ACCENT_RAMP = (150.0, 60.0)  # start, width
+ACCENT_KEEP = 0.65
+
 # The backdrop flatness screen, on the RAW render's corner brightness spread.
 # A gradient backdrop starves the flood mask, and then every downstream
 # number -- the figure bands, the normalization factor, the repaint -- is

@@ -317,6 +317,59 @@ class GenerateApplicationTest(unittest.TestCase):
                 call for call in management.calls if call[0] == "semantic")
             self.assertEqual(semantic_call[2]["attributes"]["patches"], patches)
 
+    def test_generate_records_palette_from_measure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(json.dumps(base_request()))
+            management = ManagementFake()
+            comfy = ComfyFake()
+            comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
+            state = StateFake({
+                "idempotency_key": "fixed-key", "seeds": [42],
+                "jobs": [{"idempotency_key": "job-key", "job_id": "job-id",
+                          "comfy_prompt_id": "old-prompt", "status": "failed"}],
+            })
+            services = GenerateServices(
+                management, comfy, state, RecordingNotifier(),
+                lambda generation, seed, prefix: {
+                    "6": {"inputs": {"text": "x"}}, "7": {"inputs": {"text": "y"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None,
+                measure=lambda data: {"fig_sat_mean": 40.0, "light_sat": 20.0,
+                                       "fails": ["mean saturation too high"]})
+            generate(path, services)
+            semantic_call = next(
+                call for call in management.calls if call[0] == "semantic")
+            palette = semantic_call[2]["attributes"]["palette"]
+            self.assertIn("verdict", palette)
+            self.assertTrue(palette["verdict"].startswith("FAIL"))
+
+    def test_generate_survives_measure_raising(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(json.dumps(base_request()))
+            management = ManagementFake()
+            comfy = ComfyFake()
+            comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
+            state = StateFake({
+                "idempotency_key": "fixed-key", "seeds": [42],
+                "jobs": [{"idempotency_key": "job-key", "job_id": "job-id",
+                          "comfy_prompt_id": "old-prompt", "status": "failed"}],
+            })
+
+            def broken_measure(data):
+                raise ValueError("bad image")
+
+            services = GenerateServices(
+                management, comfy, state, RecordingNotifier(),
+                lambda generation, seed, prefix: {
+                    "6": {"inputs": {"text": "x"}}, "7": {"inputs": {"text": "y"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None,
+                measure=broken_measure)
+            generate(path, services)
+            self.assertEqual(state.state["jobs"][0]["status"], "ingested")
+
     def test_generate_probe_stops_before_batch_creation(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"

@@ -26,10 +26,14 @@ class FinalizeServices:
     notifier: object
     output_root: Path
     emit: Callable[[str], None] = print
+    repin: Callable[[bytes], tuple[bytes, list[str]]] | None = None
+    measure: Callable[[bytes], dict] | None = None
 
 
 def finalize(generation_id: str, services: FinalizeServices, *,
-             denoise: float | None = None, handdrawn: bool = False) -> None:
+             denoise: float | None = None, handdrawn: bool = False,
+             apply_repin: bool = True,
+             keep_legwear: float | None = None) -> None:
     if denoise is None:
         denoise = delivery_style.FINALIZE_DENOISE
     context = services.management.request(
@@ -56,7 +60,18 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         raise SystemExit(
             f"backdrop not flat: corner spread {spread:.1f} > "
             f"{delivery_style.BACKDROP_SPREAD_MAX}")
-    delivered, tag = services.deliver(raw)
+    to_deliver = raw
+    if services.measure is not None:
+        summary = services.measure(raw)
+        status = "FAIL" if summary["fails"] else "pass"
+        services.emit(
+            f"palette {status}: fig mid {summary['fig_sat_mean']:.1f} "
+            f"p90 {summary['fig_sat_p90']:.0f} light {summary['light_sat']:.1f}")
+    if apply_repin and services.repin is not None:
+        to_deliver, report = services.repin(raw)
+        for line in report:
+            services.emit(f"repin {line}")
+    delivered, tag = services.deliver(to_deliver)
     stem = Path(image["filename"]).stem
     delivered_name = f"{stem}-{tag}-delivered.png"
     (services.output_root / delivered_name).write_bytes(delivered)
@@ -70,6 +85,9 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         "parameters": {"kind": "hires-chain",
                        "base_generation": generation_id,
                        "size": FINALIZE_SIZE, "denoise": denoise,
+                       "repin": bool(apply_repin and services.repin is not None),
+                       **({"keep_legwear": keep_legwear}
+                          if keep_legwear is not None else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,

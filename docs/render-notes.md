@@ -11099,3 +11099,9 @@ dux7xp は (pointing at viewer:1.5) が短縮遠近で決まった当たりだ�
 
 それ以外は cackle-a と同一。狙いは服を c8a3ik に固定した上で dux7xp 級の
 カメラ向き指差しを引くこと。batch msmela、6 seed。評価待ち。
+
+### `cackle` 採用: tv639u → 納品 7ndqyl (batch 1clx2v) (2026-08-29)
+
+cackle-b (msmela) からのピックは tv639u。服の固定（oversized shirt 除去 +
+buttons ban）とカメラ向き指差しが同じ seed で両立した。finalize で
+2048 チェーン + 平坦化背景 + 紫縁、納品は 7ndqyl。ラウンドクローズ。

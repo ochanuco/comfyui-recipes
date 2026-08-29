@@ -35,12 +35,24 @@ def parse_color(text: str) -> tuple[int, int, int]:
 
 
 def background_mask(pixels: np.ndarray, tolerance: int) -> np.ndarray:
+    """Every backdrop region that reaches the frame edge, not just the corner's.
+
+    A figure that crosses the frame cuts the backdrop into pieces, and keeping
+    only the piece the top-left corner is in leaves the rest at the render's
+    own colour. Downstream `clean_background` used to cover for that by
+    flattening the smaller off-backdrop components, which works only while the
+    leftover backdrop is NOT touching the figure -- so the miss surfaced as
+    half a head crop staying grey, with the purple stroke drawn along the seam
+    between the repainted and untouched halves.
+    """
     seed = pixels[0, 0]
     candidates = np.abs(pixels - seed).max(axis=2) <= tolerance
     structure = ndimage.generate_binary_structure(2, 1)
     labels, _ = ndimage.label(candidates, structure=structure)
-    seed_label = labels[0, 0]
-    return candidates & (labels == seed_label)
+    edges = np.concatenate(
+        [labels[0], labels[-1], labels[:, 0], labels[:, -1]])
+    reaching = np.unique(edges[edges > 0])
+    return np.isin(labels, reaching)
 
 
 def enclosed_mask(pixels: np.ndarray, found: np.ndarray,

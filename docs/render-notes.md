@@ -11057,3 +11057,51 @@ rb-hires（the feel restored）が 235.5 だったので、ta はちょうど承
 sketch 三連 + 割る upscale だけで足り、muted は彩度を下げる分だけ働いている
 可能性がある。判定は目（手書き感はどのみち数値で判定できない質だが、14.7 と
 244.7 の差は質の差ではなく経路の差として読める）。
+
+## 2026-08-29 新ポーズ `cackle`: 指を指してケタケタ笑う (batch 7mvsj4)
+
+「指を指してケタケタ笑ってるゆかりさん」。体は `hype` の立ち骨格 verbatim —
+(standing:1.45), (from front:1.3), (leaning forward:1.35), (full body:1.45)、
+832x1664 も hype/roar の立ち幅 — で、腕の仕事だけ差し替えた。
+
+- (pointing at viewer:1.5) が構図の主。腕をカメラへ出す分は
+  (outstretched arm:1.3)、空いた側は (hand on own hip:1.15) — 重みが低いのは
+  `tehe` の頬手 1.05 と同じ理由で、主役の腕と張り合わせない。
+- 笑いは (laughing:1.45) + (open mouth:1.4)。open_mouth フラグで FACE の
+  closed mouth を落とす（`hype` と同型、costume_check に declared 済み）。
+- 目はドヤ配線（`sly` と同じ）: own_eyes で unamused を落とし
+  (half-closed eyes:1.3) を自前で持って FACE の tareme と neki8u の組にする。
+  態度は (smug:1.35)。ケタケタの見下ろし成分は目と態度の2枚で作り、
+  嘲りの冷たさは laughing 側に持たせない。
+- negative は HAND_BAN — 指差しの人差し指はその守備範囲。
+
+初回スイープ 6 seed、recipe そのまま（batch 7mvsj4、arm cackle-a）。
+contract fixture は 41 ポーズで再生成済み。評価待ち。
+
+## 2026-08-29 `cackle` の服割れ: oversized shirt がここでもシャツワンピを呼ぶ (batch msmela)
+
+初回2バッチ (7mvsj4 / a53vkq) への評価は「服は c8a3ik、ポーズは dux7xp」。
+dux7xp は (pointing at viewer:1.5) が短縮遠近で決まった当たりだが、服が
+ボタン前立てのシャツワンピに振れている。c8a3ik はリボン+素の紫ワンピースが
+正しく出た個体で、指は自分の顔の横（カメラを指していない）。
+
+シャツワンピの犯人は `boss` が測定済みの `(oversized shirt:1.3)` の
+リクルート現象。boss では `mature female` が引き金だったが、cackle は
+引き金なしでも seed 次第で同じ割れ方をする — つまりこのタグは常に
+シャツワンピ側の圧を掛けていて、seed がどちらに倒すかだけの差。
+
+是正 (arm cackle-b):
+
+- character_edits で `(oversized shirt:1.3)` を除去 (gate=dressed)。
+  boss と同じ動きで、mature female 抜き。
+- negative に (buttons:1.5), (button placket:1.4)。glo2s4 の「ボタンは
+  negative では消えない」は既存画素の refine の話で、新規生成の操舵は別。
+
+それ以外は cackle-a と同一。狙いは服を c8a3ik に固定した上で dux7xp 級の
+カメラ向き指差しを引くこと。batch msmela、6 seed。評価待ち。
+
+### `cackle` 採用: tv639u → 納品 7ndqyl (batch 1clx2v) (2026-08-29)
+
+cackle-b (msmela) からのピックは tv639u。服の固定（oversized shirt 除去 +
+buttons ban）とカメラ向き指差しが同じ seed で両立した。finalize で
+2048 チェーン + 平坦化背景 + 紫縁、納品は 7ndqyl。ラウンドクローズ。

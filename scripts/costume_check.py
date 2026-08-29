@@ -283,6 +283,9 @@ EXCEPTIONS: dict[str, list[dict]] = {
     "hype": [
         {"removed": ["closed mouth"], "why": "(grin:1.4) shows teeth"},
     ],
+    "cackle": [
+        {"removed": ["closed mouth"], "why": "ケタケタ is an open-mouthed laugh"},
+    ],
     "roar": [
         {"removed": ["closed mouth"], "why": "がおー is an open mouth or it is a shrug"},
     ],
@@ -355,6 +358,12 @@ COSTUME_ONLY: dict[str, dict[str, list[dict]]] = {
             {"added": ["(criss-cross halter:1.45)"],
              "why": "the dress's own crossed straps, taken with the backdrop "
                     "cost known and accepted"},
+        ],
+        "cackle": [
+            {"removed": ["(oversized shirt:1.3)"],
+             "why": "seed-dependent it recruits a button-front shirt dress "
+                    "(dux7xp); dropping it restores the ribboned purple dress "
+                    "(c8a3ik), boss's mechanism without mature female"},
         ],
         "boss": [
             {"removed": ["(oversized shirt:1.3)"],

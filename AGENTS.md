@@ -22,12 +22,51 @@ One recipe is live:
   `infrastructure/comfyui/`. A new pose is one `POSES` entry plus one
   `POSE_RECORDS` entry in `poses.py`, nothing else.
 
-Everything measured goes in `docs/render-notes.md`, including the measurements
-that came back null and the conclusions that were later wrong. That file is the
-point of the repository; the scripts are how it was produced.
+Everything measured is recorded — see "Where information lives" below for
+which store. The records are the point of the repository; the scripts are how
+they were produced.
 
 Run everything through `uv run` — the client env is pillow, numpy,
 opencv-python and scipy, and nothing here imports torch.
+
+## Where information lives (hard rule)
+
+> Research logs are append-only. Code comments are current-state-only.
+
+Four stores, one job each:
+
+```text
+src/          current recipe (What). Comments hold only the non-obvious
+              constraints that guard today's values — a few lines per
+              definition, no history.
+experiments/  one observation per JSONL record (seed, render_id, parameter,
+              value, outcome accepted|rejected|inconclusive, reason).
+              Append-only: a refuted hypothesis gets a NEW record, the old
+              one is never rewritten. Schema in experiments/README.md.
+docs/         conclusions. Cross-pose lessons in docs/render-notes.md,
+              per-pose reasoning in docs/poses/<character>/<pose>.md.
+tests/        invariants that must hold across models and seeds (prompt
+              byte-stability is already pinned by the snapshot contract).
+```
+
+Rules that follow from it — enforced by `tests/test_comment_discipline.py`,
+which bans dates, render IDs, `1.45 -> 1.3` walk-downs, 「」 quotes and
+comment blocks over 8 lines in `src/**`:
+
+- A new failure is an `experiments/` record first, never a code comment. If
+  the code needs anything, it is one short line stating the constraint that
+  is now in force.
+- New knowledge REPLACES a comment; it never stacks on top of one. If old
+  and new disagree, the old line is deleted.
+- Before changing a pose or tag, grep `experiments/` for the same
+  character/pose/parameter. Do not repeat a rejected trial without stating
+  what is different this time.
+- An experiment result is an observation under its conditions (pose, prompt,
+  checkpoint, seed), not a universal rule.
+- chimera stays the per-render channel (every render is recorded there);
+  `experiments/` is the greppable ledger the comments can point to.
+- The `PENDING_CLEANUP` list in the discipline test names the files written
+  before this rule; it may only shrink.
 
 ## Branch strategy: task branches
 

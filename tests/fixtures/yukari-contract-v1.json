@@ -1,46 +1,84 @@
 {
   "by_costume": {
     "default": {
-      "base_graph_sha256": "32a3af189de0a43cff0c181f7f512e9b9bf662c2ad0c245e1f084ef2bfe6134c",
-      "hires_2048_graph_sha256": "8f1abb5b61f32c3824883ce1cdf94985b81d68b5c10d67d4f65591aca7ca914e",
-      "negative_sha256": "7b3cd459f5828eeaa692271cf62208bfedee47dc967fc4359522ee7ebcef8e77",
-      "positive_sha256": "9c5b39fdd4fac6703e30987d79e4cb496fdb2bdc22df5997d1170ad675e9c5b3"
+      "base_graph_sha256": "bfc5226c11a8c56a52f60ae80c32b0fa3f857ef499d62b0dcc41f22700ca395d",
+      "hires_2048_graph_sha256": "8e8f717de3e6c83d22d1931ab72f9cc68fb7ae060400b7ae5850877b7e1d7f3f",
+      "negative_sha256": "93850a958398103951929b5503b4b656f334e29a3a69afd80c539231a5d6c54c",
+      "positive_sha256": "9afd2d0e8755c3a5d37bdce81e723d448f3ad09297f1243cead3bd44c22c1879"
     },
     "fitness": {
-      "base_graph_sha256": "1f16d669fa120f2852cb38827a2ff3f5a66a3a4f2a1dc2d72f7034443f425e65",
-      "hires_2048_graph_sha256": "ddbde77d2a39da30f2b7088858d8444a35aedb4c21ebcd4446aec093b5c5418e",
-      "negative_sha256": "5d04a6867bee464751651b2116751a6e18de14658925ded3a5a97efb76acac6d",
-      "positive_sha256": "9aaa89bac2b1dbd3620c15f8da51ff59d8a660018b3add589570f268583795d2"
+      "base_graph_sha256": "9ffb48d87447b09a277bc0fc9792ba36ab9aaa3add0eb54034e4889d0a44d32c",
+      "hires_2048_graph_sha256": "2108c40d14ce0a2da24fabff8cc5630345a4afcfe6eea5d80f73a2d654973b7a",
+      "negative_sha256": "2340a43bcba39aaeb9b00d86ea822c005506dbbe4e8a90e19e6036ff0acd2ea2",
+      "positive_sha256": "a0eb961d6db6e33b044d3b6f55844c985fb1852726a1617e9a46ec890d5a2000"
     },
     "roomwear": {
-      "base_graph_sha256": "422cc3cb77de1acd47a71262153633acc480a649703e13405e25f27e83c6b0c7",
-      "hires_2048_graph_sha256": "bf799e4b1defb2a59d1217b582ae1a340eeed2bcf6ea22e60026ef1556f0b9cf",
-      "negative_sha256": "9254fb2f2b74c389e34cd19b412d65dbaefd24fa6e8a874ab66b8433c7a3afc3",
-      "positive_sha256": "6a5dcb9795b4f8977d9369057dcbc75fb818354b0eeb5c1b3f917a53a3f93e5e"
+      "base_graph_sha256": "6bdbbecba84dd7942bcc4e00a59cb8053651bc6f06e5f3ff12885cf4328f4b42",
+      "hires_2048_graph_sha256": "a78ea83d58e9b038eff9f183916b5c3b1c605f7632914bfbc350d09336411a5b",
+      "negative_sha256": "ce74aab5f71c26cbfe7ea92dec4a8727b2c02cd3aa6318d100170f54932ab060",
+      "positive_sha256": "16a9d1f37e3f1aab51ca32b08eb8b778fcb4df600fc41c404b4380de530e84ac"
     },
     "sporty": {
-      "base_graph_sha256": "8d2970b14fab26350cc59cb4412eacbe3315c25568670febac3024ea0acebc70",
-      "hires_2048_graph_sha256": "5f35c1c88ef8f42adb356dfc73d22651f0f85fe16dd4b5d1f52b0665be58631d",
-      "negative_sha256": "1de06c6c9e954eb97d7c57188ece91e12dc4953d935705801518fe1080904dd2",
-      "positive_sha256": "2f13da3db6e70c35817f5e894ad55a764192fe44b2092f672692c2dc9ffab7ed"
+      "base_graph_sha256": "ac590a48d505a8c69f650afa6958a9c9c359192eb135fdac68b3d8f71268f7ac",
+      "hires_2048_graph_sha256": "66e334db8ea2139bdebbb0407f88bc3701d05d117bc120ffa60f54f81fb65abd",
+      "negative_sha256": "2496cdf6d22bc7b189f4b4c9201e305dda4f44127ad1c86a0be23138a7f28b55",
+      "positive_sha256": "031fef2efb0541868358b2774f8ec16ee2fba2fb11177fc9cc3e807b763d5088"
     }
   },
   "costume_fingerprint": "6baf3a49c68abd92",
   "costume_records_sha256": "5cec3c4fc9f733a96350c5a5a83d6b7688d0f5035c54e0db3a2e3558288d7e16",
-  "costumes": ["default", "fitness", "roomwear", "sporty"],
+  "costumes": [
+    "default",
+    "fitness",
+    "roomwear",
+    "sporty"
+  ],
   "delivery_fingerprint": "3841eeba3434ae0f",
-  "pose_count": 40,
-  "pose_records_sha256": "4eda7e100c99d1742730b8afce21e5b6c8d609e5e8a2c561ce56620134d42b1d",
+  "pose_count": 41,
+  "pose_records_sha256": "926619c6bcb006dc338bf028dfa8a9b64f4c8973f6cfa9991fa2422ff5d62b1e",
   "poses": [
-    "allnighter", "allnighter_full", "beg", "boss", "brush", "chair",
-    "coy", "crouch", "dizzy", "doze", "fall", "flop", "hige",
-    "hoops", "hunt", "hype", "invite", "kick", "lap", "loom",
-    "lounge", "nape", "peace", "portrait", "pounce", "prone",
-    "recover", "ride", "roar", "sip", "situp", "sly", "snack",
-    "snarl", "stand", "straw", "swelter", "tehe", "winded", "yawn"
+    "allnighter",
+    "allnighter_full",
+    "beg",
+    "boss",
+    "brush",
+    "cackle",
+    "chair",
+    "coy",
+    "crouch",
+    "dizzy",
+    "doze",
+    "fall",
+    "flop",
+    "hige",
+    "hoops",
+    "hunt",
+    "hype",
+    "invite",
+    "kick",
+    "lap",
+    "loom",
+    "lounge",
+    "nape",
+    "peace",
+    "portrait",
+    "pounce",
+    "prone",
+    "recover",
+    "ride",
+    "roar",
+    "sip",
+    "situp",
+    "sly",
+    "snack",
+    "snarl",
+    "stand",
+    "straw",
+    "swelter",
+    "tehe",
+    "winded",
+    "yawn"
   ],
   "prefix": "contract",
-  "schema": 1,
-  "seed": 123456789,
-  "source_commit": "1cd180147bf3e22b6d15f838a2ea02e475d8e54b"
+  "seed": 123456789
 }

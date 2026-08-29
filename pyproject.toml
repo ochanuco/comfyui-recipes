@@ -3,6 +3,9 @@ name = "comfyui-recipes"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 
+[project.scripts]
+comfy-recipes = "comfyui_recipes.interfaces.cli:main"
+
 [build-system]
 requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"

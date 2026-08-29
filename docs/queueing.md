@@ -3,13 +3,13 @@
 > Yuzuki Yukari belongs to her original creators and rights holders — see
 > [Derivative work](../README.md#derivative-work) in the README.
 
-Yuzuki Yukari generation requests are recorded through `scripts/generate.py`,
+Yuzuki Yukari generation requests are recorded through `comfy-recipes generate`,
 which validates the request, submits the graph to ComfyUI, and ingests the
 result into Chimera. Use the same command for dry runs and real batches:
 
 ```bash
-uv run scripts/generate.py --request request.json --dry-run
-uv run scripts/generate.py --request request.json
+uv run comfy-recipes generate --request request.json --dry-run
+uv run comfy-recipes generate --request request.json
 ```
 
 The request contract is schema version 1. `generation.recipe` must be
@@ -41,8 +41,8 @@ uv run scripts/queue_img2img.py --ckpt-name your-model.safetensors \
 ## Yukari prompt inspection
 
 ```bash
-uv run scripts/yukari_recipe.py --pose lounge --print-prompt
-uv run scripts/yukari_recipe.py --pose lounge --costume sporty --print-prompt
+uv run comfy-recipes yukari prompt --pose lounge
+uv run comfy-recipes yukari prompt --pose lounge --costume sporty
 ```
 
 The recipe has 40 poses and four costumes. Prompt edits are ordered and fail

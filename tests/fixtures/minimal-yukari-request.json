@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "request": {
+    "count": 1,
+    "instruction": "Render the settled Yukari lounge pose",
+    "seeds": [555666777]
+  },
+  "generation": {
+    "recipe": "yukari",
+    "parameters": {
+      "pose": "lounge",
+      "costume": "default"
+    }
+  },
+  "semantic": {
+    "summary": "CLI dry-run fixture for the settled Yukari recipe"
+  }
+}

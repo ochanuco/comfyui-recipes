@@ -55,7 +55,7 @@ gave you.
 For what a recipe actually sends, ask the recipe instead of reading it:
 
 ```bash
-uv run scripts/yukari_recipe.py --pose prone --print-prompt      # ~0.6k, not 30k
+uv run comfy-recipes yukari prompt --pose prone                  # ~0.6k, not 30k
 uv run scripts/costume_check.py                                  # the blocks, verified
 ```
 
@@ -100,19 +100,19 @@ The user reviews renders on chimera (https://chimera.chanu.co), not Discord.
 A render that reached Discord but not chimera **is not delivered** — never
 close out a prompt on the strength of a Discord post alone. Every render,
 including one-off probes and chained passes, gets a chimera record — and the
-way to get one is to run through `generate.py`, never by POSTing `/prompt`
+way to get one is to run through `comfy-recipes generate`, never by POSTing `/prompt`
 directly: a probe whose graph the recipe cannot build goes in the request as
 `generation.graph`. (`.local/_hige_ingest.py` remains only as the template
 for backfilling legacy renders that predate this rule.)
 
-One round has two stages, both through the same CLI. `generate.py --request`
-ingests the raw renders; the human rates them on chimera; `generate.py
---finalize <short_id>` delivers the pick — 2048 chain, flattened backdrop,
+One round has two stages, both through the same CLI. `comfy-recipes generate
+--request` ingests the raw renders; the human rates them on chimera;
+`comfy-recipes finalize <short_id>` delivers the pick — 2048 chain, flattened backdrop,
 purple stroke, recorded as a refinement batch. A raw render never has the
 purple frame: the delivery identity is what `--finalize` adds, so a round is
 not closed until the pick has been finalized.
 
-Discord notification is built into `generate.py` — every ingest and every
+Discord notification is built into `comfy-recipes` — every ingest and every
 finalize posts to the webhook itself. There is no separate watcher daemon
 (`post_renders.py` is archived), and `deliver.py`, the old manual path that
 bypassed chimera, is archived with it.
@@ -123,9 +123,9 @@ The webhook is a credential and lives in `.local/discord-webhook` or
 ## chimera 連携の不変条件
 
 - 生成の記録は chimera Management API（https://chimera.chanu.co）。CLI は
-  `scripts/generate.py` で、実行と記録のみを担う — semantic 判断（prompt
+  `comfy-recipes generate` で、実行と記録のみを担う — semantic 判断（prompt
   組み立て、reference の意味付け、検品）は Claude Code 側の仕事。
-- 実行経路は `generate.py` の一本のみ。ComfyUI `/prompt` への直 POST は禁止
+- 実行経路は `comfy-recipes generate` の一本のみ。ComfyUI `/prompt` への直 POST は禁止
   — レシピが組めない graph は request の `generation.graph` に入れて渡す
   （seed と SaveImage prefix は job ごとに CLI が差し替える）。投稿した
   graph JSON は job に保存され、chimera のレコード単体で再投稿・再現できる
@@ -143,9 +143,9 @@ The webhook is a credential and lives in `.local/discord-webhook` or
   から書くのでは遅い。作業途中の評価はユーザーが chimera の semantics を見て
   行う。semantics/tag は AI が書いてよい（rating だけが人間専用）。
 - semantics の実装: request JSON の `semantic` ブロック（`summary` 必須）が
-  ingest 直後に各 generation へ自動 PUT される（`generate.py` が強制）。
-  事後の追記・上書きは `generate.py --semantic <generation_id> <file.json>`、
-  tag は `--tag <generation_id> <name>`。API は
+  ingest 直後に各 generation へ自動 PUT される（CLI が強制）。
+  事後の追記・上書きは `comfy-recipes metadata semantic <generation_id> <file.json>`、
+  tag は `comfy-recipes metadata tag <generation_id> <name>`。API は
   `PUT /api/v1/generations/{id}/semantic`（schema_version:1、部分ペイロード可、
   再 PUT で全置換）。`generated_by` は CLI が補完する。generation_id には
   short_id も使える。`generate.py` を通らなかった render の一括 backfill は

@@ -10,6 +10,23 @@ interfaces -> application -> domain
               infrastructure ----+
 ```
 
+The maintained application layout is:
+
+```text
+src/comfyui_recipes/
+├── interfaces/          # argparse and dependency wiring
+├── application/         # generate, finalize and metadata workflows
+├── domain/
+│   ├── generation/      # shared values and prompt checks
+│   └── yukari/          # profile, costumes, poses and recipe policy
+└── infrastructure/
+    ├── chimera/         # Management API
+    ├── comfyui/         # HTTP client and graph encoders
+    ├── imaging/         # delivery post-processing
+    ├── notifications/   # Discord side channel
+    └── persistence/     # crash-resume state
+```
+
 ## Domain
 
 `src/comfyui_recipes/domain/` owns pure generation values and the Yukari
@@ -40,7 +57,9 @@ Argument parsing stops at this boundary; commands call application use cases.
 
 ## Migration rule
 
-The old modules under `scripts/` are temporary compatibility facades while the
-application is moved. They may re-export the package but must not acquire new
-domain or orchestration logic. The migration is complete when operational
-shell scripts are the only maintained code left under `scripts/`.
+`comfy-recipes` is the only public application entry point. The old
+`scripts/generate.py` and `scripts/yukari_recipe.py` modules are temporary
+compatibility facades and must not acquire new domain or orchestration logic.
+Other files under `scripts/` are operator or research utilities, not alternate
+application entry points; they are being grouped separately as the migration
+continues.

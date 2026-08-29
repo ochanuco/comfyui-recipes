@@ -10,9 +10,12 @@ import json
 import secrets
 import uuid
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as spec_replace
 from pathlib import Path
 from typing import Protocol
+
+from ..domain.generation.models import PromptPair, RenderSpec
+from ..domain.generation.patches import apply_patches, parse_patches
 
 
 class Management(Protocol):
@@ -44,6 +47,9 @@ class Notifier(Protocol):
 
 GraphBuilder = Callable[[dict, int, str], dict]
 ConflictFinder = Callable[[str, str], list[tuple[str, str, str]]]
+
+KNOWN_PARAMETERS = frozenset(
+    {"pose", "costume", "hires", "denoise", "character", "character_id", "arm"})
 
 
 @dataclass(frozen=True)
@@ -96,6 +102,29 @@ def validate_request(req: object) -> None:
         raise SystemExit(f"recipe {generation.get('recipe')!r} not supported yet")
     elif not parameters.get("pose"):
         raise SystemExit("generation.parameters.pose is required for yukari")
+    elif set(parameters) - KNOWN_PARAMETERS:
+        unknown = sorted(set(parameters) - KNOWN_PARAMETERS)
+        raise SystemExit(
+            f"unknown generation.parameters keys: {unknown} -- annotations "
+            "belong in semantic.attributes, executable diffs in "
+            "generation.patches"
+        )
+    if generation.get("patches") is not None:
+        if generation.get("graph"):
+            raise SystemExit(
+                "generation.patches cannot combine with generation.graph -- "
+                "the explicit graph is already the whole spec"
+            )
+        if generation.get("prompt") or generation.get("negative_prompt"):
+            raise SystemExit(
+                "generation.patches cannot combine with generation.prompt or "
+                "generation.negative_prompt -- ordering between a full "
+                "override and a patch would be ambiguous"
+            )
+        try:
+            parse_patches(generation["patches"])
+        except ValueError as error:
+            raise SystemExit(str(error))
     if not semantic.get("summary"):
         raise SystemExit(
             "request.semantic.summary is required: state this arm's intent "
@@ -105,11 +134,13 @@ def validate_request(req: object) -> None:
 
 
 def request_graph(generation: dict, seed: int, prefix: str,
-                  yukari_builder: Callable[..., dict]) -> dict:
+                  spec_builder: Callable[..., RenderSpec],
+                  encode: Callable) -> dict:
     """Build a job graph while preserving explicit graphs verbatim.
 
     Seed inputs and SaveImage prefixes are job properties, so those are the
-    only fields rewritten in explicit graph mode.
+    only fields rewritten in explicit graph mode. Recipe mode instead builds
+    a RenderSpec, applies request-level diffs to it, and only then encodes.
     """
     if generation.get("graph"):
         graph = json.loads(json.dumps(generation["graph"]))
@@ -121,17 +152,19 @@ def request_graph(generation: dict, seed: int, prefix: str,
                 inputs["filename_prefix"] = prefix
         return graph
     params = generation.get("parameters", {})
-    graph = yukari_builder(
+    spec = spec_builder(
         params["pose"], seed, prefix,
         hires=params.get("hires", 0),
         denoise=params.get("denoise"),
         costume=params.get("costume", "default"),
     )
-    if generation.get("prompt"):
-        graph["6"]["inputs"]["text"] = generation["prompt"]
-    if generation.get("negative_prompt"):
-        graph["7"]["inputs"]["text"] = generation["negative_prompt"]
-    return graph
+    if generation.get("prompt") or generation.get("negative_prompt"):
+        spec = spec_replace(spec, prompts=PromptPair(
+            generation.get("prompt") or spec.prompts.positive,
+            generation.get("negative_prompt") or spec.prompts.negative))
+    if generation.get("patches"):
+        spec = apply_patches(spec, parse_patches(generation["patches"]))
+    return encode(spec)
 
 
 def batch_payload(req: dict, git: dict, idempotency_key: str) -> dict:
@@ -206,6 +239,11 @@ def generate(request_path: Path, services: GenerateServices, *,
                 "prompt contradicts its negative -- fix one side, or --force "
                 "if the pair is deliberate"
             )
+    if generation.get("patches"):
+        try:
+            services.graph_builder(generation, 0, "chimera-probe")
+        except ValueError as error:
+            raise SystemExit(f"patch compile failed: {error}")
     git = services.git_metadata()
     if dry_run:
         seeds = _seeds(req)
@@ -214,10 +252,15 @@ def generate(request_path: Path, services: GenerateServices, *,
         services.emit(json.dumps(
             batch_payload(req, git, "<uuid4>"), indent=2, ensure_ascii=False))
         services.emit(f"seeds: {seeds}")
-        services.emit(f"graph nodes: {sorted(graph, key=int)}")
+        # A hires graph has suffixed node ids (6b, 7b); a plain int key dies.
+        services.emit("graph nodes: " + str(sorted(
+            graph, key=lambda key: (int("".join(
+                ch for ch in key if ch.isdigit())), key))))
         positive = graph.get("6", {}).get("inputs", {}).get("text")
         if positive:
             services.emit(f"positive: {positive[:120]}...")
+        if generation.get("patches"):
+            services.emit(f"patches: {len(generation['patches'])} applied")
         return
 
     state_path = request_path.with_suffix(request_path.suffix + ".state.json")
@@ -319,6 +362,8 @@ def generate(request_path: Path, services: GenerateServices, *,
                 semantic.setdefault("attributes", {}).update(
                     {"seed": seed, **{key: value for key, value in params.items()
                                       if key in ("arm", "pose", "costume")}})
+                if generation.get("patches"):
+                    semantic["attributes"]["patches"] = generation["patches"]
                 try:
                     services.management.put_semantic(rendered["id"], semantic)
                 except SystemExit as error:

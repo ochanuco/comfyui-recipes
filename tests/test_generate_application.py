@@ -120,6 +120,46 @@ class GenerateApplicationTest(unittest.TestCase):
             with self.subTest(request=request), self.assertRaises(SystemExit):
                 validate_request(request)
 
+    def test_validate_request_rejects_unknown_parameters(self):
+        request = base_request()
+        request["generation"]["parameters"]["expression"] = "smile"
+        with self.assertRaises(SystemExit):
+            validate_request(request)
+
+    def test_validate_request_allows_unknown_parameters_in_graph_mode(self):
+        request = base_request(
+            graph={"a": {"class_type": "KSampler", "inputs": {}}})
+        request["generation"]["parameters"]["expression"] = "smile"
+        validate_request(request)
+
+    def test_validate_request_rejects_patches_with_graph(self):
+        request = base_request(
+            graph={"a": {"class_type": "KSampler", "inputs": {}}},
+            patches=[{"target": "render.cfg", "op": "set", "value": 4.5,
+                     "reason": "test"}])
+        with self.assertRaises(SystemExit):
+            validate_request(request)
+
+    def test_validate_request_rejects_patches_with_prompt_override(self):
+        request = base_request(
+            prompt="override",
+            patches=[{"target": "render.cfg", "op": "set", "value": 4.5,
+                     "reason": "test"}])
+        with self.assertRaises(SystemExit):
+            validate_request(request)
+
+    def test_validate_request_rejects_malformed_patch_shape(self):
+        request = base_request(patches=[
+            {"target": "render.cfg", "op": "set", "value": 4.5}])
+        with self.assertRaises(SystemExit):
+            validate_request(request)
+
+    def test_validate_request_accepts_well_formed_patches(self):
+        request = base_request(patches=[
+            {"target": "render.cfg", "op": "set", "value": 4.5,
+             "reason": "test"}])
+        validate_request(request)
+
     def test_output_paths_must_remain_inside_configured_directories(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
@@ -138,23 +178,37 @@ class GenerateApplicationTest(unittest.TestCase):
     def test_request_graph_explicit_graph_rewrites_job_fields_only(self):
         original = {"a": {"class_type": "KSampler", "inputs": {"seed": 1}},
                     "b": {"class_type": "SaveImage", "inputs": {"filename_prefix": "old"}}}
-        graph = request_graph({"recipe": "probe", "graph": original}, 99, "new", lambda *_: None)
+        graph = request_graph({"recipe": "probe", "graph": original}, 99, "new",
+                              lambda *a, **k: None, lambda s: None)
         self.assertEqual(graph["a"]["inputs"]["seed"], 99)
         self.assertEqual(graph["b"]["inputs"]["filename_prefix"], "new")
         self.assertEqual(original["a"]["inputs"]["seed"], 1)
 
     def test_request_graph_builds_yukari_and_applies_overrides(self):
+        from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
+
         seen = {}
 
         def builder(*args, **kwargs):
             seen["args"] = args
             seen["kwargs"] = kwargs
-            return {"6": {"inputs": {"text": "built"}}, "7": {"inputs": {"text": "built-neg"}}}
+            return RenderSpec(
+                model_path="m", prompts=PromptPair("built", "built-neg"),
+                width=8, height=8, seed=42, steps=30, cfg=5.0,
+                sampler_name="s", scheduler="k", denoise=1.0,
+                filename_prefix="p")
+
+        def encode(spec):
+            seen["spec"] = spec
+            return {"6": {"inputs": {"text": spec.prompts.positive}},
+                    "7": {"inputs": {"text": spec.prompts.negative}}}
 
         generation = base_request(prompt="override", negative_prompt="override-neg")["generation"]
-        graph = request_graph(generation, 42, "prefix", builder)
+        graph = request_graph(generation, 42, "prefix", builder, encode)
         self.assertEqual(seen["args"], ("lounge", 42, "prefix"))
         self.assertEqual(seen["kwargs"]["costume"], "default")
+        self.assertEqual(seen["spec"].prompts.positive, "override")
+        self.assertEqual(seen["spec"].prompts.negative, "override-neg")
         self.assertEqual(graph["6"]["inputs"]["text"], "override")
         self.assertEqual(graph["7"]["inputs"]["text"], "override-neg")
 
@@ -237,6 +291,54 @@ class GenerateApplicationTest(unittest.TestCase):
             self.assertEqual(
                 state.state["jobs"][0]["generations"][0]["status"],
                 "registered")
+
+    def test_generate_records_patches_in_semantic_attributes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            patches = [{"target": "render.cfg", "op": "set", "value": 4.5,
+                       "reason": "test"}]
+            path.write_text(json.dumps(base_request(patches=patches)))
+            management = ManagementFake()
+            comfy = ComfyFake()
+            comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
+            state = StateFake({
+                "idempotency_key": "fixed-key", "seeds": [42],
+                "jobs": [{"idempotency_key": "job-key", "job_id": "job-id",
+                          "comfy_prompt_id": "old-prompt", "status": "failed"}],
+            })
+            services = GenerateServices(
+                management, comfy, state, RecordingNotifier(),
+                lambda generation, seed, prefix: {
+                    "6": {"inputs": {"text": "x"}}, "7": {"inputs": {"text": "y"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None)
+            generate(path, services)
+            semantic_call = next(
+                call for call in management.calls if call[0] == "semantic")
+            self.assertEqual(semantic_call[2]["attributes"]["patches"], patches)
+
+    def test_generate_probe_stops_before_batch_creation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            patches = [{"target": "render.cfg", "op": "set", "value": 4.5,
+                       "reason": "test"}]
+            path.write_text(json.dumps(base_request(patches=patches)))
+            management = ManagementFake()
+            comfy = ComfyFake()
+            state = StateFake(
+                {"idempotency_key": "fixed-key", "seeds": [42], "jobs": []})
+
+            def failing_builder(generation, seed, prefix):
+                raise ValueError("needle absent")
+
+            services = GenerateServices(
+                management, comfy, state, NullNotifier(), failing_builder,
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None)
+            with self.assertRaises(SystemExit):
+                generate(path, services)
+            self.assertFalse(
+                any(call[1] == "/api/v1/batches" for call in management.calls))
 
 
 if __name__ == "__main__":

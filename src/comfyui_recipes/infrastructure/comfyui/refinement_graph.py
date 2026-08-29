@@ -28,25 +28,27 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             + ", ".join(map(repr, unsupported)))
     graph = json.loads(json.dumps(base))
     next_id = max(int(key) for key in graph) + 1
-    scale, encode, sample, decode = (str(next_id + offset) for offset in range(4))
+    scale, sample, decode = (str(next_id + offset) for offset in range(3))
     positive, negative = ["6", 0], ["7", 0]
     if prompt:
-        positive_id, negative_id = str(next_id + 4), str(next_id + 5)
+        positive_id, negative_id = str(next_id + 3), str(next_id + 4)
         graph[positive_id] = {"class_type": "CLIPTextEncode", "inputs": {
             "clip": ["4", 1], "text": prompt[0]}}
         graph[negative_id] = {"class_type": "CLIPTextEncode", "inputs": {
             "clip": ["4", 1], "text": prompt[1]}}
         positive, negative = [positive_id, 0], [negative_id, 0]
-    tail = graph["9"]["inputs"]["images"][0]
+    tail = graph[graph["9"]["inputs"]["images"][0]]
+    if tail.get("class_type") != "VAEDecode":
+        raise ValueError(
+            "base graph's SaveImage must be fed by a VAEDecode, got "
+            f"{tail.get('class_type')!r}")
     width, height = sizes(graph, size)
-    graph[scale] = {"class_type": "ImageScale", "inputs": {
-        "image": [tail, 0], "upscale_method": "lanczos",
+    graph[scale] = {"class_type": "LatentUpscale", "inputs": {
+        "samples": tail["inputs"]["samples"], "upscale_method": "bicubic",
         "width": width, "height": height, "crop": "disabled"}}
-    graph[encode] = {"class_type": "VAEEncode", "inputs": {
-        "pixels": [scale, 0], "vae": ["4", 2]}}
     graph[sample] = {"class_type": "KSampler", "inputs": {
         "model": ["4", 0], "positive": positive, "negative": negative,
-        "latent_image": [encode, 0], "seed": graph["3"]["inputs"]["seed"],
+        "latent_image": [scale, 0], "seed": graph["3"]["inputs"]["seed"],
         "steps": 30, "cfg": 5.0, "sampler_name": "dpmpp_2m",
         "scheduler": "karras", "denoise": denoise}}
     graph[decode] = {"class_type": "VAEDecode", "inputs": {

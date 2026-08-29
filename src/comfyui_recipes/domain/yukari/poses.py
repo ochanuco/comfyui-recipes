@@ -945,7 +945,8 @@ POSE_RECORDS = {
         negative_edits=(
             Edit("prepend", new=HAND_BAN, stage=S_POSE_GUARDS),
         ),
-        hires_negative=HAND_BAN),
+        hires_negative=HAND_BAN,
+        settled_seed=3013749944),
 }
 
 assert set(POSE_RECORDS) == set(POSES), (

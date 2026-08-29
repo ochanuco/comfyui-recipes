@@ -58,3 +58,15 @@ that reference an earlier `accepted`/`rejected` record on the same
 parameter). Code comments, by contrast, are current-state-only: they
 describe the prompt as it stands today, not its history. This directory is
 the history; the source files are the present tense.
+
+## Module-level records
+
+Not every history is a pose's history. `costumes.py`, `prompt_style.py`,
+`delivery_style.py` and `recipe.py` hold module-wide observations --
+sweeps, weights, and measurements that apply across poses rather than to
+one of them. Their records use `"component": "<module name>"` in place of
+(or alongside, when a record also names the pose it was measured under)
+`"pose"`, everything else following the same schema. Added under this
+scheme: `costumes.jsonl`, `prompt_style.jsonl`, `delivery_style.jsonl` and
+`recipe.jsonl`. The narrative reasoning for each of these modules lives in
+`docs/yukari/<module>.md`, matching `docs/poses/yukari/<pose>.md`.

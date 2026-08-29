@@ -20,13 +20,7 @@ SRC = pathlib.Path(__file__).resolve().parent.parent / "src"
 # Files written before the discipline existed. This list may only SHRINK:
 # clean a file (history to experiments//docs, comments to current-state),
 # then remove it here. Never add an entry.
-PENDING_CLEANUP = {
-    "comfyui_recipes/domain/yukari/costumes.py",
-    "comfyui_recipes/domain/yukari/delivery_style.py",
-    "comfyui_recipes/domain/yukari/models.py",
-    "comfyui_recipes/domain/yukari/prompt_style.py",
-    "comfyui_recipes/domain/yukari/recipe.py",
-}
+PENDING_CLEANUP: set[str] = set()
 
 FORBIDDEN = {
     "date (history belongs in experiments/ or git)":
@@ -46,10 +40,11 @@ FORBIDDEN = {
 MAX_COMMENT_BLOCK_LINES = 8
 
 
-def _comments(path: pathlib.Path) -> list[tuple[int, str]]:
+def _comments(path: pathlib.Path) -> list[tuple[int, int, str]]:
+    """(line, column, text) for every comment token."""
     with path.open() as handle:
         tokens = tokenize.generate_tokens(io.StringIO(handle.read()).readline)
-        return [(tok.start[0], tok.string)
+        return [(tok.start[0], tok.start[1], tok.string)
                 for tok in tokens if tok.type == tokenize.COMMENT]
 
 
@@ -69,7 +64,7 @@ class CommentDisciplineTest(unittest.TestCase):
         violations = []
         for path in self._checked_files():
             rel = path.relative_to(SRC)
-            for line, comment in _comments(path):
+            for line, _col, comment in _comments(path):
                 for label, pattern in FORBIDDEN.items():
                     if pattern.search(comment):
                         violations.append(
@@ -80,8 +75,12 @@ class CommentDisciplineTest(unittest.TestCase):
         violations = []
         for path in self._checked_files():
             rel = path.relative_to(SRC)
+            source = path.read_text().splitlines()
             block_start, block_len, prev = None, 0, None
-            rows = _comments(path) + [(-2, "")]
+            # Full-line comments only: a column of trailing comments beside
+            # consecutive code lines (e.g. stage constants) is not a block.
+            rows = [(line, text) for line, col, text in _comments(path)
+                    if source[line - 1][:col].strip() == ""] + [(-2, "")]
             for line, _ in rows:
                 if prev is not None and line == prev + 1:
                     block_len += 1

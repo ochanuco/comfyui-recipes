@@ -107,8 +107,8 @@ def positive(pose: str, costume: str = "default") -> str:
     character = blocks["character"]
     if not full_figure:
         # The shoes are not in the blocks the crop drops -- a shod costume
-        # carries them in CHARACTER -- and c08034a0 drew a sneaker floating
-        # in the backdrop beside her head to prove it. Removed, not
+        # carries them in CHARACTER -- and left in, the sneaker gets drawn
+        # floating in the backdrop beside her head. Removed, not
         # substituted: there is no foot in frame to name anything onto.
         character = _splice(
             character,
@@ -130,8 +130,8 @@ def positive(pose: str, costume: str = "default") -> str:
         # 150 distinct flats to 190, the pass-2 paint guard alone to 168, and
         # the two together to 225 -- superadditive, and neither half predicts
         # it. A finish pose carries the guard (its `hires_negative`), so it
-        # cannot also carry THIN without rebuilding the arm that drew
-        # 「色がおかしい」.
+        # cannot also carry THIN without rebuilding the arm whose colours
+        # were rejected.
         parts.append(THIN)
     return _apply(", ".join(parts), rec.tail_edits, costume)
 
@@ -269,7 +269,7 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
 SIZES = {name: rec.size for name, rec in POSE_RECORDS.items()}
 HEAD_FRAMINGS = tuple(n for n, r in POSE_RECORDS.items()
                       if r.framing == "head")
-# The poses whose finish is 174ce1dc's. It is TWO things -- the pass-2 paint
+# The poses wearing the settled paint finish. It is TWO things -- the pass-2 paint
 # guard in the record's `hires_negative`, and `paint_finish` dropping THIN --
 # and a pose that got one half without the other is precisely the failure the
 # `straw` note warns about. One flag on the record makes it one decision.

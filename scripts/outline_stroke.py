@@ -56,7 +56,7 @@ from recolor_bg import background_mask, enclosed_mask, parse_color
 from yukari import delivery_style
 
 # The values (and why they were picked) live in yukari/delivery_style.py;
-# these names stay because they are this tool's API -- deliver.py reads them.
+# these names stay because they are this tool's API -- callers read them.
 DEFAULT_COLOR = delivery_style.STROKE
 DEFAULT_WIDTH_BAND = delivery_style.STROKE_WIDTH_BAND
 DEFAULT_WIDTH_PCT = delivery_style.STROKE_WIDTH_PCT

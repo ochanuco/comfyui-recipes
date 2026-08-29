@@ -1519,7 +1519,8 @@ POSES = {
         # What it cost is recorded rather than guessed at: on 555666777 the
         # backdrop stopped being flat at all -- 0.1% floods, against 29.3% with
         # the tag -- so this tag was holding the plain background up on at
-        # least one seed, and `deliver.py` cannot repaint what it cannot flood.
+        # least one seed, and the delivery repaint cannot fix what it cannot
+        # flood.
         # The pose survives it because `knee up`, `spread legs` and `arm up`
         # are the shape, and 微動 is the ask.
         "(knee up:1.35), (spread legs:1.35), (arm up:1.4), "

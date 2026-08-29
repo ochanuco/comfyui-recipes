@@ -168,7 +168,7 @@ HAND_BAN = ("(bad hands:1.5), (mutated hands:1.5), (extra digits:1.5), "
 # 「手書き風」の仕上げ、パス2の末尾に足す一対。`traditional_media` 125k +
 # `marker_(medium)` 18k で、`sketch` 194k はこの家族で一番大きいタグだが入れて
 # いない -- 意味が「未完成」で、それは HIRES_NEGATIVE_PAINT が消すために書かれた
-# 状態そのものだから。`winded` が買い、finalize.py の --handdrawn が同じ文字列を
+# 状態そのものだから。`winded` が買い、generate.py --finalize の --handdrawn が同じ文字列を
 # 使う: 二か所が同じものを名乗るなら、文字列は一つ。
 #
 # 末尾に足すことが仕様の一部。HIRES_POSITIVE はプロンプトの途中に差し込む別機構

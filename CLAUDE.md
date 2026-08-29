@@ -115,9 +115,17 @@ directly: a probe whose graph the recipe cannot build goes in the request as
 `generation.graph`. (`.local/_hige_ingest.py` remains only as the template
 for backfilling legacy renders that predate this rule.)
 
-`scripts/post_renders.py --interval 20` still posts finished renders to a
-Discord webhook as a low-latency notification. Keep it running
-(`pgrep -f post_renders`), but treat it as a courtesy ping, not delivery.
+One round has two stages, both through the same CLI. `generate.py --request`
+ingests the raw renders; the human rates them on chimera; `generate.py
+--finalize <short_id>` delivers the pick — 2048 chain, flattened backdrop,
+purple stroke, recorded as a refinement batch. A raw render never has the
+purple frame: the delivery identity is what `--finalize` adds, so a round is
+not closed until the pick has been finalized.
+
+Discord notification is built into `generate.py` — every ingest and every
+finalize posts to the webhook itself. There is no separate watcher daemon
+(`post_renders.py` is archived), and `deliver.py`, the old manual path that
+bypassed chimera, is archived with it.
 
 The webhook is a credential and lives in `.local/discord-webhook` or
 `$DISCORD_WEBHOOK`. Never put it in a tracked file.
@@ -133,6 +141,13 @@ The webhook is a credential and lives in `.local/discord-webhook` or
   graph JSON は job に保存され、chimera のレコード単体で再投稿・再現できる
   ことがこの規則の目的。コードの置き場（`.local/` 含む）は provenance に
   関与しない。
+- graph モードは生 `.replace` の抜け道ではない。`build()` の返り値の prompt に
+  `.replace` を当ててから `generation.graph` に載せるのは、Edit レコードが
+  終わらせたはずの黙って外れる splice の再導入 — departure は pose 側の Edit
+  レコードにする。
+- `generation.graph` 使用時、`generation.parameters` はビルドに使われず記録
+  専用になる。graph に実在しない値を書くと chimera の記録だけが嘘になるので、
+  graph に実際に入れた値だけを書く。
 - chimera への記録は生成の完了条件。画像だけでなく semantics（各 arm の狙い、
   base からの差分、何を検証する render か）も ingest 直後に書く — 選抜が済んで
   から書くのでは遅い。作業途中の評価はユーザーが chimera の semantics を見て

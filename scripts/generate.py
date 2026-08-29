@@ -4,6 +4,7 @@ Claude Code interprets the human's intent and writes the request; this script
 only validates, executes and records (chimera/docs/architecture.md). Usage:
 
     uv run scripts/generate.py --request request.json [--dry-run]
+    uv run scripts/generate.py --finalize <short_id> [--denoise 0.45] [--handdrawn]
     uv run scripts/generate.py --semantic <generation_id> <semantic.json>
     uv run scripts/generate.py --tag <generation_id> <name>
 
@@ -11,6 +12,11 @@ only validates, executes and records (chimera/docs/architecture.md). Usage:
 graph verbatim (seed and SaveImage prefix are set per job). Either way the
 submitted graph is stored on the chimera job, so the record alone can be
 re-queued -- which is why a probe never POSTs to /prompt directly.
+
+--finalize is the delivery stage: it takes a human-picked generation and
+produces the picture the user sees (2048 print, flattened backdrop, purple
+stroke), recorded as a refinement batch. A raw --request render never has
+the purple frame; only --finalize puts it there.
 
 The request must carry a `semantic` block (summary at minimum): it is PUT
 onto every generation right after ingest, because the human evaluates
@@ -39,15 +45,41 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import comfy_host
-import post_renders
 
 BASE = os.environ.get("CHIMERA_BASE_URL", "https://chimera.chanu.co").rstrip("/")
 REPO = Path(__file__).resolve().parent.parent
 WORKDIR = REPO / ".local/_nogit/chimera"
+FINALIZE_WORKDIR = REPO / ".local/_nogit/finalize"
 OP_ITEM = "yml6r5qgx3zt57pryokgi3xdqy"
 TOKEN_CACHE = REPO / ".local/chimera-token"
+WEBHOOK_FILE = REPO / ".local/discord-webhook"
+USER_AGENT = "comfyui-recipes-generate/1.0 (+local)"
 POLL_INTERVAL = 10
 POLL_TIMEOUT = 20 * 60
+
+
+def webhook() -> str:
+    url = os.environ.get("DISCORD_WEBHOOK", "").strip()
+    if url:
+        return url
+    if WEBHOOK_FILE.exists():
+        return WEBHOOK_FILE.read_text().strip()
+    raise SystemExit(
+        f"no webhook: set $DISCORD_WEBHOOK or write one to {WEBHOOK_FILE}")
+
+
+def images_of(entry: dict) -> list[dict]:
+    """Output images of a finished prompt, in the order the graph saved them.
+
+    Each entry carries filename/subfolder/type straight from /history -- all
+    three are needed to fetch the file back from a remote ComfyUI via /view.
+    """
+    images = []
+    for node_output in entry.get("outputs", {}).values():
+        for image in node_output.get("images", []):
+            if image.get("type") == "output":
+                images.append(image)
+    return images
 
 
 def credentials() -> dict[str, str]:
@@ -77,8 +109,8 @@ def api(method: str, path: str, payload: dict | None = None,
     response is Cloudflare Access bouncing us to login, not data."""
     url = BASE + path
     # Cloudflare answers urllib's default User-Agent with 403 / error 1010,
-    # exactly as it does for the Discord webhook in post_renders.py.
-    headers = {**_CREDS, "User-Agent": post_renders.USER_AGENT}
+    # exactly as it does for the Discord webhook.
+    headers = {**_CREDS, "User-Agent": USER_AGENT}
     if multipart:
         meta, field, filename, data, ctype = multipart
         boundary = uuid.uuid4().hex
@@ -218,7 +250,7 @@ def wait_for(prompt_id: str) -> list[dict]:
             status = entry.get("status", {})
             if status.get("status_str") == "error":
                 raise RuntimeError(f"comfy job {prompt_id} failed")
-            images = post_renders.images_of(entry)
+            images = images_of(entry)
             if images:
                 return images
         time.sleep(POLL_INTERVAL)
@@ -238,7 +270,7 @@ def fetch(image: dict) -> bytes:
 
 def notify(content: str, filename: str, image: bytes) -> None:
     try:
-        url = post_renders.webhook()
+        url = webhook()
     except SystemExit:
         print("  ! no Discord webhook configured, skipping notification")
         return
@@ -255,12 +287,159 @@ def notify(content: str, filename: str, image: bytes) -> None:
     ])
     request = urllib.request.Request(url, data=body, headers={
         "Content-Type": f"multipart/form-data; boundary={boundary}",
-        "User-Agent": post_renders.USER_AGENT,
+        "User-Agent": USER_AGENT,
     })
     try:
         urllib.request.urlopen(request, timeout=120)
     except urllib.error.HTTPError as err:
         print(f"  ! Discord: HTTP {err.code} {err.read()[:200]!r}")
+
+
+def clean_background(data: bytes) -> tuple[bytes, str]:
+    """Largest-component background flatten + repaint + stroke, as one step.
+
+    Two sweeps: components the flood never touched (doodles in open backdrop),
+    then, after the repaint, anything left floating on backdrop colour inside
+    pockets the flood could not reach (the dress-glass gap class of junk).
+    """
+    import io
+
+    import numpy as np
+    from PIL import Image
+    from scipy import ndimage
+
+    import outline_stroke
+    import recolor_bg
+    from yukari import delivery_style
+
+    backdrop = recolor_bg.parse_color(delivery_style.BACKDROP)
+    pixels = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(int)
+    bg = recolor_bg.background_mask(pixels, 18)
+    labels, n = ndimage.label(~bg)
+    if n > 1:
+        sizes = ndimage.sum(np.ones_like(labels), labels, range(1, n + 1))
+        junk = (~bg) & (labels != 1 + int(np.argmax(sizes)))
+        pixels[junk] = backdrop
+    pixels, _ = recolor_bg.repaint(pixels, backdrop, enclosed_tolerance=4)
+    off = np.abs(pixels - backdrop).sum(axis=2) > 30
+    labels, n = ndimage.label(off)
+    if n > 1:
+        sizes = ndimage.sum(np.ones_like(labels), labels, range(1, n + 1))
+        junk = off & (labels != 1 + int(np.argmax(sizes)))
+        pixels[junk] = backdrop
+    pixels, width, _ = outline_stroke.stroke(
+        pixels.astype(float), delivery_style.STROKE, enclosed_tolerance=4)
+    out = io.BytesIO()
+    Image.fromarray(np.clip(pixels, 0, 255).astype(np.uint8)).save(out, "PNG")
+    return out.getvalue(), f"clean-p{width:.0f}"
+
+
+def finalize(short_id: str, denoise: float | None, handdrawn: bool) -> None:
+    """Deliver one picked generation: 2048 print, clean background, record.
+
+    Takes the picked generation's embedded graph, replays pass 1 byte-identical
+    and chains an image-space 2048 pass onto it (surface-preserving, the same
+    route every approved print has used), flattens background junk and strokes
+    the figure, then ingests both the raw print and the delivered version into
+    chimera as a refinement batch and posts the delivered one to Discord.
+
+    The pass-2 negative gets the kick toe ban and SHADE_BAN. (closed eyes:1.4)
+    is deliberately NOT added: the jelly line renders with ^_^ and the ban
+    would fight it. If an open-eyed pose comes through here, add it per-run.
+
+    handdrawn is 「手書き風」 on the pass this function already runs: THIN off
+    and the marker pair appended at the END of the pass-2 positive, which is
+    what `winded` buys with `hires_finish`. Here it is a per-run flag rather
+    than a pose record, because the picked generation's own graph is what gets
+    replayed and a pose record would not reach it.
+    """
+    import io
+
+    from PIL import Image
+
+    import refine_from_history as rf
+    import yukari_recipe as yr
+    from yukari import delivery_style
+
+    if denoise is None:
+        denoise = delivery_style.FINALIZE_DENOISE
+    ctx = api("GET", f"/api/v1/generations/{short_id}/context")
+    request = urllib.request.Request(
+        f"{BASE}/g/{short_id}/image",
+        headers={**_CREDS, "User-Agent": USER_AGENT})
+    with urllib.request.urlopen(request, timeout=120) as response:
+        picked = response.read()
+    base = json.loads(Image.open(io.BytesIO(picked)).info["prompt"])
+    seed = base["3"]["inputs"]["seed"]
+
+    prefix = f"fin-{short_id}"
+    pos = base["6"]["inputs"]["text"]
+    if handdrawn:
+        # At the END, not spliced: a mid-prompt insertion re-rolls every token
+        # after it, which is why HIRES_FINISH exists apart from HIRES_POSITIVE.
+        # THIN is REMOVED IF PRESENT rather than asserted -- head framings never
+        # carry it (`recipe.positive` gates it on the full figure), and this
+        # pass is handed a finished graph rather than a pose record, so it
+        # cannot know which it is holding.
+        pos = pos.replace(", " + yr.THIN, "") + yr.HANDDRAWN_FINISH
+    # The kick toe ban, unless the costume is barefoot on purpose -- banning
+    # toes under `(barefoot:1.35)` redraws the feet as mittens in pass 2.
+    toe_ban = "" if "barefoot" in pos else "(toes:1.55), "
+    p2_neg = (toe_ban + yr.SHADE_BAN + base["7"]["inputs"]["text"])
+    graph = rf.chain_pass(base, 2048, denoise, prefix,
+                          prompt=(pos, p2_neg))
+    prompt_id = comfy("/prompt", {"prompt": graph})["prompt_id"]
+    print(f"{prefix} {prompt_id}")
+
+    image = wait_for(prompt_id)[-1]
+    raw = fetch(image)
+
+    delivered, tag = clean_background(raw)
+    FINALIZE_WORKDIR.mkdir(parents=True, exist_ok=True)
+    stem = Path(image["filename"]).stem
+    delivered_name = f"{stem}-{tag}-delivered.png"
+    (FINALIZE_WORKDIR / image["filename"]).write_bytes(raw)
+    (FINALIZE_WORKDIR / delivered_name).write_bytes(delivered)
+
+    git = git_metadata()
+    batch = api("POST", "/api/v1/batches", {
+        "idempotency_key": str(uuid.uuid4()),
+        "raw_instruction": (f"{short_id} を高解像度化"
+                            + ("・手書き風の仕上げ" if handdrawn else "")),
+        "recipe": "yukari",
+        "parameters": {"kind": "hires-chain",
+                       "base_generation": short_id,
+                       "size": 2048, "denoise": denoise,
+                       **({"finish": "handdrawn"} if handdrawn else {})},
+        "git_commit": git["commit"], "git_dirty": git["dirty"],
+        "references": [{"source_generation_id": short_id,
+                        "purpose": "rebuild", "aspect": "composition",
+                        "instruction": "この生成の 2048 プリント"}],
+        "refinement": {"source_batch_id": ctx["batch"]["id"],
+                       "actor": "human", "reason": "採用作の高解像度化"},
+    })
+    job = api("POST", f"/api/v1/batches/{batch['id']}/jobs",
+              {"idempotency_key": str(uuid.uuid4()),
+               "seed": seed, "index": 0})
+    api("PATCH", f"/api/v1/jobs/{job['id']}",
+        {"status": "queued", "comfy_prompt_id": prompt_id, "graph": graph})
+    api("PATCH", f"/api/v1/jobs/{job['id']}", {"status": "completed"})
+    urls = []
+    for idx, (name, data) in enumerate([(image["filename"], raw),
+                                        (delivered_name, delivered)]):
+        row = api("POST", f"/api/v1/jobs/{job['id']}/generations",
+                  multipart=({"seed": seed, "original_filename": name,
+                              "comfy_output_index": idx},
+                             "image", name, data, "image/png"))
+        urls.append(row["canonical_url"])
+        print(f"{name} -> {row['canonical_url']}")
+    api("PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
+    api("PATCH", f"/api/v1/batches/{batch['id']}", {"status": "completed"})
+
+    notify(f"**finalize** `{short_id}`\n"
+           f"**file** `{delivered_name}`\n"
+           f"**chimera** {urls[1]}", delivered_name, delivered)
+    print(f"batch {batch.get('short_id', batch['id'])} done")
 
 
 def put_semantic(generation_id: str, semantic: dict) -> dict:
@@ -362,6 +541,16 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force", action="store_true",
                         help="run despite positive/negative contradictions")
+    parser.add_argument("--finalize", metavar="SHORT_ID",
+                        help="deliver one picked generation: replay its graph, "
+                             "chain a 2048 pass, clean the background, stroke, "
+                             "record as a refinement batch")
+    parser.add_argument("--denoise", type=float,
+                        help="pass-2 denoise for --finalize (default: "
+                             "delivery_style.FINALIZE_DENOISE)")
+    parser.add_argument("--handdrawn", action="store_true",
+                        help="with --finalize, 手書き風の仕上げ: THIN を外し、"
+                             "marker ペアをパス2のプロンプト末尾に足す")
     parser.add_argument("--semantic", nargs=2, metavar=("GEN_ID", "FILE"),
                         help="PUT the semantic JSON in FILE onto a "
                              "generation (enrich or backfill; replaces)")
@@ -377,6 +566,10 @@ def main() -> None:
     args = parser.parse_args()
     global _CREDS
 
+    if args.finalize:
+        _CREDS = credentials()
+        finalize(args.finalize, args.denoise, args.handdrawn)
+        return
     if args.semantic or args.tag or args.asset or args.list_assets:
         _CREDS = credentials()
         if args.semantic:
@@ -401,7 +594,8 @@ def main() -> None:
                 print(f"{name}  {row['content_type']}  {row['size']}")
         return
     if not args.request:
-        parser.error("--request is required (unless --semantic/--tag)")
+        parser.error("--request is required "
+                     "(unless --finalize/--semantic/--tag)")
 
     req = json.loads(args.request.read_text())
     validate(req)

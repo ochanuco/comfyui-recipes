@@ -96,13 +96,12 @@ def main() -> None:
     sources: list[tuple[str, bytes]] = []
     if args.ids:
         import generate
-        import post_renders
         generate._CREDS = generate.credentials()
         for sid in args.ids:
             req = urllib.request.Request(
                 f"{generate.BASE}/g/{sid}/image",
                 headers={**generate._CREDS,
-                         "User-Agent": post_renders.USER_AGENT})
+                         "User-Agent": generate.USER_AGENT})
             with urllib.request.urlopen(req, timeout=120) as r:
                 sources.append((sid, r.read()))
     for path in args.file:

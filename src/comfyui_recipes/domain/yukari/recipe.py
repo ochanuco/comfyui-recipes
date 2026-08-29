@@ -1,4 +1,4 @@
-"""The interpreter: pose records + style blocks -> the settled prompts and graph.
+"""The interpreter: pose records and style blocks into a render specification.
 
 This file owns the ORDER and nothing else. Token order changes the encoding
 -- a mid-prompt insertion re-rolls every token after it, and this recipe has
@@ -11,7 +11,8 @@ record and no changes to this file.
 from __future__ import annotations
 
 from .costumes import COSTUME_NEGATIVE_EDITS, COSTUMES, SHOD
-from .model import S_MIDRIFF, Edit
+from ..generation.models import HiresSpec, PromptPair, RenderSpec
+from .models import S_MIDRIFF, Edit
 from .poses import POSE_RECORDS, POSES
 from .prompt_style import (
     BODY,
@@ -156,9 +157,10 @@ def negative(pose: str, costume: str = "default") -> str:
                   costume)
 
 
-def build(pose: str, seed: int, prefix: str, hires: int = 0,
-          denoise: float | None = None, costume: str = "default") -> dict:
-    """The settled graph. `hires` adds a second pass at that square size.
+def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
+                denoise: float | None = None,
+                costume: str = "default") -> RenderSpec:
+    """The settled recipe, independent of ComfyUI node ids and transport.
 
     The canvas of the first pass never changes, because that is the pass that
     decides the composition -- including how many people are in it. Raising the
@@ -169,31 +171,9 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
     """
     rec = POSE_RECORDS[pose]
     width, height = rec.size
-    graph = {
-        "4": {"class_type": "DiffusersLoader",
-              "inputs": {"model_path": "hassaku-il-v22"}},
-        "5": {"class_type": "EmptyLatentImage",
-              "inputs": {"batch_size": 1, "width": width, "height": height}},
-        "6": {"class_type": "CLIPTextEncode",
-              "inputs": {"clip": ["4", 1], "text": positive(pose, costume)}},
-        "7": {"class_type": "CLIPTextEncode",
-              "inputs": {"clip": ["4", 1], "text": negative(pose, costume)}},
-        "3": {"class_type": "KSampler", "inputs": {
-            "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
-            "latent_image": ["5", 0], "seed": seed, "steps": 30, "cfg": 5.0,
-            # dpmpp_2m, reset to b1258b0c. euler_ancestral took clean renders from
-            # 4-of-7 to 7-of-7 and is the better sampler for clutter -- but it
-            # re-injects noise each step, so every seed draws something else and
-            # the picked render cannot be reproduced under it. Switch back if
-            # clutter matters more than this particular image.
-            "sampler_name": "dpmpp_2m", "scheduler": "karras", "denoise": 1.0}},
-        "8": {"class_type": "VAEDecode",
-              "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
-        "9": {"class_type": "SaveImage",
-              "inputs": {"images": ["8", 0],
-                         "filename_prefix": f"{prefix}-{pose}-{seed}"}},
-    }
-
+    base_positive = positive(pose, costume)
+    base_negative = negative(pose, costume)
+    hires_spec = None
     if hires:
         longest = max(width, height)
         # bicubic, not bislerp. A latent pixel is an 8x8 patch of picture, so
@@ -203,29 +183,15 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
         # instead, and they are smooth. Scaling in image space through a VAE
         # round trip fixes it too, and is not needed: the resampler was the
         # whole problem, not the fact that it ran on a latent.
-        graph["10"] = {"class_type": "LatentUpscale", "inputs": {
-            "samples": ["3", 0], "upscale_method": "bicubic",
-            "width": round(hires * width / longest / 8) * 8,
-            "height": round(hires * height / longest / 8) * 8,
-            "crop": "disabled"}}
-        graph["11"] = {"class_type": "KSampler", "inputs": {
-            "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
-            "latent_image": ["10", 0], "seed": seed, "steps": 30, "cfg": 5.0,
-            "sampler_name": "dpmpp_2m", "scheduler": "karras",
-            "denoise": (rec.hires_print[1] if denoise is None
-                                              and rec.hires_print
-                        else HIRES_DENOISE if denoise is None else denoise)}}
+        hires_positive = None
         if rec.hires_finish:
             assert not rec.hires_positive, "one pass-2 positive, not two"
-            text = positive(pose, costume)
+            text = base_positive
             # Asserted rather than replaced blind: a `.replace` against a string
             # the prompt no longer contains does nothing and says nothing, which
             # is a mistake this file has paid for before.
             assert text.count(", " + THIN) == 1, pose
-            text = text.replace(", " + THIN, "") + rec.hires_finish
-            graph["6b"] = {"class_type": "CLIPTextEncode",
-                           "inputs": {"clip": ["4", 1], "text": text}}
-            graph["11"]["inputs"]["positive"] = ["6b", 0]
+            hires_positive = text.replace(", " + THIN, "") + rec.hires_finish
         if rec.hires_positive:
             # The mechanism the kick expression rounds proved out, kept even
             # while no pose uses it: a pass-2 positive reaches anything a late
@@ -235,7 +201,7 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
             # pose's tags, and this splice finds the pose block inside the
             # finished prompt by matching it.
             block = pose_block(pose, costume)
-            text = positive(pose, costume).replace(
+            text = base_positive.replace(
                 block, block + ", " + rec.hires_positive)
             # A pass cannot say `closed mouth` and `(open mouth:1.35)` at
             # once, and FACE says the first for every pose without
@@ -245,22 +211,35 @@ def build(pose: str, seed: int, prefix: str, hires: int = 0,
             if "open mouth" in rec.hires_positive:
                 assert "closed mouth, " in text, pose
                 text = text.replace("closed mouth, ", "")
-            graph["6b"] = {"class_type": "CLIPTextEncode",
-                           "inputs": {"clip": ["4", 1], "text": text}}
-            graph["11"]["inputs"]["positive"] = ["6b", 0]
+            hires_positive = text
         # Unconditional: SHADE_BAN applies to every pose -- the gloss is a
         # property of the redraw, not of any one pose -- so there is always a
         # second negative, and the record only decides what goes in FRONT of
         # it. (The architecture note above HAND_BAN in `prompt_style.py` is
         # why a subtractive guard belongs to the late pass.)
-        graph["7b"] = {"class_type": "CLIPTextEncode", "inputs": {
-            "clip": ["4", 1],
-            "text": (SHADE_BAN + rec.hires_negative
-                     + negative(pose, costume))}}
-        graph["11"]["inputs"]["negative"] = ["7b", 0]
-        graph["8"]["inputs"]["samples"] = ["11", 0]
+        hires_spec = HiresSpec(
+            width=round(hires * width / longest / 8) * 8,
+            height=round(hires * height / longest / 8) * 8,
+            denoise=(rec.hires_print[1] if denoise is None and rec.hires_print
+                     else HIRES_DENOISE if denoise is None else denoise),
+            positive=hires_positive,
+            negative=SHADE_BAN + rec.hires_negative + base_negative,
+        )
 
-    return graph
+    return RenderSpec(
+        model_path="hassaku-il-v22",
+        prompts=PromptPair(base_positive, base_negative),
+        width=width,
+        height=height,
+        seed=seed,
+        steps=30,
+        cfg=5.0,
+        sampler_name="dpmpp_2m",
+        scheduler="karras",
+        denoise=1.0,
+        filename_prefix=f"{prefix}-{pose}-{seed}",
+        hires=hires_spec,
+    )
 
 
 # ---- derived views ------------------------------------------------------

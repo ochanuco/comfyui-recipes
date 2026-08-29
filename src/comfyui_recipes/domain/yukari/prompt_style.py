@@ -1,4 +1,4 @@
-"""The author's hand, prompt side: face, surface, body, line, and the negative.
+"""Yukari's prompt-side identity: face, surface, body, line and negative.
 
 These blocks are the identity of the drawing -- every pose and every costume
 wears all of them at once. A pose that needs a departure declares it as an

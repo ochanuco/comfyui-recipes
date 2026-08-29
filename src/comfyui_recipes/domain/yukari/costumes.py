@@ -8,7 +8,7 @@ clothes, not her and not the drawing.
 
 from __future__ import annotations
 
-from .model import S_BARE_LEGS, S_FABRIC, S_KNOT, S_MIDRIFF, S_SEAM, S_TINT_RELEASE, Edit
+from .models import S_BARE_LEGS, S_FABRIC, S_KNOT, S_MIDRIFF, S_SEAM, S_TINT_RELEASE, Edit
 
 # Who she is, as against what she is wearing. Split out of CHARACTER the day a
 # second costume arrived: the garments below are one of two sets now, and this

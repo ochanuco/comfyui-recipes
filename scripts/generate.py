@@ -310,7 +310,7 @@ def clean_background(data: bytes) -> tuple[bytes, str]:
 
     import outline_stroke
     import recolor_bg
-    from yukari import delivery_style
+    from comfyui_recipes.domain.yukari import delivery_style
 
     backdrop = recolor_bg.parse_color(delivery_style.BACKDROP)
     pixels = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(int)
@@ -359,7 +359,7 @@ def finalize(short_id: str, denoise: float | None, handdrawn: bool) -> None:
 
     import refine_from_history as rf
     import yukari_recipe as yr
-    from yukari import delivery_style
+    from comfyui_recipes.domain.yukari import delivery_style
 
     if denoise is None:
         denoise = delivery_style.FINALIZE_DENOISE

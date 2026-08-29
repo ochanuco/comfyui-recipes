@@ -504,7 +504,7 @@ def fingerprint() -> str:
 
 def delivery_fingerprint() -> str:
     """A hash of the delivery identity, from a canonical payload."""
-    from yukari import delivery_style as d
+    from comfyui_recipes.domain.yukari import delivery_style as d
     payload = json.dumps({
         "schema": FINGERPRINT_SCHEMA,
         "backdrop": d.BACKDROP,

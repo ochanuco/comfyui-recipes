@@ -14,7 +14,7 @@ under the pose's name.
 
 from __future__ import annotations
 
-from .model import (
+from .models import (
     Edit,
     Pose,
     S_CROWD,

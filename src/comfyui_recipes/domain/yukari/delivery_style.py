@@ -1,4 +1,4 @@
-"""The author's hand, delivery side: what happens to a render after the model.
+"""Yukari's delivery policy: what happens to a render after the model.
 
 The prompt cannot hold these values -- the backdrop is not prompt-stable and
 the purple marker is a post-process -- but they are identity all the same,

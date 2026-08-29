@@ -105,12 +105,12 @@ import urllib.request
 
 from comfy_host import DEFAULT_HOST, DEFAULT_PORT
 
-# The recipe lives in the `yukari` package now -- prompt_style / costumes /
-# poses / recipe -- and this file is the CLI plus the public surface. Every
+# The recipe lives in the package domain now -- prompt_style / costumes /
+# poses / recipe -- and this file is the temporary CLI plus public facade. Every
 # name below is re-exported explicitly because a decade of scripts (and
 # .local probes) import them from here; `costume_check.py` fingerprints them
 # from here too. Adding to the package? Export it here or it does not exist.
-from yukari.costumes import (
+from comfyui_recipes.domain.yukari.costumes import (
     CHARACTER,
     COSTUME_NEGATIVE_EDITS,
     COSTUMES,
@@ -130,8 +130,8 @@ from yukari.costumes import (
     SPORTY_HOOD,
     SPORTY_LEGWEAR,
 )
-from yukari.model import Edit, Pose
-from yukari.poses import (
+from comfyui_recipes.domain.yukari.models import Edit, Pose
+from comfyui_recipes.domain.yukari.poses import (
     CROWD_BAN,
     GAO_FACE,
     GAO_HANDS,
@@ -139,7 +139,7 @@ from yukari.poses import (
     POSES,
     SCENE_TRAIN,
 )
-from yukari.prompt_style import (
+from comfyui_recipes.domain.yukari.prompt_style import (
     RESTING_EYES,
     BODY,
     FACE,
@@ -152,7 +152,7 @@ from yukari.prompt_style import (
     SURFACE,
     THIN,
 )
-from yukari.recipe import (
+from comfyui_recipes.domain.yukari.recipe import (
     HEAD_FRAMINGS,
     HIRES_FINISH,
     HIRES_NEGATIVE,
@@ -164,11 +164,11 @@ from yukari.recipe import (
     SWEEP_SEEDS,
     _apply,
     _splice,
-    build,
     negative,
     pose_block,
     positive,
 )
+from comfyui_recipes.infrastructure.comfyui.yukari_graph import build
 
 
 def _negative_base(pose: str) -> str:
@@ -178,7 +178,7 @@ def _negative_base(pose: str) -> str:
     monkeypatching it (as old .local probes did) no longer reaches the
     recipe. Patch the record's `negative_base` instead.
     """
-    from yukari.recipe import _apply as apply_edits
+    from comfyui_recipes.domain.yukari.recipe import _apply as apply_edits
     return apply_edits(NEGATIVE, POSE_RECORDS[pose].negative_base, "default")
 
 

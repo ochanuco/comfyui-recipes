@@ -16,7 +16,7 @@ down -- a render paler than the palette is left alone. Window edges and the
 low-S floor are feathered, so nothing bands.
 
 The values are not this tool's to choose (recolor_bg's --color rule): the
-windows and targets live in `yukari.delivery_style.PALETTE_WINDOWS`, frozen
+windows and targets live in the Yukari domain's `delivery_style`, frozen
 from the reference stand's measurement.
 
     uv run scripts/repin.py <in.png> <out.png>
@@ -30,7 +30,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import recolor_bg  # noqa: E402
-from yukari.delivery_style import (  # noqa: E402
+from comfyui_recipes.domain.yukari.delivery_style import (  # noqa: E402
     FIGURE_LIGHT_V, PALETTE_WINDOWS,
 )
 

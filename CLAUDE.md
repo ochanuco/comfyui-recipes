@@ -12,12 +12,13 @@ complete command, and every preset in it was arrived at by rendering.
 
 One recipe is live:
 
-- `scripts/yukari_recipe.py` — Yukari; this is where the current work happens.
-  The CLI plus the public surface: the recipe itself is the `scripts/yukari/`
-  package — `prompt_style.py` and `delivery_style.py` (the author identity),
+- `scripts/yukari_recipe.py` — Yukari's temporary CLI and compatibility
+  facade. The recipe itself is under `src/comfyui_recipes/domain/yukari/` —
+  `prompt_style.py` and `delivery_style.py` (the author identity),
   `costumes.py` (the wardrobe), `poses.py` (one record per pose),
-  `recipe.py` (the interpreter that owns the assembly order), `model.py`
-  (the `Pose`/`Edit` dataclasses). A new pose is one `POSES` entry plus one
+  `recipe.py` (the interpreter that owns the assembly order), `models.py`
+  (the `Pose`/`Edit` dataclasses). The ComfyUI node encoding is separate under
+  `infrastructure/comfyui/`. A new pose is one `POSES` entry plus one
   `POSE_RECORDS` entry in `poses.py`, nothing else.
 
 Everything measured goes in `docs/render-notes.md`, including the measurements
@@ -36,8 +37,8 @@ Use `dev/<topic>` branches for implementation and merge only after review.
 ## Look things up; do not read them
 
 Two files dominate this repository: `docs/render-notes.md` (~68k tokens) and
-`scripts/yukari/poses.py` (~30k). Both are exactly what a one-line question
-tempts you to open whole.
+`src/comfyui_recipes/domain/yukari/poses.py` (~30k). Both are exactly what a
+one-line question tempts you to open whole.
 Opening any of them without a line range is a mistake, not a thorough approach.
 
 ```bash
@@ -163,10 +164,10 @@ The webhook is a credential and lives in `.local/discord-webhook` or
 
 ## The costume is a contract, not a preference
 
-The shared blocks — `CHARACTER`, `LEGWEAR`, `BODY`, `FACE`, `SURFACE`, in
-`scripts/yukari/costumes.py` and `prompt_style.py` — are worn by **every pose
+The shared blocks — `CHARACTER`, `LEGWEAR`, `BODY`, `FACE`, `SURFACE`, in the
+Yukari domain's `costumes.py` and `prompt_style.py` — are worn by **every pose
 at once**, and the delivery identity (backdrop `#c7e5e9`, the purple stroke,
-the acceptance band, in `scripts/yukari/delivery_style.py`) is worn by every
+the acceptance band, in `delivery_style.py`) is worn by every
 delivered picture. Editing either changes every render this repo has ever
 approved, which is why `scripts/costume_check.py` hashes both and fails on
 any change it was not told about:

@@ -1,4 +1,4 @@
-"""The data model: one pose is one record, one prompt change is one Edit.
+"""Yukari domain models: one pose is one record, one change is one Edit.
 
 The recipe's domain logic is token order -- a mid-prompt insertion re-rolls
 every token after it, and the interpreter in `recipe.py` applies edits in a

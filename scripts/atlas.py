@@ -2,7 +2,8 @@
 """Where things are, without reading them.
 
 This repo is expensive to look at. `docs/render-notes.md` is ~68k tokens,
-`scripts/yukari/poses.py` ~30k -- the largest active recipe file; together these
+`src/comfyui_recipes/domain/yukari/poses.py` ~30k -- the largest active recipe
+file; together these
 are more than half the repository, and both are files an agent is tempted to
 open whole to answer a one-line question. This prints the answer instead.
 
@@ -55,7 +56,7 @@ def imported_by(paths: list[Path]) -> dict[str, set[str]]:
     used: dict[str, set[str]] = {p.stem: set() for p in paths}
     for path in paths:
         text = path.read_text(errors="replace")
-        # `from yukari.costumes import ...` and the package's own relative
+        # Package imports and the package's own relative
         # `from .model import ...` both count: credit every dotted component.
         for match in re.finditer(r"^\s*(?:from|import)\s+\.?([\w.]+)", text, re.M):
             for part in match.group(1).split("."):

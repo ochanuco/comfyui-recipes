@@ -35,16 +35,7 @@ def parse_color(text: str) -> tuple[int, int, int]:
 
 
 def background_mask(pixels: np.ndarray, tolerance: int) -> np.ndarray:
-    """Every backdrop region that reaches the frame edge, not just the corner's.
-
-    A figure that crosses the frame cuts the backdrop into pieces, and keeping
-    only the piece the top-left corner is in leaves the rest at the render's
-    own colour. Downstream `clean_background` used to cover for that by
-    flattening the smaller off-backdrop components, which works only while the
-    leftover backdrop is NOT touching the figure -- so the miss surfaced as
-    half a head crop staying grey, with the purple stroke drawn along the seam
-    between the repainted and untouched halves.
-    """
+    """Every backdrop region that reaches the frame edge."""
     seed = pixels[0, 0]
     candidates = np.abs(pixels - seed).max(axis=2) <= tolerance
     structure = ndimage.generate_binary_structure(2, 1)

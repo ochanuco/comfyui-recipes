@@ -28,11 +28,12 @@ class FinalizeServices:
     emit: Callable[[str], None] = print
     repin: Callable[[bytes], tuple[bytes, list[str]]] | None = None
     measure: Callable[[bytes], dict] | None = None
+    recolor: Callable[[bytes], tuple[bytes, list[str]]] | None = None
 
 
 def finalize(generation_id: str, services: FinalizeServices, *,
              denoise: float | None = None, handdrawn: bool = False,
-             apply_repin: bool = True,
+             apply_repin: bool = True, apply_recolor: bool = False,
              keep_legwear: float | None = None) -> None:
     if denoise is None:
         denoise = delivery_style.FINALIZE_DENOISE
@@ -67,7 +68,13 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         services.emit(
             f"palette {status}: fig mid {summary['fig_sat_mean']:.1f} "
             f"p90 {summary['fig_sat_p90']:.0f} light {summary['light_sat']:.1f}")
-    if apply_repin and services.repin is not None:
+    recolor_applied = apply_recolor and services.recolor is not None
+    repin_applied = (not recolor_applied) and apply_repin and services.repin is not None
+    if recolor_applied:
+        to_deliver, report = services.recolor(raw)
+        for line in report:
+            services.emit(f"recolor {line}")
+    elif repin_applied:
         to_deliver, report = services.repin(raw)
         for line in report:
             services.emit(f"repin {line}")
@@ -85,7 +92,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         "parameters": {"kind": "hires-chain",
                        "base_generation": generation_id,
                        "size": FINALIZE_SIZE, "denoise": denoise,
-                       "repin": bool(apply_repin and services.repin is not None),
+                       "repin": repin_applied,
+                       **({"recolor": True} if recolor_applied else {}),
                        **({"keep_legwear": keep_legwear}
                           if keep_legwear is not None else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},

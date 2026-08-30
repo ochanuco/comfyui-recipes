@@ -110,3 +110,62 @@ BACKDROP_SPREAD_MAX = 25.0
 # faithfully and reads clean. Chosen over a tag-based finish, which never
 # beat the plain pass at either denoise.
 FINALIZE_DENOISE = 0.55
+
+# Lineart-preserving recolour (infrastructure/imaging/recolor.py). Where
+# repin nudges the render's own saturation, recolor asserts a material's
+# colour outright and can therefore fix value too -- a washed-out black that
+# repin leaves alone by design. A line pixel is one this much darker than
+# its own neighbourhood, not merely dark on its own, so flat dark fills
+# (the hoodie, deep shadow) never get mistaken for linework. All of the
+# numbers below are measured from tv639u, the picked reference render.
+RECOLOR_LINE_MAX = 110
+RECOLOR_LINE_RELIEF = 40
+RECOLOR_LINE_WINDOW = 7
+
+# Per-material HSV targets, PIL's 0-255 scale, tv639u's own measured fills.
+RECOLOR_TARGETS = {
+    "hair":   (188, 15, 234),
+    "hoodie": (221, 23, 64),
+    "dress":  (185, 34, 209),
+    "skin":   (16, 27, 249),
+    "white":  (0, 0, 255),
+}
+
+# How much of a region's own value survives the repaint, against the target
+# V, so the render's own shading still reads under the asserted colour.
+RECOLOR_KEEP_V = {
+    "hoodie": 0.8, "hair": 0.6, "dress": 0.6,
+    "skin": 0.5, "white": 0.5, "tights": 0.45,
+}
+
+# Legwear does not take one target: it is painted from this gradient,
+# interpolated per pixel row against height share so the purple comes up
+# the leg the same way regardless of how tall the labelled region is --
+# neutral black through the knee, the purple only showing near the foot.
+RECOLOR_LEG_STOPS = (
+    (0.72, (219, 23, 64)),
+    (0.82, (0, 6, 32)),
+    (0.90, (212, 69, 57)),
+    (1.00, (229, 117, 129)),
+)
+# Below this height (as a share of the figure's own bounding box, not the
+# canvas) a dark fill is legwear; above it, the same darkness is the hoodie.
+RECOLOR_LEG_CY = 0.72
+# Value cannot find the legs on a washed-out render -- one measured pair put
+# them at 239 and 255, brighter than the dress -- so a fill this large sitting
+# below RECOLOR_LEG_CY is legwear whatever its value. The share separates the
+# leg masses, which run from 8 percent of the figure upward, from the hands
+# and the stray hair that also fall that low at under 2.
+RECOLOR_LEG_MIN_AREA = 0.05
+
+# classify's remaining thresholds. A fill this saturated is an accent --
+# the iris, a hair pin -- and keeps its own colour rather than a target.
+# Outside this hue window a fill reads as skin regardless of saturation.
+# Below RECOLOR_WHITE_S at high value it is a frill; below RECOLOR_HAIR_S
+# it is hair; otherwise it is the dress. Below RECOLOR_DARK_V a fill is a
+# dark garment, split into hoodie or tights by RECOLOR_LEG_CY above.
+RECOLOR_ACCENT_S = 150
+RECOLOR_SKIN_HUE = (48, 240)
+RECOLOR_WHITE_S = 8
+RECOLOR_HAIR_S = 45
+RECOLOR_DARK_V = 120

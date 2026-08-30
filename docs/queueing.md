@@ -78,6 +78,16 @@ verbatim, fading the correction to zero over its feathered edge; the cut is
 the width share the legs stay left of (default 0.62), a property of the
 composition.
 
+`--recolor` replaces repin in the same slot for renders where repin cannot
+reach the actual defect: repin only ever nudges saturation, so a washed-out
+black or a flat white fill has no gradation left for any curve to open.
+Recolor instead detects the render's own linework, labels the fills it
+encloses, classifies each fill as a material (hair, hoodie, dress, skin,
+legwear, ...), and repaints it from a measured reference palette outright --
+asserting the render's colour rather than nudging it, at the cost of
+trusting the classifier where repin trusts the render. `--recolor` and
+repin are mutually exclusive; the flag wins when both would otherwise apply.
+
 ## A minimal prompt
 
 ```bash

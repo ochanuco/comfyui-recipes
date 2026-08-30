@@ -21,6 +21,7 @@ from ..infrastructure.imaging.delivery import (
     clean_background, corner_spread, graph_from_png,
 )
 from ..infrastructure.imaging.palette import repin_png, summarize
+from ..infrastructure.imaging.recolor import recolor_png
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
 from ..infrastructure.repository import discover_repository, git_metadata
@@ -40,6 +41,7 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument("--denoise", type=float)
     finalize_parser.add_argument("--handdrawn", action="store_true")
     finalize_parser.add_argument("--no-repin", action="store_true")
+    finalize_parser.add_argument("--recolor", action="store_true")
     finalize_parser.add_argument(
         "--keep-legwear", nargs="?", const=0.62, type=float, default=None,
         metavar="COL_CUT",
@@ -121,9 +123,11 @@ def main(argv: list[str] | None = None) -> None:
             output_root=repository / ".local/_nogit/finalize",
             repin=lambda data: repin_png(data, keep_legwear=args.keep_legwear),
             measure=summarize,
+            recolor=recolor_png,
         )
         finalize(args.generation_id, services, denoise=args.denoise,
                  handdrawn=args.handdrawn, apply_repin=not args.no_repin,
+                 apply_recolor=args.recolor,
                  keep_legwear=args.keep_legwear)
         return
 

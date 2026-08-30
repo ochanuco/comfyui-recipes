@@ -3,88 +3,19 @@
     uv run scripts/palette_check.py <short_id> [<short_id> ...]
     uv run scripts/palette_check.py --file <png> [...]
 
-The lap deep-dive's failures -- a neon backdrop, a saturation explosion, a
-pink cast -- were all numbers before they were opinions: background hue and
-saturation, and frame-wide mean saturation, all sat far outside the band
-every approved render lives in. Nothing measured them until the human had
-already seen the damage. This is the acceptance gate: run it on every arm
-the moment it is ingested, and do not present a FAIL as a candidate.
-
-The band is from measured approved work (kfuthu 54.5, lx2mjb 41.6,
-uk1jfi 41.5, and the y-arms' 68-86 pink drift already read as "寄っている"):
-mean saturation 30-70, background saturation under 60. A pass is not
-approval -- the human still judges -- but a FAIL never goes forward.
+This is the acceptance gate: run it on every arm the moment it is ingested,
+and do not present a FAIL as a candidate. A pass is not approval -- the
+human still judges -- but a FAIL never goes forward. `measure`/`verdict`
+live in `comfyui_recipes.infrastructure.imaging.palette`; this is the CLI.
 """
 from __future__ import annotations
 
 import argparse
-import io
-import sys
-import urllib.request
 from pathlib import Path
 
-import numpy as np
-from PIL import Image
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import recolor_bg  # noqa: E402
-from comfyui_recipes.domain.yukari.delivery_style import (  # noqa: E402
-    BACKDROP_SPREAD_MAX, BG_SAT_MAX, FIGURE_LIGHT_SAT_TARGET, FIGURE_LIGHT_V,
-    FIGURE_MIDTONE_V, FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX, SAT_BAND,
-)
-
-
-def measure(data: bytes) -> dict:
-    im = np.array(Image.open(io.BytesIO(data)).convert("RGB"))
-    hsv = np.array(Image.fromarray(im).convert("HSV")).astype(float)
-    edge = np.concatenate([im[:30].reshape(-1, 3), im[-30:].reshape(-1, 3),
-                           im[:, :30].reshape(-1, 3), im[:, -30:].reshape(-1, 3)])
-    bg = np.median(edge, axis=0).astype(int)
-    bg_hsv = np.array(Image.fromarray(bg[None, None].astype(np.uint8))
-                      .convert("HSV")).astype(float)[0, 0]
-    # The figure's midtone saturation: black tights/coat sit under the V
-    # floor and stay exempt (delivery_style's 「タイツを除く」 rule). On a
-    # non-flat backdrop the flood under-reaches and backdrop leaks into
-    # "figure"; those renders fail the flatness screen before this number
-    # means anything, so the leak is not worth a guard here.
-    mask = recolor_bg.background_mask(im.astype(int), 18)
-    mask |= recolor_bg.enclosed_mask(im.astype(int), mask, 4)
-    c = 40
-    corners = [im[:c, :c], im[:c, -c:], im[-c:, :c], im[-c:, -c:]]
-    corner_means = [x.reshape(-1, 3).mean() for x in corners]
-    mid = ~mask & (hsv[..., 2] >= FIGURE_MIDTONE_V)
-    fig_s = hsv[..., 1][mid] if mid.any() else np.zeros(1)
-    light = ~mask & (hsv[..., 2] >= FIGURE_LIGHT_V)
-    light_s = float(hsv[..., 1][light].mean()) if light.any() else 0.0
-    return {"bg": tuple(bg), "bg_sat": float(bg_hsv[1]),
-            "sat": float(hsv[..., 1].mean()),
-            "fig_sat_mean": float(fig_s.mean()),
-            "fig_sat_p90": float(np.percentile(fig_s, 90)),
-            "light_sat": light_s,
-            "norm_factor": min(1.0, FIGURE_LIGHT_SAT_TARGET / light_s)
-            if light_s else 1.0,
-            "corner_spread": float(max(corner_means) - min(corner_means))}
-
-
-def verdict(m: dict) -> list[str]:
-    fails = []
-    if not SAT_BAND[0] <= m["sat"] <= SAT_BAND[1]:
-        fails.append(f"mean saturation {m['sat']:.1f} outside {SAT_BAND}")
-    if m["bg_sat"] > BG_SAT_MAX:
-        fails.append(f"background saturation {m['bg_sat']:.1f} > {BG_SAT_MAX}")
-    if m["fig_sat_mean"] > FIGURE_SAT_MEAN_MAX:
-        fails.append(f"figure midtone saturation {m['fig_sat_mean']:.1f} > "
-                     f"{FIGURE_SAT_MEAN_MAX}")
-    if m["fig_sat_p90"] > FIGURE_SAT_P90_MAX:
-        fails.append(f"figure midtone p90 saturation {m['fig_sat_p90']:.1f} > "
-                     f"{FIGURE_SAT_P90_MAX}")
-    if m["corner_spread"] > BACKDROP_SPREAD_MAX:
-        fails.append(f"backdrop not flat: corner spread "
-                     f"{m['corner_spread']:.1f} > {BACKDROP_SPREAD_MAX} "
-                     f"(gradient backdrop starves the flood mask; every "
-                     f"figure number above is suspect)")
-    return fails
+from comfyui_recipes.infrastructure.chimera.client import ChimeraClient
+from comfyui_recipes.infrastructure.imaging.palette import measure, verdict
+from comfyui_recipes.infrastructure.repository import discover_repository
 
 
 def main() -> None:
@@ -95,15 +26,9 @@ def main() -> None:
     failed = False
     sources: list[tuple[str, bytes]] = []
     if args.ids:
-        import generate
-        generate._CREDS = generate.credentials()
+        chimera = ChimeraClient(discover_repository())
         for sid in args.ids:
-            req = urllib.request.Request(
-                f"{generate.BASE}/g/{sid}/image",
-                headers={**generate._CREDS,
-                         "User-Agent": generate.USER_AGENT})
-            with urllib.request.urlopen(req, timeout=120) as r:
-                sources.append((sid, r.read()))
+            sources.append((sid, chimera.fetch_generation_image(sid)))
     for path in args.file:
         sources.append((str(path), path.read_bytes()))
     for name, data in sources:

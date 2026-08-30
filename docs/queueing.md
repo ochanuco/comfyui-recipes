@@ -65,6 +65,19 @@ the resolved positive prompt, the graph nodes, and the applied patch count,
 and a patch that cannot compile (an absent needle, a bad type) fails there
 -- and on a real run it fails before the batch is created.
 
+Every render is measured against the palette bands at ingest, and the
+numbers -- plus a pass/FAIL verdict -- land in its semantic attributes.
+`comfy-recipes finalize` repins the render before the layered delivery;
+`--no-repin` skips it. The repin compresses saturation per V band toward
+the reference render's knees (`delivery_style`'s `REPIN_*`): below a knee a
+pixel is untouched, above it only a fraction of the excess survives, and
+accent-grade saturation -- the iris, the hair pins -- keeps most of its
+excess and its own hue, so the eyes stay vivid while vivid fields pin pale.
+`--keep-legwear [COL_CUT]` additionally keeps an asserted legwear region
+verbatim, fading the correction to zero over its feathered edge; the cut is
+the width share the legs stay left of (default 0.62), a property of the
+composition.
+
 ## A minimal prompt
 
 ```bash

@@ -98,4 +98,8 @@ ACCENT_KEEP = 0.65
 BACKDROP_SPREAD_MAX = 25.0
 
 # finalize's masked refine, the denoise a 2048 print's touch-up runs at.
-FINALIZE_DENOISE = 0.45
+# 0.55 over 0.45: the higher pass loosens the lines into the hand-drawn
+# feel the base style aims for, where 0.45 tracks the raw render too
+# faithfully and reads clean. Chosen over a tag-based finish, which never
+# beat the plain pass at either denoise.
+FINALIZE_DENOISE = 0.55

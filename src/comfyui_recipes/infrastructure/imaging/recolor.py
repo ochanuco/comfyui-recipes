@@ -19,19 +19,26 @@ from scipy import ndimage
 
 from .palette import figure_mask
 from ...domain.yukari.delivery_style import (
-    RECOLOR_ACCENT_S, RECOLOR_DARK_V, RECOLOR_HAIR_S, RECOLOR_KEEP_V,
+    RECOLOR_ACCENT_ERODE, RECOLOR_ACCENT_S, RECOLOR_DARK_V,
+    RECOLOR_HAIR_S, RECOLOR_KEEP_HS, RECOLOR_KEEP_V,
     RECOLOR_LEG_CY, RECOLOR_LEG_MIN_AREA, RECOLOR_LEG_STOPS, RECOLOR_LINE_MAX,
     RECOLOR_LINE_RELIEF, RECOLOR_LINE_WINDOW, RECOLOR_SKIN_HUE,
-    RECOLOR_TARGETS, RECOLOR_WHITE_S,
+    RECOLOR_H_SPREAD, RECOLOR_S_CEILING, RECOLOR_TARGETS, RECOLOR_WHITE_S,
 )
 
 
 def lines(im: np.ndarray) -> np.ndarray:
-    """The render's own linework: dark, and darker than what it bounds."""
+    """The render's own linework: dark, and darker than what it bounds.
+
+    Darkness is the brightest channel, not luminance. A magenta stroke is
+    dark by luminance while its red channel is at full -- and some renders
+    draw the creases between fingers, the mouth and the collarbone exactly
+    that way, so a luminance test calls them linework and preserves them.
+    """
     fig = figure_mask(im)
-    grey = np.array(Image.fromarray(im).convert("L")).astype(float)
-    relief = ndimage.maximum_filter(grey, RECOLOR_LINE_WINDOW) - grey
-    return fig & (grey < RECOLOR_LINE_MAX) & (relief > RECOLOR_LINE_RELIEF)
+    dark = im.astype(float).max(axis=-1)
+    relief = ndimage.maximum_filter(dark, RECOLOR_LINE_WINDOW) - dark
+    return fig & (dark < RECOLOR_LINE_MAX) & (relief > RECOLOR_LINE_RELIEF)
 
 
 def classify(h: float, s: float, v: float, cy: float, area: float) -> str | None:
@@ -52,6 +59,21 @@ def classify(h: float, s: float, v: float, cy: float, area: float) -> str | None
     return "dress"
 
 
+def _around(values: np.ndarray, median: float, target: float,
+            keep: float, wrap: bool = False,
+            ceiling: float | None = None) -> np.ndarray:
+    """The target, with the region's own deviation kept around it."""
+    deviation = values - median
+    if wrap:
+        deviation = (deviation + 128.0) % 256.0 - 128.0
+    if wrap:
+        deviation = np.clip(deviation, -RECOLOR_H_SPREAD, RECOLOR_H_SPREAD)
+    moved = target + deviation * keep
+    if ceiling is not None:
+        moved = np.minimum(moved, target + ceiling)
+    return moved % 256.0 if wrap else moved
+
+
 def _paint_tights(region: np.ndarray, out_h, out_s, out_v, V, top: int,
                   height: int) -> None:
     rows = np.where(region)[0]
@@ -61,11 +83,30 @@ def _paint_tights(region: np.ndarray, out_h, out_s, out_v, V, top: int,
     target_h = np.interp(cy, xs, [stop[1][0] for stop in stops])
     target_s = np.interp(cy, xs, [stop[1][1] for stop in stops])
     target_v = np.interp(cy, xs, [stop[1][2] for stop in stops])
-    keep = RECOLOR_KEEP_V["tights"]
-    out_h[region] = target_h
-    out_s[region] = target_s
+    hs = RECOLOR_KEEP_HS
+    out_h[region] = _around(out_h[region], float(np.median(out_h[region])),
+                            target_h, hs, wrap=True)
+    out_s[region] = _around(out_s[region], float(np.median(out_s[region])),
+                            target_s, hs, ceiling=RECOLOR_S_CEILING)
     out_v[region] = np.clip(
-        target_v + (V[region] - np.median(V[region])) * keep, 0, 255)
+        target_v + (V[region] - np.median(V[region]))
+        * RECOLOR_KEEP_V["tights"], 0, 255)
+
+
+def _stray_stroke(region: np.ndarray) -> bool:
+    """A saturated fill too thin to be an iris or a hair pin."""
+    return not ndimage.binary_erosion(
+        region, iterations=RECOLOR_ACCENT_ERODE).any()
+
+
+def _paint_surrounding(region: np.ndarray, out_h, out_s, out_v) -> bool:
+    """Give a stray stroke the colour of the material it sits in."""
+    ring = ndimage.binary_dilation(region, iterations=3) & ~region
+    if not ring.any():
+        return False
+    for channel in (out_h, out_s, out_v):
+        channel[region] = np.median(channel[ring])
+    return True
 
 
 def recolor(im: np.ndarray) -> tuple[np.ndarray, list[str]]:
@@ -92,6 +133,7 @@ def recolor(im: np.ndarray) -> tuple[np.ndarray, list[str]]:
     out_h, out_s, out_v = H.copy(), S.copy(), V.copy()
     total = int(fig.sum())
     claimed: dict[str, int] = {}
+    strays = []
     for index in range(1, count + 1):
         region = labels == index
         h = float(np.median(H[region]))
@@ -100,16 +142,23 @@ def recolor(im: np.ndarray) -> tuple[np.ndarray, list[str]]:
         cy = (float(np.mean(np.where(region)[0])) - top) / height
         material = classify(h, s, v, cy, int(region.sum()) / total)
         if material is None:
+            if _stray_stroke(region):
+                strays.append(region)
             continue
         if material == "tights":
             _paint_tights(region, out_h, out_s, out_v, V, top, height)
         else:
             t_h, t_s, t_v = RECOLOR_TARGETS[material]
-            keep = RECOLOR_KEEP_V[material]
-            out_h[region] = t_h
-            out_s[region] = t_s
-            out_v[region] = np.clip(t_v + (V[region] - v) * keep, 0, 255)
+            hs = RECOLOR_KEEP_HS
+            out_h[region] = _around(H[region], h, t_h, hs, wrap=True)
+            out_s[region] = _around(S[region], s, t_s, hs,
+                                    ceiling=RECOLOR_S_CEILING)
+            out_v[region] = np.clip(
+                t_v + (V[region] - v) * RECOLOR_KEEP_V[material], 0, 255)
         claimed[material] = claimed.get(material, 0) + int(region.sum())
+
+    cleared = sum(_paint_surrounding(region, out_h, out_s, out_v)
+                  for region in strays)
 
     out = np.stack([out_h, out_s.clip(0, 255), out_v.clip(0, 255)], axis=-1)
     rgb = np.array(Image.fromarray(out.clip(0, 255).astype(np.uint8), "HSV")
@@ -120,6 +169,8 @@ def recolor(im: np.ndarray) -> tuple[np.ndarray, list[str]]:
                       for material, count_ in
                       sorted(claimed.items(), key=lambda kv: -kv[1]))
     report = [share] if share else []
+    if cleared:
+        report.append(f"{cleared} stray strokes taken into their surround")
     return rgb, report
 
 

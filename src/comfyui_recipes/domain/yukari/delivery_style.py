@@ -114,11 +114,13 @@ FINALIZE_DENOISE = 0.55
 # Lineart-preserving recolour (infrastructure/imaging/recolor.py). Where
 # repin nudges the render's own saturation, recolor asserts a material's
 # colour outright and can therefore fix value too -- a washed-out black that
-# repin leaves alone by design. A line pixel is one this much darker than
-# its own neighbourhood, not merely dark on its own, so flat dark fills
-# (the hoodie, deep shadow) never get mistaken for linework. All of the
-# numbers below are measured from tv639u, the picked reference render.
-RECOLOR_LINE_MAX = 110
+# repin leaves alone by design. Everything below is measured from tv639u.
+
+# A line pixel is darker than its own neighbourhood, not merely dark, so a
+# flat dark fill is never mistaken for linework; and darkness is the
+# brightest channel, so a magenta stroke does not qualify however dark it
+# reads. The bound keeps 99 percent of the reference's own line.
+RECOLOR_LINE_MAX = 140
 RECOLOR_LINE_RELIEF = 40
 RECOLOR_LINE_WINDOW = 7
 
@@ -137,6 +139,24 @@ RECOLOR_KEEP_V = {
     "hoodie": 0.8, "hair": 0.6, "dress": 0.6,
     "skin": 0.5, "white": 0.5, "tights": 0.45,
 }
+
+# The same for hue and saturation, and it is not optional: pinning a region
+# to one hue and one saturation flattens the drawing. This render's shading
+# lives there rather than in value -- the purple strokes through the hair,
+# the blush on the cheek -- and asserting the target alone turned the hair,
+# the face and the dress into one grey mass with no edge between them. The
+# target moves the material; the deviation around it stays the render's.
+RECOLOR_KEEP_HS = 0.7
+
+# Kept deviation is bounded, or the magenta strokes some renders draw over
+# the hands and the face come through: they are correctly not line, so they
+# ride along inside the skin, and enough of their own saturation survives to
+# still read hot pink. Hue is bounded on both sides for the same reason --
+# keeping most of a magenta stroke's hue does not make it skin, it makes it
+# teal. A blush and a hair stroke sit inside these bounds; a stroke that
+# does not is pulled onto its material's colour.
+RECOLOR_S_CEILING = 50
+RECOLOR_H_SPREAD = 20
 
 # Legwear does not take one target: it is painted from this gradient,
 # interpolated per pixel row against height share so the purple comes up
@@ -165,6 +185,14 @@ RECOLOR_LEG_MIN_AREA = 0.05
 # it is hair; otherwise it is the dress. Below RECOLOR_DARK_V a fill is a
 # dark garment, split into hoodie or tights by RECOLOR_LEG_CY above.
 RECOLOR_ACCENT_S = 150
+# Saturation alone keeps the wrong things. Some renders draw the interior
+# detail -- the creases between fingers, the mouth, the collarbone -- as thin
+# magenta strokes rather than dark line, and those strokes are saturated
+# enough to be held back as accents, so a corrected picture still ships with
+# hot pink fingers. A real accent is thick as well as saturated: the iris and
+# the hair pins survive this many erosions where a stroke a few pixels wide
+# does not, and a stroke that fails takes the colour of whatever surrounds it.
+RECOLOR_ACCENT_ERODE = 3
 RECOLOR_SKIN_HUE = (48, 240)
 RECOLOR_WHITE_S = 8
 RECOLOR_HAIR_S = 45

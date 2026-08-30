@@ -88,6 +88,33 @@ class RecolorTest(unittest.TestCase):
         self.assertLess(np.median(row[..., 2]), 80)
         self.assertTrue(any("tights" in line for line in report))
 
+    def test_a_magenta_stroke_is_not_linework(self):
+        # Magenta is dark by luminance while its red channel is at full, and
+        # some renders draw the creases between fingers that way. Read as
+        # line it would ship verbatim over corrected skin.
+        pixels = np.full((64, 64, 3), 0x80, dtype=np.uint8)
+        pixels[16:48, 16:48] = block((20, 30, 250), (32, 32))
+        pixels[24:40, 30:33] = block((230, 240, 200), (16, 3))
+        self.assertFalse(lines(pixels)[24:40, 30:33].any())
+        out, _ = recolor(pixels)
+        stroke = np.array(Image.fromarray(out).convert("HSV")).astype(float)
+        self.assertLess(np.median(stroke[24:40, 31, 1]), 80)
+
+    def test_a_region_keeps_its_own_hue_and_saturation_variation(self):
+        # Pinning a fill to one hue and one saturation flattens the drawing:
+        # the shading of the hair and the blush on the cheek live there, not
+        # in value, and asserting the target alone greys the whole figure.
+        pixels = np.full((101, 80, 3), 0x80, dtype=np.uint8)
+        pixels[:, 10:14] = block((100, 60, 150), (101, 4))
+        fill = block((190, 60, 230), (60, 28))
+        fill[30:, :] = block((190, 120, 230), (30, 28))
+        pixels[20:80, 26:54] = fill
+        out, _ = recolor(pixels)
+        hsv = np.array(Image.fromarray(out).convert("HSV")).astype(float)
+        pale = np.median(hsv[25:45, 30:50, 1])
+        deep = np.median(hsv[55:75, 30:50, 1])
+        self.assertGreater(deep - pale, 20)
+
     def test_accent_saturation_keeps_its_own_hue_and_saturation(self):
         pixels = swatch((210, 200, 200))
         out, _ = recolor(pixels)

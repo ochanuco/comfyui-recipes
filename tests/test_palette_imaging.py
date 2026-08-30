@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 
 from comfyui_recipes.domain.yukari.delivery_style import (
-    ACCENT_KEEP, REPIN_LIGHT,
+    ACCENT_KEEP, REPIN_DARK, REPIN_LIGHT,
 )
 from comfyui_recipes.infrastructure.imaging.palette import (
     repin, repin_png, summarize,
@@ -60,6 +60,19 @@ class RepinTest(unittest.TestCase):
         s = hsv[16:48, 16:48, 1].mean()
         self.assertGreater(s, 140)
         self.assertAlmostEqual(s, KNEE + (230 - KNEE) * ACCENT_KEEP, delta=10)
+
+    def test_a_dark_field_is_not_mistaken_for_an_accent(self):
+        # The black hoodie and tights reach iris-grade saturation on some
+        # renders. Saturation alone would read the whole garment as an
+        # accent and preserve it, delivering a navy hoodie; an accent is
+        # bright as well as saturated, so the dark band pins pale.
+        pixels = swatch((191, 240, 50))
+        rgb, _ = repin(pixels)
+        hsv = np.array(Image.fromarray(rgb).convert("HSV")).astype(float)
+        s = hsv[16:48, 16:48, 1].mean()
+        knee, ratio = REPIN_DARK
+        self.assertAlmostEqual(s, knee + (240 - knee) * ratio, delta=8)
+        self.assertLess(s, 60)
 
     def test_pale_purple_is_left_nearly_unchanged(self):
         pixels = swatch((191, 30, 200))

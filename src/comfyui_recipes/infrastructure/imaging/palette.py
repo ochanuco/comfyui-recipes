@@ -17,7 +17,7 @@ from scipy import ndimage
 
 from .delivery import background_mask, enclosed_mask
 from ...domain.yukari.delivery_style import (
-    ACCENT_KEEP, ACCENT_RAMP, BACKDROP_SPREAD_MAX, BG_SAT_MAX,
+    ACCENT_KEEP, ACCENT_RAMP, ACCENT_VALUE_RAMP, BACKDROP_SPREAD_MAX, BG_SAT_MAX,
     FIGURE_LIGHT_SAT_TARGET, FIGURE_LIGHT_V, FIGURE_MIDTONE_V,
     FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX, PALETTE_WINDOWS, REPIN_DARK,
     REPIN_LIGHT, REPIN_MID, REPIN_WARM_EXEMPT, SAT_BAND,
@@ -86,7 +86,9 @@ def repin(im: np.ndarray,
     H, S, V = hsv[..., 0], hsv[..., 1], hsv[..., 2]
 
     a_start, a_width = ACCENT_RAMP
-    accent = smoothstep((S - a_start) / a_width)
+    v_start, v_width = ACCENT_VALUE_RAMP
+    accent = smoothstep((S - a_start) / a_width) * \
+        smoothstep((V - v_start) / v_width)
 
     def compress(knee_ratio):
         knee, ratio = knee_ratio

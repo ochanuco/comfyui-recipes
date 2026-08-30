@@ -89,6 +89,13 @@ REPIN_WARM_EXEMPT = (0.0, 48.0)
 # pin pale. Without it the eyes wash out to white.
 ACCENT_RAMP = (150.0, 60.0)  # start, width
 ACCENT_KEEP = 0.65
+# Saturation alone does not identify an accent. Some renders carry the black
+# hoodie and tights at saturation 250 in the dark band, and the S ramp then
+# reads the whole garment as an iris and preserves it -- the picture ships
+# with a navy hoodie and purple tights. An accent is bright as well as
+# saturated, so the ramp is gated on value at the same floor that defines
+# the dark band, and the dark band never claims accent protection.
+ACCENT_VALUE_RAMP = (FIGURE_MIDTONE_V, 40.0)  # start, width
 
 # The backdrop flatness screen, on the RAW render's corner brightness spread.
 # A gradient backdrop starves the flood mask, and then every downstream

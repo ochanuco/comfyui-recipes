@@ -61,7 +61,7 @@ class AdapterTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "non-numeric node IDs"):
             chain_pass({**base, "output": {}}, 2048, 0.2, "test")
 
-    def test_chain_pass_upscales_the_latent_that_feeds_the_saved_image(self):
+    def test_chain_pass_upscales_the_decoded_image_in_pixel_space(self):
         base = {
             "3": {"class_type": "KSampler", "inputs": {"seed": 7}},
             "4": {"class_type": "DiffusersLoader", "inputs": {}},
@@ -76,15 +76,16 @@ class AdapterTest(unittest.TestCase):
         }
         graph = chain_pass(base, 2048, 0.45, "fin")
         scale = graph["10"]
-        self.assertEqual(scale["class_type"], "LatentUpscale")
+        self.assertEqual(scale["class_type"], "ImageScale")
         self.assertEqual(scale["inputs"]["upscale_method"], "bicubic")
-        self.assertEqual(scale["inputs"]["samples"], ["3", 0])
+        self.assertEqual(scale["inputs"]["image"], ["8", 0])
         self.assertEqual(
             (scale["inputs"]["width"], scale["inputs"]["height"]), (1024, 2048))
-        self.assertEqual(graph["11"]["inputs"]["latent_image"], ["10", 0])
-        self.assertEqual(graph["9"]["inputs"]["images"], ["12", 0])
-        self.assertNotIn(
-            "VAEEncode", [node["class_type"] for node in graph.values()])
+        encode = graph["11"]
+        self.assertEqual(encode["class_type"], "VAEEncode")
+        self.assertEqual(encode["inputs"]["pixels"], ["10", 0])
+        self.assertEqual(graph["12"]["inputs"]["latent_image"], ["11", 0])
+        self.assertEqual(graph["9"]["inputs"]["images"], ["13", 0])
 
     def test_chain_pass_rejects_a_saved_image_that_is_not_decoded(self):
         base = {

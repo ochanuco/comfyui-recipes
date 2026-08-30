@@ -17,6 +17,7 @@ from .poses import POSE_RECORDS, POSES
 from .prompt_style import (
     BODY,
     FACE,
+    HAND_BAN,
     HANDDRAWN_FINISH,
     HIRES_DENOISE,
     NEGATIVE,
@@ -166,7 +167,7 @@ def refinement_prompt(base: PromptPair, *, handdrawn: bool = False) -> PromptPai
     toe_ban = "" if "barefoot" in positive_prompt else "(toes:1.55), "
     return PromptPair(
         positive_prompt,
-        toe_ban + SHADE_BAN + base.negative,
+        toe_ban + HAND_BAN + SHADE_BAN + base.negative,
     )
 
 

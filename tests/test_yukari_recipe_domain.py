@@ -4,6 +4,7 @@ import unittest
 
 from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.yukari.prompt_style import (
+    HAND_BAN,
     HANDDRAWN_FINISH,
     SHADE_BAN,
     SURFACE,
@@ -20,10 +21,10 @@ class YukariRecipeDomainTest(unittest.TestCase):
         self.assertTrue(prompt.positive.endswith(HANDDRAWN_FINISH))
         self.assertEqual(
             prompt.negative,
-            "(toes:1.55), " + SHADE_BAN + "base negative")
+            "(toes:1.55), " + HAND_BAN + SHADE_BAN + "base negative")
 
         barefoot = refinement_prompt(PromptPair("barefoot", "negative"))
-        self.assertEqual(barefoot.negative, SHADE_BAN + "negative")
+        self.assertEqual(barefoot.negative, HAND_BAN + SHADE_BAN + "negative")
 
     def test_hires_dimensions_must_be_at_least_one_latent_pixel(self):
         for hires in (-8, 1):

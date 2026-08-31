@@ -84,6 +84,13 @@ SKIN_SOURCE_S_MIN = 20.0
 SKIN_SOURCE_S_MAX = 60.0
 SKIN_SOURCE_V_MIN = 110.0
 SKIN_PIN_BLEND = 1.0
+# Below this share of the frame the base did not draw skin, it drew the
+# hair's lavender over the face. The fragments left in the mask are
+# speckle, and pinning them puts cream blotches on a lavender cheek --
+# worse than leaving the face alone. The delivery does not invent skin.
+SKIN_PIN_MIN_SHARE = 0.08
+# One coherent field, not the warm grain along every line.
+SKIN_PIN_MIN_AREA = 4096
 
 # repin's compression curve, per V band: (knee, ratio). Saturation below the
 # knee is untouched; only the excess is kept, at the ratio. A single factor

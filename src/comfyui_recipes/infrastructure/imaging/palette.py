@@ -21,8 +21,8 @@ from ...domain.yukari.delivery_style import (
     FIGURE_LIGHT_SAT_TARGET, FIGURE_LIGHT_V, FIGURE_MIDTONE_V,
     FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX, PALETTE_WINDOWS, REPIN_DARK,
     REPIN_LIGHT, REPIN_MID, REPIN_WARM_EXEMPT, SAT_BAND,
-    SKIN_PIN_BLEND, SKIN_SOURCE_S_MAX, SKIN_SOURCE_S_MIN,
-    SKIN_SOURCE_V_MIN,
+    SKIN_PIN_BLEND, SKIN_PIN_MIN_AREA, SKIN_PIN_MIN_SHARE,
+    SKIN_SOURCE_S_MAX, SKIN_SOURCE_S_MIN, SKIN_SOURCE_V_MIN,
 )
 
 H_TARGET_BLEND = 0.7   # hue is eased toward the target, not snapped
@@ -132,7 +132,12 @@ def skin_mask(source: np.ndarray) -> np.ndarray:
             & (hsv[..., 1] > SKIN_SOURCE_S_MIN)
             & (hsv[..., 2] >= SKIN_SOURCE_V_MIN)
             & figure_mask(source))
-    return ndimage.binary_opening(mask, np.ones((5, 5)))
+    mask = ndimage.binary_opening(mask, np.ones((5, 5)))
+    labels, count = ndimage.label(mask)
+    if not count:
+        return mask
+    sizes = ndimage.sum(mask, labels, range(1, count + 1))
+    return np.isin(labels, 1 + np.nonzero(sizes >= SKIN_PIN_MIN_AREA)[0])
 
 
 def repin_skin_png(source: bytes, data: bytes) -> tuple[bytes, list[str]]:
@@ -142,6 +147,9 @@ def repin_skin_png(source: bytes, data: bytes) -> tuple[bytes, list[str]]:
     if src.shape[:2] != (im.size[1], im.size[0]):
         src = np.array(Image.fromarray(src).resize(im.size, Image.BICUBIC))
     mask = skin_mask(src)
+    if mask.mean() < SKIN_PIN_MIN_SHARE:
+        return data, [f"not pinned: the base drew skin over only "
+                      f"{mask.mean() * 100:.1f}% of the frame"]
     src_hsv = np.array(Image.fromarray(src).convert("HSV")).astype(float)
     field = smoothstep((SKIN_SOURCE_S_MAX - src_hsv[..., 1]) / 20.0)
     alpha = (ndimage.gaussian_filter(mask.astype(float), 3) * field
@@ -152,7 +160,10 @@ def repin_skin_png(source: bytes, data: bytes) -> tuple[bytes, list[str]]:
     hsv = np.array(im.convert("HSV")).astype(float)
     wl, wm = band_w(hsv[..., 2])
     target_s = wl * window["sat_light"] + wm * window["sat_mid"]
-    hsv[..., 0] += alpha * (window["hue_target"] - hsv[..., 0])
+    # Hue is circular: 191 down to 18 passes through green, the short way
+    # round does not.
+    turn = ((window["hue_target"] - hsv[..., 0] + 128.0) % 256.0) - 128.0
+    hsv[..., 0] = (hsv[..., 0] + alpha * turn) % 256.0
     hsv[..., 1] += alpha * np.maximum(target_s - hsv[..., 1], 0)
 
     output = io.BytesIO()

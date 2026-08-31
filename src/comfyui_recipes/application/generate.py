@@ -126,6 +126,45 @@ def validate_request(req: object) -> None:
             parse_patches(generation["patches"])
         except ValueError as error:
             raise SystemExit(str(error))
+    experiment = req.get("experiment")
+    if experiment is not None:
+        if not isinstance(experiment, Mapping):
+            raise SystemExit("experiment must be an object")
+        experiment_id = experiment.get("experiment_id")
+        if not isinstance(experiment_id, str) or not experiment_id:
+            raise SystemExit(
+                "experiment.experiment_id must be a non-empty string")
+        run_id = experiment.get("run_id")
+        if not isinstance(run_id, str) or not run_id:
+            raise SystemExit("experiment.run_id must be a non-empty string")
+        overrides = experiment.get("overrides")
+        if overrides is not None and not isinstance(overrides, Mapping):
+            raise SystemExit("experiment.overrides must be an object")
+        override_patches = overrides.get("patches") if overrides else None
+        if override_patches is not None:
+            if generation.get("patches") is not None:
+                raise SystemExit(
+                    "experiment.overrides.patches cannot combine with "
+                    "generation.patches -- two entrances to the same patch "
+                    "mechanism would leave ordering ambiguous"
+                )
+            if generation.get("graph"):
+                raise SystemExit(
+                    "experiment.overrides.patches cannot combine with "
+                    "generation.graph -- the explicit graph is already the "
+                    "whole spec"
+                )
+            if generation.get("prompt") or generation.get("negative_prompt"):
+                raise SystemExit(
+                    "experiment.overrides.patches cannot combine with "
+                    "generation.prompt or generation.negative_prompt -- "
+                    "ordering between a full override and a patch would be "
+                    "ambiguous"
+                )
+            try:
+                parse_patches(override_patches)
+            except ValueError as error:
+                raise SystemExit(str(error))
     if not semantic.get("summary"):
         raise SystemExit(
             "request.semantic.summary is required: state this arm's intent "
@@ -166,6 +205,23 @@ def request_graph(generation: dict, seed: int, prefix: str,
     if generation.get("patches"):
         spec = apply_patches(spec, parse_patches(generation["patches"]))
     return encode(spec)
+
+
+def request_generation(req: Mapping) -> dict:
+    """Resolve the generation view graph_builder sees, experiment override included.
+
+    experiment.overrides.patches is a second entrance to the same patch
+    mechanism as generation.patches -- chimera's ExperimentRun is the source
+    of truth for the override, and validate_request guarantees the two are
+    never both set.
+    """
+    generation = dict(req["generation"])
+    experiment = req.get("experiment")
+    if experiment and generation.get("patches") is None:
+        patches = (experiment.get("overrides") or {}).get("patches")
+        if patches is not None:
+            generation["patches"] = patches
+    return generation
 
 
 def graph_prompts(graph: dict) -> tuple[str | None, str | None]:
@@ -214,7 +270,7 @@ def batch_payload(req: dict, git: dict, idempotency_key: str,
              "source_generation_id": reference["generation_id"]}
             for reference in req["references"]
         ]
-    for key in ("refinement", "story"):
+    for key in ("refinement", "story", "experiment"):
         if req.get(key):
             payload[key] = req[key]
     return payload
@@ -252,7 +308,7 @@ def generate(request_path: Path, services: GenerateServices, *,
              dry_run: bool = False, force: bool = False) -> None:
     req = json.loads(request_path.read_text())
     validate_request(req)
-    generation = req["generation"]
+    generation = request_generation(req)
     if generation.get("prompt") and generation.get("negative_prompt"):
         hits = services.conflicts(
             generation["prompt"], generation["negative_prompt"])
@@ -307,6 +363,12 @@ def generate(request_path: Path, services: GenerateServices, *,
     services.state.save(state_path, state)
     short = batch.get("short_id", batch["id"][:8])
     services.emit(f"batch {batch['id']} ({short})")
+    if req.get("experiment"):
+        # Only batch_id: the Run's representative generation is a human/agent
+        # pick made after reviewing the batch, so the CLI must not guess it.
+        services.management.request(
+            "PATCH", f"/api/v1/experiment-runs/{req['experiment']['run_id']}",
+            {"batch_id": state["batch_id"]})
     services.management.request(
         "PATCH", f"/api/v1/batches/{state['batch_id']}", {"status": "running"})
 

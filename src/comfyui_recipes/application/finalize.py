@@ -9,8 +9,8 @@ from pathlib import Path
 
 from ..domain.generation.models import PromptPair
 from ..domain.yukari import delivery_style
-from ..domain.yukari.poses import POSE_RECORDS
 from ..domain.yukari.recipe import refinement_prompt
+from ..infrastructure.comfyui.refinement_graph import MATTE_SUFFIX
 
 FINALIZE_SIZE = 2048
 
@@ -21,8 +21,7 @@ class FinalizeServices:
     comfyui: object
     graph_from_png: Callable[[bytes], dict]
     chain_pass: Callable[..., dict]
-    deliver: Callable[[bytes], tuple[bytes, str]]
-    corner_spread: Callable[[bytes], float]
+    deliver: Callable[[bytes, bytes], tuple[bytes, str]]
     git_metadata: Callable[[], dict]
     notifier: object
     output_root: Path
@@ -30,18 +29,6 @@ class FinalizeServices:
     repin: Callable[[bytes], tuple[bytes, list[str]]] | None = None
     measure: Callable[[bytes], dict] | None = None
     recolor: Callable[[bytes], tuple[bytes, list[str]]] | None = None
-
-
-def _backdrop_is_measurable(context: dict) -> bool:
-    """Whether the four-corner flatness screen applies to this generation.
-
-    A head framing draws the figure into the corners, so the screen reads the
-    cardigan as a gradient. A generation whose pose is not recorded keeps the
-    screen.
-    """
-    attributes = (context.get("semantic") or {}).get("attributes") or {}
-    record = POSE_RECORDS.get(attributes.get("pose"))
-    return record is None or record.framing != "head"
 
 
 def finalize(generation_id: str, services: FinalizeServices, *,
@@ -62,21 +49,23 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     ), handdrawn=handdrawn)
     graph = services.chain_pass(
         base, FINALIZE_SIZE, denoise, prefix,
-        prompt=(prompt.positive, prompt.negative))
+        prompt=(prompt.positive, prompt.negative),
+        matte_model=delivery_style.MATTE_MODEL)
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
-    image = services.comfyui.wait_for(prompt_id)[-1]
+    outputs = services.comfyui.wait_for(prompt_id)
+    mattes = [out for out in outputs if MATTE_SUFFIX in out["filename"]]
+    pictures = [out for out in outputs if MATTE_SUFFIX not in out["filename"]]
+    if not mattes or not pictures:
+        raise SystemExit(
+            f"{prefix} returned {len(pictures)} pictures and {len(mattes)} "
+            "mattes; one of each is required")
+    image = pictures[-1]
     raw = services.comfyui.fetch(image)
+    matte = services.comfyui.fetch(mattes[-1])
     services.output_root.mkdir(parents=True, exist_ok=True)
     (services.output_root / image["filename"]).write_bytes(raw)
-    if _backdrop_is_measurable(context):
-        spread = services.corner_spread(raw)
-        if spread > delivery_style.BACKDROP_SPREAD_MAX:
-            raise SystemExit(
-                f"backdrop not flat: corner spread {spread:.1f} > "
-                f"{delivery_style.BACKDROP_SPREAD_MAX}")
-    else:
-        services.emit("backdrop screen skipped: head framing")
+    (services.output_root / mattes[-1]["filename"]).write_bytes(matte)
     to_deliver = raw
     if services.measure is not None:
         summary = services.measure(raw)
@@ -94,7 +83,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         to_deliver, report = services.repin(raw)
         for line in report:
             services.emit(f"repin {line}")
-    delivered, tag = services.deliver(to_deliver)
+    delivered, tag = services.deliver(to_deliver, matte)
     stem = Path(image["filename"]).stem
     delivered_name = f"{stem}-{tag}-delivered.png"
     (services.output_root / delivered_name).write_bytes(delivered)

@@ -74,27 +74,6 @@ def enclosed_mask(pixels: np.ndarray, found: np.ndarray, tolerance: int, *,
     return np.isin(labels, 1 + np.nonzero(sizes >= minimum_area)[0])
 
 
-def repaint(pixels: np.ndarray, color: tuple[int, int, int], *,
-            tolerance: int = 18, enclosed_tolerance: int = 4,
-            feather: int = 1, feather_tolerance: int = 54) -> tuple[np.ndarray, float]:
-    mask = background_mask(pixels, tolerance)
-    if enclosed_tolerance >= 0:
-        mask |= enclosed_mask(pixels, mask, enclosed_tolerance)
-    share = mask.mean() * 100
-    seed = _corner_seed(pixels)
-    if feather > 0:
-        band = ndimage.binary_dilation(mask, iterations=feather) & ~mask
-        distance = np.abs(pixels - seed).max(axis=2)
-        alpha = np.clip(
-            (feather_tolerance - distance)
-            / max(feather_tolerance - tolerance, 1), 0.0, 1.0)
-        alpha[~band] = 0.0
-        pixels = np.clip(
-            pixels + alpha[..., None] * (np.array(color) - seed), 0, 255)
-    pixels[mask] = color
-    return pixels, share
-
-
 def corner_spread(data: bytes) -> float:
     """Brightness spread across the four 40px corners of a decoded PNG."""
     pixels = np.array(Image.open(io.BytesIO(data)).convert("RGB"))
@@ -128,27 +107,21 @@ def stroke_alpha(mask: np.ndarray, gap: float, width: float) -> np.ndarray:
     return alpha
 
 
-def clean_background(data: bytes) -> tuple[bytes, str]:
-    backdrop_rgb = parse_color(delivery_style.BACKDROP)
-    pixels = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(int)
-    background = background_mask(pixels, 18)
-    labels, count = ndimage.label(~background)
-    if count > 1:
-        sizes = ndimage.sum(np.ones_like(labels), labels, range(1, count + 1))
-        pixels[(~background) & (labels != 1 + int(np.argmax(sizes)))] = backdrop_rgb
-    pixels, _ = repaint(pixels, backdrop_rgb, enclosed_tolerance=4)
-    off_backdrop = np.abs(pixels - backdrop_rgb).sum(axis=2) > 30
-    labels, count = ndimage.label(off_backdrop)
-    if count > 1:
-        sizes = ndimage.sum(np.ones_like(labels), labels, range(1, count + 1))
-        pixels[off_backdrop & (labels != 1 + int(np.argmax(sizes)))] = backdrop_rgb
+def clean_background(data: bytes, matte: bytes) -> tuple[bytes, str]:
+    """Frame the figure the matte cuts out, in the delivery's own colours.
 
-    px = pixels.astype(float)
+    The matte is the authority on the silhouette. Colour cannot be: repin
+    moves the figure's own colours, and the pale hair lands inside the
+    backdrop's tolerance once it has.
+    """
+    backdrop_rgb = parse_color(delivery_style.BACKDROP)
+    px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
+    figure = np.array(Image.open(io.BytesIO(matte)).convert("L")) > 127
+    px[~figure] = backdrop_rgb
+
     height, width = px.shape[:2]
-    px2 = np.array(Image.fromarray(np.clip(px, 0, 255).astype(np.uint8))
-                   .resize((width * 2, height * 2), Image.BILINEAR)).astype(float)
-    bg2 = background_mask(px2.astype(int), 18)
-    bg2 |= enclosed_mask(px2.astype(int), bg2, 4)
+    bg2 = ~(np.array(Image.fromarray(figure)
+                     .resize((width * 2, height * 2), Image.NEAREST)))
 
     white_w = max(height, width) * delivery_style.WHITE_WIDTH_PCT / 100
     purple_w = white_w * delivery_style.STROKE_WIDTH_BAND

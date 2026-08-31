@@ -98,11 +98,17 @@ ACCENT_KEEP = 0.65
 ACCENT_VALUE_RAMP = (FIGURE_MIDTONE_V, 40.0)  # start, width
 
 # The backdrop flatness screen, on the RAW render's corner brightness spread.
-# A gradient backdrop starves the flood mask, and then every downstream
-# number -- the figure bands, the normalization factor, the repaint -- is
-# measured against a backdrop leak. Measured flat renders sit under 10 and
-# gradient failures at 40+, so the bound splits them mid-gap.
+# A gradient backdrop starves the flood mask palette.py measures through, so
+# every figure number it reports is against a backdrop leak. Measured flat
+# renders sit under 10 and gradient failures at 40+, so the bound splits them
+# mid-gap. It screens the numbers, not the delivery: the cut-out comes from
+# the matte and does not care what the backdrop does.
 BACKDROP_SPREAD_MAX = 25.0
+
+# The worker-side model that cuts the figure out. The silhouette has to come
+# from something other than colour, because repin moves the figure's colours
+# into the backdrop's tolerance before the delivery ever sees them.
+MATTE_MODEL = "birefnet.safetensors"
 
 # finalize's masked refine, the denoise a 2048 print's touch-up runs at.
 # 0.55 over 0.45: the higher pass loosens the lines into the hand-drawn

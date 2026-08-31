@@ -20,7 +20,7 @@ from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
 from ..infrastructure.comfyui.yukari_graph import build_graph
 from ..infrastructure.imaging.delivery import (
-    clean_background, corner_spread, graph_from_png,
+    clean_background, graph_from_png,
 )
 from ..infrastructure.imaging.palette import repin_png, summarize
 from ..infrastructure.imaging.recolor import recolor_png
@@ -155,7 +155,6 @@ def main(argv: list[str] | None = None) -> None:
             graph_from_png=graph_from_png,
             chain_pass=chain_pass,
             deliver=clean_background,
-            corner_spread=corner_spread,
             git_metadata=repository_metadata,
             notifier=notifier,
             output_root=repository / ".local/_nogit/finalize",

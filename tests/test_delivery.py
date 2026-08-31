@@ -30,6 +30,14 @@ def png(pixels: np.ndarray, prompt: str | None = None) -> bytes:
     return output.getvalue()
 
 
+def matte(shape, box):
+    """A hard matte with one rectangular figure, as the worker would send it."""
+    mask = np.zeros(shape, dtype=np.uint8)
+    top, bottom, left, right = box
+    mask[top:bottom, left:right] = 255
+    return png(mask)
+
+
 class DeliveryTest(unittest.TestCase):
     def test_graph_metadata_validation(self):
         pixels = np.zeros((2, 2, 3), dtype=np.uint8)
@@ -71,14 +79,16 @@ class DeliveryTest(unittest.TestCase):
     def test_clean_background_preserves_size_and_clean_width_tag(self):
         pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
         pixels[8:24, 10:22] = (40, 40, 40)
-        cleaned, tag = clean_background(png(pixels))
+        cleaned, tag = clean_background(png(pixels), matte(pixels.shape[:2],
+                                                           (8, 24, 10, 22)))
         self.assertEqual(Image.open(io.BytesIO(cleaned)).size, (32, 32))
         self.assertRegex(tag, r"^clean-w\d+-p\d+$")
 
     def test_clean_background_band_widths_derive_from_longest_side_and_each_other(self):
         pixels = np.full((30, 50, 3), (210, 230, 235), dtype=np.uint8)
         pixels[8:24, 15:35] = (20, 20, 20)
-        _, tag = clean_background(png(pixels))
+        _, tag = clean_background(png(pixels), matte(pixels.shape[:2],
+                                                     (8, 24, 15, 35)))
         match = re.match(r"^clean-w(\d+)-p(\d+)$", tag)
         self.assertIsNotNone(match)
         white_w = max(30, 50) * delivery_style.WHITE_WIDTH_PCT / 100
@@ -93,7 +103,8 @@ class DeliveryTest(unittest.TestCase):
         height = width = 240
         pixels = np.full((height, width, 3), (233, 229, 199), dtype=np.uint8)
         pixels[80:160, 80:160] = (10, 10, 10)
-        cleaned, _ = clean_background(png(pixels))
+        cleaned, _ = clean_background(png(pixels), matte(pixels.shape[:2],
+                                                         (80, 160, 80, 160)))
         arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB")).astype(int)
 
         backdrop = np.array(parse_color(delivery_style.BACKDROP))

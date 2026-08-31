@@ -168,7 +168,32 @@ def request_graph(generation: dict, seed: int, prefix: str,
     return encode(spec)
 
 
-def batch_payload(req: dict, git: dict, idempotency_key: str) -> dict:
+def graph_prompts(graph: dict) -> tuple[str | None, str | None]:
+    """Read the prompt pair a graph actually carries, following the sampler.
+
+    A hires graph has more than one CLIPTextEncode pair, so the text is taken
+    from whatever the first sampler is wired to rather than from fixed ids.
+    """
+    samplers = sorted(
+        (key for key, node in graph.items()
+         if "KSampler" in str(node.get("class_type"))),
+        key=lambda key: (int("".join(ch for ch in key if ch.isdigit()) or 0), key),
+    )
+    if not samplers:
+        return None, None
+    inputs = graph[samplers[0]].get("inputs", {})
+
+    def text(slot: str) -> str | None:
+        link = inputs.get(slot)
+        if not isinstance(link, list) or not link:
+            return None
+        return graph.get(link[0], {}).get("inputs", {}).get("text")
+
+    return text("positive"), text("negative")
+
+
+def batch_payload(req: dict, git: dict, idempotency_key: str,
+                  prompts: tuple[str | None, str | None] = (None, None)) -> dict:
     generation = req["generation"]
     payload = {
         "idempotency_key": idempotency_key,
@@ -178,9 +203,10 @@ def batch_payload(req: dict, git: dict, idempotency_key: str) -> dict:
         "git_commit": git["commit"],
         "git_dirty": git["dirty"],
     }
-    for key in ("prompt", "negative_prompt"):
-        if generation.get(key):
-            payload[key] = generation[key]
+    for key, rendered in zip(("prompt", "negative_prompt"), prompts):
+        value = generation.get(key) or rendered
+        if value:
+            payload[key] = value
     if req.get("references"):
         payload["references"] = [
             {**{key: value for key, value in reference.items()
@@ -251,7 +277,8 @@ def generate(request_path: Path, services: GenerateServices, *,
         graph = services.graph_builder(generation, seeds[0], "chimera-dryrun-0")
         services.emit("batch payload:")
         services.emit(json.dumps(
-            batch_payload(req, git, "<uuid4>"), indent=2, ensure_ascii=False))
+            batch_payload(req, git, "<uuid4>", graph_prompts(graph)),
+            indent=2, ensure_ascii=False))
         services.emit(f"seeds: {seeds}")
         # A hires graph has suffixed node ids (6b, 7b); a plain int key dies.
         services.emit("graph nodes: " + str(sorted(
@@ -271,7 +298,9 @@ def generate(request_path: Path, services: GenerateServices, *,
             "GET", f"/api/v1/generations/{reference['generation_id']}/context")
     batch = services.management.request(
         "POST", "/api/v1/batches",
-        batch_payload(req, git, state["idempotency_key"]),
+        batch_payload(req, git, state["idempotency_key"],
+                      graph_prompts(services.graph_builder(
+                          generation, 0, "chimera-probe"))),
     )
     state["batch_id"] = batch["id"]
     state.setdefault("seeds", _seeds(req))

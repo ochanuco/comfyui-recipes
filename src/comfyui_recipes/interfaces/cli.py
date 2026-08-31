@@ -63,6 +63,9 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument("--denoise", type=float)
     finalize_parser.add_argument("--handdrawn", action="store_true")
     finalize_parser.add_argument("--no-repin", action="store_true")
+    finalize_parser.add_argument(
+        "--no-skin", action="store_true",
+        help="deliver the redraw's own skin; the pin is a correction and has nothing to correct on a render that already arrives in the palette")
     finalize_parser.add_argument("--recolor", action="store_true")
     finalize_parser.add_argument(
         "--keep-legwear", nargs="?", const=0.62, type=float, default=None,
@@ -160,7 +163,7 @@ def main(argv: list[str] | None = None) -> None:
             notifier=notifier,
             output_root=repository / ".local/_nogit/finalize",
             repin=lambda data: repin_png(data, keep_legwear=args.keep_legwear),
-            repin_skin=repin_skin_png,
+            repin_skin=None if args.no_skin else repin_skin_png,
             measure=summarize,
             recolor=recolor_png,
         )

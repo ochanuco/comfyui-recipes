@@ -67,9 +67,23 @@ FIGURE_LIGHT_SAT_TARGET = 28.0
 PALETTE_WINDOWS = (
     {"name": "purple", "hue": (170.0, 225.0), "hue_target": 191.0,
      "sat_light": 50.4, "sat_mid": 45.1},
-    {"name": "skin", "hue": (0.0, 48.0), "hue_target": None,
-     "sat_light": 24.7, "sat_mid": 58.5},
+    {"name": "skin", "hue": (0.0, 48.0), "hue_target": 17.8,
+     "sat_light": 45.0, "sat_mid": 75.0},
 )
+
+# Where the skin is. The 2048 redraw re-decides it and lands it in the
+# purple window, so the region cannot be read off the redraw -- it is read
+# off the render the redraw was made from, which still has the skin the base
+# drew. The window's hue is the reference stand's measured skin; its
+# saturations are pin targets above that reference, and the pin only ever
+# raises saturation -- pinning down washed the lips out with the cheek.
+SKIN_SOURCE_S_MIN = 20.0
+# The lips are warm and sit inside the skin window, so the hue pin turns
+# them orange unless the field is separated from the accent. The cheek
+# measures S 25-29 and the lips above 80; the ceiling splits them.
+SKIN_SOURCE_S_MAX = 60.0
+SKIN_SOURCE_V_MIN = 110.0
+SKIN_PIN_BLEND = 1.0
 
 # repin's compression curve, per V band: (knee, ratio). Saturation below the
 # knee is untouched; only the excess is kept, at the ratio. A single factor

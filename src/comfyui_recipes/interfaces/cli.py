@@ -22,7 +22,8 @@ from ..infrastructure.comfyui.yukari_graph import build_graph
 from ..infrastructure.imaging.delivery import (
     clean_background, graph_from_png,
 )
-from ..infrastructure.imaging.palette import repin_png, summarize
+from ..infrastructure.imaging.palette import (
+    repin_png, repin_skin_png, summarize)
 from ..infrastructure.imaging.recolor import recolor_png
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
@@ -159,6 +160,7 @@ def main(argv: list[str] | None = None) -> None:
             notifier=notifier,
             output_root=repository / ".local/_nogit/finalize",
             repin=lambda data: repin_png(data, keep_legwear=args.keep_legwear),
+            repin_skin=repin_skin_png,
             measure=summarize,
             recolor=recolor_png,
         )

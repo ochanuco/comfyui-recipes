@@ -27,6 +27,7 @@ class FinalizeServices:
     output_root: Path
     emit: Callable[[str], None] = print
     repin: Callable[[bytes], tuple[bytes, list[str]]] | None = None
+    repin_skin: Callable[[bytes, bytes], tuple[bytes, list[str]]] | None = None
     measure: Callable[[bytes], dict] | None = None
     recolor: Callable[[bytes], tuple[bytes, list[str]]] | None = None
 
@@ -67,8 +68,12 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     (services.output_root / image["filename"]).write_bytes(raw)
     (services.output_root / mattes[-1]["filename"]).write_bytes(matte)
     to_deliver = raw
+    if services.repin_skin is not None:
+        to_deliver, report = services.repin_skin(picked, to_deliver)
+        for line in report:
+            services.emit(f"skin {line}")
     if services.measure is not None:
-        summary = services.measure(raw)
+        summary = services.measure(to_deliver)
         status = "FAIL" if summary["fails"] else "pass"
         services.emit(
             f"palette {status}: fig mid {summary['fig_sat_mean']:.1f} "
@@ -76,11 +81,11 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     recolor_applied = apply_recolor and services.recolor is not None
     repin_applied = (not recolor_applied) and apply_repin and services.repin is not None
     if recolor_applied:
-        to_deliver, report = services.recolor(raw)
+        to_deliver, report = services.recolor(to_deliver)
         for line in report:
             services.emit(f"recolor {line}")
     elif repin_applied:
-        to_deliver, report = services.repin(raw)
+        to_deliver, report = services.repin(to_deliver)
         for line in report:
             services.emit(f"repin {line}")
     delivered, tag = services.deliver(to_deliver, matte)

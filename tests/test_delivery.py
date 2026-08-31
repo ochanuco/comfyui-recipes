@@ -10,6 +10,7 @@ from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 
 from comfyui_recipes.domain.yukari import delivery_style
+from comfyui_recipes.infrastructure.imaging.palette import repin_skin_png
 from comfyui_recipes.infrastructure.imaging.delivery import (
     background_mask,
     clean_background,
@@ -142,3 +143,30 @@ class DeliveryTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SkinPinTest(unittest.TestCase):
+    def source(self):
+        """A warm low-saturation cheek with a high-saturation lip inside it."""
+        pixels = np.full((64, 64, 3), (210, 230, 235), dtype=np.uint8)
+        pixels[16:48, 16:48] = (247, 226, 209)   # cheek: warm, S ~ 25
+        pixels[30:34, 28:36] = (222, 40, 40)     # lip: warm, S ~ 200
+        return pixels
+
+    def test_the_cheek_is_pinned_to_the_skin_hue(self):
+        source = self.source()
+        redrawn = source.copy()
+        redrawn[16:48, 16:48] = (226, 209, 247)  # the redraw's lavender cheek
+        out, report = repin_skin_png(png(source), png(redrawn))
+        hsv = np.array(Image.open(io.BytesIO(out)).convert("HSV"))
+        target = delivery_style.PALETTE_WINDOWS[1]["hue_target"]
+        self.assertAlmostEqual(float(hsv[24, 24, 0]), target, delta=3)
+        self.assertIn("skin pinned", report[0])
+
+    def test_the_lip_keeps_its_own_hue(self):
+        source = self.source()
+        out, _ = repin_skin_png(png(source), png(source))
+        hsv = np.array(Image.open(io.BytesIO(out)).convert("HSV"))
+        before = np.array(Image.fromarray(source).convert("HSV"))
+        self.assertAlmostEqual(float(hsv[32, 32, 0]), float(before[32, 32, 0]),
+                               delta=2)

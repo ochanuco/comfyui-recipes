@@ -19,11 +19,12 @@ GRAPH = {"3": {"inputs": {"seed": 1}},
 class ManagementFake:
     def __init__(self):
         self.calls = []
+        self.context = {"batch": {"id": "source-batch"}}
 
     def request(self, method, path, payload=None, multipart=None):
         self.calls.append((method, path, payload, multipart))
         if path.endswith("/context"):
-            return {"batch": {"id": "source-batch"}}
+            return self.context
         if method == "POST" and path == "/api/v1/batches":
             return {"id": "batch-id", "short_id": "batch"}
         if method == "POST" and path.endswith("/jobs"):
@@ -113,6 +114,29 @@ class FinalizeApplicationTest(unittest.TestCase):
     def test_corner_spread_over_limit_aborts(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory, corner_spread=lambda data: 999.0)
+            with self.assertRaises(SystemExit):
+                finalize("gen-id", services)
+
+    def test_head_framing_skips_the_backdrop_screen(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake()
+            management.context = {
+                "batch": {"id": "source-batch"},
+                "semantic": {"attributes": {"pose": "portrait"}},
+            }
+            services = base_services(directory, management=management,
+                                     corner_spread=lambda data: 999.0)
+            finalize("gen-id", services)
+
+    def test_full_framing_keeps_the_backdrop_screen(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake()
+            management.context = {
+                "batch": {"id": "source-batch"},
+                "semantic": {"attributes": {"pose": "lounge"}},
+            }
+            services = base_services(directory, management=management,
+                                     corner_spread=lambda data: 999.0)
             with self.assertRaises(SystemExit):
                 finalize("gen-id", services)
 

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from ..domain.generation.models import PromptPair
 from ..domain.yukari import delivery_style
+from ..domain.yukari.poses import POSE_RECORDS
 from ..domain.yukari.recipe import refinement_prompt
 
 FINALIZE_SIZE = 2048
@@ -29,6 +30,18 @@ class FinalizeServices:
     repin: Callable[[bytes], tuple[bytes, list[str]]] | None = None
     measure: Callable[[bytes], dict] | None = None
     recolor: Callable[[bytes], tuple[bytes, list[str]]] | None = None
+
+
+def _backdrop_is_measurable(context: dict) -> bool:
+    """Whether the four-corner flatness screen applies to this generation.
+
+    A head framing draws the figure into the corners, so the screen reads the
+    cardigan as a gradient. A generation whose pose is not recorded keeps the
+    screen.
+    """
+    attributes = (context.get("semantic") or {}).get("attributes") or {}
+    record = POSE_RECORDS.get(attributes.get("pose"))
+    return record is None or record.framing != "head"
 
 
 def finalize(generation_id: str, services: FinalizeServices, *,
@@ -56,11 +69,14 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     raw = services.comfyui.fetch(image)
     services.output_root.mkdir(parents=True, exist_ok=True)
     (services.output_root / image["filename"]).write_bytes(raw)
-    spread = services.corner_spread(raw)
-    if spread > delivery_style.BACKDROP_SPREAD_MAX:
-        raise SystemExit(
-            f"backdrop not flat: corner spread {spread:.1f} > "
-            f"{delivery_style.BACKDROP_SPREAD_MAX}")
+    if _backdrop_is_measurable(context):
+        spread = services.corner_spread(raw)
+        if spread > delivery_style.BACKDROP_SPREAD_MAX:
+            raise SystemExit(
+                f"backdrop not flat: corner spread {spread:.1f} > "
+                f"{delivery_style.BACKDROP_SPREAD_MAX}")
+    else:
+        services.emit("backdrop screen skipped: head framing")
     to_deliver = raw
     if services.measure is not None:
         summary = services.measure(raw)

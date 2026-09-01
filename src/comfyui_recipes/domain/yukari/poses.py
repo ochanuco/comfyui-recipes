@@ -657,11 +657,9 @@ POSE_RECORDS = {
                 "(buttons:1.35), (collared dress:1.35), "),
                 stage=S_POSE_GUARDS),
         ),
-        # ONE toe guard: she is in opaque tights, so a smooth toe box is the
-        # picture -- five countable toes was the error, and a second guard
-        # flattens every accent. `closed eyes` banned while the positive asks
-        # half-closed: forbid shut / ask half.
-        hires_negative="(toes:1.55), (closed eyes:1.4), ",
+        # `closed eyes` banned while the positive asks half-closed: forbid
+        # shut / ask half.
+        hires_negative="(closed eyes:1.4), ",
         settled_seed=884210577),
     "situp": Pose(
         POSES["situp"], (1536, 1024), open_mouth=True,
@@ -692,10 +690,7 @@ POSE_RECORDS = {
             # a straddle, and `legs together` alone does not hold it.
             Edit("append", new=", (split:1.45), (spread legs:1.4)",
                  stage=S_POSE_SCENE),
-        ),
-        # The soles come at the lens, so the toe guard the delivery adds is
-        # already needed a pass earlier.
-        hires_negative="(toes:1.55), "),
+        )),
     # 832 wide: width beside her is room for someone else to stand -- the
     # 1024 form kept drawing a second figure.
     "stand": Pose(

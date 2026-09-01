@@ -202,6 +202,16 @@ The webhook is a credential and lives in `.local/discord-webhook` or
 - Service Token は 1Password `chimera-claude-agent`。取得後は untracked の
   `.local/chimera-token`（0600）にキャッシュされ、以後 Touch ID なしで動く。
   値をトラックされるファイルに書かない。
+- request JSON のトップレベル `experiment` ブロック（`experiment_id` /
+  `run_id` / `overrides.patches`）は chimera の ExperimentRun 由来の上書きを
+  運ぶ経路。`overrides.patches` は `generation.patches` と同じ語彙・同じ
+  `validate_request` の検証を通り、`generation.patches` /
+  `generation.graph` / `generation.prompt`（`negative_prompt` も同様）とは
+  併用できない — 二つの入口で適用順序が曖昧になるため。上書きの正本は
+  chimera 側の ExperimentRun であり、CLI は取り込んで既存の patch 機構に流す
+  だけ。バッチ作成後、CLI は `PATCH /api/v1/experiment-runs/{run_id}` に
+  `batch_id` のみを送る。generation_id は代表選定が人間/エージェントの仕事
+  なので CLI は推測しない。
 
 ## The costume is a contract, not a preference
 

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 
 from ..application import metadata
 from ..application.finalize import FinalizeServices, finalize
 from ..application.generate import GenerateServices, generate, request_graph
+from ..application.watch import WatchServices, watch
 from ..domain.generation.prompt_lint import conflicts
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.poses import POSES
@@ -27,6 +29,18 @@ from ..infrastructure.persistence.run_state import JsonRunState
 from ..infrastructure.repository import discover_repository, git_metadata
 
 
+def _positive_finite_seconds(raw: str) -> float:
+    """argparse type= for --interval: rejects 0, negatives, nan and inf."""
+    try:
+        value = float(raw)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a number: {raw!r}") from None
+    if not math.isfinite(value) or value <= 0:
+        raise argparse.ArgumentTypeError(
+            f"--interval must be a finite number > 0, got {raw!r}")
+    return value
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="comfy-recipes")
     commands = root.add_subparsers(dest="command", required=True)
@@ -35,6 +49,13 @@ def parser() -> argparse.ArgumentParser:
     generate_parser.add_argument("--request", required=True, type=Path)
     generate_parser.add_argument("--dry-run", action="store_true")
     generate_parser.add_argument("--force", action="store_true")
+
+    watch_parser = commands.add_parser(
+        "watch", help="poll chimera for pending ExperimentRuns and generate them")
+    watch_parser.add_argument(
+        "--interval", type=_positive_finite_seconds, default=30)
+    watch_parser.add_argument("--once", action="store_true")
+    watch_parser.add_argument("--dry-run", action="store_true")
 
     finalize_parser = commands.add_parser("finalize", help="deliver one picked render")
     finalize_parser.add_argument("generation_id")
@@ -109,6 +130,23 @@ def main(argv: list[str] | None = None) -> None:
             measure=summarize,
         )
         generate(args.request, services, dry_run=args.dry_run, force=args.force)
+        return
+    if args.command == "watch":
+        services = GenerateServices(
+            management=chimera,
+            comfyui=comfyui,
+            state=JsonRunState(),
+            notifier=notifier,
+            graph_builder=lambda generation, seed, prefix: request_graph(
+                generation, seed, prefix, render_spec, build_graph),
+            git_metadata=repository_metadata,
+            conflicts=conflicts,
+            output_root=repository / ".local/_nogit/chimera",
+            measure=summarize,
+        )
+        watch_services = WatchServices(management=chimera, generate_services=services)
+        watch(watch_services, interval=args.interval, once=args.once,
+              dry_run=args.dry_run)
         return
     if args.command == "finalize":
         services = FinalizeServices(

@@ -37,11 +37,14 @@ class GenerateFake:
     def __init__(self):
         self.calls = []
         self.fail_for = set()
+        self.raise_for: dict[str, BaseException] = {}
 
     def __call__(self, request_path, services, *, dry_run=False, force=False):
         self.calls.append((request_path, dry_run))
         if request_path.stem in self.fail_for:
             raise SystemExit("generate failed")
+        if request_path.stem in self.raise_for:
+            raise self.raise_for[request_path.stem]
 
 
 def base_item(**overrides):
@@ -120,6 +123,12 @@ class BuildRequestTest(unittest.TestCase):
         with self.assertRaises(SkipRun):
             build_request(item)
 
+    def test_non_mapping_base_parameters_raises_skip_run(self):
+        item = base_item()
+        item["experiment"]["base_parameters"] = ["pose", "lounge"]
+        with self.assertRaises(SkipRun):
+            build_request(item)
+
     def test_overrides_pass_through_verbatim(self):
         overrides = {"patches": [
             {"target": "render.cfg", "op": "set", "value": 4.5, "reason": "x"}]}
@@ -166,6 +175,47 @@ class PollOnceTest(unittest.TestCase):
             )
             poll_once(services)
             self.assertTrue(any("run-explodes" in message for message in messages))
+
+    def test_list_base_parameters_is_skipped_and_a_later_valid_run_still_runs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bad = base_item(id="run-bad-params")
+            bad["experiment"]["base_parameters"] = ["pose", "lounge"]
+            good = base_item(id="run-good")
+            management = ManagementFake([bad, good])
+            fake_generate = GenerateFake()
+            messages = []
+            services = WatchServices(
+                management=management,
+                generate_services=make_generate_services(Path(directory)),
+                generate=fake_generate,
+                emit=messages.append,
+            )
+            poll_once(services)
+            self.assertEqual(len(fake_generate.calls), 1)
+            self.assertEqual(fake_generate.calls[0][0].stem, "run-good")
+            self.assertTrue(
+                any("run-bad-params" in message for message in messages))
+
+    def test_generate_runtime_error_is_reported_and_next_run_still_runs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            exploding = base_item(id="run-runtime-error")
+            good = base_item(id="run-after-error")
+            management = ManagementFake([exploding, good])
+            fake_generate = GenerateFake()
+            fake_generate.raise_for["run-runtime-error"] = RuntimeError("boom")
+            messages = []
+            services = WatchServices(
+                management=management,
+                generate_services=make_generate_services(Path(directory)),
+                generate=fake_generate,
+                emit=messages.append,
+            )
+            poll_once(services)
+            self.assertEqual(len(fake_generate.calls), 2)
+            self.assertEqual(fake_generate.calls[1][0].stem, "run-after-error")
+            self.assertTrue(
+                any("run-runtime-error" in message and "boom" in message
+                    for message in messages))
 
     def test_request_file_path_is_stable_per_run(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -250,6 +300,30 @@ class WatchLoopTest(unittest.TestCase):
             )
             watch(services, once=False)  # must not raise
             self.assertTrue(any("stopped" in message for message in messages))
+
+    def test_keyboard_interrupt_from_generate_still_stops_the_loop(self):
+        with tempfile.TemporaryDirectory() as directory:
+            item = base_item(id="run-ctrl-c")
+            management = ManagementFake([item])
+            fake_generate = GenerateFake()
+            fake_generate.raise_for["run-ctrl-c"] = KeyboardInterrupt()
+
+            def fail_if_reached(seconds):
+                raise AssertionError("must not sleep: KeyboardInterrupt should "
+                                      "have stopped the loop first")
+
+            messages = []
+            services = WatchServices(
+                management=management,
+                generate_services=make_generate_services(Path(directory)),
+                generate=fake_generate, sleep=fail_if_reached,
+                emit=messages.append,
+            )
+            watch(services, once=False)  # must not raise
+            self.assertTrue(any("stopped" in message for message in messages))
+            self.assertFalse(
+                any("run-ctrl-c" in message for message in messages),
+                "KeyboardInterrupt must not be reported as a skipped run")
 
 
 if __name__ == "__main__":

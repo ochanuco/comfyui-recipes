@@ -60,7 +60,12 @@ def build_request(item: Mapping) -> dict:
     base_recipe = experiment.get("base_recipe")
     if not base_recipe:
         raise SkipRun(f"run {item.get('id')}: experiment has no base_recipe")
-    parameters = dict(experiment.get("base_parameters") or {})
+    base_parameters = experiment.get("base_parameters")
+    if base_parameters is not None and not isinstance(base_parameters, Mapping):
+        raise SkipRun(
+            f"run {item.get('id')}: base_parameters must be a mapping, got "
+            f"{type(base_parameters).__name__}")
+    parameters = dict(base_parameters or {})
     count = parameters.pop("count", 1)
     summary = item.get("objective") or _fallback_summary(item)
     return {
@@ -88,6 +93,10 @@ def _request_path(output_root: Path, run_id: object) -> Path:
 
 
 def poll_once(services: WatchServices, *, dry_run: bool = False) -> None:
+    # A single Run's build/validate/write/generate is isolated here so one
+    # malformed or failing Run cannot stop the rest of the batch from
+    # running. KeyboardInterrupt is a BaseException, not an Exception, so it
+    # is deliberately left uncaught and keeps propagating to watch()'s loop.
     response = services.management.request("GET", PENDING_RUNS_PATH)
     for item in response.get("items", []):
         run_id = item.get("id")
@@ -96,16 +105,12 @@ def poll_once(services: WatchServices, *, dry_run: bool = False) -> None:
             validate_request(request)
             request_path = _request_path(
                 services.generate_services.output_root, run_id)
-        except (SkipRun, SystemExit) as error:
-            services.emit(f"skip run {run_id}: {error}")
-            continue
-        request_path.parent.mkdir(parents=True, exist_ok=True)
-        request_path.write_text(
-            json.dumps(request, indent=2, ensure_ascii=False))
-        try:
+            request_path.parent.mkdir(parents=True, exist_ok=True)
+            request_path.write_text(
+                json.dumps(request, indent=2, ensure_ascii=False))
             services.generate(
                 request_path, services.generate_services, dry_run=dry_run)
-        except SystemExit as error:
+        except (SystemExit, Exception) as error:
             services.emit(f"skip run {run_id}: {error}")
 
 

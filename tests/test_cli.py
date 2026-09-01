@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import Mock, patch
 
 from comfyui_recipes.interfaces import cli
@@ -46,6 +46,42 @@ class CliTest(unittest.TestCase):
         chimera_class.assert_not_called()
         self.assertIn('"positive"', output.getvalue())
         self.assertIn('"negative"', output.getvalue())
+
+
+class WatchIntervalTest(unittest.TestCase):
+    def _parse(self, interval: str):
+        with redirect_stderr(io.StringIO()):
+            return cli.parser().parse_args(["watch", "--interval", interval])
+
+    def test_zero_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            self._parse("0")
+
+    def test_negative_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            self._parse("-1")
+
+    def test_nan_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            self._parse("nan")
+
+    def test_infinity_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            self._parse("inf")
+
+    def test_non_numeric_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            self._parse("soon")
+
+    def test_valid_value_is_accepted(self):
+        args = self._parse("2.5")
+        self.assertEqual(args.interval, 2.5)
+
+    @patch.object(cli, "watch")
+    @patch.object(cli, "ChimeraClient")
+    def test_valid_value_reaches_watch(self, chimera_class, run_watch):
+        cli.main(["watch", "--interval", "2.5", "--once"])
+        self.assertEqual(run_watch.call_args.kwargs["interval"], 2.5)
 
 
 if __name__ == "__main__":

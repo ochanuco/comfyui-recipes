@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 
 from ..application import metadata
@@ -28,6 +29,18 @@ from ..infrastructure.persistence.run_state import JsonRunState
 from ..infrastructure.repository import discover_repository, git_metadata
 
 
+def _positive_finite_seconds(raw: str) -> float:
+    """argparse type= for --interval: rejects 0, negatives, nan and inf."""
+    try:
+        value = float(raw)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a number: {raw!r}") from None
+    if not math.isfinite(value) or value <= 0:
+        raise argparse.ArgumentTypeError(
+            f"--interval must be a finite number > 0, got {raw!r}")
+    return value
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="comfy-recipes")
     commands = root.add_subparsers(dest="command", required=True)
@@ -39,7 +52,8 @@ def parser() -> argparse.ArgumentParser:
 
     watch_parser = commands.add_parser(
         "watch", help="poll chimera for pending ExperimentRuns and generate them")
-    watch_parser.add_argument("--interval", type=float, default=30)
+    watch_parser.add_argument(
+        "--interval", type=_positive_finite_seconds, default=30)
     watch_parser.add_argument("--once", action="store_true")
     watch_parser.add_argument("--dry-run", action="store_true")
 

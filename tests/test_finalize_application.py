@@ -123,6 +123,21 @@ class FinalizeApplicationTest(unittest.TestCase):
             finalize("gen-id", services)
             self.assertEqual(seen, [(b"raw-bytes", b"matte-bytes")])
 
+    def test_the_matte_is_stored_as_a_mask_asset(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory, repin=lambda data: (data, []))
+            finalize("gen-id", services)
+            asset_call = next(
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1].endswith("/assets"))
+            self.assertEqual(asset_call[1], "/api/v1/generations/generation/assets")
+            metadata, field, filename, data, content_type = asset_call[3]
+            self.assertEqual(metadata, {"role": "mask"})
+            self.assertEqual(field, "file")
+            self.assertEqual(filename, "out-matte.png")
+            self.assertEqual(data, b"matte-bytes")
+            self.assertEqual(content_type, "image/png")
+
     def test_a_missing_matte_aborts(self):
         class NoMatte(ComfyFake):
             def wait_for(self, prompt_id):

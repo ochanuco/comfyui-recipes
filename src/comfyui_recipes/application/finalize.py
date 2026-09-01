@@ -63,10 +63,11 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             "mattes; one of each is required")
     image = pictures[-1]
     raw = services.comfyui.fetch(image)
+    matte_name = mattes[-1]["filename"]
     matte = services.comfyui.fetch(mattes[-1])
     services.output_root.mkdir(parents=True, exist_ok=True)
     (services.output_root / image["filename"]).write_bytes(raw)
-    (services.output_root / mattes[-1]["filename"]).write_bytes(matte)
+    (services.output_root / matte_name).write_bytes(matte)
     to_deliver = raw
     if services.repin_skin is not None:
         to_deliver, report = services.repin_skin(picked, to_deliver)
@@ -122,7 +123,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         {"status": "queued", "comfy_prompt_id": prompt_id, "graph": graph})
     services.management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "completed"})
-    urls = []
+    ids, urls = [], []
     for index, (name, data) in enumerate(
             [(image["filename"], raw), (delivered_name, delivered)]):
         rendered = services.management.request(
@@ -130,8 +131,16 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             multipart=({"seed": seed, "original_filename": name,
                         "comfy_output_index": index},
                        "image", name, data, "image/png"))
+        ids.append(rendered["id"])
         urls.append(rendered["canonical_url"])
         services.emit(f"{name} -> {rendered['canonical_url']}")
+    # The matte is the silhouette of the raw redraw, not of the delivered
+    # composite, so it hangs off generation 0. Storing it is what lets the
+    # cutout be redone later without re-running the 2048 pass.
+    services.management.request(
+        "POST", f"/api/v1/generations/{ids[0]}/assets",
+        multipart=({"role": "mask"}, "file", matte_name, matte, "image/png"))
+    services.emit(f"{matte_name} -> mask on {ids[0]}")
     services.management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
     services.management.request(

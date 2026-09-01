@@ -52,7 +52,8 @@ NEGATIVE = (
     # the encoding. Never isolated: the picked render carries it, so it is
     # in; if a later session finds it inert, deleting it costs nothing else.
     "(long eyelashes:1.35), "
-    "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
+    "worst quality, low quality, score_1, score_2, score_3, blurry, "
+    "jpeg artifacts, bad anatomy, bad hands, "
     "extra fingers, extra limbs, watermark, signature, text, (disembodied eye:1.4), "
     "(brown legwear:1.5), brown thighhighs, brown pantyhose, (fishnet:1.4), "
     "(latex:1.45), (rubber:1.45), (leather legwear:1.45), "

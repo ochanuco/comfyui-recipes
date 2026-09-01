@@ -12,7 +12,10 @@ from ..domain.yukari import delivery_style
 from ..domain.yukari.recipe import TOE_GUARD, refinement_prompt
 from ..infrastructure.comfyui.refinement_graph import MATTE_SUFFIX
 
-FINALIZE_SIZE = 2048
+# The delivery redraw's longest side. 1536 rather than 2048 because the rough
+# hand-drawn line no longer depends on it: that dependency belonged to the
+# Illustrious checkpoint, not to the look.
+FINALIZE_SIZE = 1536
 
 
 @dataclass(frozen=True)

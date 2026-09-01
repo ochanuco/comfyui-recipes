@@ -52,7 +52,7 @@ from PIL import Image
 
 import yukari_recipe as yk
 
-HEAD = "best quality, absurdres, 1girl, solo"
+HEAD = "masterpiece, best quality, score_7, absurdres, 1girl, solo"
 
 # The costume itself, fingerprinted. Per-pose drift is only half the problem:
 # editing CHARACTER or LEGWEAR changes the clothes in every pose at once, and
@@ -98,7 +98,7 @@ COSTUME_BLOCKS = ("character", "legwear", "body", "face", "surface", "hood", "th
 # `oversized shirt` goes 1.45 -> 1.55: 「股を出さずに服で隠すこと」. Third and last
 # value on that dial. Only this costume's character block moved; 32 poses under
 # `default` and `sporty` were rebuilt across both passes and did not.
-COSTUME_FINGERPRINT = "6baf3a49c68abd92"
+COSTUME_FINGERPRINT = "b3b98896c4629649"
 
 # The delivery half of the identity -- backdrop, purple stroke, acceptance
 # band -- fingerprinted from `yukari/delivery_style.py`. A SEPARATE hash on
@@ -106,7 +106,7 @@ COSTUME_FINGERPRINT = "6baf3a49c68abd92"
 # mixes them tells the reader the wrong thing moved. Hashed from an explicit
 # canonical payload (not from the module source), so a comment edit does not
 # move it and a value edit always does.
-DELIVERY_FINGERPRINT = "3841eeba3434ae0f"
+DELIVERY_FINGERPRINT = "87dfd2e97619ecd0"
 FINGERPRINT_SCHEMA = 3
 
 

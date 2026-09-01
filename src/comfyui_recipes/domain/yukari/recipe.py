@@ -118,7 +118,7 @@ def positive(pose: str, costume: str = "default") -> str:
     character = _apply(character, rec.character_edits, costume)
     legwear = _apply(blocks["legwear"], rec.legwear_edits, costume)
     surface = _apply(SURFACE, rec.surface_edits, costume)
-    parts = ["best quality, absurdres, 1girl, solo", character,
+    parts = [QUALITY + ", 1girl, solo", character,
              pose_block(pose, costume)]
     if full_figure:
         parts.append(legwear)
@@ -159,6 +159,12 @@ def negative(pose: str, costume: str = "default") -> str:
 
 
 TOE_GUARD = 1.55
+
+
+# Anima's own quality vocabulary. `score_7` is the model's aesthetic anchor and
+# has no meaning to an Illustrious checkpoint, so this pair moves together with
+# the checkpoint.
+QUALITY = "masterpiece, best quality, score_7, absurdres"
 
 
 def refinement_prompt(base: PromptPair, *, handdrawn: bool = False,

@@ -9,6 +9,7 @@ from pathlib import Path
 from ..application import metadata
 from ..application.finalize import FinalizeServices, finalize
 from ..application.generate import GenerateServices, generate, request_graph
+from ..application.watch import WatchServices, watch
 from ..domain.generation.prompt_lint import conflicts
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.poses import POSES
@@ -35,6 +36,12 @@ def parser() -> argparse.ArgumentParser:
     generate_parser.add_argument("--request", required=True, type=Path)
     generate_parser.add_argument("--dry-run", action="store_true")
     generate_parser.add_argument("--force", action="store_true")
+
+    watch_parser = commands.add_parser(
+        "watch", help="poll chimera for pending ExperimentRuns and generate them")
+    watch_parser.add_argument("--interval", type=float, default=30)
+    watch_parser.add_argument("--once", action="store_true")
+    watch_parser.add_argument("--dry-run", action="store_true")
 
     finalize_parser = commands.add_parser("finalize", help="deliver one picked render")
     finalize_parser.add_argument("generation_id")
@@ -109,6 +116,23 @@ def main(argv: list[str] | None = None) -> None:
             measure=summarize,
         )
         generate(args.request, services, dry_run=args.dry_run, force=args.force)
+        return
+    if args.command == "watch":
+        services = GenerateServices(
+            management=chimera,
+            comfyui=comfyui,
+            state=JsonRunState(),
+            notifier=notifier,
+            graph_builder=lambda generation, seed, prefix: request_graph(
+                generation, seed, prefix, render_spec, build_graph),
+            git_metadata=repository_metadata,
+            conflicts=conflicts,
+            output_root=repository / ".local/_nogit/chimera",
+            measure=summarize,
+        )
+        watch_services = WatchServices(management=chimera, generate_services=services)
+        watch(watch_services, interval=args.interval, once=args.once,
+              dry_run=args.dry_run)
         return
     if args.command == "finalize":
         services = FinalizeServices(

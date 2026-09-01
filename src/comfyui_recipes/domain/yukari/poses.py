@@ -662,7 +662,7 @@ POSE_RECORDS = {
         # flattens every accent. `closed eyes` banned while the positive asks
         # half-closed: forbid shut / ask half.
         hires_negative="(toes:1.55), (closed eyes:1.4), ",
-        settled_seed=737373737),
+        settled_seed=884210577),
     "situp": Pose(
         POSES["situp"], (1536, 1024), open_mouth=True,
         negative_edits=(

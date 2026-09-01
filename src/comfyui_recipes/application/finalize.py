@@ -36,7 +36,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              denoise: float | None = None, handdrawn: bool = False,
              apply_repin: bool = True, apply_recolor: bool = False,
              keep_legwear: float | None = None,
-             toe_guard: float | None = TOE_GUARD) -> None:
+             toe_guard: float | None = TOE_GUARD,
+             size: int = FINALIZE_SIZE) -> None:
     if denoise is None:
         denoise = delivery_style.FINALIZE_DENOISE
     context = services.management.request(
@@ -50,7 +51,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         base["7"]["inputs"]["text"],
     ), handdrawn=handdrawn, toe_guard=toe_guard)
     graph = services.chain_pass(
-        base, FINALIZE_SIZE, denoise, prefix,
+        base, size, denoise, prefix,
         prompt=(prompt.positive, prompt.negative),
         matte_model=delivery_style.MATTE_MODEL)
     prompt_id = services.comfyui.submit(graph)
@@ -103,7 +104,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         "recipe": "yukari",
         "parameters": {"kind": "hires-chain",
                        "base_generation": generation_id,
-                       "size": FINALIZE_SIZE, "denoise": denoise,
+                       "size": size, "denoise": denoise,
                        "repin": repin_applied,
                        **({"recolor": True} if recolor_applied else {}),
                        **({"keep_legwear": keep_legwear}

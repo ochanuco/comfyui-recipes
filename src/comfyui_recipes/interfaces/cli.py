@@ -8,7 +8,8 @@ import math
 from pathlib import Path
 
 from ..application import metadata
-from ..application.finalize import FinalizeServices, finalize
+from ..application.finalize import (FINALIZE_SIZE, FinalizeServices,
+                                    finalize)
 from ..domain.yukari.recipe import TOE_GUARD
 from ..application.generate import GenerateServices, generate, request_graph
 from ..application.watch import WatchServices, watch
@@ -75,6 +76,10 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument(
         "--no-skin", action="store_true",
         help="deliver the redraw's own skin; the pin is a correction and has nothing to correct on a render that already arrives in the palette")
+    finalize_parser.add_argument(
+        "--size", type=int, metavar="LONGEST",
+        help="longest side of the delivery redraw; a DiT's cost tracks pixel "
+             "count, so this is the speed dial")
     finalize_parser.add_argument("--recolor", action="store_true")
     finalize_parser.add_argument(
         "--keep-legwear", nargs="?", const=0.62, type=float, default=None,
@@ -180,6 +185,7 @@ def main(argv: list[str] | None = None) -> None:
                  handdrawn=args.handdrawn, apply_repin=not args.no_repin,
                  apply_recolor=args.recolor,
                  keep_legwear=args.keep_legwear,
+                 size=args.size if args.size else FINALIZE_SIZE,
                  toe_guard=None if args.no_toe_guard else (
                      args.toe_guard if args.toe_guard is not None
                      else TOE_GUARD))

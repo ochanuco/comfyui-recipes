@@ -35,19 +35,25 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     next_id = max(int(key) for key in graph) + 1
     scale, encode, sample, decode = (
         str(next_id + offset) for offset in range(4))
+    # Where the model, CLIP and VAE come from is read off the base pass rather
+    # than assumed: a single DiffusersLoader answers all three from node 4, a
+    # split-file model answers them from three separate loaders.
+    model_ref = graph["3"]["inputs"].get("model", ["4", 0])
+    clip_ref = graph["6"]["inputs"].get("clip", ["4", 1])
     positive, negative = ["6", 0], ["7", 0]
     if prompt:
         positive_id, negative_id = str(next_id + 4), str(next_id + 5)
         graph[positive_id] = {"class_type": "CLIPTextEncode", "inputs": {
-            "clip": ["4", 1], "text": prompt[0]}}
+            "clip": clip_ref, "text": prompt[0]}}
         graph[negative_id] = {"class_type": "CLIPTextEncode", "inputs": {
-            "clip": ["4", 1], "text": prompt[1]}}
+            "clip": clip_ref, "text": prompt[1]}}
         positive, negative = [positive_id, 0], [negative_id, 0]
     tail = graph[graph["9"]["inputs"]["images"][0]]
     if tail.get("class_type") != "VAEDecode":
         raise ValueError(
             "base graph's SaveImage must be fed by a VAEDecode, got "
             f"{tail.get('class_type')!r}")
+    vae_ref = tail["inputs"].get("vae", ["4", 2])
     width, height = sizes(graph, size)
     # The upscale runs in pixel space, through the base pass's own decode.
     # Upscaling the latent instead puts a staircase on every hard contour
@@ -57,14 +63,20 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         "image": graph["9"]["inputs"]["images"], "upscale_method": "bicubic",
         "width": width, "height": height, "crop": "disabled"}}
     graph[encode] = {"class_type": "VAEEncode", "inputs": {
-        "pixels": [scale, 0], "vae": ["4", 2]}}
+        "pixels": [scale, 0], "vae": vae_ref}}
+    # The sampler is the base pass's own, denoise apart: a checkpoint that was
+    # tuned at a different cfg or sampler must be redrawn the way it was drawn.
+    base_sampler = graph["3"]["inputs"]
     graph[sample] = {"class_type": "KSampler", "inputs": {
-        "model": ["4", 0], "positive": positive, "negative": negative,
-        "latent_image": [encode, 0], "seed": graph["3"]["inputs"]["seed"],
-        "steps": 30, "cfg": 5.0, "sampler_name": "dpmpp_2m",
-        "scheduler": "karras", "denoise": denoise}}
+        "model": model_ref, "positive": positive, "negative": negative,
+        "latent_image": [encode, 0], "seed": base_sampler["seed"],
+        "steps": base_sampler.get("steps", 30),
+        "cfg": base_sampler.get("cfg", 5.0),
+        "sampler_name": base_sampler.get("sampler_name", "dpmpp_2m"),
+        "scheduler": base_sampler.get("scheduler", "karras"),
+        "denoise": denoise}}
     graph[decode] = {"class_type": "VAEDecode", "inputs": {
-        "samples": [sample, 0], "vae": ["4", 2]}}
+        "samples": [sample, 0], "vae": vae_ref}}
     graph["9"]["inputs"]["images"] = [decode, 0]
     graph["9"]["inputs"]["filename_prefix"] = prefix
     if matte_model:

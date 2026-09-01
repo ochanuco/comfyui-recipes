@@ -66,13 +66,9 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument("--handdrawn", action="store_true")
     finalize_parser.add_argument("--no-repin", action="store_true")
     finalize_parser.add_argument(
-        "--no-toe-guard", action="store_true",
-        help="let the redraw draw the toes; the guard dissolves them, "
-             "which shows as pads once the foot is large in frame")
-    finalize_parser.add_argument(
-        "--toe-guard", type=float, metavar="WEIGHT",
-        help="weight of the toe guard, between pads at 1.55 and a wrong "
-             "count at none")
+        "--toe-guard", type=float, nargs="?", const=TOE_GUARD, metavar="WEIGHT",
+        help="ban the toes in the redraw, hiding the count behind a smooth "
+             "toe box; off by default because the checkpoint draws five")
     finalize_parser.add_argument(
         "--no-skin", action="store_true",
         help="deliver the redraw's own skin; the pin is a correction and has nothing to correct on a render that already arrives in the palette")
@@ -186,9 +182,7 @@ def main(argv: list[str] | None = None) -> None:
                  apply_recolor=args.recolor,
                  keep_legwear=args.keep_legwear,
                  size=args.size if args.size else FINALIZE_SIZE,
-                 toe_guard=None if args.no_toe_guard else (
-                     args.toe_guard if args.toe_guard is not None
-                     else TOE_GUARD))
+                 toe_guard=args.toe_guard)
         return
 
     if args.metadata_command == "semantic":

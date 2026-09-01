@@ -158,6 +158,7 @@ def negative(pose: str, costume: str = "default") -> str:
                   costume)
 
 
+# What the guard weighed while it was in force.
 TOE_GUARD = 1.55
 
 
@@ -168,15 +169,15 @@ QUALITY = "masterpiece, best quality, score_7, absurdres"
 
 
 def refinement_prompt(base: PromptPair, *, handdrawn: bool = False,
-                      toe_guard: float | None = TOE_GUARD) -> PromptPair:
+                      toe_guard: float | None = None) -> PromptPair:
     """Build the Yukari-specific prompt used by the delivery redraw."""
     positive_prompt = base.positive
     if handdrawn:
         positive_prompt = (
             positive_prompt.replace(", " + THIN, "") + HANDDRAWN_FINISH)
-    # Dissolves the toe separation rather than trimming a surplus one, so a
-    # foot drawn large enough to show structure loses it to pads; off, the
-    # count goes wrong instead. The weight is the dial between the two.
+    # Off by default: the guard existed to hide a toe count the checkpoint got
+    # wrong, and the current one draws five. It dissolves the separation rather
+    # than trimming a surplus toe, so asking for it back costs the structure.
     toe_ban = ("" if toe_guard is None or "barefoot" in positive_prompt
                else f"(toes:{toe_guard}), ")
     return PromptPair(

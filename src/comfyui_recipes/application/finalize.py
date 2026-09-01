@@ -9,7 +9,7 @@ from pathlib import Path
 
 from ..domain.generation.models import PromptPair
 from ..domain.yukari import delivery_style
-from ..domain.yukari.recipe import TOE_GUARD, refinement_prompt
+from ..domain.yukari.recipe import refinement_prompt
 from ..infrastructure.comfyui.refinement_graph import MATTE_SUFFIX
 
 # The delivery redraw's longest side. 1536 rather than 2048 because the rough
@@ -39,7 +39,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              denoise: float | None = None, handdrawn: bool = False,
              apply_repin: bool = True, apply_recolor: bool = False,
              keep_legwear: float | None = None,
-             toe_guard: float | None = TOE_GUARD,
+             toe_guard: float | None = None,
              size: int = FINALIZE_SIZE) -> None:
     if denoise is None:
         denoise = delivery_style.FINALIZE_DENOISE

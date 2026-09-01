@@ -20,10 +20,15 @@ class YukariRecipeDomainTest(unittest.TestCase):
         self.assertNotIn(THIN, prompt.positive)
         self.assertTrue(prompt.positive.endswith(HANDDRAWN_FINISH))
         self.assertEqual(
-            prompt.negative,
+            prompt.negative, HAND_BAN + SHADE_BAN + "base negative")
+
+        guarded = refinement_prompt(base, toe_guard=1.55)
+        self.assertEqual(
+            guarded.negative,
             "(toes:1.55), " + HAND_BAN + SHADE_BAN + "base negative")
 
-        barefoot = refinement_prompt(PromptPair("barefoot", "negative"))
+        barefoot = refinement_prompt(PromptPair("barefoot", "negative"),
+                                     toe_guard=1.55)
         self.assertEqual(barefoot.negative, HAND_BAN + SHADE_BAN + "negative")
 
     def test_hires_dimensions_must_be_at_least_one_latent_pixel(self):

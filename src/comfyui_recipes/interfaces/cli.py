@@ -9,6 +9,7 @@ from pathlib import Path
 
 from ..application import metadata
 from ..application.finalize import FinalizeServices, finalize
+from ..domain.yukari.recipe import TOE_GUARD
 from ..application.generate import GenerateServices, generate, request_graph
 from ..application.watch import WatchServices, watch
 from ..domain.generation.prompt_lint import conflicts
@@ -63,6 +64,14 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument("--denoise", type=float)
     finalize_parser.add_argument("--handdrawn", action="store_true")
     finalize_parser.add_argument("--no-repin", action="store_true")
+    finalize_parser.add_argument(
+        "--no-toe-guard", action="store_true",
+        help="let the redraw draw the toes; the guard dissolves them, "
+             "which shows as pads once the foot is large in frame")
+    finalize_parser.add_argument(
+        "--toe-guard", type=float, metavar="WEIGHT",
+        help="weight of the toe guard, between pads at 1.55 and a wrong "
+             "count at none")
     finalize_parser.add_argument(
         "--no-skin", action="store_true",
         help="deliver the redraw's own skin; the pin is a correction and has nothing to correct on a render that already arrives in the palette")
@@ -170,7 +179,10 @@ def main(argv: list[str] | None = None) -> None:
         finalize(args.generation_id, services, denoise=args.denoise,
                  handdrawn=args.handdrawn, apply_repin=not args.no_repin,
                  apply_recolor=args.recolor,
-                 keep_legwear=args.keep_legwear)
+                 keep_legwear=args.keep_legwear,
+                 toe_guard=None if args.no_toe_guard else (
+                     args.toe_guard if args.toe_guard is not None
+                     else TOE_GUARD))
         return
 
     if args.metadata_command == "semantic":

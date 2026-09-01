@@ -9,7 +9,7 @@ from pathlib import Path
 
 from ..domain.generation.models import PromptPair
 from ..domain.yukari import delivery_style
-from ..domain.yukari.recipe import refinement_prompt
+from ..domain.yukari.recipe import TOE_GUARD, refinement_prompt
 from ..infrastructure.comfyui.refinement_graph import MATTE_SUFFIX
 
 FINALIZE_SIZE = 2048
@@ -35,7 +35,8 @@ class FinalizeServices:
 def finalize(generation_id: str, services: FinalizeServices, *,
              denoise: float | None = None, handdrawn: bool = False,
              apply_repin: bool = True, apply_recolor: bool = False,
-             keep_legwear: float | None = None) -> None:
+             keep_legwear: float | None = None,
+             toe_guard: float | None = TOE_GUARD) -> None:
     if denoise is None:
         denoise = delivery_style.FINALIZE_DENOISE
     context = services.management.request(
@@ -47,7 +48,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     prompt = refinement_prompt(PromptPair(
         base["6"]["inputs"]["text"],
         base["7"]["inputs"]["text"],
-    ), handdrawn=handdrawn)
+    ), handdrawn=handdrawn, toe_guard=toe_guard)
     graph = services.chain_pass(
         base, FINALIZE_SIZE, denoise, prefix,
         prompt=(prompt.positive, prompt.negative),

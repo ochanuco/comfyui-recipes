@@ -158,13 +158,21 @@ def negative(pose: str, costume: str = "default") -> str:
                   costume)
 
 
-def refinement_prompt(base: PromptPair, *, handdrawn: bool = False) -> PromptPair:
+TOE_GUARD = 1.55
+
+
+def refinement_prompt(base: PromptPair, *, handdrawn: bool = False,
+                      toe_guard: float | None = TOE_GUARD) -> PromptPair:
     """Build the Yukari-specific prompt used by the delivery redraw."""
     positive_prompt = base.positive
     if handdrawn:
         positive_prompt = (
             positive_prompt.replace(", " + THIN, "") + HANDDRAWN_FINISH)
-    toe_ban = "" if "barefoot" in positive_prompt else "(toes:1.55), "
+    # Dissolves the toe separation rather than trimming a surplus one, so a
+    # foot drawn large enough to show structure loses it to pads; off, the
+    # count goes wrong instead. The weight is the dial between the two.
+    toe_ban = ("" if toe_guard is None or "barefoot" in positive_prompt
+               else f"(toes:{toe_guard}), ")
     return PromptPair(
         positive_prompt,
         toe_ban + HAND_BAN + SHADE_BAN + base.negative,

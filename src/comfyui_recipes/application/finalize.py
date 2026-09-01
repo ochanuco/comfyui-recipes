@@ -40,7 +40,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              apply_repin: bool = True, apply_recolor: bool = False,
              keep_legwear: float | None = None,
              toe_guard: float | None = None,
-             size: int = FINALIZE_SIZE) -> None:
+             size: int = FINALIZE_SIZE, latent_route: bool = False) -> None:
     if denoise is None:
         denoise = delivery_style.FINALIZE_DENOISE
     context = services.management.request(
@@ -56,7 +56,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     graph = services.chain_pass(
         base, size, denoise, prefix,
         prompt=(prompt.positive, prompt.negative),
-        matte_model=delivery_style.MATTE_MODEL)
+        matte_model=delivery_style.MATTE_MODEL,
+        latent_route=latent_route)
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
@@ -108,6 +109,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         "parameters": {"kind": "hires-chain",
                        "base_generation": generation_id,
                        "size": size, "denoise": denoise,
+                       **({"route": "latent"} if latent_route else {}),
                        "repin": repin_applied,
                        **({"recolor": True} if recolor_applied else {}),
                        **({"keep_legwear": keep_legwear}

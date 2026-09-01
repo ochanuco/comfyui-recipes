@@ -76,6 +76,10 @@ def parser() -> argparse.ArgumentParser:
         "--size", type=int, metavar="LONGEST",
         help="longest side of the delivery redraw; a DiT's cost tracks pixel "
              "count, so this is the speed dial")
+    finalize_parser.add_argument(
+        "--latent-route", action="store_true",
+        help="upscale the latent instead of the decoded image; the staircase "
+             "it leaves is what the redraw turns into visible stroke")
     finalize_parser.add_argument("--recolor", action="store_true")
     finalize_parser.add_argument(
         "--keep-legwear", nargs="?", const=0.62, type=float, default=None,
@@ -182,6 +186,7 @@ def main(argv: list[str] | None = None) -> None:
                  apply_recolor=args.recolor,
                  keep_legwear=args.keep_legwear,
                  size=args.size if args.size else FINALIZE_SIZE,
+                 latent_route=args.latent_route,
                  toe_guard=args.toe_guard)
         return
 

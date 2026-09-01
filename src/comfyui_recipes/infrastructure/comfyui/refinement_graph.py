@@ -19,7 +19,8 @@ def sizes(graph: dict, longest_side: int) -> tuple[int, int]:
 
 def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                prompt: tuple[str, str] | None = None,
-               matte_model: str | None = None) -> dict:
+               matte_model: str | None = None,
+               latent_route: bool = False) -> dict:
     required = {"3", "4", "5", "6", "7", "9"}
     missing = sorted(required - base.keys(), key=int)
     if missing:
@@ -55,21 +56,28 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             f"{tail.get('class_type')!r}")
     vae_ref = tail["inputs"].get("vae", ["4", 2])
     width, height = sizes(graph, size)
-    # The upscale runs in pixel space, through the base pass's own decode.
-    # Upscaling the latent instead puts a staircase on every hard contour
-    # (one latent pixel is eight image pixels) that survives the redraw at
-    # the delivery denoise; only a much deeper redraw could paint over it.
-    graph[scale] = {"class_type": "ImageScale", "inputs": {
-        "image": graph["9"]["inputs"]["images"], "upscale_method": "bicubic",
-        "width": width, "height": height, "crop": "disabled"}}
-    graph[encode] = {"class_type": "VAEEncode", "inputs": {
-        "pixels": [scale, 0], "vae": vae_ref}}
+    # Two routes to the bigger latent, and they do not draw the same picture.
+    # Pixel space is faithful; the latent route leaves a staircase on hard
+    # contours that the redraw turns into visible stroke, which is the hand in
+    # the line this delivery is judged on.
+    if latent_route:
+        graph[scale] = {"class_type": "LatentUpscale", "inputs": {
+            "samples": ["3", 0], "upscale_method": "bicubic",
+            "width": width, "height": height, "crop": "disabled"}}
+        latent_in = [scale, 0]
+    else:
+        graph[scale] = {"class_type": "ImageScale", "inputs": {
+            "image": graph["9"]["inputs"]["images"], "upscale_method": "bicubic",
+            "width": width, "height": height, "crop": "disabled"}}
+        graph[encode] = {"class_type": "VAEEncode", "inputs": {
+            "pixels": [scale, 0], "vae": vae_ref}}
+        latent_in = [encode, 0]
     # The sampler is the base pass's own, denoise apart: a checkpoint that was
     # tuned at a different cfg or sampler must be redrawn the way it was drawn.
     base_sampler = graph["3"]["inputs"]
     graph[sample] = {"class_type": "KSampler", "inputs": {
         "model": model_ref, "positive": positive, "negative": negative,
-        "latent_image": [encode, 0], "seed": base_sampler["seed"],
+        "latent_image": latent_in, "seed": base_sampler["seed"],
         "steps": base_sampler.get("steps", 30),
         "cfg": base_sampler.get("cfg", 5.0),
         "sampler_name": base_sampler.get("sampler_name", "dpmpp_2m"),

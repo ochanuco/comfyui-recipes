@@ -20,9 +20,10 @@ from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
 from ..infrastructure.comfyui.yukari_graph import build_graph
 from ..infrastructure.imaging.delivery import (
-    clean_background, corner_spread, graph_from_png,
+    clean_background, graph_from_png,
 )
-from ..infrastructure.imaging.palette import repin_png, summarize
+from ..infrastructure.imaging.palette import (
+    repin_png, repin_skin_png, summarize)
 from ..infrastructure.imaging.recolor import recolor_png
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
@@ -62,6 +63,9 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument("--denoise", type=float)
     finalize_parser.add_argument("--handdrawn", action="store_true")
     finalize_parser.add_argument("--no-repin", action="store_true")
+    finalize_parser.add_argument(
+        "--no-skin", action="store_true",
+        help="deliver the redraw's own skin; the pin is a correction and has nothing to correct on a render that already arrives in the palette")
     finalize_parser.add_argument("--recolor", action="store_true")
     finalize_parser.add_argument(
         "--keep-legwear", nargs="?", const=0.62, type=float, default=None,
@@ -155,11 +159,11 @@ def main(argv: list[str] | None = None) -> None:
             graph_from_png=graph_from_png,
             chain_pass=chain_pass,
             deliver=clean_background,
-            corner_spread=corner_spread,
             git_metadata=repository_metadata,
             notifier=notifier,
             output_root=repository / ".local/_nogit/finalize",
             repin=lambda data: repin_png(data, keep_legwear=args.keep_legwear),
+            repin_skin=None if args.no_skin else repin_skin_png,
             measure=summarize,
             recolor=recolor_png,
         )

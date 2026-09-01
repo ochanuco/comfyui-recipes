@@ -19,11 +19,12 @@ GRAPH = {"3": {"inputs": {"seed": 1}},
 class ManagementFake:
     def __init__(self):
         self.calls = []
+        self.context = {"batch": {"id": "source-batch"}}
 
     def request(self, method, path, payload=None, multipart=None):
         self.calls.append((method, path, payload, multipart))
         if path.endswith("/context"):
-            return {"batch": {"id": "source-batch"}}
+            return self.context
         if method == "POST" and path == "/api/v1/batches":
             return {"id": "batch-id", "short_id": "batch"}
         if method == "POST" and path.endswith("/jobs"):
@@ -42,10 +43,10 @@ class ComfyFake:
         return "prompt-id"
 
     def wait_for(self, prompt_id):
-        return [{"filename": "out.png"}]
+        return [{"filename": "out.png"}, {"filename": "out-matte.png"}]
 
     def fetch(self, image):
-        return b"raw-bytes"
+        return b"matte-bytes" if "-matte" in image["filename"] else b"raw-bytes"
 
 
 class RecordingNotifier:
@@ -56,7 +57,7 @@ class RecordingNotifier:
         self.calls.append(args)
 
 
-def deliver(data):
+def deliver(data, matte):
     return data + b"-delivered", "tag"
 
 
@@ -67,7 +68,6 @@ def base_services(directory, **overrides):
         graph_from_png=lambda data: GRAPH,
         chain_pass=lambda *args, **kwargs: {},
         deliver=deliver,
-        corner_spread=lambda data: 1.0,
         git_metadata=lambda: {"commit": "commit", "dirty": False},
         notifier=RecordingNotifier(),
         output_root=Path(directory),
@@ -110,9 +110,41 @@ class FinalizeApplicationTest(unittest.TestCase):
             delivered_call = multipart_calls[1]
             self.assertEqual(delivered_call[3][3], b"raw-bytes-delivered")
 
-    def test_corner_spread_over_limit_aborts(self):
+    def test_matte_reaches_the_delivery(self):
         with tempfile.TemporaryDirectory() as directory:
-            services = base_services(directory, corner_spread=lambda data: 999.0)
+            seen = []
+
+            def deliver_recording(data, matte):
+                seen.append((data, matte))
+                return data + b"-delivered", "tag"
+
+            services = base_services(directory, deliver=deliver_recording,
+                                     repin=lambda data: (data, []))
+            finalize("gen-id", services)
+            self.assertEqual(seen, [(b"raw-bytes", b"matte-bytes")])
+
+    def test_the_matte_is_stored_as_a_mask_asset(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory, repin=lambda data: (data, []))
+            finalize("gen-id", services)
+            asset_call = next(
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1].endswith("/assets"))
+            self.assertEqual(asset_call[1], "/api/v1/generations/generation/assets")
+            metadata, field, filename, data, content_type = asset_call[3]
+            self.assertEqual(metadata, {"role": "mask"})
+            self.assertEqual(field, "file")
+            self.assertEqual(filename, "out-matte.png")
+            self.assertEqual(data, b"matte-bytes")
+            self.assertEqual(content_type, "image/png")
+
+    def test_a_missing_matte_aborts(self):
+        class NoMatte(ComfyFake):
+            def wait_for(self, prompt_id):
+                return [{"filename": "out.png"}]
+
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory, comfyui=NoMatte())
             with self.assertRaises(SystemExit):
                 finalize("gen-id", services)
 

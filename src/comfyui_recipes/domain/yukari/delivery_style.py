@@ -67,9 +67,30 @@ FIGURE_LIGHT_SAT_TARGET = 28.0
 PALETTE_WINDOWS = (
     {"name": "purple", "hue": (170.0, 225.0), "hue_target": 191.0,
      "sat_light": 50.4, "sat_mid": 45.1},
-    {"name": "skin", "hue": (0.0, 48.0), "hue_target": None,
-     "sat_light": 24.7, "sat_mid": 58.5},
+    {"name": "skin", "hue": (0.0, 48.0), "hue_target": 17.8,
+     "sat_light": 45.0, "sat_mid": 75.0},
 )
+
+# Where the skin is. The 2048 redraw re-decides it and lands it in the
+# purple window, so the region cannot be read off the redraw -- it is read
+# off the render the redraw was made from, which still has the skin the base
+# drew. The window's hue is the reference stand's measured skin; its
+# saturations are pin targets above that reference, and the pin only ever
+# raises saturation -- pinning down washed the lips out with the cheek.
+SKIN_SOURCE_S_MIN = 20.0
+# The lips are warm and sit inside the skin window, so the hue pin turns
+# them orange unless the field is separated from the accent. The cheek
+# measures S 25-29 and the lips above 80; the ceiling splits them.
+SKIN_SOURCE_S_MAX = 60.0
+SKIN_SOURCE_V_MIN = 110.0
+SKIN_PIN_BLEND = 1.0
+# Below this share of the frame the base did not draw skin, it drew the
+# hair's lavender over the face. The fragments left in the mask are
+# speckle, and pinning them puts cream blotches on a lavender cheek --
+# worse than leaving the face alone. The delivery does not invent skin.
+SKIN_PIN_MIN_SHARE = 0.08
+# One coherent field, not the warm grain along every line.
+SKIN_PIN_MIN_AREA = 4096
 
 # repin's compression curve, per V band: (knee, ratio). Saturation below the
 # knee is untouched; only the excess is kept, at the ratio. A single factor
@@ -98,11 +119,17 @@ ACCENT_KEEP = 0.65
 ACCENT_VALUE_RAMP = (FIGURE_MIDTONE_V, 40.0)  # start, width
 
 # The backdrop flatness screen, on the RAW render's corner brightness spread.
-# A gradient backdrop starves the flood mask, and then every downstream
-# number -- the figure bands, the normalization factor, the repaint -- is
-# measured against a backdrop leak. Measured flat renders sit under 10 and
-# gradient failures at 40+, so the bound splits them mid-gap.
+# A gradient backdrop starves the flood mask palette.py measures through, so
+# every figure number it reports is against a backdrop leak. Measured flat
+# renders sit under 10 and gradient failures at 40+, so the bound splits them
+# mid-gap. It screens the numbers, not the delivery: the cut-out comes from
+# the matte and does not care what the backdrop does.
 BACKDROP_SPREAD_MAX = 25.0
+
+# The worker-side model that cuts the figure out. The silhouette has to come
+# from something other than colour, because repin moves the figure's colours
+# into the backdrop's tolerance before the delivery ever sees them.
+MATTE_MODEL = "birefnet.safetensors"
 
 # finalize's masked refine, the denoise a 2048 print's touch-up runs at.
 # 0.55 over 0.45: the higher pass loosens the lines into the hand-drawn

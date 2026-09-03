@@ -10,6 +10,7 @@ TEXT_TARGETS = ("prompt.positive", "prompt.negative",
                 "prompt.hires.positive", "prompt.hires.negative")
 NUMBER_TARGETS = ("render.cfg", "render.steps", "render.width",
                   "render.height", "hires.denoise")
+STRING_TARGETS = ("render.model", "render.sampler", "render.scheduler")
 TEXT_OPS = ("append", "prepend", "replace", "remove")
 _KNOWN_KEYS = frozenset({"target", "op", "value", "old", "reason"})
 
@@ -76,6 +77,15 @@ def _parse_number_patch(patch: dict, target: str) -> Patch:
     return Patch(target, op, value, None, reason)
 
 
+def _parse_string_patch(patch: dict, target: str) -> Patch:
+    op = patch.get("op")
+    if op != "set":
+        _fail(target, f"op must be 'set' for {target!r}, got {op!r}")
+    reason = _require_str(patch, "reason", target)
+    value = _require_str(patch, "value", target)
+    return Patch(target, op, value, None, reason)
+
+
 def parse_patches(raw: object) -> tuple[Patch, ...]:
     if not isinstance(raw, list):
         raise ValueError("generation.patches must be an array of patch objects")
@@ -94,8 +104,10 @@ def parse_patches(raw: object) -> tuple[Patch, ...]:
             patches.append(_parse_text_patch(patch, target))
         elif target in NUMBER_TARGETS:
             patches.append(_parse_number_patch(patch, target))
+        elif target in STRING_TARGETS:
+            patches.append(_parse_string_patch(patch, target))
         else:
-            allowed = TEXT_TARGETS + NUMBER_TARGETS
+            allowed = TEXT_TARGETS + NUMBER_TARGETS + STRING_TARGETS
             _fail(target, f"unknown target, must be one of {allowed}")
     return tuple(patches)
 
@@ -148,6 +160,12 @@ def _apply_one(spec: RenderSpec, patch: Patch) -> RenderSpec:
         return replace(spec, width=patch.value)
     if patch.target == "render.height":
         return replace(spec, height=patch.value)
+    if patch.target == "render.model":
+        return replace(spec, model_path=patch.value)
+    if patch.target == "render.sampler":
+        return replace(spec, sampler_name=patch.value)
+    if patch.target == "render.scheduler":
+        return replace(spec, scheduler=patch.value)
     hires = replace(spec.hires, denoise=float(patch.value))
     return replace(spec, hires=hires)
 

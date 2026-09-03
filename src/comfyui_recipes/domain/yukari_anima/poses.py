@@ -14,6 +14,7 @@ class Pose:
     expression: str
     costume: str
     negative: str = ""
+    canvas: tuple[int, int] | None = None
 
 
 POSES = {
@@ -25,6 +26,22 @@ POSES = {
         scene=("(standing:1.2), (upper body:1.3), (looking at viewer:1.1), "
                "(night:1.35), (bathroom:1.15), (sink:1.1), (indoors:1.1), "),
         expression="sleepy", costume="roomwear"),
+    "sofa": Pose(
+        action=("(lying:1.45), (on side:1.35), (on couch:1.45), "
+                "(couch:1.3), (knees up:1.1), (hand on own cheek:1.1), "),
+        mood="(relaxed:1.2), (cozy:1.1), ",
+        gesture=("(messy hair:1.2), (wet hair:1.3), (damp hair:1.2), "
+                 "(after bath:1.3), (towel around neck:1.15), (blush:1.1), "
+                 "(looking at viewer:1.0), (thighhighs:1.45), "
+                 "(purple thighhighs:1.35), (loose thighhighs:1.3), "
+                 "(slouch socks:1.2), (baggy:1.15), (wrinkled legwear:1.1), "),
+        scene=("(indoors:1.2), (living room:1.15), (from side:1.25), "
+               "(full body:1.3), (thighs:1.15), (evening:1.1), "),
+        expression="sleepy", costume="roomwear",
+        negative=("(sitting:1.3), (standing:1.4), (bed:1.25), "
+                  "(pillow:1.1), (blanket:1.1), (socks:1.3), "
+                  "(loose socks:1.3), (kneehighs:1.2), "),
+        canvas=(2048, 1280)),
     "coffee": Pose(
         action=("(drinking:1.3), (iced coffee:1.4), (plastic cup:1.45), "
                 "(clear cup:1.2), (drinking straw:1.4), (holding cup:1.35), "

@@ -8,7 +8,9 @@ than silently ignoring them.
 from __future__ import annotations
 
 from ..generation.models import PromptPair, RenderSpec
+from ..yukari.prompt_style import DOT_BAN, HAND_BAN, SHADE_BAN
 from .costumes import COSTUMES
+from .delivery_style import PAINT_BAN, ROUGH_BAN, ROUGH_STYLE
 from .expressions import EXPRESSIONS
 from .poses import POSES
 from .prompt_style import (
@@ -58,6 +60,17 @@ def negative(pose: str, costume: str | None = None,
             + NEGATIVE_TAIL + PROPORTION_BAN)
 
 
+def refinement_prompt(base: PromptPair) -> PromptPair:
+    """Build the anima-specific prompt used by the delivery redraw."""
+    negative = base.negative
+    for ban in (HATCH_BAN, DETAIL_BAN, GRADIENT_BAN, COLORED_LINE_BAN):
+        negative = negative.replace(ban, "")
+    return PromptPair(
+        base.positive.replace(STYLE, ROUGH_STYLE),
+        ROUGH_BAN + PAINT_BAN + HAND_BAN + SHADE_BAN + DOT_BAN + negative,
+    )
+
+
 def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
                 denoise: float | None = None, costume: str | None = None,
                 expression: str | None = None) -> RenderSpec:
@@ -66,10 +79,11 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
     if denoise is not None:
         raise ValueError(
             "yukari-anima has no second pass -- denoise must be None")
+    width, height = POSES[pose].canvas or (WIDTH, HEIGHT)
     return RenderSpec(
         model_path=MODEL,
         prompts=PromptPair(positive(pose, costume, expression),
                            negative(pose, costume, expression)),
-        width=WIDTH, height=HEIGHT, seed=seed, steps=STEPS, cfg=CFG,
+        width=width, height=height, seed=seed, steps=STEPS, cfg=CFG,
         sampler_name=SAMPLER, scheduler=SCHEDULER, denoise=1.0,
         filename_prefix=prefix, hires=None)

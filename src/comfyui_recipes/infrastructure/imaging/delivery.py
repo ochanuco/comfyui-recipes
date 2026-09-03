@@ -137,6 +137,11 @@ def stroke_alpha(mask: np.ndarray, gap: float, width: float) -> np.ndarray:
     return alpha
 
 
+def keep_scene(data: bytes, matte: bytes) -> tuple[bytes, str]:
+    """Deliver the redraw as drawn, background included."""
+    return data, "scene"
+
+
 def clean_background(data: bytes, matte: bytes) -> tuple[bytes, str]:
     """Frame the figure the matte cuts out, in the delivery's own colours.
 

@@ -12,8 +12,9 @@ QUALITY = "masterpiece, best quality, score_7, 1girl, solo, "
 CHARACTER = "yuzuki yukari, vocaloid, voiceroid, (@ixy:0.7), "
 IDENTITY = ("light purple hair, short hair with long locks, very long "
             "sidelocks, purple eyes, hair ornament, ")
-BODY = ("(wide hips:1.4), (thick thighs:1.4), (plump thighs:1.2), "
-        "(curvy:1.15), (narrow waist:1.2), ")
+BODY = ("(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), "
+        "(soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), "
+        "adult proportions, long torso, seven heads tall, ")
 BACKGROUND = "simple background, grey background, "
 FACE = ("(large eyes:1.4), (round face:1.3), (tareme:1.2), "
         "(thick eyelashes:1.3), ")
@@ -42,9 +43,11 @@ NEGATIVE_TAIL = ("(sparkling eyes:1.4), (glitter:1.3), "
                   "(speed lines:1.45), (motion lines:1.4), "
                   "(emphasis lines:1.4), (hood:1.3), (cardigan:1.3), "
                   "score_1, score_2, score_3")
+PROPORTION_BAN = (", (fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3), "
+                  "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)")
 
 MODEL = "hassakuAnima_v13.safetensors"
-WIDTH, HEIGHT = 1536, 1920
+WIDTH, HEIGHT = 1280, 2048
 STEPS = 25
 CFG = 3.5
 SAMPLER = "er_sde"

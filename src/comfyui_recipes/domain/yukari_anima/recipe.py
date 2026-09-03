@@ -26,6 +26,7 @@ from .prompt_style import (
     IDENTITY,
     MODEL,
     NEGATIVE_TAIL,
+    PROPORTION_BAN,
     QUALITY,
     SAMPLER,
     SCHEDULER,
@@ -54,7 +55,7 @@ def negative(pose: str, costume: str | None = None,
     _ = COSTUMES[costume if costume is not None else p.costume]
     return (DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
             + p.negative + SHINE_BAN + HATCH_BAN + GRADIENT_BAN
-            + NEGATIVE_TAIL)
+            + NEGATIVE_TAIL + PROPORTION_BAN)
 
 
 def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,

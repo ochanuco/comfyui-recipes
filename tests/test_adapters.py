@@ -110,6 +110,61 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(sample["inputs"]["cfg"], 5.0)
         self.assertEqual(sample["inputs"]["seed"], 7)
 
+    def test_chain_pass_loader_adds_a_diffusers_loader_and_reroutes(self):
+        base = {
+            "3": {"class_type": "KSampler",
+                  "inputs": {"model": ["1", 0], "seed": 7, "steps": 25,
+                             "cfg": 3.5}},
+            "4": {"class_type": "VAELoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                  "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode",
+                  "inputs": {"clip": ["2", 0], "text": "p"}},
+            "7": {"class_type": "CLIPTextEncode",
+                  "inputs": {"clip": ["2", 0], "text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["3", 0], "vae": ["4", 0]}},
+            "9": {"class_type": "SaveImage",
+                  "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+        }
+        original = json.loads(json.dumps(base))
+        graph = chain_pass(base, 2048, 0.75, "fin", loader="hassaku-il-v22")
+        loader_id = "20"
+        self.assertEqual(graph[loader_id],
+                         {"class_type": "DiffusersLoader",
+                          "inputs": {"model_path": "hassaku-il-v22"}})
+        self.assertEqual(graph["12"]["inputs"]["model"], [loader_id, 0])
+        self.assertEqual(graph["14"]["inputs"]["clip"], [loader_id, 1])
+        self.assertEqual(graph["15"]["inputs"]["clip"], [loader_id, 1])
+        self.assertEqual(graph["11"]["inputs"]["vae"], [loader_id, 2])
+        self.assertEqual(graph["13"]["inputs"]["vae"], [loader_id, 2])
+        for key in ("3", "4", "5", "6", "7"):
+            self.assertEqual(graph[key], original[key])
+
+    def test_chain_pass_sampling_override_sets_steps_and_cfg(self):
+        base = {
+            "3": {"class_type": "KSampler",
+                  "inputs": {"seed": 7, "steps": 25, "cfg": 3.5,
+                             "sampler_name": "er_sde", "scheduler": "normal"}},
+            "4": {"class_type": "DiffusersLoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                  "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+            "9": {"class_type": "SaveImage",
+                  "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+        }
+        original_node_3 = json.loads(json.dumps(base["3"]))
+        graph = chain_pass(base, 2048, 0.75, "fin",
+                           sampler=("dpmpp_2m", "karras"),
+                           sampling=(30, 5.0))
+        sample = graph["12"]
+        self.assertEqual(sample["inputs"]["steps"], 30)
+        self.assertEqual(sample["inputs"]["cfg"], 5.0)
+        self.assertEqual(graph["3"], original_node_3)
+
     def test_chain_pass_rejects_a_saved_image_that_is_not_decoded(self):
         base = {
             "3": {"class_type": "KSampler", "inputs": {"seed": 7}},

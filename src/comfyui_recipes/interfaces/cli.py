@@ -29,7 +29,7 @@ from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
 from ..infrastructure.comfyui.yukari_graph import build_graph as yukari_build_graph
 from ..infrastructure.imaging.delivery import (
-    clean_background, graph_from_png,
+    clean_background, graph_from_png, keep_scene,
 )
 from ..infrastructure.imaging.palette import (
     repin_png, repin_skin_png, summarize)
@@ -101,6 +101,13 @@ def parser() -> argparse.ArgumentParser:
         "--latent-route", action="store_true",
         help="upscale the latent instead of the decoded image; the staircase "
              "it leaves is what the redraw turns into visible stroke")
+    finalize_parser.add_argument(
+        "--finalizer", metavar="MODEL",
+        help="DiffusersLoader model_path that redraws instead of the base "
+             "pass's own checkpoint")
+    finalize_parser.add_argument(
+        "--keep-scene", action="store_true",
+        help="deliver the redraw uncut, background and all")
     finalize_parser.add_argument("--recolor", action="store_true")
     finalize_parser.add_argument(
         "--keep-legwear", nargs="?", const=0.62, type=float, default=None,
@@ -209,7 +216,7 @@ def main(argv: list[str] | None = None) -> None:
             comfyui=comfyui,
             graph_from_png=graph_from_png,
             chain_pass=chain_pass,
-            deliver=clean_background,
+            deliver=(keep_scene if args.keep_scene else clean_background),
             git_metadata=repository_metadata,
             notifier=notifier,
             output_root=repository / ".local/_nogit/finalize",
@@ -225,6 +232,7 @@ def main(argv: list[str] | None = None) -> None:
                  keep_legwear=args.keep_legwear,
                  size=args.size,
                  latent_route=args.latent_route,
+                 finalizer=args.finalizer,
                  toe_guard=args.toe_guard)
         return
 

@@ -21,7 +21,9 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                prompt: tuple[str, str] | None = None,
                matte_model: str | None = None,
                latent_route: bool = False,
-               sampler: tuple[str, str] | None = None) -> dict:
+               sampler: tuple[str, str] | None = None,
+               loader: str | None = None,
+               sampling: tuple[int, float] | None = None) -> dict:
     required = {"3", "4", "5", "6", "7", "9"}
     missing = sorted(required - base.keys(), key=int)
     if missing:
@@ -42,6 +44,22 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     # split-file model answers them from three separate loaders.
     model_ref = graph["3"]["inputs"].get("model", ["4", 0])
     clip_ref = graph["6"]["inputs"].get("clip", ["4", 1])
+    tail = graph[graph["9"]["inputs"]["images"][0]]
+    if tail.get("class_type") != "VAEDecode":
+        raise ValueError(
+            "base graph's SaveImage must be fed by a VAEDecode, got "
+            f"{tail.get('class_type')!r}")
+    vae_ref = tail["inputs"].get("vae", ["4", 2])
+    if loader:
+        # A different checkpoint redraws: its own model, CLIP and VAE, with the
+        # base prompts re-encoded through its CLIP.
+        loader_id = str(next_id + 10)
+        graph[loader_id] = {"class_type": "DiffusersLoader",
+                            "inputs": {"model_path": loader}}
+        model_ref, clip_ref, vae_ref = (
+            [loader_id, 0], [loader_id, 1], [loader_id, 2])
+        if prompt is None:
+            prompt = (graph["6"]["inputs"]["text"], graph["7"]["inputs"]["text"])
     positive, negative = ["6", 0], ["7", 0]
     if prompt:
         positive_id, negative_id = str(next_id + 4), str(next_id + 5)
@@ -50,12 +68,6 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         graph[negative_id] = {"class_type": "CLIPTextEncode", "inputs": {
             "clip": clip_ref, "text": prompt[1]}}
         positive, negative = [positive_id, 0], [negative_id, 0]
-    tail = graph[graph["9"]["inputs"]["images"][0]]
-    if tail.get("class_type") != "VAEDecode":
-        raise ValueError(
-            "base graph's SaveImage must be fed by a VAEDecode, got "
-            f"{tail.get('class_type')!r}")
-    vae_ref = tail["inputs"].get("vae", ["4", 2])
     width, height = sizes(graph, size)
     # Two routes to the bigger latent, and they do not draw the same picture.
     # Pixel space is faithful; the latent route leaves a staircase on hard
@@ -81,11 +93,14 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         sampler if sampler is not None
         else (base_sampler.get("sampler_name", "dpmpp_2m"),
               base_sampler.get("scheduler", "karras")))
+    steps, cfg = (
+        sampling if sampling is not None
+        else (base_sampler.get("steps", 30), base_sampler.get("cfg", 5.0)))
     graph[sample] = {"class_type": "KSampler", "inputs": {
         "model": model_ref, "positive": positive, "negative": negative,
         "latent_image": latent_in, "seed": base_sampler["seed"],
-        "steps": base_sampler.get("steps", 30),
-        "cfg": base_sampler.get("cfg", 5.0),
+        "steps": steps,
+        "cfg": cfg,
         "sampler_name": sampler_name,
         "scheduler": scheduler,
         "denoise": denoise}}

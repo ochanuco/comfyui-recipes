@@ -12,6 +12,9 @@ from pathlib import Path
 from comfyui_recipes.application.finalize import FinalizeServices, finalize
 from comfyui_recipes.domain.yukari import delivery_style
 from comfyui_recipes.domain.yukari_anima import delivery_style as anima_delivery_style
+from comfyui_recipes.domain.yukari_anima.recipe import render_spec
+from comfyui_recipes.infrastructure.comfyui import anima_graph
+from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 
 GRAPH = {"3": {"inputs": {"seed": 1}},
          "6": {"inputs": {"text": "p"}},
@@ -235,6 +238,108 @@ class FinalizeApplicationTest(unittest.TestCase):
                 calls, [(2560, delivery_style.FINALIZE_DENOISE),
                        (anima_delivery_style.FINALIZE_SIZE,
                         anima_delivery_style.FINALIZE_DENOISE)])
+
+    def test_anima_base_submitted_graph_carries_the_il_redraw(self):
+        with tempfile.TemporaryDirectory() as directory:
+            spec = render_spec("stand", 42, "fin-nare8p-il-rough")
+            anima_base = anima_graph.build_graph(spec)
+            submitted = []
+
+            class RealComfyFake(ComfyFake):
+                def submit(self, graph):
+                    submitted.append(graph)
+                    return "prompt-id"
+
+            services = base_services(
+                directory, chain_pass=chain_pass, comfyui=RealComfyFake(),
+                graph_from_png=lambda data: anima_base,
+                repin=lambda data: (data, []))
+            finalize("gen-id", services)
+
+            graph = submitted[0]
+            loaders = [node for node in graph.values()
+                      if node.get("class_type") == "DiffusersLoader"]
+            self.assertTrue(any(
+                loader["inputs"]["model_path"] == "hassaku-il-v22"
+                for loader in loaders))
+            redraw_sampler = graph["12"]["inputs"]
+            self.assertEqual(redraw_sampler["denoise"], anima_delivery_style.FINALIZE_DENOISE)
+            self.assertEqual(redraw_sampler["steps"], 30)
+            self.assertEqual(redraw_sampler["cfg"], 5.0)
+            self.assertEqual(redraw_sampler["sampler_name"], "dpmpp_2m")
+            self.assertEqual(redraw_sampler["scheduler"], "karras")
+
+    def test_anima_base_redraws_with_the_il_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chain_pass_calls = []
+
+            def chain_pass(base, size, denoise, prefix, **kwargs):
+                chain_pass_calls.append((size, denoise, kwargs))
+                return {}
+
+            services = base_services(
+                directory, chain_pass=chain_pass,
+                graph_from_png=lambda data: ANIMA_GRAPH,
+                repin=lambda data: (data, []))
+            finalize("gen-id", services)
+
+            size, denoise, kwargs = chain_pass_calls[-1]
+            self.assertEqual(size, anima_delivery_style.FINALIZE_SIZE)
+            self.assertEqual(denoise, anima_delivery_style.FINALIZE_DENOISE)
+            self.assertEqual(kwargs["loader"], anima_delivery_style.FINALIZE_MODEL)
+            self.assertEqual(kwargs["sampler"], anima_delivery_style.FINALIZE_SAMPLER)
+            self.assertEqual(
+                kwargs["sampling"],
+                (anima_delivery_style.FINALIZE_STEPS,
+                 anima_delivery_style.FINALIZE_CFG))
+
+            batch_call = next(
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1] == "/api/v1/batches")
+            self.assertEqual(batch_call[2]["parameters"]["finalizer"],
+                             anima_delivery_style.FINALIZE_MODEL)
+
+    def test_anima_base_honors_an_explicit_finalizer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chain_pass_calls = []
+
+            def chain_pass(base, size, denoise, prefix, **kwargs):
+                chain_pass_calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=chain_pass,
+                graph_from_png=lambda data: ANIMA_GRAPH,
+                repin=lambda data: (data, []))
+            finalize("gen-id", services, finalizer="other-checkpoint")
+
+            self.assertEqual(chain_pass_calls[-1]["loader"], "other-checkpoint")
+            batch_call = next(
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1] == "/api/v1/batches")
+            self.assertEqual(
+                batch_call[2]["parameters"]["finalizer"], "other-checkpoint")
+
+    def test_yukari_base_keeps_no_loader_and_no_sampling_override(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chain_pass_calls = []
+
+            def chain_pass(base, size, denoise, prefix, **kwargs):
+                chain_pass_calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=chain_pass,
+                graph_from_png=lambda data: GRAPH,
+                repin=lambda data: (data, []))
+            finalize("gen-id", services)
+
+            self.assertIsNone(chain_pass_calls[-1]["loader"])
+            self.assertIsNone(chain_pass_calls[-1]["sampling"])
+            batch_call = next(
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1] == "/api/v1/batches")
+            self.assertNotIn("finalizer", batch_call[2]["parameters"])
 
 
 if __name__ == "__main__":

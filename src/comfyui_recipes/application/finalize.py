@@ -11,6 +11,7 @@ from ..domain.generation.models import PromptPair
 from ..domain.yukari import delivery_style
 from ..domain.yukari.recipe import refinement_prompt
 from ..domain.yukari_anima import delivery_style as anima_delivery_style
+from ..domain.yukari_anima.recipe import refinement_prompt as anima_refinement_prompt
 from ..infrastructure.comfyui.refinement_graph import MATTE_SUFFIX
 
 # The delivery redraw's longest side.
@@ -40,7 +41,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              apply_recolor: bool = False,
              keep_legwear: float | None = None,
              toe_guard: float | None = None,
-             size: int | None = None, latent_route: bool = False) -> None:
+             size: int | None = None, latent_route: bool = False,
+             finalizer: str | None = None) -> None:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
@@ -55,16 +57,30 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         size = anima_delivery_style.FINALIZE_SIZE if is_anima else FINALIZE_SIZE
     seed = base["3"]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"
-    prompt = refinement_prompt(PromptPair(
+    base_prompt = PromptPair(
         base["6"]["inputs"]["text"],
         base["7"]["inputs"]["text"],
-    ), handdrawn=handdrawn, toe_guard=toe_guard)
+    )
+    if is_anima:
+        prompt = anima_refinement_prompt(base_prompt)
+        sampler = anima_delivery_style.FINALIZE_SAMPLER
+        loader = finalizer or anima_delivery_style.FINALIZE_MODEL
+        sampling = (anima_delivery_style.FINALIZE_STEPS,
+                    anima_delivery_style.FINALIZE_CFG)
+    else:
+        prompt = refinement_prompt(
+            base_prompt, handdrawn=handdrawn, toe_guard=toe_guard)
+        sampler = delivery_style.FINALIZE_SAMPLER
+        loader = finalizer
+        sampling = None
     graph = services.chain_pass(
         base, size, denoise, prefix,
         prompt=(prompt.positive, prompt.negative),
         matte_model=delivery_style.MATTE_MODEL,
         latent_route=latent_route,
-        sampler=delivery_style.FINALIZE_SAMPLER)
+        sampler=sampler,
+        loader=loader,
+        sampling=sampling)
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
@@ -118,6 +134,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                        "base_generation": generation_id,
                        "size": size, "denoise": denoise,
                        **({"route": "latent"} if latent_route else {}),
+                       **({"finalizer": loader} if loader else {}),
                        "repin": repin_applied,
                        "skin": skin_applied,
                        **({"recolor": True} if recolor_applied else {}),

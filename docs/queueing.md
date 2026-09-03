@@ -36,7 +36,9 @@ a silent no-op. Number targets are `render.cfg`, `render.steps`,
 `render.width`, `render.height`, and `hires.denoise`, with op `set`;
 `render.cfg` and `render.steps` govern both sampling passes, since the spec
 holds one value for each. `render.width` and `render.height` each require
-an int that is at least 64 and a multiple of 8.
+an int that is at least 64 and a multiple of 8. String targets are
+`render.model`, `render.sampler`, and `render.scheduler`, with op `set`
+only and a required non-empty string `value`.
 
 Every patch requires a one-line `reason`. The patch list is recorded into
 each generation's semantic attributes at ingest, and the submitted graph

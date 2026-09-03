@@ -121,6 +121,16 @@ class ParsePatchesTest(unittest.TestCase):
             parse_patches([_patch(target="render.height", op="set", value=100,
                                   reason="test")])
 
+    def test_rejects_non_set_op_on_string_target(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.model", op="append",
+                                  value="x", reason="test")])
+
+    def test_rejects_empty_string_target_value(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.sampler", op="set", value="",
+                                  reason="test")])
+
     def test_accepts_each_op_as_patch_tuple(self):
         raw = [
             _patch(target="prompt.positive", op="append", value=" a",
@@ -237,6 +247,20 @@ class ApplyPatchesTest(unittest.TestCase):
         self.assertEqual(result.cfg, 4.5)
         self.assertEqual(result.steps, 20)
         self.assertEqual(result.hires.denoise, 0.4)
+
+    def test_string_sets(self):
+        patches = parse_patches([
+            _patch(target="render.model", op="set", value="other.safetensors",
+                  reason="r"),
+            _patch(target="render.sampler", op="set", value="euler",
+                  reason="r"),
+            _patch(target="render.scheduler", op="set", value="normal",
+                  reason="r"),
+        ])
+        result = apply_patches(self.spec, patches)
+        self.assertEqual(result.model_path, "other.safetensors")
+        self.assertEqual(result.sampler_name, "euler")
+        self.assertEqual(result.scheduler, "normal")
 
     def test_width_and_height_sets(self):
         patches = parse_patches([

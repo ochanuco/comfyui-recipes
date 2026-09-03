@@ -4,6 +4,7 @@ import unittest
 
 from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.yukari.prompt_style import (
+    DOT_BAN,
     HAND_BAN,
     HANDDRAWN_FINISH,
     SHADE_BAN,
@@ -20,16 +21,23 @@ class YukariRecipeDomainTest(unittest.TestCase):
         self.assertNotIn(THIN, prompt.positive)
         self.assertTrue(prompt.positive.endswith(HANDDRAWN_FINISH))
         self.assertEqual(
-            prompt.negative, HAND_BAN + SHADE_BAN + "base negative")
+            prompt.negative, HAND_BAN + SHADE_BAN + DOT_BAN + "base negative")
 
         guarded = refinement_prompt(base, toe_guard=1.55)
         self.assertEqual(
             guarded.negative,
-            "(toes:1.55), " + HAND_BAN + SHADE_BAN + "base negative")
+            "(toes:1.55), " + HAND_BAN + SHADE_BAN + DOT_BAN + "base negative")
 
         barefoot = refinement_prompt(PromptPair("barefoot", "negative"),
                                      toe_guard=1.55)
-        self.assertEqual(barefoot.negative, HAND_BAN + SHADE_BAN + "negative")
+        self.assertEqual(barefoot.negative,
+                         HAND_BAN + SHADE_BAN + DOT_BAN + "negative")
+
+    def test_refinement_prompt_drops_pass1_only_tags(self):
+        prompt = refinement_prompt(
+            PromptPair("a, sketch, (rough lines:1.2), b", "n"))
+        self.assertEqual(prompt.positive, "a, b")
+        self.assertEqual(prompt.negative, HAND_BAN + SHADE_BAN + DOT_BAN + "n")
 
     def test_hires_dimensions_must_be_at_least_one_latent_pixel(self):
         for hires in (-8, 1):

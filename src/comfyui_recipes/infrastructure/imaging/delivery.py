@@ -91,6 +91,36 @@ def down2(pixels: np.ndarray) -> np.ndarray:
         height // 2, 2, width // 2, 2, *pixels.shape[2:]).mean(axis=(1, 3))
 
 
+def refine_matte(pixels: np.ndarray, figure: np.ndarray, band: int,
+                 tolerance: int) -> np.ndarray:
+    """Retrace the matte's edge by colour, `band` pixels either side of it.
+
+    The matte model loses the thin strands and the hard threshold then
+    cuts what it kept into stubs; the redraw's flat backdrop makes the colour
+    test exact there. The backdrop is read locally -- a normalised blur of
+    the pixels the matte puts well outside the figure -- because a bigger
+    redraw shades it toward the figure. Islands smaller than band*band are
+    the backdrop's own grain and go.
+    """
+    if band < 1:
+        return figure
+    outside = ~ndimage.binary_dilation(figure, iterations=band * 2)
+    sigma = band * 4
+    weight = ndimage.gaussian_filter(outside.astype(float), sigma)
+    local = np.stack(
+        [ndimage.gaussian_filter(pixels[..., c] * outside, sigma)
+         for c in range(3)], axis=-1) / np.maximum(weight, 1e-6)[..., None]
+    edge = (ndimage.binary_dilation(figure, iterations=band)
+            & ~ndimage.binary_erosion(figure, iterations=band))
+    refined = figure.copy()
+    refined[edge] = (np.abs(pixels - local).max(axis=2) > tolerance)[edge]
+    labels, count = ndimage.label(refined)
+    if not count:
+        return refined
+    sizes = ndimage.sum(refined, labels, range(1, count + 1))
+    return np.isin(labels, 1 + np.nonzero(sizes >= band * band)[0])
+
+
 def stroke_alpha(mask: np.ndarray, gap: float, width: float) -> np.ndarray:
     """Coverage of the band, gap..gap+width pixels out into the backdrop.
 
@@ -117,9 +147,13 @@ def clean_background(data: bytes, matte: bytes) -> tuple[bytes, str]:
     backdrop_rgb = parse_color(delivery_style.BACKDROP)
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
     figure = np.array(Image.open(io.BytesIO(matte)).convert("L")) > 127
+    height, width = px.shape[:2]
+    figure = refine_matte(
+        px, figure,
+        int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100),
+        delivery_style.MATTE_EDGE_TOLERANCE)
     px[~figure] = backdrop_rgb
 
-    height, width = px.shape[:2]
     bg2 = ~(np.array(Image.fromarray(figure)
                      .resize((width * 2, height * 2), Image.NEAREST)))
 

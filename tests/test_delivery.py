@@ -17,6 +17,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     down2,
     graph_from_png,
     parse_color,
+    refine_matte,
     stroke_alpha,
 )
 
@@ -76,6 +77,42 @@ class DeliveryTest(unittest.TestCase):
         mask = background_mask(pixels, 0)
         self.assertTrue(mask[0, 0])
         self.assertFalse(mask[6, 6])
+
+    def test_refine_matte_retraces_the_edge_by_colour_and_drops_grain(self):
+        pixels = np.full((40, 40, 3), (58, 67, 81), dtype=int)
+        pixels[10:30, 10:30] = (190, 170, 220)
+        # A strand the matte lost, a strand the matte cut short, and a
+        # backdrop speck the matte never had.
+        pixels[20, 30:33] = (190, 170, 220)
+        pixels[24, 8:10] = (190, 170, 220)
+        pixels[2, 2] = (200, 200, 200)
+        figure = np.zeros((40, 40), dtype=bool)
+        figure[10:30, 10:30] = True
+        figure[24, 9] = True
+        refined = refine_matte(pixels, figure, 3, 20)
+        self.assertTrue(refined[20, 30:33].all())
+        self.assertTrue(refined[24, 8:10].all())
+        self.assertFalse(refined[2, 2])
+        self.assertTrue(refined[10:30, 10:30].all())
+        self.assertFalse(refined[0:5, 10:40].any())
+
+    def test_refine_matte_reads_the_backdrop_locally_under_a_gradient(self):
+        # The backdrop darkens by 40 toward the figure: a single corner
+        # reference would claim the shaded ring as figure.
+        ramp = np.linspace(0, 40, 60)
+        pixels = np.zeros((60, 60, 3), dtype=int) + (58, 67, 81)
+        pixels = pixels + ramp[None, :, None].astype(int)
+        pixels[20:40, 20:40] = (190, 170, 220)
+        figure = np.zeros((60, 60), dtype=bool)
+        figure[20:40, 20:40] = True
+        refined = refine_matte(pixels, figure, 3, 20)
+        self.assertTrue((refined == figure).all())
+
+    def test_refine_matte_is_identity_below_one_pixel_of_band(self):
+        pixels = np.zeros((8, 8, 3), dtype=int)
+        figure = np.zeros((8, 8), dtype=bool)
+        figure[2:6, 2:6] = True
+        self.assertIs(refine_matte(pixels, figure, 0, 20), figure)
 
     def test_clean_background_preserves_size_and_clean_width_tag(self):
         pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)

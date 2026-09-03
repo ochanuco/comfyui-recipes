@@ -128,6 +128,13 @@ HIRES_NEGATIVE_PAINT = ("(sketch:1.45), (lineart:1.45), (unfinished:1.4), "
 EYE_BAN = ("(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
            "(gradient eyes:1.2), ")
 
+# Tags that belong to the first pass only; stripped from the redraw positive.
+PASS1_ONLY_TAGS = frozenset({"sketch", "rough sketch", "rough lines"})
+
+# The redraw's line-breaking guard.
+DOT_BAN = ("(dotted line:1.3), (dashed line:1.3), (stipple:1.3), "
+           "(halftone:1.2), ")
+
 # Every pose gets these, on the second pass only. The four tags are ALREADY
 # in NEGATIVE at 1.2/1.25 -- this is the same guard at a weight that survives
 # a 2x redraw. The gloss is a property of the redraw, not of the pass-1

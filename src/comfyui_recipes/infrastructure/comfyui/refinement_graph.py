@@ -20,7 +20,8 @@ def sizes(graph: dict, longest_side: int) -> tuple[int, int]:
 def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                prompt: tuple[str, str] | None = None,
                matte_model: str | None = None,
-               latent_route: bool = False) -> dict:
+               latent_route: bool = False,
+               sampler: tuple[str, str] | None = None) -> dict:
     required = {"3", "4", "5", "6", "7", "9"}
     missing = sorted(required - base.keys(), key=int)
     if missing:
@@ -72,16 +73,21 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         graph[encode] = {"class_type": "VAEEncode", "inputs": {
             "pixels": [scale, 0], "vae": vae_ref}}
         latent_in = [encode, 0]
-    # The sampler is the base pass's own, denoise apart: a checkpoint that was
-    # tuned at a different cfg or sampler must be redrawn the way it was drawn.
+    # Steps, cfg and seed are the base pass's own: a checkpoint that was tuned
+    # at a different cfg must be redrawn the way it was drawn. The sampler is
+    # the base pass's own too, unless the caller overrides it.
     base_sampler = graph["3"]["inputs"]
+    sampler_name, scheduler = (
+        sampler if sampler is not None
+        else (base_sampler.get("sampler_name", "dpmpp_2m"),
+              base_sampler.get("scheduler", "karras")))
     graph[sample] = {"class_type": "KSampler", "inputs": {
         "model": model_ref, "positive": positive, "negative": negative,
         "latent_image": latent_in, "seed": base_sampler["seed"],
         "steps": base_sampler.get("steps", 30),
         "cfg": base_sampler.get("cfg", 5.0),
-        "sampler_name": base_sampler.get("sampler_name", "dpmpp_2m"),
-        "scheduler": base_sampler.get("scheduler", "karras"),
+        "sampler_name": sampler_name,
+        "scheduler": scheduler,
         "denoise": denoise}}
     graph[decode] = {"class_type": "VAEDecode", "inputs": {
         "samples": [sample, 0], "vae": vae_ref}}

@@ -12,7 +12,9 @@ graph shape -- and has no second pass.
 
 `prompt_style.py` holds the blocks every pose wears: `QUALITY`,
 `CHARACTER`, `IDENTITY`, `BODY`, `BACKGROUND`, `FACE`, `STYLE` (positive),
-and the negative bans (`DIGIT_BAN` through `NEGATIVE_TAIL`).
+and the negative bans (`DIGIT_BAN` through `PROPORTION_BAN`). `BODY`
+carries the mature-female build: adult proportions, wide hips, thick and
+soft thighs, long legs, a narrow waist, and seven heads tall.
 
 The variable part is three small record sets:
 
@@ -22,6 +24,14 @@ The variable part is three small record sets:
 - `costumes.py`: one tag block per costume (`roomwear`, `outing`).
 - `expressions.py`: one `mouth`/`eyes` pair per expression (`resting`,
   `sleepy`, `doya`).
+
+## Poses
+
+- `brush`: expression `sleepy`, costume `roomwear`.
+- `coffee`: expression `resting`, costume `outing`.
+- `amae`: expression `doya`, costume `outing`.
+- `step`: expression `resting`, costume `outing`.
+- `stand`: expression `doya`, costume `outing`.
 
 ## Assembly order
 
@@ -39,8 +49,12 @@ Negative:
 ```
 DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
 + pose.negative
-+ SHINE_BAN + HATCH_BAN + GRADIENT_BAN + NEGATIVE_TAIL
++ SHINE_BAN + HATCH_BAN + GRADIENT_BAN + NEGATIVE_TAIL + PROPORTION_BAN
 ```
+
+`PROPORTION_BAN` is the fixed tail after `NEGATIVE_TAIL`: it bans the
+builds `BODY` argues against -- fat, chubby, short legs, muscular, toned,
+and the child/loli/chibi/aged-down range.
 
 `costume` and `expression` default to the pose's own; passing either
 overrides just that block. An unknown pose, costume or expression is a
@@ -49,7 +63,7 @@ overrides just that block. An unknown pose, costume or expression is a
 ## Render constants
 
 Fixed in `prompt_style.py`: `MODEL = "hassakuAnima_v13.safetensors"`,
-canvas `1536x1920`, `steps=25`, `cfg=3.5`, sampler `er_sde`, scheduler
+canvas `1280x2048`, `steps=25`, `cfg=3.5`, sampler `er_sde`, scheduler
 `normal`, denoise `1.0`. There is no hires pass -- `render_spec` raises
 `ValueError` if `hires` or `denoise` is requested.
 

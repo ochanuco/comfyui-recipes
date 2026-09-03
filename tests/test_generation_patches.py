@@ -91,6 +91,36 @@ class ParsePatchesTest(unittest.TestCase):
             parse_patches([_patch(target="render.cfg", op="set", value=0,
                                   reason="test")])
 
+    def test_rejects_width_non_int(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.width", op="set",
+                                  value=1280.5, reason="test")])
+
+    def test_rejects_width_below_64(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.width", op="set", value=32,
+                                  reason="test")])
+
+    def test_rejects_width_not_multiple_of_8(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.width", op="set", value=100,
+                                  reason="test")])
+
+    def test_rejects_height_non_int(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.height", op="set",
+                                  value=2048.5, reason="test")])
+
+    def test_rejects_height_below_64(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.height", op="set", value=32,
+                                  reason="test")])
+
+    def test_rejects_height_not_multiple_of_8(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.height", op="set", value=100,
+                                  reason="test")])
+
     def test_accepts_each_op_as_patch_tuple(self):
         raw = [
             _patch(target="prompt.positive", op="append", value=" a",
@@ -207,6 +237,15 @@ class ApplyPatchesTest(unittest.TestCase):
         self.assertEqual(result.cfg, 4.5)
         self.assertEqual(result.steps, 20)
         self.assertEqual(result.hires.denoise, 0.4)
+
+    def test_width_and_height_sets(self):
+        patches = parse_patches([
+            _patch(target="render.width", op="set", value=1280, reason="r"),
+            _patch(target="render.height", op="set", value=2048, reason="r"),
+        ])
+        result = apply_patches(self.spec, patches)
+        self.assertEqual(result.width, 1280)
+        self.assertEqual(result.height, 2048)
 
     def test_empty_patches_returns_equal_spec(self):
         result = apply_patches(self.spec, ())

@@ -8,7 +8,8 @@ from .models import RenderSpec
 
 TEXT_TARGETS = ("prompt.positive", "prompt.negative",
                 "prompt.hires.positive", "prompt.hires.negative")
-NUMBER_TARGETS = ("render.cfg", "render.steps", "hires.denoise")
+NUMBER_TARGETS = ("render.cfg", "render.steps", "render.width",
+                  "render.height", "hires.denoise")
 TEXT_OPS = ("append", "prepend", "replace", "remove")
 _KNOWN_KEYS = frozenset({"target", "op", "value", "old", "reason"})
 
@@ -64,6 +65,9 @@ def _parse_number_patch(patch: dict, target: str) -> Patch:
     if target == "render.steps":
         if not isinstance(value, int) or value < 1:
             _fail(target, "render.steps value must be an int >= 1")
+    elif target in ("render.width", "render.height"):
+        if not isinstance(value, int) or value < 64 or value % 8:
+            _fail(target, f"{target} value must be an int >= 64, a multiple of 8")
     elif target == "render.cfg":
         if value <= 0:
             _fail(target, "render.cfg value must be > 0")
@@ -140,6 +144,10 @@ def _apply_one(spec: RenderSpec, patch: Patch) -> RenderSpec:
         return replace(spec, cfg=float(patch.value))
     if patch.target == "render.steps":
         return replace(spec, steps=patch.value)
+    if patch.target == "render.width":
+        return replace(spec, width=patch.value)
+    if patch.target == "render.height":
+        return replace(spec, height=patch.value)
     hires = replace(spec.hires, denoise=float(patch.value))
     return replace(spec, hires=hires)
 

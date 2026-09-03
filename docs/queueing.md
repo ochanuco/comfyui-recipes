@@ -32,9 +32,11 @@ Text targets are `prompt.positive`, `prompt.negative`,
 `prompt.hires.positive`, and `prompt.hires.negative`, with ops `append`,
 `prepend`, `replace`, and `remove`; `replace` and `remove` require an `old`
 needle, and a needle absent from the text is an immediate error rather than
-a silent no-op. Number targets are `render.cfg`, `render.steps`, and
-`hires.denoise`, with op `set`; `render.cfg` and `render.steps` govern both
-sampling passes, since the spec holds one value for each.
+a silent no-op. Number targets are `render.cfg`, `render.steps`,
+`render.width`, `render.height`, and `hires.denoise`, with op `set`;
+`render.cfg` and `render.steps` govern both sampling passes, since the spec
+holds one value for each. `render.width` and `render.height` each require
+an int that is at least 64 and a multiple of 8.
 
 Every patch requires a one-line `reason`. The patch list is recorded into
 each generation's semantic attributes at ingest, and the submitted graph

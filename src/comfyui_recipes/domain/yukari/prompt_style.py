@@ -52,7 +52,8 @@ NEGATIVE = (
     # the encoding. Never isolated: the picked render carries it, so it is
     # in; if a later session finds it inert, deleting it costs nothing else.
     "(long eyelashes:1.35), "
-    "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, "
+    "worst quality, low quality, score_1, score_2, score_3, blurry, "
+    "jpeg artifacts, bad anatomy, bad hands, "
     "extra fingers, extra limbs, watermark, signature, text, (disembodied eye:1.4), "
     "(brown legwear:1.5), brown thighhighs, brown pantyhose, (fishnet:1.4), "
     "(latex:1.45), (rubber:1.45), (leather legwear:1.45), "
@@ -126,6 +127,13 @@ HIRES_NEGATIVE_PAINT = ("(sketch:1.45), (lineart:1.45), (unfinished:1.4), "
 # stack both blocks, do not merge.
 EYE_BAN = ("(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
            "(gradient eyes:1.2), ")
+
+# Tags that belong to the first pass only; stripped from the redraw positive.
+PASS1_ONLY_TAGS = frozenset({"sketch", "rough sketch", "rough lines"})
+
+# The redraw's line-breaking guard.
+DOT_BAN = ("(dotted line:1.3), (dashed line:1.3), (stipple:1.3), "
+           "(halftone:1.2), ")
 
 # Every pose gets these, on the second pass only. The four tags are ALREADY
 # in NEGATIVE at 1.2/1.25 -- this is the same guard at a weight that survives

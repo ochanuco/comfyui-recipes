@@ -16,11 +16,13 @@ from .models import S_MIDRIFF, Edit
 from .poses import POSE_RECORDS, POSES
 from .prompt_style import (
     BODY,
+    DOT_BAN,
     FACE,
     HAND_BAN,
     HANDDRAWN_FINISH,
     HIRES_DENOISE,
     NEGATIVE,
+    PASS1_ONLY_TAGS,
     RESTING_EYES,
     SHADE_BAN,
     SURFACE,
@@ -118,7 +120,7 @@ def positive(pose: str, costume: str = "default") -> str:
     character = _apply(character, rec.character_edits, costume)
     legwear = _apply(blocks["legwear"], rec.legwear_edits, costume)
     surface = _apply(SURFACE, rec.surface_edits, costume)
-    parts = ["best quality, absurdres, 1girl, solo", character,
+    parts = [QUALITY + ", 1girl, solo", character,
              pose_block(pose, costume)]
     if full_figure:
         parts.append(legwear)
@@ -158,16 +160,46 @@ def negative(pose: str, costume: str = "default") -> str:
                   costume)
 
 
-def refinement_prompt(base: PromptPair, *, handdrawn: bool = False) -> PromptPair:
+# What the guard weighed while it was in force.
+TOE_GUARD = 1.55
+
+
+# Anima's own quality vocabulary. `score_7` is the model's aesthetic anchor and
+# has no meaning to an Illustrious checkpoint, so this pair moves together with
+# the checkpoint.
+QUALITY = "masterpiece, best quality, score_7, absurdres"
+
+
+def _bare_tag(tag: str) -> str:
+    """A tag's name with weight syntax unwrapped and whitespace stripped."""
+    text = tag.strip()
+    if text.startswith("(") and text.endswith(")"):
+        inner = text[1:-1]
+        text = inner.rsplit(":", 1)[0] if ":" in inner else inner
+    return text.strip()
+
+
+def _drop_pass1_only(positive: str) -> str:
+    kept = [tag.strip() for tag in positive.split(",")
+            if _bare_tag(tag) not in PASS1_ONLY_TAGS]
+    return ", ".join(kept)
+
+
+def refinement_prompt(base: PromptPair, *, handdrawn: bool = False,
+                      toe_guard: float | None = None) -> PromptPair:
     """Build the Yukari-specific prompt used by the delivery redraw."""
-    positive_prompt = base.positive
+    positive_prompt = _drop_pass1_only(base.positive)
     if handdrawn:
         positive_prompt = (
             positive_prompt.replace(", " + THIN, "") + HANDDRAWN_FINISH)
-    toe_ban = "" if "barefoot" in positive_prompt else "(toes:1.55), "
+    # Off by default: the guard existed to hide a toe count the checkpoint got
+    # wrong, and the current one draws five. It dissolves the separation rather
+    # than trimming a surplus toe, so asking for it back costs the structure.
+    toe_ban = ("" if toe_guard is None or "barefoot" in positive_prompt
+               else f"(toes:{toe_guard}), ")
     return PromptPair(
         positive_prompt,
-        toe_ban + HAND_BAN + SHADE_BAN + base.negative,
+        toe_ban + HAND_BAN + SHADE_BAN + DOT_BAN + base.negative,
     )
 
 

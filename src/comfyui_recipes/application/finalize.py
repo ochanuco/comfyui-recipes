@@ -10,9 +10,11 @@ from pathlib import Path
 from ..domain.generation.models import PromptPair
 from ..domain.yukari import delivery_style
 from ..domain.yukari.recipe import refinement_prompt
+from ..domain.yukari_anima import delivery_style as anima_delivery_style
 from ..infrastructure.comfyui.refinement_graph import MATTE_SUFFIX
 
-FINALIZE_SIZE = 2048
+# The delivery redraw's longest side.
+FINALIZE_SIZE = 2560
 
 
 @dataclass(frozen=True)
@@ -34,24 +36,35 @@ class FinalizeServices:
 
 def finalize(generation_id: str, services: FinalizeServices, *,
              denoise: float | None = None, handdrawn: bool = False,
-             apply_repin: bool = True, apply_recolor: bool = False,
-             keep_legwear: float | None = None) -> None:
-    if denoise is None:
-        denoise = delivery_style.FINALIZE_DENOISE
+             apply_repin: bool = False, apply_skin: bool = False,
+             apply_recolor: bool = False,
+             keep_legwear: float | None = None,
+             toe_guard: float | None = None,
+             size: int | None = None, latent_route: bool = False) -> None:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
     base = services.graph_from_png(picked)
+    # A UNETLoader in the base graph marks an anima render.
+    is_anima = any(node.get("class_type") == "UNETLoader"
+                   for node in base.values())
+    if denoise is None:
+        denoise = (anima_delivery_style.FINALIZE_DENOISE if is_anima
+                   else delivery_style.FINALIZE_DENOISE)
+    if size is None:
+        size = anima_delivery_style.FINALIZE_SIZE if is_anima else FINALIZE_SIZE
     seed = base["3"]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"
     prompt = refinement_prompt(PromptPair(
         base["6"]["inputs"]["text"],
         base["7"]["inputs"]["text"],
-    ), handdrawn=handdrawn)
+    ), handdrawn=handdrawn, toe_guard=toe_guard)
     graph = services.chain_pass(
-        base, FINALIZE_SIZE, denoise, prefix,
+        base, size, denoise, prefix,
         prompt=(prompt.positive, prompt.negative),
-        matte_model=delivery_style.MATTE_MODEL)
+        matte_model=delivery_style.MATTE_MODEL,
+        latent_route=latent_route,
+        sampler=delivery_style.FINALIZE_SAMPLER)
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
@@ -69,7 +82,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     (services.output_root / image["filename"]).write_bytes(raw)
     (services.output_root / matte_name).write_bytes(matte)
     to_deliver = raw
-    if services.repin_skin is not None:
+    skin_applied = apply_skin and services.repin_skin is not None
+    if skin_applied:
         to_deliver, report = services.repin_skin(picked, to_deliver)
         for line in report:
             services.emit(f"skin {line}")
@@ -102,8 +116,10 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         "recipe": "yukari",
         "parameters": {"kind": "hires-chain",
                        "base_generation": generation_id,
-                       "size": FINALIZE_SIZE, "denoise": denoise,
+                       "size": size, "denoise": denoise,
+                       **({"route": "latent"} if latent_route else {}),
                        "repin": repin_applied,
+                       "skin": skin_applied,
                        **({"recolor": True} if recolor_applied else {}),
                        **({"keep_legwear": keep_legwear}
                           if keep_legwear is not None else {}),

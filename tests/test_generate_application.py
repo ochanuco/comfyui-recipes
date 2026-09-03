@@ -337,11 +337,40 @@ class GenerateApplicationTest(unittest.TestCase):
         generation = base_request(prompt="override", negative_prompt="override-neg")["generation"]
         graph = request_graph(generation, 42, "prefix", builder, encode)
         self.assertEqual(seen["args"], ("lounge", 42, "prefix"))
-        self.assertEqual(seen["kwargs"]["costume"], "default")
+        # No costume/hires/denoise/expression in generation.parameters, so
+        # none is forwarded -- the recipe's own default applies instead of
+        # this layer inventing one.
+        self.assertEqual(seen["kwargs"], {})
         self.assertEqual(seen["spec"].prompts.positive, "override")
         self.assertEqual(seen["spec"].prompts.negative, "override-neg")
         self.assertEqual(graph["6"]["inputs"]["text"], "override")
         self.assertEqual(graph["7"]["inputs"]["text"], "override-neg")
+
+    def test_request_graph_forwards_only_present_optional_parameters(self):
+        from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
+
+        seen = {}
+
+        def builder(*args, **kwargs):
+            seen["args"] = args
+            seen["kwargs"] = kwargs
+            return RenderSpec(
+                model_path="m", prompts=PromptPair("built", "built-neg"),
+                width=8, height=8, seed=42, steps=30, cfg=5.0,
+                sampler_name="s", scheduler="k", denoise=1.0,
+                filename_prefix="p")
+
+        def encode(spec):
+            return {"6": {"inputs": {"text": spec.prompts.positive}},
+                    "7": {"inputs": {"text": spec.prompts.negative}}}
+
+        generation = base_request()["generation"]
+        generation["parameters"] = {
+            "pose": "coffee", "costume": "outing", "expression": "doya"}
+        request_graph(generation, 7, "prefix", builder, encode)
+        self.assertEqual(seen["args"], ("coffee", 7, "prefix"))
+        self.assertEqual(
+            seen["kwargs"], {"costume": "outing", "expression": "doya"})
 
     def test_generate_resume_ingested_job_does_not_submit_or_create_job(self):
         with tempfile.TemporaryDirectory() as directory:

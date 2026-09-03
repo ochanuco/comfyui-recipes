@@ -10,10 +10,17 @@ import unittest
 from pathlib import Path
 
 from comfyui_recipes.application.finalize import FinalizeServices, finalize
+from comfyui_recipes.domain.yukari import delivery_style
+from comfyui_recipes.domain.yukari_anima import delivery_style as anima_delivery_style
 
 GRAPH = {"3": {"inputs": {"seed": 1}},
          "6": {"inputs": {"text": "p"}},
          "7": {"inputs": {"text": "n"}}}
+
+ANIMA_GRAPH = {"1": {"class_type": "UNETLoader", "inputs": {}},
+              "3": {"inputs": {"seed": 1}},
+              "6": {"inputs": {"text": "p"}},
+              "7": {"inputs": {"text": "n"}}}
 
 
 class ManagementFake:
@@ -87,7 +94,7 @@ class FinalizeApplicationTest(unittest.TestCase):
                 return data + b"-repinned", ["purple: measured 1/1 -> factor 1/1"]
 
             services = base_services(directory, repin=repin)
-            finalize("gen-id", services)
+            finalize("gen-id", services, apply_repin=True)
             self.assertEqual(calls, [b"raw-bytes"])
             multipart_calls = [call for call in services.management.calls
                                if call[0] == "POST" and call[1].endswith("/generations")]
@@ -152,7 +159,7 @@ class FinalizeApplicationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(
                 directory, repin=lambda data: (data, []))
-            finalize("gen-id", services)
+            finalize("gen-id", services, apply_repin=True)
             batch_call = next(
                 call for call in services.management.calls
                 if call[0] == "POST" and call[1] == "/api/v1/batches")
@@ -167,6 +174,67 @@ class FinalizeApplicationTest(unittest.TestCase):
                 call for call in services.management.calls
                 if call[0] == "POST" and call[1] == "/api/v1/batches")
             self.assertIs(batch_call[2]["parameters"]["repin"], False)
+
+    def test_repin_and_skin_default_off_and_sampler_passed_to_chain_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chain_pass_calls = []
+
+            def chain_pass(base, size, denoise, prefix, **kwargs):
+                chain_pass_calls.append(kwargs)
+                return {}
+
+            repin_calls = []
+
+            def repin(data):
+                repin_calls.append(data)
+                return data, []
+
+            skin_calls = []
+
+            def repin_skin(picked, data):
+                skin_calls.append((picked, data))
+                return data, []
+
+            services = base_services(
+                directory, chain_pass=chain_pass, repin=repin,
+                repin_skin=repin_skin)
+
+            finalize("gen-id", services)
+            self.assertEqual(repin_calls, [])
+            self.assertEqual(skin_calls, [])
+            self.assertEqual(
+                chain_pass_calls[-1]["sampler"], delivery_style.FINALIZE_SAMPLER)
+
+            finalize("gen-id", services, apply_repin=True, apply_skin=True)
+            self.assertEqual(repin_calls, [b"raw-bytes"])
+            self.assertEqual(skin_calls, [(b"picked", b"raw-bytes")])
+            self.assertEqual(
+                chain_pass_calls[-1]["sampler"], delivery_style.FINALIZE_SAMPLER)
+
+    def test_default_denoise_and_size_pick_the_base_graphs_own_recipe(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((size, denoise))
+                return {}
+
+            yukari_services = base_services(
+                directory, chain_pass=chain_pass,
+                graph_from_png=lambda data: GRAPH,
+                repin=lambda data: (data, []))
+            finalize("gen-id", yukari_services)
+
+            anima_services = base_services(
+                directory, chain_pass=chain_pass,
+                graph_from_png=lambda data: ANIMA_GRAPH,
+                repin=lambda data: (data, []))
+            finalize("gen-id", anima_services)
+
+            self.assertEqual(
+                calls, [(2560, delivery_style.FINALIZE_DENOISE),
+                       (anima_delivery_style.FINALIZE_SIZE,
+                        anima_delivery_style.FINALIZE_DENOISE)])
 
 
 if __name__ == "__main__":

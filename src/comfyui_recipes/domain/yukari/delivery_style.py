@@ -130,13 +130,17 @@ BACKDROP_SPREAD_MAX = 25.0
 # from something other than colour, because repin moves the figure's colours
 # into the backdrop's tolerance before the delivery ever sees them.
 MATTE_MODEL = "birefnet.safetensors"
+# The band either side of the matte's edge, as a share of the longest side,
+# inside which a pixel is figure when it differs from the backdrop by more
+# than MATTE_EDGE_TOLERANCE on any channel.
+MATTE_EDGE_BAND_PCT = 0.6
+MATTE_EDGE_TOLERANCE = 20
 
 # finalize's masked refine, the denoise a 2048 print's touch-up runs at.
-# 0.55 over 0.45: the higher pass loosens the lines into the hand-drawn
-# feel the base style aims for, where 0.45 tracks the raw render too
-# faithfully and reads clean. Chosen over a tag-based finish, which never
-# beat the plain pass at either denoise.
-FINALIZE_DENOISE = 0.55
+FINALIZE_DENOISE = 0.45
+
+# The delivery redraw's own sampler (sampler_name, scheduler).
+FINALIZE_SAMPLER = ("euler", "normal")
 
 # Lineart-preserving recolour (infrastructure/imaging/recolor.py). Where
 # repin nudges the render's own saturation, recolor asserts a material's

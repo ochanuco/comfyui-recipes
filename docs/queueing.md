@@ -13,10 +13,12 @@ uv run comfy-recipes generate --request request.json
 ```
 
 The request contract is schema version 1. `generation.recipe` must be
-`yukari`, and `generation.parameters.pose` is required. `costume`, `hires`,
-and `denoise` are optional. A `semantic.summary` is required so each render
-has evaluation context before it is ingested. State is kept beside the request
-as `<request>.state.json`; retain it to resume safely after a crash.
+`yukari` or `yukari-anima`, and `generation.parameters.pose` is required.
+`costume` is optional for either; `hires` and `denoise` are yukari-only,
+and `expression` is anima-only. A `semantic.summary` is required so each
+render has evaluation context before it is ingested. State is kept beside
+the request as `<request>.state.json`; retain it to resume safely after a
+crash.
 
 The ComfyUI server may be local or remote. Set `COMFYUI_HOST` and optionally
 `COMFYUI_PORT`; inputs and outputs are transferred through the server API when
@@ -42,9 +44,9 @@ available as the escape hatch for structural experiments) and with full
 `prompt`/`negative_prompt` overrides.
 
 `generation.parameters` is a closed set: `pose`, `costume`, `hires`,
-`denoise`, `character`, `character_id`, `arm`. Unknown keys are rejected --
-annotations belong in `semantic.attributes`, executable diffs in
-`generation.patches`.
+`denoise`, `expression`, `character`, `character_id`, `arm`. Unknown keys
+are rejected -- annotations belong in `semantic.attributes`, executable
+diffs in `generation.patches`.
 
 ```json
 "generation": {
@@ -67,12 +69,13 @@ and a patch that cannot compile (an absent needle, a bad type) fails there
 
 Every render is measured against the palette bands at ingest, and the
 numbers -- plus a pass/FAIL verdict -- land in its semantic attributes.
-`comfy-recipes finalize` repins the render before the layered delivery;
-`--no-repin` skips it. The repin compresses saturation per V band toward
-the reference render's knees (`delivery_style`'s `REPIN_*`): below a knee a
-pixel is untouched, above it only a fraction of the excess survives, and
-accent-grade saturation -- the iris, the hair pins -- keeps most of its
-excess and its own hue, so the eyes stay vivid while vivid fields pin pale.
+`comfy-recipes finalize` can repin the render before the layered delivery;
+`--repin` opts in (off by default). The repin compresses saturation per V
+band toward the reference render's knees (`delivery_style`'s `REPIN_*`):
+below a knee a pixel is untouched, above it only a fraction of the excess
+survives, and accent-grade saturation -- the iris, the hair pins -- keeps
+most of its excess and its own hue, so the eyes stay vivid while vivid
+fields pin pale.
 `--keep-legwear [COL_CUT]` additionally keeps an asserted legwear region
 verbatim, fading the correction to zero over its feathered edge; the cut is
 the width share the legs stay left of (default 0.62), a property of the

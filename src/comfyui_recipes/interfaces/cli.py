@@ -9,16 +9,25 @@ from pathlib import Path
 
 from ..application import metadata
 from ..application.finalize import FinalizeServices, finalize
+from ..domain.yukari.recipe import TOE_GUARD
 from ..application.generate import GenerateServices, generate, request_graph
 from ..application.watch import WatchServices, watch
 from ..domain.generation.prompt_lint import conflicts
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.poses import POSES
-from ..domain.yukari.recipe import negative, positive, render_spec
+from ..domain.yukari.recipe import negative, positive
+from ..domain.yukari.recipe import render_spec as yukari_render_spec
+from ..domain.yukari_anima.costumes import COSTUMES as ANIMA_COSTUMES
+from ..domain.yukari_anima.expressions import EXPRESSIONS as ANIMA_EXPRESSIONS
+from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
+from ..domain.yukari_anima.recipe import negative as anima_negative
+from ..domain.yukari_anima.recipe import positive as anima_positive
+from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
 from ..infrastructure.chimera.client import ChimeraClient
+from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_graph
 from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
-from ..infrastructure.comfyui.yukari_graph import build_graph
+from ..infrastructure.comfyui.yukari_graph import build_graph as yukari_build_graph
 from ..infrastructure.imaging.delivery import (
     clean_background, graph_from_png,
 )
@@ -28,6 +37,19 @@ from ..infrastructure.imaging.recolor import recolor_png
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
 from ..infrastructure.repository import discover_repository, git_metadata
+
+# `generation.recipe` -> (RenderSpec builder, ComfyUI graph builder).
+RECIPES = {
+    "yukari": (yukari_render_spec, yukari_build_graph),
+    "yukari-anima": (anima_render_spec, anima_build_graph),
+}
+
+
+def _build_generation_graph(generation: dict, seed: int, prefix: str) -> dict:
+    if generation.get("graph"):
+        return request_graph(generation, seed, prefix, None, None)
+    spec_builder, encode = RECIPES[generation["recipe"]]
+    return request_graph(generation, seed, prefix, spec_builder, encode)
 
 
 def _positive_finite_seconds(raw: str) -> float:
@@ -62,10 +84,23 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument("generation_id")
     finalize_parser.add_argument("--denoise", type=float)
     finalize_parser.add_argument("--handdrawn", action="store_true")
-    finalize_parser.add_argument("--no-repin", action="store_true")
     finalize_parser.add_argument(
-        "--no-skin", action="store_true",
-        help="deliver the redraw's own skin; the pin is a correction and has nothing to correct on a render that already arrives in the palette")
+        "--repin", action="store_true", help="repin the delivery's palette")
+    finalize_parser.add_argument(
+        "--toe-guard", type=float, nargs="?", const=TOE_GUARD, metavar="WEIGHT",
+        help="ban the toes in the redraw, hiding the count behind a smooth "
+             "toe box; off by default because the checkpoint draws five")
+    finalize_parser.add_argument(
+        "--skin", action="store_true",
+        help="pin the redraw's skin back to the base render's own")
+    finalize_parser.add_argument(
+        "--size", type=int, metavar="LONGEST",
+        help="longest side of the delivery redraw; a DiT's cost tracks pixel "
+             "count, so this is the speed dial")
+    finalize_parser.add_argument(
+        "--latent-route", action="store_true",
+        help="upscale the latent instead of the decoded image; the staircase "
+             "it leaves is what the redraw turns into visible stroke")
     finalize_parser.add_argument("--recolor", action="store_true")
     finalize_parser.add_argument(
         "--keep-legwear", nargs="?", const=0.62, type=float, default=None,
@@ -96,6 +131,14 @@ def parser() -> argparse.ArgumentParser:
     prompt.add_argument("--pose", required=True, choices=sorted(POSES))
     prompt.add_argument("--costume", default="default", choices=sorted(COSTUMES))
     prompt.add_argument("--json", action="store_true")
+
+    anima_parser = commands.add_parser("anima", help="inspect the Yukari-anima domain")
+    anima_commands = anima_parser.add_subparsers(dest="anima_command", required=True)
+    anima_prompt = anima_commands.add_parser("prompt")
+    anima_prompt.add_argument("--pose", required=True, choices=sorted(ANIMA_POSES))
+    anima_prompt.add_argument("--costume", choices=sorted(ANIMA_COSTUMES))
+    anima_prompt.add_argument("--expression", choices=sorted(ANIMA_EXPRESSIONS))
+    anima_prompt.add_argument("--json", action="store_true")
     return root
 
 
@@ -105,6 +148,16 @@ def main(argv: list[str] | None = None) -> None:
         prompts = {
             "positive": positive(args.pose, args.costume),
             "negative": negative(args.pose, args.costume),
+        }
+        if args.json:
+            print(json.dumps(prompts, ensure_ascii=False, indent=2))
+        else:
+            print(prompts["positive"], "\n\n---\n\n", prompts["negative"])
+        return
+    if args.command == "anima":
+        prompts = {
+            "positive": anima_positive(args.pose, args.costume, args.expression),
+            "negative": anima_negative(args.pose, args.costume, args.expression),
         }
         if args.json:
             print(json.dumps(prompts, ensure_ascii=False, indent=2))
@@ -126,8 +179,7 @@ def main(argv: list[str] | None = None) -> None:
             comfyui=comfyui,
             state=JsonRunState(),
             notifier=notifier,
-            graph_builder=lambda generation, seed, prefix: request_graph(
-                generation, seed, prefix, render_spec, build_graph),
+            graph_builder=_build_generation_graph,
             git_metadata=repository_metadata,
             conflicts=conflicts,
             output_root=repository / ".local/_nogit/chimera",
@@ -141,8 +193,7 @@ def main(argv: list[str] | None = None) -> None:
             comfyui=comfyui,
             state=JsonRunState(),
             notifier=notifier,
-            graph_builder=lambda generation, seed, prefix: request_graph(
-                generation, seed, prefix, render_spec, build_graph),
+            graph_builder=_build_generation_graph,
             git_metadata=repository_metadata,
             conflicts=conflicts,
             output_root=repository / ".local/_nogit/chimera",
@@ -163,14 +214,18 @@ def main(argv: list[str] | None = None) -> None:
             notifier=notifier,
             output_root=repository / ".local/_nogit/finalize",
             repin=lambda data: repin_png(data, keep_legwear=args.keep_legwear),
-            repin_skin=None if args.no_skin else repin_skin_png,
+            repin_skin=repin_skin_png,
             measure=summarize,
             recolor=recolor_png,
         )
         finalize(args.generation_id, services, denoise=args.denoise,
-                 handdrawn=args.handdrawn, apply_repin=not args.no_repin,
+                 handdrawn=args.handdrawn, apply_repin=args.repin,
+                 apply_skin=args.skin,
                  apply_recolor=args.recolor,
-                 keep_legwear=args.keep_legwear)
+                 keep_legwear=args.keep_legwear,
+                 size=args.size,
+                 latent_route=args.latent_route,
+                 toe_guard=args.toe_guard)
         return
 
     if args.metadata_command == "semantic":

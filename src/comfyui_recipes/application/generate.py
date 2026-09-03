@@ -49,7 +49,8 @@ GraphBuilder = Callable[[dict, int, str], dict]
 ConflictFinder = Callable[[str, str], list[tuple[str, str, str]]]
 
 KNOWN_PARAMETERS = frozenset(
-    {"pose", "costume", "hires", "denoise", "character", "character_id", "arm"})
+    {"pose", "costume", "hires", "denoise", "character", "character_id",
+     "arm", "expression"})
 
 
 @dataclass(frozen=True)
@@ -99,16 +100,26 @@ def validate_request(req: object) -> None:
             raise SystemExit("generation.graph must be a non-empty graph dict")
         if not generation.get("recipe"):
             raise SystemExit("generation.recipe must name what this graph is")
-    elif generation.get("recipe") != "yukari":
+    elif generation.get("recipe") not in ("yukari", "yukari-anima"):
         raise SystemExit(f"recipe {generation.get('recipe')!r} not supported yet")
     elif not parameters.get("pose"):
-        raise SystemExit("generation.parameters.pose is required for yukari")
+        raise SystemExit(
+            f"generation.parameters.pose is required for {generation['recipe']}")
     elif set(parameters) - KNOWN_PARAMETERS:
         unknown = sorted(set(parameters) - KNOWN_PARAMETERS)
         raise SystemExit(
             f"unknown generation.parameters keys: {unknown} -- annotations "
             "belong in semantic.attributes, executable diffs in "
             "generation.patches"
+        )
+    elif generation["recipe"] == "yukari" and "expression" in parameters:
+        raise SystemExit(
+            "generation.parameters.expression is not supported for yukari")
+    elif generation["recipe"] == "yukari-anima" and (
+            "hires" in parameters or "denoise" in parameters):
+        raise SystemExit(
+            "generation.parameters.hires and denoise are not supported for "
+            "yukari-anima -- it has no second pass"
         )
     if generation.get("patches") is not None:
         if generation.get("graph"):
@@ -192,12 +203,10 @@ def request_graph(generation: dict, seed: int, prefix: str,
                 inputs["filename_prefix"] = prefix
         return graph
     params = generation.get("parameters", {})
-    spec = spec_builder(
-        params["pose"], seed, prefix,
-        hires=params.get("hires", 0),
-        denoise=params.get("denoise"),
-        costume=params.get("costume", "default"),
-    )
+    # Optional parameters reach the recipe only when the request sets them.
+    kwargs = {key: params[key] for key in
+             ("hires", "denoise", "costume", "expression") if key in params}
+    spec = spec_builder(params["pose"], seed, prefix, **kwargs)
     if generation.get("prompt") or generation.get("negative_prompt"):
         spec = spec_replace(spec, prompts=PromptPair(
             generation.get("prompt") or spec.prompts.positive,

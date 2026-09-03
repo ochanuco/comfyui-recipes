@@ -11192,3 +11192,52 @@ pass 1 のガードはまだアーム側の patch で、`NEGATIVE` には入れ�
 
 残る既知の穴: 目軸のタグはカメラ距離も動かしていて、ドヤ行だけ顔が小さく
 背景の余白が広い。格子として厳密な比較になっていない。
+
+## The look moves to Anima, and the delivery stops needing 2048
+
+The costume fingerprint is now `b3b98896c4629649` and the delivery identity
+`87dfd2e97619ecd0`. Two separate things are folded into that accept, and the
+second one is not this session's work:
+
+- the quality vocabulary changed with the checkpoint (below);
+- `delivery_style.py` had already drifted at `d9900a3`, which changed the skin
+  pin without re-taking the fingerprint. Accepting now confirms that commit as
+  well. Nothing about the delivered look changed in this session beyond size.
+
+### Why the quality tags changed
+
+`sudachiAnima_v10` is an Anima DiT, not an Illustrious UNet, and it carries its
+own aesthetic anchor. `HEAD` is now
+`masterpiece, best quality, score_7, absurdres, 1girl, solo`, and the negative
+gained `score_1, score_2, score_3` beside the two it already had. `score_7`
+means nothing to an Illustrious checkpoint, so this pair travels with the
+model: swapping back means swapping these back.
+
+### Why the delivery is 1536 and not 2048
+
+2048 was never about print size. It was there because the rough hand-drawn line
+does not arrive at 1024 on Illustrious and does at 2048 — the resolution was
+buying a quality the checkpoint would not give at a smaller one. On Anima that
+dependency is gone: 1536 and 2048 are indistinguishable in style, so the size
+that was buying the look is no longer buying anything.
+
+It is also most of the delivery's cost. Measured on a 3060 12GB, the two-pass
+delivery runs 143s at 2048, 107s at 1792 and 77s at 1536 — 1.00 / 0.75 / 0.54
+against the 1.00 / 0.77 / 0.56 the pixel counts predict. A DiT's cost tracks
+pixel count almost exactly, which also says there is no other large waste in
+the chain to go looking for. At 1536 the delivery lands level with what the
+Illustrious 2048 delivery used to cost (66s).
+
+The band widths ride on that size: a delivery is `w27-p21` at 2048 and
+`w20-p16` at 1536. The ratio holds, so a picture reads the same on its own, but
+a 1536 delivery does not sit beside an older 2048 one with the same frame
+weight.
+
+### What the fingerprint does not cover
+
+Neither the quality head nor `NEGATIVE` moved the costume fingerprint when they
+changed — `fingerprint()` hashes `CHARACTER`, `LEGWEAR`, `BODY`, `FACE` and
+`SURFACE` and nothing else. The snapshot contract caught it (sixteen
+`positive_sha256` / `negative_sha256` subtests), and `costume_check`'s per-pose
+pass caught the head as an undeclared addition on every pose. Two guards, and
+the fingerprint was not one of them.

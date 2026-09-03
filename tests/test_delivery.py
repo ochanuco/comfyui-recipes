@@ -16,6 +16,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     clean_background,
     down2,
     graph_from_png,
+    keep_scene,
     parse_color,
     refine_matte,
     stroke_alpha,
@@ -113,6 +114,13 @@ class DeliveryTest(unittest.TestCase):
         figure = np.zeros((8, 8), dtype=bool)
         figure[2:6, 2:6] = True
         self.assertIs(refine_matte(pixels, figure, 0, 20), figure)
+
+    def test_keep_scene_returns_the_redraw_untouched(self):
+        pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
+        data = png(pixels)
+        kept, tag = keep_scene(data, matte(pixels.shape[:2], (8, 24, 10, 22)))
+        self.assertEqual(kept, data)
+        self.assertEqual(tag, "scene")
 
     def test_clean_background_preserves_size_and_clean_width_tag(self):
         pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)

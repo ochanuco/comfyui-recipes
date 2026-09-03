@@ -9,11 +9,12 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from comfyui_recipes.application.generate import validate_request
+from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.yukari_anima import prompt_style as ps
 from comfyui_recipes.domain.yukari_anima.costumes import COSTUMES
 from comfyui_recipes.domain.yukari_anima.poses import POSES
 from comfyui_recipes.domain.yukari_anima.recipe import (
-    negative, positive, render_spec,
+    negative, positive, refinement_prompt, render_spec,
 )
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
@@ -119,6 +120,45 @@ STAND_NEGATIVE = (
     "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)"
 )
 
+REDRAW_STAND_POSITIVE = (
+    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
+    "vocaloid, voiceroid, (@ixy:0.7), light purple hair, short hair with long "
+    "locks, very long sidelocks, purple eyes, hair ornament, (standing:1.5), "
+    "(own hands together:1.3), (hands up:1.2), (arched back:1.15), "
+    "(smug:1.35), (doyagao:1.25), (tareme:1.3), (half-closed eyes:1.3), "
+    "(unamused:1.15), (looking at viewer:1.2), (sneakers:1.3), (white "
+    "sneakers:1.2), (oversized sweatshirt:1.35), (white sweatshirt:1.2), "
+    "(sleeves past wrists:1.25), (denim shorts:1.3), (black pantyhose:1.5), "
+    "(opaque pantyhose:1.4), (from front:1.3), (full body:1.45), (wide "
+    "shot:1.3), (thighs:1.1), (mature female:1.3), (adult:1.2), (wide "
+    "hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
+    "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
+    "simple background, grey background, (large eyes:1.4), (round face:1.3), "
+    "(tareme:1.2), (thick eyelashes:1.3), (sketch:1.45), (rough sketch:1.4), "
+    "rough lines, sketchy lines, pencil sketch, (unfinished:1.2), "
+    "construction lines, (colored pencil (medium):1.2), (soft shading:1.1)"
+)
+
+REDRAW_STAND_NEGATIVE = (
+    "(clean lineart:1.3), (smooth lines:1.2), (cel shading:1.2), (flat "
+    "color:1.2), (brown legwear:1.5), (brown pantyhose:1.4), (detailed "
+    "shading:1.5), (heavy shading:1.5), (impasto:1.45), (painterly:1.45), "
+    "(bad hands:1.5), (mutated hands:1.5), (extra digits:1.5), (fused "
+    "fingers:1.45), (long fingers:1.4), (detailed shading:1.5), (heavy "
+    "shading:1.5), (impasto:1.45), (painterly:1.45), (dotted line:1.3), "
+    "(dashed line:1.3), (stipple:1.3), (halftone:1.2), (extra digits:1.5), "
+    "bad anatomy, bad hands, (skinny:1.3), (thin legs:1.3), (slender "
+    "legs:1.2), (slender:1.1), (sitting:1.3), (cowboy shot:1.2), (upper "
+    "body:1.2), (shiny:1.4), (glossy:1.3), (shiny hair:1.4), (shiny "
+    "clothes:1.3), (specular highlights:1.3), (reflection:1.2), (hair "
+    "highlights:1.2), (watercolor:1.3), (ink wash:1.3), (painterly:1.3), "
+    "(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
+    "(gradient eyes:1.2), (speed lines:1.45), (motion lines:1.4), (emphasis "
+    "lines:1.4), (hood:1.3), (cardigan:1.3), score_1, score_2, score_3, "
+    "(fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3), "
+    "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)"
+)
+
 
 class PromptTest(unittest.TestCase):
     def test_coffee_positive_matches_the_confirmed_render(self):
@@ -154,6 +194,13 @@ class PromptTest(unittest.TestCase):
         self.assertNotIn("(unamused:1.3), (half-closed eyes:1.3), ", overridden)
 
 
+class RefinementPromptTest(unittest.TestCase):
+    def test_stand_refinement_prompt_matches_the_confirmed_redraw(self):
+        result = refinement_prompt(PromptPair(STAND_POSITIVE, STAND_NEGATIVE))
+        self.assertEqual(result.positive, REDRAW_STAND_POSITIVE)
+        self.assertEqual(result.negative, REDRAW_STAND_NEGATIVE)
+
+
 class PoseTableTest(unittest.TestCase):
     def test_step_pose_defaults(self):
         self.assertIn("step", POSES)
@@ -165,6 +212,12 @@ class PoseTableTest(unittest.TestCase):
         self.assertEqual(POSES["stand"].expression, "doya")
         self.assertEqual(POSES["stand"].costume, "outing")
 
+    def test_sofa_pose_defaults(self):
+        self.assertIn("sofa", POSES)
+        self.assertEqual(POSES["sofa"].expression, "sleepy")
+        self.assertEqual(POSES["sofa"].costume, "roomwear")
+        self.assertEqual(POSES["sofa"].canvas, (2048, 1280))
+
 
 class RenderSpecTest(unittest.TestCase):
     def test_render_spec_fields(self):
@@ -172,6 +225,13 @@ class RenderSpecTest(unittest.TestCase):
         self.assertEqual(spec.model_path, ps.MODEL)
         self.assertEqual((spec.width, spec.height), (1280, 2048))
         self.assertEqual(spec.steps, 25)
+
+    def test_pose_canvas_overrides_the_default(self):
+        spec = render_spec("sofa", 7, "p")
+        self.assertEqual((spec.width, spec.height), (2048, 1280))
+
+    def test_render_spec_default_canvas(self):
+        spec = render_spec("stand", 42, "p")
         self.assertEqual(spec.cfg, 3.5)
         self.assertEqual(spec.sampler_name, "er_sde")
         self.assertEqual(spec.scheduler, "normal")

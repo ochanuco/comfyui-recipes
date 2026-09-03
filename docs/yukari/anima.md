@@ -32,6 +32,12 @@ The variable part is three small record sets:
 - `amae`: expression `doya`, costume `outing`.
 - `step`: expression `resting`, costume `outing`.
 - `stand`: expression `doya`, costume `outing`.
+- `sofa`: expression `sleepy`, costume `roomwear`, canvas `2048x1280`.
+  Lying on her side on a couch after a bath: wet hair, a towel around the
+  neck, and baggy purple thighhighs.
+
+A pose may carry its own `canvas`; `render_spec` uses it in place of the
+default `1280x2048`.
 
 ## Assembly order
 
@@ -75,11 +81,35 @@ the same shape `refinement_graph.chain_pass` reads off any base graph.
 
 ## Finalize defaults
 
-`delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.20`.
+`delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.55`,
+`FINALIZE_MODEL = "hassaku-il-v22"`, `FINALIZE_SAMPLER = ("dpmpp_2m",
+"karras")`, `FINALIZE_STEPS = 30`, `FINALIZE_CFG = 5.0`.
 `application/finalize.py` picks these over yukari's own defaults by
 inspecting the base graph it fetched: a `UNETLoader` node means an anima
-base, and its `FINALIZE_DENOISE`/`FINALIZE_SIZE` apply; anything else keeps
-the yukari defaults. `--denoise`/`--size` still override either way.
+base, and its finalize constants apply; anything else keeps the yukari
+defaults. `--denoise`/`--size` still override either way. `0.55` holds the
+figure apart from dark furniture it touches; `--denoise 0.75` is the rougher
+pencil for a figure standing alone on a plain ground.
+
+`--keep-scene` delivers the redraw uncut, background and all, instead of
+the die-cut sticker; the matte is still rendered and stored.
+
+The redraw runs through a different checkpoint, `hassaku-il-v22`
+(Illustrious, loaded through `DiffusersLoader`), rather than
+`hassakuAnima_v13`. `refinement_graph.chain_pass`'s `loader` argument adds
+that `DiffusersLoader` node and reroutes the redraw's model, CLIP and both
+VAEs (encode and decode) through it, re-encoding the base prompts on its
+CLIP. `--finalizer MODEL` overrides `FINALIZE_MODEL` with a different
+checkpoint.
+
+`domain/yukari_anima/recipe.py`'s `refinement_prompt` builds the redraw
+prompt: the positive replaces `STYLE`, hassakuAnima's flat/cel-shaded tail,
+with `ROUGH_STYLE`, aiming the IL checkpoint at a rough, unfinished line
+instead. The negative drops `HATCH_BAN`, `DETAIL_BAN`, `GRADIENT_BAN` and
+`COLORED_LINE_BAN` -- bans against a look the redraw is now asking for --
+and prefixes `ROUGH_BAN + PAINT_BAN + HAND_BAN + SHADE_BAN + DOT_BAN`
+(`HAND_BAN`, `SHADE_BAN` and `DOT_BAN` are the same redraw guards `yukari`
+uses, imported from `yukari.prompt_style`).
 
 ## Requesting it
 

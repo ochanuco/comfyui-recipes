@@ -1,41 +1,5 @@
 {
-  "by_costume": {
-    "default": {
-      "positive_sha256": "fe9c7a4f06016c51e404a826962a4bd2ff97b24eff616feb263862020b779a9b",
-      "negative_sha256": "f06379b6aa08b818aa54cae0cc083f58f660dd485e11d9ad426487fbfee2117b",
-      "base_graph_sha256": "2fe8540995dee26be4557d7714a64c15e0050bab203a4f4d7030b26c57a6202a",
-      "hires_2048_graph_sha256": "d8f343a0e03accb0c49b55183ed2a1a0feeacb77745667f571cb3d905aaa80b7"
-    },
-    "fitness": {
-      "positive_sha256": "27337db25cef2a7260a24fd3450451fb5c116360a52a7a51b75529cdf2e5d836",
-      "negative_sha256": "47efc61a33ac844f308b49557fab7a52199bbbcb37238e060be93acd306853e8",
-      "base_graph_sha256": "ba705035de1e278e784b2a9413adbfa9732d19dafcbce0b5e0f0c2913426a12b",
-      "hires_2048_graph_sha256": "df4e902c328dea94a23ee346194259f62f097e732bd47c7292e38a5c7a31df4e"
-    },
-    "roomwear": {
-      "positive_sha256": "4f951a1e9b9ad9a811dd1123be35cbbbeaf36246bb9413194881b6a1a3900b4f",
-      "negative_sha256": "779681353944a45ba361df4d36a96188ee811bd2cbc813643b41988a6782118d",
-      "base_graph_sha256": "508fdfd146c9c5af29402a7c45cdfe35334aa66aa6fab7d76b779ae383b34236",
-      "hires_2048_graph_sha256": "9739f85fa992912e952ae0a15eb2036ed40d7329b1a38686aa838ea9e540e79c"
-    },
-    "sporty": {
-      "positive_sha256": "f549a59d293562a6791806c0da81ae9017ce1f46293555635307e932ba6e7c5a",
-      "negative_sha256": "eafaf8b4c5b70071cae7466422a9c297312ef98d84ae11ff738af669021ea581",
-      "base_graph_sha256": "44afa8f3b86a67380491b3c3af95221a1d9457cdb669a4c736ce773408c821d0",
-      "hires_2048_graph_sha256": "012957d526706d56b4329c0474d7c9dfb61c646b096e8f5226d184e47165f71e"
-    }
-  },
-  "costume_fingerprint": "b3b98896c4629649",
-  "costume_records_sha256": "5cec3c4fc9f733a96350c5a5a83d6b7688d0f5035c54e0db3a2e3558288d7e16",
-  "costumes": [
-    "default",
-    "fitness",
-    "roomwear",
-    "sporty"
-  ],
-  "delivery_fingerprint": "0afbe3875ab51649",
-  "pose_count": 42,
-  "pose_records_sha256": "3d804b60f2be5b375351549abf9c3a80400666aa7af54710fbbba3e98abe44cc",
+  "pose_count": 43,
   "poses": [
     "allnighter",
     "allnighter_full",
@@ -44,6 +8,7 @@
     "brush",
     "cackle",
     "chair",
+    "cinema",
     "coy",
     "crouch",
     "dizzy",
@@ -80,6 +45,42 @@
     "winded",
     "yawn"
   ],
+  "costumes": [
+    "default",
+    "fitness",
+    "roomwear",
+    "sporty"
+  ],
+  "costume_fingerprint": "b3b98896c4629649",
+  "delivery_fingerprint": "0afbe3875ab51649",
+  "pose_records_sha256": "32c9de48d728a8bf5aa614feded47f76848af24bfc91fce4614379e20d88a1d0",
+  "costume_records_sha256": "5cec3c4fc9f733a96350c5a5a83d6b7688d0f5035c54e0db3a2e3558288d7e16",
+  "by_costume": {
+    "default": {
+      "positive_sha256": "b8889880264f1aa74b7487cc75d79377015d557847936eeb018d86bcc16cb6e5",
+      "negative_sha256": "4d500b4f965100a3a386da8de958162df41def14cfede17721a2572f1cff5865",
+      "base_graph_sha256": "09f2bc0596eeba2f73438e11cafc4fe894b930937cd8265778493446621393e7",
+      "hires_2048_graph_sha256": "27515f5088ed4bca9980579e0b75fffb1ffac095760f3b9d9bcf2f0cec1e6f90"
+    },
+    "fitness": {
+      "positive_sha256": "81d978b7f52e6304d4e938290c24b096cdcaa4d007b5598b94b7c4fb59673f62",
+      "negative_sha256": "6e831a960eb3b4811801e22596d6ede2061d29a6f24b9df88299f5e59ef70fa5",
+      "base_graph_sha256": "a6093649f626243aaad4ec1276d11027b1b828e4223a613d5cb92bda74cc4fe3",
+      "hires_2048_graph_sha256": "b129d9f26f2b73dcb238b5108f1b21bf88e90078ffaec02c2a33dffde5651de5"
+    },
+    "roomwear": {
+      "positive_sha256": "007a4cabcd7c08191f7ba1dfc3c398f49f4250b04955d56f9ce7dfc8ce098e82",
+      "negative_sha256": "b41323fc780b2d2f9b1c198655e1cbe017fee29420a51a5bc9705e24e7c5cadb",
+      "base_graph_sha256": "6caa22c55ea750658526ece81e954d8d40af913c3b3ea7f0205d2e30473152e3",
+      "hires_2048_graph_sha256": "63da4112889341740b255590d75e333c5119f7dda9d1009211ccbe7a9e1ab2bd"
+    },
+    "sporty": {
+      "positive_sha256": "12ee9475930313692d65278d44a3a8d19be8f99305db89325e37846244e2c734",
+      "negative_sha256": "96f12f9608b4dad87d029fbebdface659027d976f49dd0023583a0960d8ee8da",
+      "base_graph_sha256": "5bd0cbee2edcbf56d2d059943deb02f4bcc34b539ec2b40e8707eee724a10e84",
+      "hires_2048_graph_sha256": "8cf6330780d7505f3e9578f64051418ecd978f5aea45b8c2a126e0f4482b4f03"
+    }
+  },
   "prefix": "contract",
   "seed": 123456789
 }

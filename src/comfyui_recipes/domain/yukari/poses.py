@@ -322,6 +322,12 @@ POSES = {
     # mouth; `holding cup` alone leaves the hand down. ONE noun on purpose: a
     # paper cup is the model's unaided default, and a second naming drew two
     # of them. NOT in `open_mouthed` -- lips close around a straw.
+    "cinema": (
+        "(solo:1.5), (walking:1.3), (from front:1.2), (holding popcorn:1.45), "
+        "(popcorn:1.4), (holding cup:1.4), (disposable cup:1.3), "
+        "(drinking straw:1.45), (movie theater:1.4), (indoors:1.2), "
+        "(full body:1.45)"
+    ),
     "straw": (
         "(solo:1.5), (standing:1.45), (from front:1.3), (holding cup:1.45), "
         "(drinking straw:1.55), (drinking:1.3), (full body:1.45)"
@@ -740,6 +746,7 @@ POSE_RECORDS = {
     "loom": Pose(POSES["loom"], (832, 1664), own_eyes=True, open_mouth=True),
     "snarl": Pose(POSES["snarl"], (1024, 1024), own_eyes=True, framing="head",
                   open_mouth=True),
+    "cinema": Pose(POSES["cinema"], (832, 1664)),
     "straw": Pose(POSES["straw"], (832, 1664),
                   # The settled finish, carried whole -- see PAINT_FINISH in
                   # `recipe.py` for why it is one decision, not two.

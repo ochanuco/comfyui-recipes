@@ -42,6 +42,22 @@ POSES = {
                   "(pillow:1.1), (blanket:1.1), (socks:1.3), "
                   "(loose socks:1.3), (kneehighs:1.2), "),
         canvas=(2048, 1280)),
+    "cinema": Pose(
+        action=("(walking:1.2), (holding popcorn:1.45), (popcorn:1.4), "
+                "(popcorn bucket:1.3), (holding cup:1.35), "
+                "(disposable cup:1.3), (drinking straw:1.25), (cola:1.15), "
+                "(holding food:1.1), (holding with both hands:1.1), "),
+        mood="(excited:1.1), ",
+        gesture=("(looking at viewer:1.2), (sneakers:1.3), "
+                 "(white sneakers:1.2), "),
+        scene=("(movie theater:1.4), (theater lobby:1.2), (indoors:1.2), "
+               "(dim lighting:1.1), (carpet:1.1), (cowboy shot:1.3), "
+               "(thighs:1.15), "),
+        expression="doya", costume="outing",
+        negative=("(sitting:1.3), (eating:1.3), (theater seat:1.1), "
+                  "(mug:1.2), (glass:1.2), (bottle:1.2), (bag:1.1), "
+                  "(multiple girls:1.3), "),
+        ),
     "coffee": Pose(
         action=("(drinking:1.3), (iced coffee:1.4), (plastic cup:1.45), "
                 "(clear cup:1.2), (drinking straw:1.4), (holding cup:1.35), "

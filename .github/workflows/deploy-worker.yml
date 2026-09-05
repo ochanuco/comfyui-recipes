@@ -19,6 +19,12 @@ jobs:
     runs-on: [self-hosted, gpu-box]
     timeout-minutes: 15
     steps:
+      # deploy.ps1 is taken from the ref being deployed, not from the standing
+      # checkout it is about to move.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
       # The runner's own step script is unsigned, so the box's execution policy
       # rejects `shell: powershell`; cmd hands the script to powershell with
       # the policy bypassed instead.
@@ -26,4 +32,4 @@ jobs:
         shell: cmd
         env:
           WORKER_CHECKOUT: ${{ vars.WORKER_CHECKOUT }}
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File "%WORKER_CHECKOUT%\scripts\worker\deploy.ps1" -Checkout "%WORKER_CHECKOUT%" -Ref production
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File "%GITHUB_WORKSPACE%\scripts\worker\deploy.ps1" -Checkout "%WORKER_CHECKOUT%" -Ref production

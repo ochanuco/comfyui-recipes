@@ -66,13 +66,15 @@ that is not registered, so it is not a usable readiness check on its own.
 `.venv` serves two purposes, which is why `pyproject.toml` declares no
 dependencies and sets `[tool.uv] managed = false`.
 
-For driving a remote ComfyUI it needs four packages — **pillow, numpy,
-opencv-python, scipy** — which is everything the scripts here import. None of
-them imports torch; the GPU stack belongs to whichever machine serves ComfyUI.
+For driving a remote ComfyUI it needs five packages — **pillow, numpy,
+opencv-python, scipy, websockets** — which is everything the scripts here
+import (`websockets` only for `comfy-recipes work`'s WorkerHub socket). None
+of them imports torch; the GPU stack belongs to whichever machine serves
+ComfyUI.
 
 ```bash
 uv venv --python 3.12 .venv
-VIRTUAL_ENV=.venv uv pip install pillow numpy opencv-python scipy
+VIRTUAL_ENV=.venv uv pip install pillow numpy opencv-python scipy websockets
 ```
 
 `update-comfyui.sh` then installs the upstream checkout's `requirements.txt`

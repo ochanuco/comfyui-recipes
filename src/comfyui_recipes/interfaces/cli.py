@@ -30,7 +30,7 @@ from ..domain.yukari_sketch.poses import POSES as SKETCH_POSES
 from ..domain.yukari_sketch.recipe import negative as sketch_negative
 from ..domain.yukari_sketch.recipe import positive as sketch_positive
 from ..domain.yukari_sketch.recipe import render_spec as sketch_render_spec
-from ..infrastructure.chimera.client import ChimeraClient
+from ..infrastructure.chimera.client import USER_AGENT, ChimeraClient
 from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_graph
 from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
@@ -132,6 +132,9 @@ def parser() -> argparse.ArgumentParser:
     work_parser.add_argument(
         "--kinds", default="generate,finalize",
         help="comma-separated request kinds to claim")
+    work_parser.add_argument(
+        "--no-hub", action="store_true",
+        help="poll only; do not open the WorkerHub websocket")
 
     finalize_parser = commands.add_parser("finalize", help="deliver one picked render")
     finalize_parser.add_argument("generation_id")
@@ -272,6 +275,18 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "work":
         generate_services = _generate_services(
             chimera, comfyui, notifier, repository, repository_metadata)
+        hub_factory = None
+        progress_factory = None
+        if not args.no_hub:
+            from ..infrastructure.chimera.hub import HubConnection, hub_url
+            from ..infrastructure.comfyui.progress import ProgressFeed
+
+            def hub_factory() -> HubConnection:
+                headers = {**chimera.credentials(), "User-Agent": USER_AGENT}
+                return HubConnection(hub_url(chimera.base_url), headers).open()
+
+            def progress_factory() -> ProgressFeed:
+                return ProgressFeed(comfyui.base_url).open()
         work_services = WorkServices(
             management=chimera,
             generate_services=generate_services,
@@ -282,6 +297,8 @@ def main(argv: list[str] | None = None) -> None:
             git_metadata=repository_metadata,
             worker_id=args.worker_id,
             kinds=tuple(kind.strip() for kind in args.kinds.split(",") if kind.strip()),
+            hub=hub_factory,
+            progress_feed=progress_factory,
         )
         work(work_services, interval=args.interval, once=args.once,
              dry_run=args.dry_run)

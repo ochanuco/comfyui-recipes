@@ -58,6 +58,14 @@ cannot vouch for. chimera's own `docs/worker-protocol.md` (in the chimera
 repo) is the authoritative wire contract this command implements -- this
 section is only what `--help` does not already say.
 
+By default `work` also keeps an outbound websocket open to chimera's
+WorkerHub, so a queued row is claimed as soon as it is posted instead of on
+the next `--interval` poll; the socket also relays ComfyUI's own sampling
+progress (`/ws`) back to chimera as it happens. Either side dropping just
+means the next poll or the next reconnect picks the claim back up --
+`--interval` polling is the fallback, not a fallback that needs enabling.
+Pass `--no-hub` to disable the socket and poll only.
+
 ## `generation.patches`
 
 `generation.patches` declares typed diffs applied to the resolved render

@@ -107,7 +107,7 @@ Setting the box up:
 ```powershell
 git clone https://github.com/ochanuco/comfyui-recipes.git
 uv venv --python <uv-managed 3.12 python.exe> .venv
-uv pip install --python .venv\Scripts\python.exe -e . pillow numpy opencv-python scipy pytest
+uv pip install --python .venv\Scripts\python.exe -e . pillow numpy opencv-python scipy websockets pytest
 $env:PYTHONPATH = "scripts"; .\.venv\Scripts\pytest.exe -q
 powershell -ExecutionPolicy Bypass -File .\scripts\worker\register-watch.ps1
 ```

@@ -11,16 +11,30 @@ it builds and records a graph, submits it to `/prompt`, and pulls the result
 back. **The defaults are the recipe** — every preset was arrived at by
 rendering, and the exact prompt can be inspected with `yukari prompt`.
 
-One recipe is live:
+Three recipes are live, all under `src/comfyui_recipes/domain/`:
 
-- `scripts/yukari_recipe.py` — Yukari's temporary CLI and compatibility
-  facade. The recipe itself is under `src/comfyui_recipes/domain/yukari/` —
+- `yukari/` — the original Illustrious recipe (hassaku-il-v22 through
+  `DiffusersLoader`), `scripts/yukari_recipe.py` as its compatibility facade.
   `prompt_style.py` and `delivery_style.py` (the author identity),
   `costumes.py` (the wardrobe), `poses.py` (one record per pose),
   `recipe.py` (the interpreter that owns the assembly order), `models.py`
-  (the `Pose`/`Edit` dataclasses). The ComfyUI node encoding is separate under
-  `infrastructure/comfyui/`. A new pose is one `POSES` entry plus one
-  `POSE_RECORDS` entry in `poses.py`, nothing else.
+  (the `Pose`/`Edit` dataclasses). A new pose is one `POSES` entry plus one
+  `POSE_RECORDS` entry in `poses.py`, nothing else. Its style block and
+  texture bans are what the sketch recipe exists to remove.
+- `yukari_anima/` — hassakuAnima_v13. Composition and proportion obey natural
+  language here, but the picture reads as AI whatever the prompt does
+  (`docs/render-notes.md`, the A/B rounds of 2026-09-05). Kept for its pose
+  vocabulary; not the delivery path.
+- `yukari_sketch/` — the current delivery path. hassaku-il-v22 with the
+  linaqruf sketch LoRA on a minimal prompt (no style block, no texture bans,
+  a moderate proportion block, simple grey background) and a latent-route
+  2560 redraw at denoise 0.55. `docs/yukari/sketch.md` is the description;
+  `poses.py` holds `cinema`, `stand` and `date`. A pose is one `Pose` record
+  (action string, costume, optional face override).
+
+The ComfyUI node encoding for all three is under `infrastructure/comfyui/`.
+`comfy-recipes {yukari,anima,sketch} prompt --pose …` prints what a recipe
+sends.
 
 Everything measured is recorded — see "Where information lives" below for
 which store. The records are the point of the repository; the scripts are how

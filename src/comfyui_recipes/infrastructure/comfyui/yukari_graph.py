@@ -27,6 +27,24 @@ def build_graph(spec: RenderSpec) -> dict[str, dict]:
         "9": {"class_type": "SaveImage", "inputs": {
             "images": ["8", 0], "filename_prefix": spec.filename_prefix}},
     }
+    if spec.loras:
+        if spec.hires is not None:
+            raise ValueError(
+                "yukari_graph.build_graph cannot combine spec.loras with "
+                "spec.hires -- the hires pass ids would collide with the "
+                "LoraLoader chain")
+        model_ref, clip_ref = ["4", 0], ["4", 1]
+        loader_id = 10
+        for lora_name, weight in spec.loras:
+            node_id = str(loader_id)
+            graph[node_id] = {"class_type": "LoraLoader", "inputs": {
+                "model": model_ref, "clip": clip_ref, "lora_name": lora_name,
+                "strength_model": weight, "strength_clip": weight}}
+            model_ref, clip_ref = [node_id, 0], [node_id, 1]
+            loader_id += 1
+        graph["3"]["inputs"]["model"] = model_ref
+        graph["6"]["inputs"]["clip"] = clip_ref
+        graph["7"]["inputs"]["clip"] = clip_ref
     if spec.hires is None:
         return graph
 

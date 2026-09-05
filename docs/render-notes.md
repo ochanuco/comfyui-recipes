@@ -11241,3 +11241,74 @@ changed — `fingerprint()` hashes `CHARACTER`, `LEGWEAR`, `BODY`, `FACE` and
 `positive_sha256` / `negative_sha256` subtests), and `costume_check`'s per-pose
 pass caught the head as an undeclared addition on every pose. Two guards, and
 the fingerprint was not one of them.
+
+## The AI look was the checkpoint's prior and the recipe's own style block (2026-09-04/05)
+
+The cinema pose (popcorn and cola, a movie date) was the first thing drawn
+after the Anima migration, and the user's verdict on the Anima delivery was
+that everything — picture, line, expression — read as AI. Two days of chimera
+A/B rounds (Experiments 3em2r7, vbpz8u, ohwuq1, 4mq584, 2k2hpk, xc1847,
+ria147, 8cgdn2; four seeds each, ratings per generation) settled where that
+comes from and what moves it. `experiments/yukari/cinema.jsonl` and
+`stand.jsonl` carry the per-arm records; this is the argument.
+
+### Anima ignores the prompt
+
+Removing `@ixy` and FACE, removing the STYLE weights, removing STYLE
+outright, emptying the negative, dropping the quality tags: at the same seed
+the Anima render is the same picture (8ga4bs / t62pye / fg3d2p). The
+suppression stacked up in the IL days is not what makes Anima look like AI —
+Anima's own prior is, and no prompt-side lever reaches it. The IL redraw at
+0.55 and 0.75, and a DWPose → openpose ControlNet into IL from noise, both
+kept the look, because both still start from the Anima picture.
+
+### On IL the style block was the wall
+
+The same subject on the pre-migration `yukari` recipe was "far less AI"
+(uulwyu), but the hand was still not in the line: a uniform ink contour with
+staircase noise on top. Nine checkpoints swapped in under the recipe prompt
+all rated bad (4mq584; Nova Moe / Retro reached neutral). Three sketch LoRAs
+under the recipe prompt produced seven identical renders (a60gah). The same
+LoRAs with their trigger words on a prompt with no style block, no texture
+bans and the simple grey background kept: linaqruf 0.8 and muapi 1.0 each 3
+good of 4 (2k2hpk), and the bare minimal prompt already 2 good. `(flat
+color)`, `smooth shading`, the THIN triple and the `hatching` / `pencil
+shading` bans were holding the line to a clean contour and forbidding the
+texture a sketch LoRA draws. The wall was ours.
+
+### The proportion block has a narrow window
+
+The minimal prompt drifts to a low head-count, which the user ruled out. The
+seven-heads block that fixed Anima (mature female 1.3, long legs 1.35, strong
+child / short-legs / petite / fat bans) overshot on IL: stick legs, an aged
+face, and a blue tint on stand where the minimal negative had dropped the
+blue-background bans (6tf9wd, worse than no block at all). `(long legs:1.2),
+(tall:1.1), adult` with `thick thighs 1.3 / soft thighs 1.2` kept, bans at
+1.2, and the blue bans restored, rated 3 good 1 neutral 0 bad on both cinema
+and stand (ria147). That prompt is `yukari-sketch`.
+
+### The redraw dial is 0.55, and it is not what separates poses
+
+On the IL raw, latent-route redraws at 0.30 and 0.35 rated bad on every
+seed, 0.45 mixed, 0.55 best (vbpz8u): a shallower redraw keeps the clean raw
+line. Across poses at 0.45 against 0.55, stand rated 3 good at both while
+straw, prone and lounge rated bad at both (ohwuq1) — those poses fail for a
+reason the denoise does not touch. muapi, good in the raw, collapsed through
+the redraw (stand 4 bad, xc1847); linaqruf survived it and is the one loaded.
+
+### The finished piece
+
+5gmzy0 (raw vlrs9y, seed 737373737): `yukari-sketch` cinema with a jitome
+smirk, a blush and head tilt, white sneakers and a knee-length dress — the
+smirk arm was picked over grin, the knee-length dress over shorts under the
+dress (8cgdn2). It is `sketch prompt --pose date`, byte-exact, with the
+recipe's default finalize.
+
+### What chimera gained
+
+Blind pairwise judging per seed (`/experiments/{id}/ab`), `render_facts`
+extracted from every job's graph (checkpoint, sampler, cfg, steps, denoise,
+canvas, LoRA, ControlNet) shown on generations, Compare and the experiment
+table, and free `variables` on a run for the factor the graph cannot name.
+Chimera PRs #60 and #61. The rounds above are readable there without this
+file.

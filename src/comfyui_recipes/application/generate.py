@@ -100,7 +100,7 @@ def validate_request(req: object) -> None:
             raise SystemExit("generation.graph must be a non-empty graph dict")
         if not generation.get("recipe"):
             raise SystemExit("generation.recipe must name what this graph is")
-    elif generation.get("recipe") not in ("yukari", "yukari-anima"):
+    elif generation.get("recipe") not in ("yukari", "yukari-anima", "yukari-sketch"):
         raise SystemExit(f"recipe {generation.get('recipe')!r} not supported yet")
     elif not parameters.get("pose"):
         raise SystemExit(
@@ -120,6 +120,14 @@ def validate_request(req: object) -> None:
         raise SystemExit(
             "generation.parameters.hires and denoise are not supported for "
             "yukari-anima -- it has no second pass"
+        )
+    elif generation["recipe"] == "yukari-sketch" and (
+            "hires" in parameters or "denoise" in parameters
+            or "expression" in parameters):
+        raise SystemExit(
+            "generation.parameters.hires, denoise and expression are not "
+            "supported for yukari-sketch -- it has no second pass and no "
+            "expression records"
         )
     if generation.get("patches") is not None:
         if generation.get("graph"):

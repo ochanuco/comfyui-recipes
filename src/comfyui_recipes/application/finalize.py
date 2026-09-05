@@ -12,6 +12,8 @@ from ..domain.yukari import delivery_style
 from ..domain.yukari.recipe import refinement_prompt
 from ..domain.yukari_anima import delivery_style as anima_delivery_style
 from ..domain.yukari_anima.recipe import refinement_prompt as anima_refinement_prompt
+from ..domain.yukari_sketch import delivery_style as sketch_delivery_style
+from ..domain.yukari_sketch.recipe import refinement_prompt as sketch_refinement_prompt
 from ..infrastructure.comfyui.refinement_graph import MATTE_SUFFIX
 
 # The delivery redraw's longest side.
@@ -41,27 +43,41 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              apply_recolor: bool = False,
              keep_legwear: float | None = None,
              toe_guard: float | None = None,
-             size: int | None = None, latent_route: bool = False,
+             size: int | None = None, latent_route: bool | None = None,
              finalizer: str | None = None) -> None:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
     base = services.graph_from_png(picked)
-    # A UNETLoader in the base graph marks an anima render.
-    is_anima = any(node.get("class_type") == "UNETLoader"
-                   for node in base.values())
+    # A LoraLoader in the base graph marks a sketch render; a UNETLoader
+    # (checked only once sketch is ruled out) marks an anima render -- a
+    # base graph carries at most one of the two.
+    is_sketch = any(node.get("class_type") == "LoraLoader"
+                    for node in base.values())
+    is_anima = (not is_sketch) and any(
+        node.get("class_type") == "UNETLoader" for node in base.values())
     if denoise is None:
-        denoise = (anima_delivery_style.FINALIZE_DENOISE if is_anima
+        denoise = (sketch_delivery_style.FINALIZE_DENOISE if is_sketch
+                   else anima_delivery_style.FINALIZE_DENOISE if is_anima
                    else delivery_style.FINALIZE_DENOISE)
     if size is None:
-        size = anima_delivery_style.FINALIZE_SIZE if is_anima else FINALIZE_SIZE
+        size = (sketch_delivery_style.FINALIZE_SIZE if is_sketch
+                else anima_delivery_style.FINALIZE_SIZE if is_anima
+                else FINALIZE_SIZE)
+    if latent_route is None:
+        latent_route = is_sketch and sketch_delivery_style.FINALIZE_LATENT_ROUTE
     seed = base["3"]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"
     base_prompt = PromptPair(
         base["6"]["inputs"]["text"],
         base["7"]["inputs"]["text"],
     )
-    if is_anima:
+    if is_sketch:
+        prompt = sketch_refinement_prompt(base_prompt)
+        sampler = sketch_delivery_style.FINALIZE_SAMPLER
+        loader = None
+        sampling = None
+    elif is_anima:
         prompt = anima_refinement_prompt(base_prompt)
         sampler = anima_delivery_style.FINALIZE_SAMPLER
         loader = finalizer or anima_delivery_style.FINALIZE_MODEL

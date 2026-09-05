@@ -35,6 +35,9 @@ The variable part is three small record sets:
 - `sofa`: expression `sleepy`, costume `roomwear`, canvas `2048x1280`.
   Lying on her side on a couch after a bath: wet hair, a towel around the
   neck, and baggy purple thighhighs.
+- `cinema`: expression `doya`, costume `outing`. Walking through a movie
+  theater lobby with a popcorn bucket in one hand and a cola cup with a
+  straw in the other.
 
 A pose may carry its own `canvas`; `render_spec` uses it in place of the
 default `1280x2048`.

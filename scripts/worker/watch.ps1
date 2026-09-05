@@ -4,6 +4,7 @@ $ErrorActionPreference = "Continue"
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 Set-Location $repo
 $env:PYTHONUTF8 = "1"
+$env:PYTHONUNBUFFERED = "1"
 $log = Join-Path $repo ".local\_nogit\worker\watch.log"
 New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null
 while ($true) {

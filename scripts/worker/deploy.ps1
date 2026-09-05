@@ -13,7 +13,7 @@ Stop-ScheduledTask -TaskName "comfyui-recipes-watch" -ErrorAction SilentlyContin
 Get-CimInstance Win32_Process |
     Where-Object { $_.ProcessId -ne $PID -and
         $_.CommandLine -match "comfy-recipes\.exe.* work|[\\/]watch\.ps1" } |
-    ForEach-Object { taskkill /PID $_.ProcessId /T /F 2>&1 | Out-Null }
+    ForEach-Object { cmd /c "taskkill /PID $($_.ProcessId) /T /F >nul 2>&1" }
 $uv = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Recurse -Filter uv.exe |
     Select-Object -First 1 -ExpandProperty FullName
 & $uv pip install --python .venv\Scripts\python.exe -q -e . pillow numpy opencv-python scipy pytest "websockets>=12"

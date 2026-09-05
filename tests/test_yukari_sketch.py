@@ -25,6 +25,7 @@ from comfyui_recipes.interfaces import cli
 FIXTURES = Path(__file__).parent / "fixtures"
 CINEMA = json.loads((FIXTURES / "yukari-sketch-cinema.json").read_text())
 STAND = json.loads((FIXTURES / "yukari-sketch-stand.json").read_text())
+DATE = json.loads((FIXTURES / "yukari-sketch-date.json").read_text())
 
 
 class PromptTest(unittest.TestCase):
@@ -39,6 +40,16 @@ class PromptTest(unittest.TestCase):
 
     def test_stand_negative_matches_the_confirmed_render(self):
         self.assertEqual(negative("stand"), STAND["negative"])
+
+    def test_date_positive_matches_the_confirmed_render(self):
+        self.assertEqual(positive("date"), DATE["positive"])
+
+    def test_date_negative_matches_the_confirmed_render(self):
+        self.assertEqual(negative("date"), DATE["negative"])
+
+    def test_face_override_is_used_only_when_set(self):
+        self.assertIn(ps.FACE, positive("cinema"))
+        self.assertNotIn(ps.FACE, positive("date"))
 
 
 class RefinementPromptTest(unittest.TestCase):

@@ -38,8 +38,9 @@ from .prompt_style import (
 def positive(pose: str, costume: str | None = None) -> str:
     p = POSES[pose]
     costume_block = COSTUMES[costume if costume is not None else p.costume]
+    face = p.face if p.face is not None else FACE
     return (QUALITY + TRIGGER + CHARACTER + IDENTITY + costume_block
-            + p.action + PROPORTION + BACKGROUND + LEGWEAR + FACE + BODY)
+            + p.action + PROPORTION + BACKGROUND + LEGWEAR + face + BODY)
 
 
 def negative(pose: str, costume: str | None = None) -> str:

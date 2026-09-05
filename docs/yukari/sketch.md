@@ -18,10 +18,11 @@ vary it.
 
 The variable part is two small record sets:
 
-- `poses.py`: one `Pose` per pose -- `action` and the costume it defaults
-  to. Unlike `yukari` and `yukari-anima`, there is no mood, gesture or
-  scene split; the pose is one tag block.
-- `costumes.py`: one tag block per costume (`default`).
+- `poses.py`: one `Pose` per pose -- `action`, the costume it defaults
+  to, and an optional `face` override used whole in place of `FACE`.
+  Unlike `yukari` and `yukari-anima`, there is no mood, gesture or scene
+  split; the pose is one tag block.
+- `costumes.py`: one tag block per costume (`default`, `outing`).
 
 ## Poses
 
@@ -29,6 +30,9 @@ The variable part is two small record sets:
   cup, full body.
 - `stand`: costume `default`. Standing with hands together, arched back,
   from the front, wide shot.
+- `date`: costume `outing`. The cinema props plus white sneakers, a
+  knee-length outing dress, and a jitome smirk with a blush and head
+  tilt in place of the default `FACE`.
 
 ## Assembly order
 
@@ -37,7 +41,7 @@ The variable part is two small record sets:
 ```
 QUALITY + TRIGGER + CHARACTER + IDENTITY
 + COSTUMES[costume] + pose.action
-+ PROPORTION + BACKGROUND + LEGWEAR + FACE + BODY
++ PROPORTION + BACKGROUND + LEGWEAR + (pose.face or FACE) + BODY
 ```
 
 Negative is `NEGATIVE` verbatim -- `pose` and `costume` are still validated

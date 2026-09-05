@@ -13,12 +13,14 @@ uv run comfy-recipes generate --request request.json
 ```
 
 The request contract is schema version 1. `generation.recipe` must be
-`yukari` or `yukari-anima`, and `generation.parameters.pose` is required.
-`costume` is optional for either; `hires` and `denoise` are yukari-only,
-and `expression` is anima-only. A `semantic.summary` is required so each
-render has evaluation context before it is ingested. State is kept beside
-the request as `<request>.state.json`; retain it to resume safely after a
-crash.
+`yukari`, `yukari-anima` or `yukari-sketch`, and `generation.parameters.pose`
+is required. `costume` is optional for all three; `hires` and `denoise` are
+yukari-only, and `expression` is anima-only -- `yukari-anima` and
+`yukari-sketch` both reject `hires`/`denoise` (neither has a second pass),
+and `yukari-sketch` rejects `expression` too (it has no expression records).
+A `semantic.summary` is required so each render has evaluation context
+before it is ingested. State is kept beside the request as
+`<request>.state.json`; retain it to resume safely after a crash.
 
 The ComfyUI server may be local or remote. Set `COMFYUI_HOST` and optionally
 `COMFYUI_PORT`; inputs and outputs are transferred through the server API when

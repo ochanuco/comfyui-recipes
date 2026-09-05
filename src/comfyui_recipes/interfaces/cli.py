@@ -23,6 +23,11 @@ from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
 from ..domain.yukari_anima.recipe import negative as anima_negative
 from ..domain.yukari_anima.recipe import positive as anima_positive
 from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
+from ..domain.yukari_sketch.costumes import COSTUMES as SKETCH_COSTUMES
+from ..domain.yukari_sketch.poses import POSES as SKETCH_POSES
+from ..domain.yukari_sketch.recipe import negative as sketch_negative
+from ..domain.yukari_sketch.recipe import positive as sketch_positive
+from ..domain.yukari_sketch.recipe import render_spec as sketch_render_spec
 from ..infrastructure.chimera.client import ChimeraClient
 from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_graph
 from ..infrastructure.comfyui.client import ComfyUIClient
@@ -42,6 +47,7 @@ from ..infrastructure.repository import discover_repository, git_metadata
 RECIPES = {
     "yukari": (yukari_render_spec, yukari_build_graph),
     "yukari-anima": (anima_render_spec, anima_build_graph),
+    "yukari-sketch": (sketch_render_spec, yukari_build_graph),
 }
 
 
@@ -97,10 +103,17 @@ def parser() -> argparse.ArgumentParser:
         "--size", type=int, metavar="LONGEST",
         help="longest side of the delivery redraw; a DiT's cost tracks pixel "
              "count, so this is the speed dial")
-    finalize_parser.add_argument(
-        "--latent-route", action="store_true",
+    route_group = finalize_parser.add_mutually_exclusive_group()
+    route_group.add_argument(
+        "--latent-route", dest="latent_route", action="store_const",
+        const=True, default=None,
         help="upscale the latent instead of the decoded image; the staircase "
              "it leaves is what the redraw turns into visible stroke")
+    route_group.add_argument(
+        "--pixel-route", dest="latent_route", action="store_const",
+        const=False,
+        help="force the pixel-space route on a recipe (yukari-sketch) whose "
+             "own default is the latent route")
     finalize_parser.add_argument(
         "--finalizer", metavar="MODEL",
         help="DiffusersLoader model_path that redraws instead of the base "
@@ -146,6 +159,13 @@ def parser() -> argparse.ArgumentParser:
     anima_prompt.add_argument("--costume", choices=sorted(ANIMA_COSTUMES))
     anima_prompt.add_argument("--expression", choices=sorted(ANIMA_EXPRESSIONS))
     anima_prompt.add_argument("--json", action="store_true")
+
+    sketch_parser = commands.add_parser("sketch", help="inspect the Yukari-sketch domain")
+    sketch_commands = sketch_parser.add_subparsers(dest="sketch_command", required=True)
+    sketch_prompt = sketch_commands.add_parser("prompt")
+    sketch_prompt.add_argument("--pose", required=True, choices=sorted(SKETCH_POSES))
+    sketch_prompt.add_argument("--costume", choices=sorted(SKETCH_COSTUMES))
+    sketch_prompt.add_argument("--json", action="store_true")
     return root
 
 
@@ -165,6 +185,16 @@ def main(argv: list[str] | None = None) -> None:
         prompts = {
             "positive": anima_positive(args.pose, args.costume, args.expression),
             "negative": anima_negative(args.pose, args.costume, args.expression),
+        }
+        if args.json:
+            print(json.dumps(prompts, ensure_ascii=False, indent=2))
+        else:
+            print(prompts["positive"], "\n\n---\n\n", prompts["negative"])
+        return
+    if args.command == "sketch":
+        prompts = {
+            "positive": sketch_positive(args.pose, args.costume),
+            "negative": sketch_negative(args.pose, args.costume),
         }
         if args.json:
             print(json.dumps(prompts, ensure_ascii=False, indent=2))

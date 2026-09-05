@@ -62,6 +62,26 @@ which is long before the 5GB `unet/` does. A model showing up in
 Loading a half-fetched folder fails with `'NoneType' object has no attribute
 'lower'`, which is ComfyUI reporting a missing file badly.
 
+### A download must outlive the ssh session
+
+A process started over `ssh comfyui-worker` — `Start-Process` included — dies
+the moment the session closes, and a `hf_hub_download` or `curl` that was
+half-way through a 6GB file just stops without an error (measured three
+times: 20s, 45s and 60s of session gave 1GB, 2.7GB and 4.7GB). Register the
+fetch as a scheduled task and run it from there instead:
+
+```powershell
+schtasks /Create /TN fetch_ckpts /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\...\fetch_ckpts.ps1" /SC ONCE /ST 00:00 /F
+schtasks /Run /TN fetch_ckpts
+```
+
+The script itself is a `curl.exe -L -C - --retry 5 --retry-all-errors` loop
+per file into `<name>.part`, renamed on exit 0; `.local/ab2/fetch_ckpts.ps1`
+is the one that fetched the 2026-09-05 checkpoints. Civitai's
+`/api/download/models/<version>` worked anonymously for the Nova models; a
+`CIVITAI_TOKEN` is only needed for gated ones. Watch the `.part` size from
+here, not the log line — the log only moves when a file finishes.
+
 ## Checking whether the far end is up
 
 Windows blocks ICMP by default, so `ping` fails against a machine that is up and

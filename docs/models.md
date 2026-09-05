@@ -69,3 +69,26 @@ Whole-folder copies of a Civitai model converted to diffusers by John6666.
 
 `checkpoints/NoobAI-XL-v1.1.safetensors` is on Civitai as well
 (833294/1116447) but Hugging Face is the better source for it.
+
+## On the worker only (2026-09-05)
+
+Fetched straight onto the Windows box for the checkpoint and LoRA A/B rounds
+(`docs/render-notes.md`, 2026-09-05). No local copy and no SHA256 recorded;
+re-fetch from the source if they are ever needed again. Every checkpoint below
+rated bad against hassaku-il-v22 on the recipe prompt and is not used; the
+linaqruf LoRA is what `yukari-sketch` loads.
+
+| file | source |
+|---|---|
+| `checkpoints/NoobAI-XL-v1.1.safetensors` | `Laxhar/noobai-XL-1.1` |
+| `checkpoints/Illustrious-XL-v0.1.safetensors` | `OnomaAIResearch/Illustrious-xl-early-release-v0` |
+| `checkpoints/blue_pencil-XL-v7.0.0.safetensors` | `bluepen5805/blue_pencil-XL` |
+| `checkpoints/animagine-xl-3.1.safetensors` | `cagliostrolab/animagine-xl-3.1` |
+| `checkpoints/animagine-xl-4.0-opt.safetensors` | `cagliostrolab/animagine-xl-4.0` |
+| `checkpoints/XL_caulkinumACA.safetensors` | `Shiyaku/XL_caulkinumAnimeLine :: model/XL_caulkinumACA.safetensors` |
+| `checkpoints/AAM_XL_Anime_Mix.safetensors` | `Lykon/AAM_XL_AnimeMix` |
+| `checkpoints/novaMoeXL_v10.safetensors` | Civitai Nova Moe XL / v1.0 (version 2242867) |
+| `checkpoints/novaRetroXL_v10.safetensors` | Civitai Nova Retro XL / v1.0 (version 2229136) |
+| `loras/sketch-style-xl-linaqruf.safetensors` | `Linaqruf/sketch-style-xl-lora :: sketch-style-xl.safetensors` — **in use** (`yukari-sketch`, 0.8) |
+| `loras/sketch-worthyhuman.safetensors` | `WorthyHuman1/Sketch_LoRA :: Sketch_LoRA.safetensors` — no visible effect |
+| `loras/anime-sketch-muapi.safetensors` | `Muapi/anime-sketch-style-sdxl-sd1.5` — good raw, collapses in the redraw |

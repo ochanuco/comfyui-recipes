@@ -1,0 +1,39 @@
+name: production preflight
+
+on:
+  pull_request:
+    branches: [production]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preflight:
+    name: production deploy preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install client deps
+        run: |
+          uv venv .venv
+          uv pip install --python .venv/bin/python -e . pillow numpy opencv-python scipy pytest websockets
+
+      - name: Tests
+        run: PYTHONPATH=scripts .venv/bin/pytest -q
+
+      - name: Costume contract
+        run: .venv/bin/python scripts/costume_check.py

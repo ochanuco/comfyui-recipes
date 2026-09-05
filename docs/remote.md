@@ -94,3 +94,38 @@ curl -s http://$COMFYUI_HOST:8188/system_stats
 `/object_info` is also the honest answer to "does it have the models" — an empty
 `CheckpointLoaderSimple` list means an empty `models/checkpoints`, whatever the
 disk looks like from over here.
+
+## Running the CLI on the worker itself
+
+Since 2026-09-05 the queue runs on the GPU machine, not on the Mac: the repo
+is cloned there, `comfy-recipes watch` polls chimera from a logon task, and
+`COMFYUI_HOST` stays unset so everything talks to `127.0.0.1:8188`. The Mac
+only edits recipes and reads chimera.
+
+Setting the box up:
+
+```powershell
+git clone https://github.com/ochanuco/comfyui-recipes.git
+uv venv --python <uv-managed 3.12 python.exe> .venv
+uv pip install --python .venv\Scripts\python.exe -e . pillow numpy opencv-python scipy pytest
+$env:PYTHONPATH = "scripts"; .\.venv\Scripts\pytest.exe -q
+.\scripts\worker\register-watch.ps1
+```
+
+`register-watch.ps1` registers `scripts/worker/watch.ps1` as the per-user
+task `comfyui-recipes-watch` (at logon, interactive principal, so no stored
+password) and starts it. The wrapper restarts the CLI when it exits and
+appends to `.local/_nogit/worker/watch.log`. `.local/chimera-token` and
+`.local/discord-webhook` are copied onto the box by hand; they are never
+tracked.
+
+Two things that only show up over `ssh comfyui-worker`:
+
+- Reparse points do not resolve in that session. The WinGet `uv.exe` link
+  fails with "no application is associated", and uv's
+  `cpython-3.12-windows-x86_64-none` alias is a junction that fails with
+  "untrusted mount point". Call the package's own `uv.exe` and point
+  `uv venv` at the versioned `cpython-3.12.<patch>-...` directory instead.
+- The locale encoding is cp932. Text I/O in this repo passes
+  `encoding="utf-8"` explicitly, and the wrapper sets `PYTHONUTF8=1` for
+  the CLI's stdout.

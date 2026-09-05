@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from comfyui_recipes.infrastructure.chimera.hub import hub_url
+from comfyui_recipes.infrastructure.chimera.hub import encode, hub_url
 
 
 class HubUrlTest(unittest.TestCase):
@@ -26,6 +26,11 @@ class HubUrlTest(unittest.TestCase):
     def test_unsupported_scheme_raises(self):
         with self.assertRaises(ValueError):
             hub_url("ftp://example.invalid")
+
+
+class EncodeTest(unittest.TestCase):
+    def test_ping_matches_the_hub_auto_response_pattern(self):
+        self.assertEqual(encode({"type": "ping"}), '{"type":"ping"}')
 
 
 if __name__ == "__main__":

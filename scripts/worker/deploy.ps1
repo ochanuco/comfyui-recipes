@@ -30,7 +30,7 @@ if ($ComfyRoot) {
     if ($LASTEXITCODE -ne 0) {
         Stop-ScheduledTask -TaskName "comfyui" -ErrorAction SilentlyContinue
         Get-CimInstance Win32_Process |
-            Where-Object { $_.CommandLine -match "[\\/]ComfyUI[\\/]main\.py" } |
+            Where-Object { $_.CommandLine -match "ComfyUI[\\/]main\.py" } |
             ForEach-Object { cmd /c "taskkill /PID $($_.ProcessId) /T /F >nul 2>&1" }
         Start-ScheduledTask -TaskName "comfyui"
     }

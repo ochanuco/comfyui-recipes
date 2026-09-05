@@ -38,6 +38,10 @@ The variable part is two small record sets:
   her cheek on her hand, a coffee cup and saucer, seen slightly from
   above, upper body; the face is tareme and jitome with upturned eyes,
   a light smile and parted lips -- asking, not smirking.
+- `home`: costume `outing`, canvas `1024x1280`. Sunk into a bean bag chair
+  with shopping bags beside her, slouching with her arms limp, seen from
+  above, upper body; the face is tareme and jitome with the head thrown
+  back, mouth open, exhausted -- a groan, not a smile.
 
 ## Assembly order
 
@@ -58,7 +62,7 @@ contributes a tag of its own to the negative.
 ## Render constants
 
 Fixed in `prompt_style.py`: `MODEL = "hassaku-il-v22"`, canvas `832x1664`
-(a pose's own `canvas` replaces it -- `cafe` is `1024x1280`), `steps=30`, `cfg=5.0`, sampler `dpmpp_2m`, scheduler `karras`, denoise
+(a pose's own `canvas` replaces it -- `cafe` and `home` are `1024x1280`), `steps=30`, `cfg=5.0`, sampler `dpmpp_2m`, scheduler `karras`, denoise
 `1.0`. `LORA = ("sketch-style-xl-linaqruf.safetensors", 0.8)`. There is no
 hires pass -- `render_spec` raises `ValueError` if `hires` or `denoise` is
 requested.

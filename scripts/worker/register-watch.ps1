@@ -12,7 +12,11 @@ $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interac
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) `
     -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
     -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries
-Register-ScheduledTask -TaskName "comfyui-recipes-watch" -Action $action `
-    -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+# Registering needs elevation; the runner has none, so an existing task is
+# only restarted.
+if (-not (Get-ScheduledTask -TaskName "comfyui-recipes-watch" -ErrorAction SilentlyContinue)) {
+    Register-ScheduledTask -TaskName "comfyui-recipes-watch" -Action $action `
+        -Trigger $trigger -Principal $principal -Settings $settings | Out-Null
+}
 Start-ScheduledTask -TaskName "comfyui-recipes-watch"
 Get-ScheduledTask -TaskName "comfyui-recipes-watch" | Select-Object TaskName, State

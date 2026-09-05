@@ -1,6 +1,10 @@
 """Adapter-level tests for the finalize use case.
 
-All collaborators below are fakes: this suite never opens a network socket.
+All collaborators below are fakes: this suite never opens a network socket,
+and never talks to a real ComfyUI -- the redraw, matte and delivery are all
+a single graph now, so these tests check what finalize() asks that graph to
+do (deliver=True, the skin/repin/recolor/keep_* flags, an uploaded source
+image) and how it classifies the three outputs, not any local pixel work.
 """
 
 from __future__ import annotations
@@ -49,14 +53,27 @@ class ManagementFake:
 
 
 class ComfyFake:
+    def __init__(self):
+        self.uploaded = []
+
+    def upload_image(self, name, data):
+        self.uploaded.append((name, data))
+        return f"uploaded-{name}"
+
     def submit(self, graph):
         return "prompt-id"
 
     def wait_for(self, prompt_id):
-        return [{"filename": "out.png"}, {"filename": "out-matte.png"}]
+        return [{"filename": "out.png"}, {"filename": "out-matte.png"},
+                {"filename": "out-delivered.png"}]
 
     def fetch(self, image):
-        return b"matte-bytes" if "-matte" in image["filename"] else b"raw-bytes"
+        name = image["filename"]
+        if "-matte" in name:
+            return b"matte-bytes"
+        if "-delivered" in name:
+            return b"delivered-bytes"
+        return b"raw-bytes"
 
 
 class RecordingNotifier:
@@ -67,17 +84,12 @@ class RecordingNotifier:
         self.calls.append(args)
 
 
-def deliver(data, matte):
-    return data + b"-delivered", "tag"
-
-
 def base_services(directory, **overrides):
     kwargs = dict(
         management=ManagementFake(),
         comfyui=ComfyFake(),
         graph_from_png=lambda data: GRAPH,
         chain_pass=lambda *args, **kwargs: {},
-        deliver=deliver,
         git_metadata=lambda: {"commit": "commit", "dirty": False},
         notifier=RecordingNotifier(),
         output_root=Path(directory),
@@ -87,55 +99,33 @@ def base_services(directory, **overrides):
     return FinalizeServices(**kwargs)
 
 
+def batch_call(services):
+    return next(
+        call for call in services.management.calls
+        if call[0] == "POST" and call[1] == "/api/v1/batches")
+
+
 class FinalizeApplicationTest(unittest.TestCase):
-    def test_repin_output_is_delivered(self):
+    def test_deliver_is_requested_with_the_matte_model(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []
 
-            def repin(data):
-                calls.append(data)
-                return data + b"-repinned", ["purple: measured 1/1 -> factor 1/1"]
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
 
-            services = base_services(directory, repin=repin)
-            finalize("gen-id", services, apply_repin=True)
-            self.assertEqual(calls, [b"raw-bytes"])
-            multipart_calls = [call for call in services.management.calls
-                               if call[0] == "POST" and call[1].endswith("/generations")]
-            delivered_call = multipart_calls[1]
-            self.assertEqual(delivered_call[3][3], b"raw-bytes-repinned-delivered")
-
-    def test_no_repin_delivers_raw(self):
-        with tempfile.TemporaryDirectory() as directory:
-            called = []
-
-            def repin(data):
-                called.append(data)
-                return data, []
-
-            services = base_services(directory, repin=repin)
-            finalize("gen-id", services, apply_repin=False)
-            self.assertEqual(called, [])
-            multipart_calls = [call for call in services.management.calls
-                               if call[0] == "POST" and call[1].endswith("/generations")]
-            delivered_call = multipart_calls[1]
-            self.assertEqual(delivered_call[3][3], b"raw-bytes-delivered")
-
-    def test_matte_reaches_the_delivery(self):
-        with tempfile.TemporaryDirectory() as directory:
-            seen = []
-
-            def deliver_recording(data, matte):
-                seen.append((data, matte))
-                return data + b"-delivered", "tag"
-
-            services = base_services(directory, deliver=deliver_recording,
-                                     repin=lambda data: (data, []))
+            services = base_services(directory, chain_pass=recording_chain_pass)
             finalize("gen-id", services)
-            self.assertEqual(seen, [(b"raw-bytes", b"matte-bytes")])
+            self.assertIs(calls[-1]["deliver"], True)
+            self.assertEqual(calls[-1]["matte_model"], delivery_style.MATTE_MODEL)
+            self.assertIs(calls[-1]["keep_scene"], False)
+            self.assertIs(calls[-1]["skin"], False)
+            self.assertIs(calls[-1]["repin"], False)
+            self.assertIs(calls[-1]["recolor"], False)
 
     def test_the_matte_is_stored_as_a_mask_asset(self):
         with tempfile.TemporaryDirectory() as directory:
-            services = base_services(directory, repin=lambda data: (data, []))
+            services = base_services(directory)
             finalize("gen-id", services)
             asset_call = next(
                 call for call in services.management.calls
@@ -148,69 +138,131 @@ class FinalizeApplicationTest(unittest.TestCase):
             self.assertEqual(data, b"matte-bytes")
             self.assertEqual(content_type, "image/png")
 
-    def test_a_missing_matte_aborts(self):
+    def test_the_delivered_output_is_recorded_as_the_second_generation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            result = finalize("gen-id", services)
+            generation_calls = [
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1].endswith("/generations")]
+            self.assertEqual(generation_calls[1][3][1], "image")
+            self.assertEqual(generation_calls[1][3][2], "out-delivered.png")
+            self.assertEqual(generation_calls[1][3][3], b"delivered-bytes")
+            self.assertEqual(result["generation_ids"], ["generation", "generation"])
+
+    def test_a_missing_output_aborts(self):
         class NoMatte(ComfyFake):
             def wait_for(self, prompt_id):
-                return [{"filename": "out.png"}]
+                return [{"filename": "out.png"}, {"filename": "out-delivered.png"}]
 
-        with tempfile.TemporaryDirectory() as directory:
-            services = base_services(directory, comfyui=NoMatte())
-            with self.assertRaises(SystemExit):
-                finalize("gen-id", services)
+        class NoDelivered(ComfyFake):
+            def wait_for(self, prompt_id):
+                return [{"filename": "out.png"}, {"filename": "out-matte.png"}]
+
+        class NoRaw(ComfyFake):
+            def wait_for(self, prompt_id):
+                return [{"filename": "out-matte.png"},
+                        {"filename": "out-delivered.png"}]
+
+        for fake in (NoMatte(), NoDelivered(), NoRaw()):
+            with tempfile.TemporaryDirectory() as directory:
+                services = base_services(directory, comfyui=fake)
+                with self.assertRaises(SystemExit):
+                    finalize("gen-id", services)
 
     def test_batch_parameters_record_repin_flag(self):
         with tempfile.TemporaryDirectory() as directory:
-            services = base_services(
-                directory, repin=lambda data: (data, []))
+            services = base_services(directory)
             finalize("gen-id", services, apply_repin=True)
-            batch_call = next(
-                call for call in services.management.calls
-                if call[0] == "POST" and call[1] == "/api/v1/batches")
-            self.assertIs(batch_call[2]["parameters"]["repin"], True)
+            self.assertIs(batch_call(services)[2]["parameters"]["repin"], True)
 
     def test_batch_parameters_repin_false_when_disabled(self):
         with tempfile.TemporaryDirectory() as directory:
-            services = base_services(
-                directory, repin=lambda data: (data, []))
+            services = base_services(directory)
             finalize("gen-id", services, apply_repin=False)
-            batch_call = next(
-                call for call in services.management.calls
-                if call[0] == "POST" and call[1] == "/api/v1/batches")
-            self.assertIs(batch_call[2]["parameters"]["repin"], False)
+            self.assertIs(batch_call(services)[2]["parameters"]["repin"], False)
+
+    def test_recolor_wins_over_repin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, apply_repin=True, apply_recolor=True)
+            self.assertIs(calls[-1]["repin"], False)
+            self.assertIs(calls[-1]["recolor"], True)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertIs(parameters["repin"], False)
+            self.assertIs(parameters["recolor"], True)
+
+    def test_skin_uploads_the_picked_source_and_passes_its_name(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            comfy = ComfyFake()
+            services = base_services(
+                directory, chain_pass=recording_chain_pass, comfyui=comfy)
+            finalize("gen-id", services, apply_skin=True)
+            self.assertEqual(comfy.uploaded, [("fin-gen-id-source.png", b"picked")])
+            self.assertIs(calls[-1]["skin"], True)
+            self.assertEqual(
+                calls[-1]["source_image"], "uploaded-fin-gen-id-source.png")
+
+    def test_skin_off_does_not_upload_a_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = ComfyFake()
+            services = base_services(directory, comfyui=comfy)
+            finalize("gen-id", services)
+            self.assertEqual(comfy.uploaded, [])
+
+    def test_keep_legwear_and_keep_scene_reach_chain_pass_and_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, keep_legwear=0.4, keep_scene=True)
+            self.assertEqual(calls[-1]["keep_legwear"], 0.4)
+            self.assertIs(calls[-1]["keep_scene"], True)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["keep_legwear"], 0.4)
+            self.assertIs(parameters["keep_scene"], True)
+
+    def test_keep_scene_omitted_from_parameters_when_false(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services)
+            self.assertNotIn("keep_scene", batch_call(services)[2]["parameters"])
 
     def test_repin_and_skin_default_off_and_sampler_passed_to_chain_pass(self):
         with tempfile.TemporaryDirectory() as directory:
             chain_pass_calls = []
 
-            def chain_pass(base, size, denoise, prefix, **kwargs):
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
                 chain_pass_calls.append(kwargs)
                 return {}
 
-            repin_calls = []
-
-            def repin(data):
-                repin_calls.append(data)
-                return data, []
-
-            skin_calls = []
-
-            def repin_skin(picked, data):
-                skin_calls.append((picked, data))
-                return data, []
-
-            services = base_services(
-                directory, chain_pass=chain_pass, repin=repin,
-                repin_skin=repin_skin)
+            services = base_services(directory, chain_pass=recording_chain_pass)
 
             finalize("gen-id", services)
-            self.assertEqual(repin_calls, [])
-            self.assertEqual(skin_calls, [])
+            self.assertIs(chain_pass_calls[-1]["repin"], False)
+            self.assertIs(chain_pass_calls[-1]["skin"], False)
             self.assertEqual(
                 chain_pass_calls[-1]["sampler"], delivery_style.FINALIZE_SAMPLER)
 
             finalize("gen-id", services, apply_repin=True, apply_skin=True)
-            self.assertEqual(repin_calls, [b"raw-bytes"])
-            self.assertEqual(skin_calls, [(b"picked", b"raw-bytes")])
+            self.assertIs(chain_pass_calls[-1]["repin"], True)
+            self.assertIs(chain_pass_calls[-1]["skin"], True)
             self.assertEqual(
                 chain_pass_calls[-1]["sampler"], delivery_style.FINALIZE_SAMPLER)
 
@@ -218,20 +270,18 @@ class FinalizeApplicationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             calls = []
 
-            def chain_pass(base, size, denoise, prefix, **kwargs):
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
                 calls.append((size, denoise))
                 return {}
 
             yukari_services = base_services(
-                directory, chain_pass=chain_pass,
-                graph_from_png=lambda data: GRAPH,
-                repin=lambda data: (data, []))
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: GRAPH)
             finalize("gen-id", yukari_services)
 
             anima_services = base_services(
-                directory, chain_pass=chain_pass,
-                graph_from_png=lambda data: ANIMA_GRAPH,
-                repin=lambda data: (data, []))
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: ANIMA_GRAPH)
             finalize("gen-id", anima_services)
 
             self.assertEqual(
@@ -252,8 +302,7 @@ class FinalizeApplicationTest(unittest.TestCase):
 
             services = base_services(
                 directory, chain_pass=chain_pass, comfyui=RealComfyFake(),
-                graph_from_png=lambda data: anima_base,
-                repin=lambda data: (data, []))
+                graph_from_png=lambda data: anima_base)
             finalize("gen-id", services)
 
             graph = submitted[0]
@@ -273,14 +322,13 @@ class FinalizeApplicationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             chain_pass_calls = []
 
-            def chain_pass(base, size, denoise, prefix, **kwargs):
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
                 chain_pass_calls.append((size, denoise, kwargs))
                 return {}
 
             services = base_services(
-                directory, chain_pass=chain_pass,
-                graph_from_png=lambda data: ANIMA_GRAPH,
-                repin=lambda data: (data, []))
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: ANIMA_GRAPH)
             finalize("gen-id", services)
 
             size, denoise, kwargs = chain_pass_calls[-1]
@@ -293,64 +341,55 @@ class FinalizeApplicationTest(unittest.TestCase):
                 (anima_delivery_style.FINALIZE_STEPS,
                  anima_delivery_style.FINALIZE_CFG))
 
-            batch_call = next(
-                call for call in services.management.calls
-                if call[0] == "POST" and call[1] == "/api/v1/batches")
-            self.assertEqual(batch_call[2]["parameters"]["finalizer"],
-                             anima_delivery_style.FINALIZE_MODEL)
+            self.assertEqual(
+                batch_call(services)[2]["parameters"]["finalizer"],
+                anima_delivery_style.FINALIZE_MODEL)
 
     def test_anima_base_honors_an_explicit_finalizer(self):
         with tempfile.TemporaryDirectory() as directory:
             chain_pass_calls = []
 
-            def chain_pass(base, size, denoise, prefix, **kwargs):
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
                 chain_pass_calls.append(kwargs)
                 return {}
 
             services = base_services(
-                directory, chain_pass=chain_pass,
-                graph_from_png=lambda data: ANIMA_GRAPH,
-                repin=lambda data: (data, []))
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: ANIMA_GRAPH)
             finalize("gen-id", services, finalizer="other-checkpoint")
 
             self.assertEqual(chain_pass_calls[-1]["loader"], "other-checkpoint")
-            batch_call = next(
-                call for call in services.management.calls
-                if call[0] == "POST" and call[1] == "/api/v1/batches")
             self.assertEqual(
-                batch_call[2]["parameters"]["finalizer"], "other-checkpoint")
+                batch_call(services)[2]["parameters"]["finalizer"],
+                "other-checkpoint")
 
     def test_yukari_base_keeps_no_loader_and_no_sampling_override(self):
         with tempfile.TemporaryDirectory() as directory:
             chain_pass_calls = []
 
-            def chain_pass(base, size, denoise, prefix, **kwargs):
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
                 chain_pass_calls.append(kwargs)
                 return {}
 
             services = base_services(
-                directory, chain_pass=chain_pass,
-                graph_from_png=lambda data: GRAPH,
-                repin=lambda data: (data, []))
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: GRAPH)
             finalize("gen-id", services)
 
             self.assertIsNone(chain_pass_calls[-1]["loader"])
             self.assertIsNone(chain_pass_calls[-1]["sampling"])
-            batch_call = next(
-                call for call in services.management.calls
-                if call[0] == "POST" and call[1] == "/api/v1/batches")
-            self.assertNotIn("finalizer", batch_call[2]["parameters"])
+            self.assertNotIn("finalizer", batch_call(services)[2]["parameters"])
 
     def test_returns_batch_id_and_generation_ids(self):
         with tempfile.TemporaryDirectory() as directory:
-            services = base_services(directory, repin=lambda data: (data, []))
+            services = base_services(directory)
             result = finalize("gen-id", services)
             self.assertEqual(result["batch_id"], "batch-id")
             self.assertEqual(result["generation_ids"], ["generation", "generation"])
 
     def test_key_prefix_derives_batch_and_job_keys(self):
         with tempfile.TemporaryDirectory() as directory:
-            services = base_services(directory, repin=lambda data: (data, []))
+            services = base_services(directory)
             finalize("gen-id", services, key_prefix="request:r1")
             posts = {call[1]: call[2] for call in services.management.calls
                      if call[0] == "POST" and call[2]}

@@ -14,7 +14,7 @@ from ..domain.yukari_anima import delivery_style as anima_delivery_style
 from ..domain.yukari_anima.recipe import refinement_prompt as anima_refinement_prompt
 from ..domain.yukari_sketch import delivery_style as sketch_delivery_style
 from ..domain.yukari_sketch.recipe import refinement_prompt as sketch_refinement_prompt
-from ..infrastructure.comfyui.refinement_graph import MATTE_SUFFIX
+from ..infrastructure.comfyui.refinement_graph import DELIVERED_SUFFIX, MATTE_SUFFIX
 
 # The delivery redraw's longest side.
 FINALIZE_SIZE = 2560
@@ -26,15 +26,11 @@ class FinalizeServices:
     comfyui: object
     graph_from_png: Callable[[bytes], dict]
     chain_pass: Callable[..., dict]
-    deliver: Callable[[bytes, bytes], tuple[bytes, str]]
     git_metadata: Callable[[], dict]
     notifier: object
     output_root: Path
     emit: Callable[[str], None] = print
-    repin: Callable[[bytes], tuple[bytes, list[str]]] | None = None
-    repin_skin: Callable[[bytes, bytes], tuple[bytes, list[str]]] | None = None
     measure: Callable[[bytes], dict] | None = None
-    recolor: Callable[[bytes], tuple[bytes, list[str]]] | None = None
 
 
 def finalize(generation_id: str, services: FinalizeServices, *,
@@ -42,6 +38,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              apply_repin: bool = False, apply_skin: bool = False,
              apply_recolor: bool = False,
              keep_legwear: float | None = None,
+             keep_scene: bool = False,
              toe_guard: float | None = None,
              size: int | None = None, latent_route: bool | None = None,
              finalizer: str | None = None,
@@ -90,6 +87,14 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         sampler = delivery_style.FINALIZE_SAMPLER
         loader = finalizer
         sampling = None
+    # Recolor wins over repin, same rule the redraw graph applies.
+    recolor_applied = apply_recolor
+    repin_applied = apply_repin and not apply_recolor
+    skin_applied = apply_skin
+    source_image = None
+    if skin_applied:
+        source_image = services.comfyui.upload_image(
+            f"{prefix}-source.png", picked)
     graph = services.chain_pass(
         base, size, denoise, prefix,
         prompt=(prompt.positive, prompt.negative),
@@ -97,49 +102,45 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         latent_route=latent_route,
         sampler=sampler,
         loader=loader,
-        sampling=sampling)
+        sampling=sampling,
+        deliver=True,
+        skin=skin_applied,
+        repin=repin_applied,
+        recolor=recolor_applied,
+        keep_legwear=keep_legwear,
+        keep_scene=keep_scene,
+        source_image=source_image)
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
     mattes = [out for out in outputs if MATTE_SUFFIX in out["filename"]]
-    pictures = [out for out in outputs if MATTE_SUFFIX not in out["filename"]]
-    if not mattes or not pictures:
+    delivereds = [out for out in outputs if DELIVERED_SUFFIX in out["filename"]]
+    pictures = [out for out in outputs
+                if MATTE_SUFFIX not in out["filename"]
+                and DELIVERED_SUFFIX not in out["filename"]]
+    missing = [name for name, outs in
+               (("raw", pictures), ("matte", mattes), ("delivered", delivereds))
+               if not outs]
+    if missing:
         raise SystemExit(
-            f"{prefix} returned {len(pictures)} pictures and {len(mattes)} "
-            "mattes; one of each is required")
+            f"{prefix} is missing its {', '.join(missing)} output(s); one of "
+            "each is required")
     image = pictures[-1]
     raw = services.comfyui.fetch(image)
     matte_name = mattes[-1]["filename"]
     matte = services.comfyui.fetch(mattes[-1])
+    delivered_name = delivereds[-1]["filename"]
+    delivered = services.comfyui.fetch(delivereds[-1])
     services.output_root.mkdir(parents=True, exist_ok=True)
     (services.output_root / image["filename"]).write_bytes(raw)
     (services.output_root / matte_name).write_bytes(matte)
-    to_deliver = raw
-    skin_applied = apply_skin and services.repin_skin is not None
-    if skin_applied:
-        to_deliver, report = services.repin_skin(picked, to_deliver)
-        for line in report:
-            services.emit(f"skin {line}")
+    (services.output_root / delivered_name).write_bytes(delivered)
     if services.measure is not None:
-        summary = services.measure(to_deliver)
+        summary = services.measure(delivered)
         status = "FAIL" if summary["fails"] else "pass"
         services.emit(
             f"palette {status}: fig mid {summary['fig_sat_mean']:.1f} "
             f"p90 {summary['fig_sat_p90']:.0f} light {summary['light_sat']:.1f}")
-    recolor_applied = apply_recolor and services.recolor is not None
-    repin_applied = (not recolor_applied) and apply_repin and services.repin is not None
-    if recolor_applied:
-        to_deliver, report = services.recolor(to_deliver)
-        for line in report:
-            services.emit(f"recolor {line}")
-    elif repin_applied:
-        to_deliver, report = services.repin(to_deliver)
-        for line in report:
-            services.emit(f"repin {line}")
-    delivered, tag = services.deliver(to_deliver, matte)
-    stem = Path(image["filename"]).stem
-    delivered_name = f"{stem}-{tag}-delivered.png"
-    (services.output_root / delivered_name).write_bytes(delivered)
 
     git = services.git_metadata()
     batch = services.management.request("POST", "/api/v1/batches", {
@@ -157,6 +158,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                        **({"recolor": True} if recolor_applied else {}),
                        **({"keep_legwear": keep_legwear}
                           if keep_legwear is not None else {}),
+                       **({"keep_scene": True} if keep_scene else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,

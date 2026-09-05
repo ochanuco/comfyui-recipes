@@ -8,6 +8,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 
 
 def images_of(history_entry: dict) -> list[dict]:
@@ -66,3 +67,20 @@ class ComfyUIClient:
         with urllib.request.urlopen(
                 self.base_url + "/view?" + query, timeout=120) as response:
             return response.read()
+
+    def upload_image(self, name: str, data: bytes) -> str:
+        """POST to /upload/image; returns the filename ComfyUI stored it as."""
+        boundary = uuid.uuid4().hex
+        body = b"".join([
+            f'--{boundary}\r\nContent-Disposition: form-data; name="image"; '
+            f'filename="{name}"\r\nContent-Type: image/png\r\n\r\n'.encode(),
+            data,
+            f'\r\n--{boundary}\r\nContent-Disposition: form-data; '
+            f'name="overwrite"\r\n\r\ntrue\r\n'
+            f'--{boundary}--\r\n'.encode(),
+        ])
+        request = urllib.request.Request(
+            self.base_url + "/upload/image", data=body,
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return json.loads(response.read())["name"]

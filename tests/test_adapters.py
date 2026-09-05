@@ -14,7 +14,9 @@ from unittest.mock import MagicMock, call, patch
 
 from comfyui_recipes.infrastructure.chimera.client import ChimeraClient
 from comfyui_recipes.infrastructure.comfyui.client import ComfyUIClient
-from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
+from comfyui_recipes.infrastructure.comfyui.refinement_graph import (
+    DELIVERED_SUFFIX, MATTE_SUFFIX, chain_pass,
+)
 from comfyui_recipes.infrastructure.notifications.discord import DiscordNotifier
 from comfyui_recipes.infrastructure.persistence.run_state import JsonRunState
 
@@ -74,6 +76,24 @@ class AdapterTest(unittest.TestCase):
             {"prompt": {"status": {"status_str": "success"}, "outputs": {}}},
         ])
         self.assertEqual(client.wait_for("prompt"), [])
+
+    def test_comfyui_upload_image_posts_multipart_and_returns_the_stored_name(self):
+        client = ComfyUIClient("http://example.invalid")
+        response = MagicMock()
+        response.read.return_value = json.dumps(
+            {"name": "fin-source.png", "type": "input"}).encode()
+        response.__enter__.return_value = response
+        with patch("urllib.request.urlopen", return_value=response) as urlopen:
+            name = client.upload_image("fin-source.png", b"png-bytes")
+        self.assertEqual(name, "fin-source.png")
+        request = urlopen.call_args[0][0]
+        self.assertEqual(request.full_url, "http://example.invalid/upload/image")
+        self.assertIn(b"png-bytes", request.data)
+        self.assertIn(b'name="image"', request.data)
+        self.assertIn(b'name="overwrite"', request.data)
+        self.assertIn(b"true", request.data)
+        self.assertTrue(
+            request.headers["Content-type"].startswith("multipart/form-data"))
 
     def test_chain_pass_rejects_missing_and_non_numeric_node_ids(self):
         base = {
@@ -203,6 +223,101 @@ class AdapterTest(unittest.TestCase):
         }
         with self.assertRaisesRegex(ValueError, "must be fed by a VAEDecode"):
             chain_pass(base, 2048, 0.45, "fin")
+
+    def _deliver_base(self):
+        return {
+            "3": {"class_type": "KSampler", "inputs": {"seed": 7}},
+            "4": {"class_type": "DiffusersLoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                  "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+            "9": {"class_type": "SaveImage",
+                  "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+        }
+
+    def test_chain_pass_deliver_requires_matte_model(self):
+        with self.assertRaisesRegex(ValueError, "deliver requires matte_model"):
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin", deliver=True)
+
+    def test_chain_pass_skin_requires_source_image(self):
+        with self.assertRaisesRegex(ValueError, "skin requires source_image"):
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                      matte_model="birefnet", deliver=True, skin=True)
+
+    def test_chain_pass_deliver_wires_deliver_onto_the_matte_branch(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True)
+        remove = graph["17"]
+        self.assertEqual(remove["class_type"], "RemoveBackground")
+        deliver_node = graph["20"]
+        self.assertEqual(deliver_node["class_type"], "YukariDeliver")
+        self.assertEqual(deliver_node["inputs"]["image"], ["13", 0])
+        self.assertEqual(deliver_node["inputs"]["matte"], ["17", 0])
+        self.assertIs(deliver_node["inputs"]["keep_scene"], False)
+        save = graph["21"]
+        self.assertEqual(save["class_type"], "SaveImage")
+        self.assertEqual(save["inputs"]["images"], ["20", 0])
+        self.assertEqual(save["inputs"]["filename_prefix"], "fin" + DELIVERED_SUFFIX)
+        # The raw pass and the matte are untouched by the delivery addition.
+        self.assertEqual(graph["9"]["inputs"]["filename_prefix"], "fin")
+        self.assertEqual(graph["19"]["inputs"]["filename_prefix"],
+                         "fin" + MATTE_SUFFIX)
+
+    def test_chain_pass_deliver_keep_scene_is_passed_through(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True, keep_scene=True)
+        self.assertIs(graph["20"]["inputs"]["keep_scene"], True)
+
+    def test_chain_pass_deliver_with_skin_chains_repin_skin_before_delivery(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True,
+                           skin=True, source_image="fin-source.png")
+        load_source = graph["20"]
+        self.assertEqual(load_source, {"class_type": "LoadImage",
+                                       "inputs": {"image": "fin-source.png"}})
+        repin_skin = graph["21"]
+        self.assertEqual(repin_skin["class_type"], "YukariRepinSkin")
+        self.assertEqual(repin_skin["inputs"]["image"], ["13", 0])
+        self.assertEqual(repin_skin["inputs"]["source"], ["20", 0])
+        deliver_node = graph["22"]
+        self.assertEqual(deliver_node["class_type"], "YukariDeliver")
+        self.assertEqual(deliver_node["inputs"]["image"], ["21", 0])
+        save = graph["23"]
+        self.assertEqual(save["inputs"]["images"], ["22", 0])
+
+    def test_chain_pass_deliver_with_repin_chains_repin_before_delivery(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True,
+                           repin=True, keep_legwear=0.4)
+        repin_node = graph["20"]
+        self.assertEqual(repin_node["class_type"], "YukariRepin")
+        self.assertEqual(repin_node["inputs"]["image"], ["13", 0])
+        self.assertIs(repin_node["inputs"]["keep_legwear"], True)
+        self.assertEqual(repin_node["inputs"]["keep_legwear_cut"], 0.4)
+        deliver_node = graph["21"]
+        self.assertEqual(deliver_node["inputs"]["image"], ["20", 0])
+
+    def test_chain_pass_deliver_repin_without_keep_legwear_defaults_the_cut(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True, repin=True)
+        repin_node = graph["20"]
+        self.assertIs(repin_node["inputs"]["keep_legwear"], False)
+        self.assertEqual(repin_node["inputs"]["keep_legwear_cut"], 0.62)
+
+    def test_chain_pass_deliver_recolor_wins_over_repin(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True,
+                           repin=True, recolor=True)
+        recolor_node = graph["20"]
+        self.assertEqual(recolor_node["class_type"], "YukariRecolor")
+        self.assertFalse(any(node.get("class_type") == "YukariRepin"
+                             for node in graph.values()))
+        deliver_node = graph["21"]
+        self.assertEqual(deliver_node["class_type"], "YukariDeliver")
+        self.assertEqual(deliver_node["inputs"]["image"], ["20", 0])
 
     def test_discord_closes_response_and_swallows_transport_errors(self):
         notifier = DiscordNotifier(Path("."))

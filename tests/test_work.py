@@ -168,7 +168,8 @@ def make_services(directory: Path, management, *, heartbeats=None,
     kwargs = dict(
         management=management,
         generate_services=make_generate_services(Path(directory)),
-        finalize_services=finalize_services or (lambda arguments: arguments),
+        finalize_services=(finalize_services if finalize_services is not None
+                          else "finalize-services"),
         git_metadata=lambda: {"branch": branch},
         worker_id="test-worker",
         emit=(emit or (lambda message: None)),
@@ -196,7 +197,7 @@ def make_hub_services(directory: Path, *, hub=None, progress_feed=None,
     kwargs = dict(
         management=ManagementFake(),
         generate_services=make_generate_services(Path(directory)),
-        finalize_services=lambda arguments: arguments,
+        finalize_services="finalize-services",
         git_metadata=lambda: {"branch": "dev/requests-worker"},
         worker_id="test-worker",
         emit=(emit or (lambda message: None)),
@@ -333,14 +334,9 @@ class ExecuteTest(unittest.TestCase):
             self.assertTrue(path.exists())
             self.assertEqual(key_prefix, "request:req-1")
 
-    def test_finalize_kind_maps_options_and_builds_services_from_the_factory(self):
+    def test_finalize_kind_maps_options_and_uses_the_configured_services(self):
         with tempfile.TemporaryDirectory() as directory:
-            factory_calls = []
             finalize_calls = []
-
-            def factory(arguments):
-                factory_calls.append(arguments)
-                return "finalize-services-sentinel"
 
             def fake_finalize(generation_id, finalize_services, **kwargs):
                 finalize_calls.append((generation_id, finalize_services, kwargs))
@@ -348,7 +344,7 @@ class ExecuteTest(unittest.TestCase):
 
             services = make_services(
                 directory, ManagementFake(), finalize=fake_finalize,
-                finalize_services=factory)
+                finalize_services="finalize-services-sentinel")
             row = finalize_row(payload={
                 "generation_id": "gen-1",
                 "options": {"repin": True, "keep_legwear": True, "route": "pixel"},
@@ -360,8 +356,7 @@ class ExecuteTest(unittest.TestCase):
             self.assertEqual(finalize_calls[0][2]["apply_repin"], True)
             self.assertEqual(finalize_calls[0][2]["keep_legwear"], 0.62)
             self.assertIs(finalize_calls[0][2]["latent_route"], False)
-            self.assertNotIn("keep_scene", finalize_calls[0][2])
-            self.assertEqual(factory_calls[0]["keep_scene"], False)
+            self.assertIs(finalize_calls[0][2]["keep_scene"], False)
 
     def test_finalize_kind_with_bad_options_fails_before_finalizing(self):
         with tempfile.TemporaryDirectory() as directory:

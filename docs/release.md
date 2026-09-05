@@ -26,6 +26,11 @@ are joined by a promotion PR, the same shape as ochanuco/webull-trading.
   which moves it to `origin/production`, refreshes the venv and re-registers
   the `work` task. The repository is public; limiting the runner to
   `production` pushes is what keeps fork PRs off the box.
+  `deploy.ps1` also re-junctions `comfy_nodes/yukari_finalize/` into the
+  ComfyUI install named by the repository variable `COMFYUI_ROOT`, and
+  restarts the `comfyui` scheduled task only when the deploy actually changed
+  the node pack or the imaging code under it -- ComfyUI reads `custom_nodes`
+  once, at startup.
 
 ## The box
 

@@ -61,6 +61,14 @@ Restart ComfyUI after installing a custom node — the node list is built at
 startup, and `/object_info/<name>` returns `200` with an empty body for a node
 that is not registered, so it is not a usable readiness check on its own.
 
+`comfy-recipes finalize`'s own node pack, `comfy_nodes/yukari_finalize/`,
+is not installed by `install-custom-nodes.sh` or listed in
+`manifests/custom-nodes.toml` — it is this repository's own code, loaded
+through a junction/symlink named `yukari_finalize` under ComfyUI's own
+`custom_nodes/` (`scripts/worker/register-nodes.ps1` sets this up on the
+worker). It needs the same restart as any other custom node after that link
+is created or repointed.
+
 ## The Python environment
 
 `.venv` serves two purposes, which is why `pyproject.toml` declares no

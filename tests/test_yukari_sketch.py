@@ -169,23 +169,28 @@ class ManagementFake:
 
 
 class ComfyFake:
+    def upload_image(self, name, data):
+        return f"uploaded-{name}"
+
     def submit(self, graph):
         return "prompt-id"
 
     def wait_for(self, prompt_id):
-        return [{"filename": "out.png"}, {"filename": "out-matte.png"}]
+        return [{"filename": "out.png"}, {"filename": "out-matte.png"},
+                {"filename": "out-delivered.png"}]
 
     def fetch(self, image):
-        return b"matte-bytes" if "-matte" in image["filename"] else b"raw-bytes"
+        name = image["filename"]
+        if "-matte" in name:
+            return b"matte-bytes"
+        if "-delivered" in name:
+            return b"delivered-bytes"
+        return b"raw-bytes"
 
 
 class RecordingNotifier:
     def send(self, *args):
         pass
-
-
-def deliver(data, matte):
-    return data + b"-delivered", "tag"
 
 
 class FinalizeSketchTest(unittest.TestCase):
@@ -204,12 +209,10 @@ class FinalizeSketchTest(unittest.TestCase):
                 comfyui=ComfyFake(),
                 graph_from_png=lambda data: base_graph,
                 chain_pass=chain_pass_fake,
-                deliver=deliver,
                 git_metadata=lambda: {"commit": "commit", "dirty": False},
                 notifier=RecordingNotifier(),
                 output_root=Path(directory),
                 emit=lambda message: None,
-                repin=lambda data: (data, []),
             )
             finalize("gen-id", services)
 

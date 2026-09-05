@@ -23,10 +23,10 @@ from comfyui_recipes.infrastructure.comfyui.yukari_graph import build_graph
 from comfyui_recipes.interfaces import cli
 
 FIXTURES = Path(__file__).parent / "fixtures"
-CINEMA = json.loads((FIXTURES / "yukari-sketch-cinema.json").read_text())
-STAND = json.loads((FIXTURES / "yukari-sketch-stand.json").read_text())
-DATE = json.loads((FIXTURES / "yukari-sketch-date.json").read_text())
-CAFE = json.loads((FIXTURES / "yukari-sketch-cafe.json").read_text())
+CINEMA = json.loads((FIXTURES / "yukari-sketch-cinema.json").read_text(encoding="utf-8"))
+STAND = json.loads((FIXTURES / "yukari-sketch-stand.json").read_text(encoding="utf-8"))
+DATE = json.loads((FIXTURES / "yukari-sketch-date.json").read_text(encoding="utf-8"))
+CAFE = json.loads((FIXTURES / "yukari-sketch-cafe.json").read_text(encoding="utf-8"))
 
 
 class PromptTest(unittest.TestCase):

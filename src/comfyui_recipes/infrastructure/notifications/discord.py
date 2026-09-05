@@ -22,7 +22,7 @@ class DiscordNotifier:
         if url:
             return url
         if self.webhook_file.exists():
-            return self.webhook_file.read_text().strip()
+            return self.webhook_file.read_text(encoding="utf-8").strip()
         raise SystemExit(
             f"no webhook: set $DISCORD_WEBHOOK or write one to {self.webhook_file}")
 

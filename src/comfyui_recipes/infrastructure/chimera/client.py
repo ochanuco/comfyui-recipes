@@ -30,7 +30,7 @@ class ChimeraClient:
         secret = os.environ.get("CHIMERA_CF_CLIENT_SECRET", "").strip()
         if not (client_id and secret) and self.token_cache.exists():
             client_id, secret, *_ = (
-                self.token_cache.read_text().splitlines() + ["", ""])
+                self.token_cache.read_text(encoding="utf-8").splitlines() + ["", ""])
             client_id, secret = client_id.strip(), secret.strip()
         if not (client_id and secret):
             def field(label: str) -> str:
@@ -42,7 +42,7 @@ class ChimeraClient:
             secret = field("CF-Access-Client-Secret")
             self.token_cache.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             self.token_cache.parent.chmod(0o700)
-            self.token_cache.write_text(f"{client_id}\n{secret}\n")
+            self.token_cache.write_text(f"{client_id}\n{secret}\n", encoding="utf-8")
             self.token_cache.chmod(0o600)
         self._credentials = {
             "CF-Access-Client-Id": client_id,

@@ -375,7 +375,7 @@ class GenerateApplicationTest(unittest.TestCase):
     def test_generate_resume_ingested_job_does_not_submit_or_create_job(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"
-            path.write_text(json.dumps(base_request()))
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
             management = ManagementFake()
             comfy = ComfyFake()
             state = StateFake({
@@ -401,7 +401,7 @@ class GenerateApplicationTest(unittest.TestCase):
     def test_generate_resume_skips_registered_output(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"
-            path.write_text(json.dumps(base_request()))
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
             management = ManagementFake()
             comfy = ComfyFake()
             comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
@@ -428,7 +428,7 @@ class GenerateApplicationTest(unittest.TestCase):
     def test_generate_reuses_output_idempotency_key(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"
-            path.write_text(json.dumps(base_request()))
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
             management = ManagementFake()
             comfy = ComfyFake()
             comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
@@ -457,7 +457,7 @@ class GenerateApplicationTest(unittest.TestCase):
             path = Path(directory) / "request.json"
             patches = [{"target": "render.cfg", "op": "set", "value": 4.5,
                        "reason": "test"}]
-            path.write_text(json.dumps(base_request(patches=patches)))
+            path.write_text(json.dumps(base_request(patches=patches)), encoding="utf-8")
             management = ManagementFake()
             comfy = ComfyFake()
             comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
@@ -480,7 +480,7 @@ class GenerateApplicationTest(unittest.TestCase):
     def test_generate_records_palette_from_measure(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"
-            path.write_text(json.dumps(base_request()))
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
             management = ManagementFake()
             comfy = ComfyFake()
             comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
@@ -507,7 +507,7 @@ class GenerateApplicationTest(unittest.TestCase):
     def test_generate_survives_measure_raising(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"
-            path.write_text(json.dumps(base_request()))
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
             management = ManagementFake()
             comfy = ComfyFake()
             comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
@@ -535,7 +535,7 @@ class GenerateApplicationTest(unittest.TestCase):
             path = Path(directory) / "request.json"
             request = base_request()
             request["experiment"] = {"experiment_id": "exp-1", "run_id": "run-1"}
-            path.write_text(json.dumps(request))
+            path.write_text(json.dumps(request), encoding="utf-8")
             management = ManagementFake()
             comfy = ComfyFake()
             state = StateFake({
@@ -557,7 +557,7 @@ class GenerateApplicationTest(unittest.TestCase):
     def test_generate_skips_experiment_run_patch_when_absent(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"
-            path.write_text(json.dumps(base_request()))
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
             management = ManagementFake()
             comfy = ComfyFake()
             state = StateFake({
@@ -580,7 +580,7 @@ class GenerateApplicationTest(unittest.TestCase):
             path = Path(directory) / "request.json"
             patches = [{"target": "render.cfg", "op": "set", "value": 4.5,
                        "reason": "test"}]
-            path.write_text(json.dumps(base_request(patches=patches)))
+            path.write_text(json.dumps(base_request(patches=patches)), encoding="utf-8")
             management = ManagementFake()
             comfy = ComfyFake()
             state = StateFake(

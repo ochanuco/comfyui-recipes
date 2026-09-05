@@ -30,7 +30,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.request:
         positive_prompt, negative_prompt = request_prompts(
-            json.loads(args.request.read_text()))
+            json.loads(args.request.read_text(encoding="utf-8")))
     else:
         positive_prompt, negative_prompt = args.pos or "", args.neg or ""
     hits = conflicts(positive_prompt, negative_prompt)

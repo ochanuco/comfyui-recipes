@@ -18,11 +18,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    rendered = args.template.read_text().replace(
+    rendered = args.template.read_text(encoding="utf-8").replace(
         "__ASSET_ROOT__", str(args.asset_root.resolve())
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(rendered)
+    args.output.write_text(rendered, encoding="utf-8")
     return 0
 
 

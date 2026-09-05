@@ -13,3 +13,4 @@ $uv = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Recurse -Filt
     Select-Object -First 1 -ExpandProperty FullName
 & $uv pip install --python .venv\Scripts\python.exe -q -e . pillow numpy opencv-python scipy pytest "websockets>=12"
 & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\register-watch.ps1
+if ($LASTEXITCODE) { exit $LASTEXITCODE }

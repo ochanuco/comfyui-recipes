@@ -82,7 +82,7 @@ class Heartbeat:
 class WorkServices:
     management: Management
     generate_services: GenerateServices
-    finalize_services: Callable[[Mapping], FinalizeServices]
+    finalize_services: FinalizeServices
     git_metadata: Callable[[], dict]
     worker_id: str
     generate: Callable[..., dict | None] = generate
@@ -242,10 +242,9 @@ class ProgressRelay:
 def finalize_arguments(options: Mapping) -> dict:
     """Validate a finalize request's `options` and map it to finalize() kwargs.
 
-    `keep_scene` rides along in the return value but is not a finalize()
-    kwarg -- it selects the deliver function the FinalizeServices factory
-    builds. Missing keys mean false/null; unknown keys or a wrong type raise
-    ValueError naming the offending key.
+    Every key in the return value is a finalize() kwarg. Missing keys mean
+    false/null; unknown keys or a wrong type raise ValueError naming the
+    offending key.
     """
     if not isinstance(options, Mapping):
         raise ValueError(
@@ -345,11 +344,8 @@ def _execute_finalize(services: WorkServices, row: Mapping) -> dict:
         arguments = finalize_arguments(payload.get("options") or {})
     except ValueError as error:
         raise SystemExit(str(error)) from error
-    finalize_kwargs = {key: value for key, value in arguments.items()
-                       if key != "keep_scene"}
-    finalize_services = services.finalize_services(arguments)
-    return services.finalize(generation_id, finalize_services,
-                             key_prefix=f"request:{row['id']}", **finalize_kwargs)
+    return services.finalize(generation_id, services.finalize_services,
+                             key_prefix=f"request:{row['id']}", **arguments)
 
 
 def execute(services: WorkServices, row: Mapping) -> dict:

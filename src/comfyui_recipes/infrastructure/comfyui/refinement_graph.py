@@ -7,6 +7,8 @@ import json
 # Both images come out of one submission, so the matte is the redraw's own
 # alpha rather than a second pass's guess at it.
 MATTE_SUFFIX = "-matte"
+# The delivered composite: background cut, white band, purple stroke.
+DELIVERED_SUFFIX = "-delivered"
 
 
 def sizes(graph: dict, longest_side: int) -> tuple[int, int]:
@@ -23,7 +25,11 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                latent_route: bool = False,
                sampler: tuple[str, str] | None = None,
                loader: str | None = None,
-               sampling: tuple[int, float] | None = None) -> dict:
+               sampling: tuple[int, float] | None = None, *,
+               skin: bool = False, repin: bool = False, recolor: bool = False,
+               keep_legwear: float | None = None, keep_scene: bool = False,
+               source_image: str | None = None,
+               deliver: bool = False) -> dict:
     required = {"3", "4", "5", "6", "7", "9"}
     missing = sorted(required - base.keys(), key=int)
     if missing:
@@ -108,15 +114,61 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         "samples": [sample, 0], "vae": vae_ref}}
     graph["9"]["inputs"]["images"] = [decode, 0]
     graph["9"]["inputs"]["filename_prefix"] = prefix
+    if deliver and not matte_model:
+        raise ValueError("deliver requires matte_model")
     if matte_model:
-        loader, remove, to_image, save = (
+        bg_loader, remove, to_image, save = (
             str(next_id + offset) for offset in range(6, 10))
-        graph[loader] = {"class_type": "LoadBackgroundRemovalModel", "inputs": {
+        graph[bg_loader] = {"class_type": "LoadBackgroundRemovalModel", "inputs": {
             "bg_removal_name": matte_model}}
         graph[remove] = {"class_type": "RemoveBackground", "inputs": {
-            "bg_removal_model": [loader, 0], "image": [decode, 0]}}
+            "bg_removal_model": [bg_loader, 0], "image": [decode, 0]}}
         graph[to_image] = {"class_type": "MaskToImage", "inputs": {
             "mask": [remove, 0]}}
         graph[save] = {"class_type": "SaveImage", "inputs": {
             "images": [to_image, 0], "filename_prefix": prefix + MATTE_SUFFIX}}
+        if deliver:
+            if skin and not source_image:
+                raise ValueError("skin requires source_image")
+            # Not a fixed offset: an overriding `loader` claims next_id + 10
+            # for its own DiffusersLoader, so the free id has to be read off
+            # the graph as it stands rather than assumed.
+            cursor = max(int(key) for key in graph) + 1
+
+            def allocate() -> str:
+                nonlocal cursor
+                node_id = str(cursor)
+                cursor += 1
+                return node_id
+
+            image_ref = [decode, 0]
+            if skin:
+                load_source = allocate()
+                graph[load_source] = {"class_type": "LoadImage", "inputs": {
+                    "image": source_image}}
+                repin_skin_id = allocate()
+                graph[repin_skin_id] = {"class_type": "YukariRepinSkin", "inputs": {
+                    "image": image_ref, "source": [load_source, 0]}}
+                image_ref = [repin_skin_id, 0]
+            if recolor:
+                recolor_id = allocate()
+                graph[recolor_id] = {"class_type": "YukariRecolor", "inputs": {
+                    "image": image_ref}}
+                image_ref = [recolor_id, 0]
+            elif repin:
+                repin_id = allocate()
+                graph[repin_id] = {"class_type": "YukariRepin", "inputs": {
+                    "image": image_ref,
+                    "keep_legwear": keep_legwear is not None,
+                    "keep_legwear_cut": (keep_legwear if keep_legwear is not None
+                                         else 0.62)}}
+                image_ref = [repin_id, 0]
+            deliver_id = allocate()
+            graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
+                "image": image_ref, "matte": [remove, 0],
+                "keep_scene": keep_scene}}
+            save_delivered = allocate()
+            graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
+                "images": [deliver_id, 0],
+                "filename_prefix": prefix + DELIVERED_SUFFIX}}
     return graph

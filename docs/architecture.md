@@ -25,7 +25,12 @@ src/comfyui_recipes/
     ├── imaging/         # delivery post-processing
     ├── notifications/   # Discord side channel
     └── persistence/     # crash-resume state
+comfy_nodes/
+└── yukari_finalize/      # ComfyUI custom node pack wrapping imaging/ for the finalize graph
 ```
+
+`infrastructure/imaging/` is shared: `comfy_nodes/yukari_finalize/` wraps its
+functions unchanged as ComfyUI nodes rather than duplicating them.
 
 ## Domain
 

@@ -162,12 +162,17 @@ for backfilling legacy renders that predate this rule.)
 
 One round has two stages, both through the same CLI. `comfy-recipes generate
 --request` ingests the raw renders; the human rates them on chimera;
-`comfy-recipes finalize <short_id>` delivers the pick — 2048 chain, flattened backdrop,
-purple stroke, recorded as a refinement batch. A raw render never has the
-purple frame: the delivery identity is what `comfy-recipes finalize` adds, so a round is
-not closed until the pick has been finalized. The birefnet matte that cut the
-figure out is stored on chimera as a `mask` GenerationAsset of the raw redraw,
-so a cutout can be redone from the record without another 2048 pass.
+`comfy-recipes finalize <short_id>` delivers the pick — one ComfyUI graph
+that redraws at 2048, cuts a matte and composites the flattened backdrop and
+purple stroke, recorded as a refinement batch. The redraw, matte and delivery
+nodes (`comfy_nodes/yukari_finalize/`) all run server-side in that one
+submission; `comfy-recipes finalize` only fetches the three SaveImage
+outputs and records them. A raw render never has the purple frame: generation
+0 is the pre-delivery SaveImage output, and the delivery identity is what
+`comfy-recipes finalize` adds on top of it, so a round is not closed until
+the pick has been finalized. The birefnet matte that cut the figure out is
+still stored on chimera as a `mask` GenerationAsset of the raw redraw, so a
+cutout can be redone from the record without another 2048 pass.
 
 Discord notification is built into `comfy-recipes` — every ingest and every
 finalize posts to the webhook itself. There is no separate watcher daemon

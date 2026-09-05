@@ -32,4 +32,5 @@ jobs:
         shell: cmd
         env:
           WORKER_CHECKOUT: ${{ vars.WORKER_CHECKOUT }}
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File "%GITHUB_WORKSPACE%\scripts\worker\deploy.ps1" -Checkout "%WORKER_CHECKOUT%" -Ref production
+          COMFYUI_ROOT: ${{ vars.COMFYUI_ROOT }}
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File "%GITHUB_WORKSPACE%\scripts\worker\deploy.ps1" -Checkout "%WORKER_CHECKOUT%" -Ref production -ComfyRoot "%COMFYUI_ROOT%"

@@ -35,12 +35,8 @@ from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_grap
 from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
 from ..infrastructure.comfyui.yukari_graph import build_graph as yukari_build_graph
-from ..infrastructure.imaging.delivery import (
-    clean_background, graph_from_png, keep_scene as keep_scene_delivery,
-)
-from ..infrastructure.imaging.palette import (
-    repin_png, repin_skin_png, summarize)
-from ..infrastructure.imaging.recolor import recolor_png
+from ..infrastructure.imaging.delivery import graph_from_png
+from ..infrastructure.imaging.palette import summarize
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
 from ..infrastructure.repository import discover_repository, git_metadata
@@ -76,21 +72,16 @@ def _generate_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
 
 
 def _finalize_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
-                       repository: Path, repository_metadata, *,
-                       keep_scene: bool, keep_legwear: float | None) -> FinalizeServices:
+                       repository: Path, repository_metadata) -> FinalizeServices:
     return FinalizeServices(
         management=chimera,
         comfyui=comfyui,
         graph_from_png=graph_from_png,
         chain_pass=chain_pass,
-        deliver=(keep_scene_delivery if keep_scene else clean_background),
         git_metadata=repository_metadata,
         notifier=notifier,
         output_root=repository / ".local/_nogit/finalize",
-        repin=lambda data: repin_png(data, keep_legwear=keep_legwear),
-        repin_skin=repin_skin_png,
         measure=summarize,
-        recolor=recolor_png,
     )
 
 
@@ -290,10 +281,8 @@ def main(argv: list[str] | None = None) -> None:
         work_services = WorkServices(
             management=chimera,
             generate_services=generate_services,
-            finalize_services=lambda arguments: _finalize_services(
-                chimera, comfyui, notifier, repository, repository_metadata,
-                keep_scene=arguments.get("keep_scene", False),
-                keep_legwear=arguments.get("keep_legwear")),
+            finalize_services=_finalize_services(
+                chimera, comfyui, notifier, repository, repository_metadata),
             git_metadata=repository_metadata,
             worker_id=args.worker_id,
             kinds=tuple(kind.strip() for kind in args.kinds.split(",") if kind.strip()),
@@ -305,13 +294,13 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "finalize":
         services = _finalize_services(
-            chimera, comfyui, notifier, repository, repository_metadata,
-            keep_scene=args.keep_scene, keep_legwear=args.keep_legwear)
+            chimera, comfyui, notifier, repository, repository_metadata)
         finalize(args.generation_id, services, denoise=args.denoise,
                  handdrawn=args.handdrawn, apply_repin=args.repin,
                  apply_skin=args.skin,
                  apply_recolor=args.recolor,
                  keep_legwear=args.keep_legwear,
+                 keep_scene=args.keep_scene,
                  size=args.size,
                  latent_route=args.latent_route,
                  finalizer=args.finalizer,

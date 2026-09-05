@@ -1,0 +1,27 @@
+name: deploy worker
+
+# production だけを契機にする。production は昇格 PR の merge でしか動かないので、
+# fork の PR や main の変更が self-hosted runner に乗る道が無い。
+on:
+  push:
+    branches: [production]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: update the GPU box checkout and restart work
+    runs-on: [self-hosted, gpu-box]
+    timeout-minutes: 15
+    steps:
+      - name: Deploy
+        shell: powershell
+        env:
+          WORKER_CHECKOUT: ${{ vars.WORKER_CHECKOUT }}
+        run: |
+          & "$env:WORKER_CHECKOUT\scripts\worker\deploy.ps1" -Checkout $env:WORKER_CHECKOUT -Ref production

@@ -62,9 +62,10 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
     if denoise is not None:
         raise ValueError(
             "yukari-sketch has no second pass -- denoise must be None")
+    width, height = POSES[pose].canvas or (WIDTH, HEIGHT)
     return RenderSpec(
         model_path=MODEL,
         prompts=PromptPair(positive(pose, costume), negative(pose, costume)),
-        width=WIDTH, height=HEIGHT, seed=seed, steps=STEPS, cfg=CFG,
+        width=width, height=height, seed=seed, steps=STEPS, cfg=CFG,
         sampler_name=SAMPLER, scheduler=SCHEDULER, denoise=1.0,
         filename_prefix=prefix, hires=None, loras=(LORA,))

@@ -26,6 +26,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 CINEMA = json.loads((FIXTURES / "yukari-sketch-cinema.json").read_text())
 STAND = json.loads((FIXTURES / "yukari-sketch-stand.json").read_text())
 DATE = json.loads((FIXTURES / "yukari-sketch-date.json").read_text())
+CAFE = json.loads((FIXTURES / "yukari-sketch-cafe.json").read_text())
 
 
 class PromptTest(unittest.TestCase):
@@ -46,6 +47,12 @@ class PromptTest(unittest.TestCase):
 
     def test_date_negative_matches_the_confirmed_render(self):
         self.assertEqual(negative("date"), DATE["negative"])
+
+    def test_cafe_positive_matches_the_confirmed_render(self):
+        self.assertEqual(positive("cafe"), CAFE["positive"])
+
+    def test_cafe_negative_matches_the_confirmed_render(self):
+        self.assertEqual(negative("cafe"), CAFE["negative"])
 
     def test_face_override_is_used_only_when_set(self):
         self.assertIn(ps.FACE, positive("cinema"))
@@ -70,6 +77,10 @@ class RenderSpecTest(unittest.TestCase):
         self.assertEqual(spec.denoise, 1.0)
         self.assertIsNone(spec.hires)
         self.assertEqual(spec.loras, (ps.LORA,))
+
+    def test_pose_canvas_overrides_the_default(self):
+        spec = render_spec("cafe", 7, "p")
+        self.assertEqual((spec.width, spec.height), (1024, 1280))
 
     def test_hires_is_rejected(self):
         with self.assertRaises(ValueError):

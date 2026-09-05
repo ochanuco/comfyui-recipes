@@ -10,6 +10,7 @@ class Pose:
     action: str
     costume: str = "default"
     face: str | None = None
+    canvas: tuple[int, int] | None = None
 
 
 POSES = {
@@ -29,4 +30,13 @@ POSES = {
         face=("(tareme:1.2), (jitome:1.25), (half-closed eyes:1.15), "
               "(smirk:1.2), (smug:1.15), closed mouth, (blush:1.1), "
               "(head tilt:1.1), looking at viewer, ")),
+    "cafe": Pose(
+        action=("(sitting:1.3), (table:1.2), (head rest:1.35), (hand on own "
+                "cheek:1.2), (elbow on table:1.15), (coffee cup:1.15), cup, "
+                "saucer, (from above:1.1), (upper body:1.25), "),
+        costume="outing",
+        face=("(tareme:1.2), (jitome:1.2), (upturned eyes:1.3), (looking "
+              "up:1.15), looking at viewer, (light smile:1.1), (parted "
+              "lips:1.2), (blush:1.15), (head tilt:1.1), "),
+        canvas=(1024, 1280)),
 }

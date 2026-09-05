@@ -19,7 +19,8 @@ vary it.
 The variable part is two small record sets:
 
 - `poses.py`: one `Pose` per pose -- `action`, the costume it defaults
-  to, and an optional `face` override used whole in place of `FACE`.
+  to, an optional `face` override used whole in place of `FACE`, and an
+  optional `canvas` used in place of the recipe's `WIDTH x HEIGHT`.
   Unlike `yukari` and `yukari-anima`, there is no mood, gesture or scene
   split; the pose is one tag block.
 - `costumes.py`: one tag block per costume (`default`, `outing`).
@@ -33,6 +34,10 @@ The variable part is two small record sets:
 - `date`: costume `outing`. The cinema props plus white sneakers, a
   knee-length outing dress, and a jitome smirk with a blush and head
   tilt in place of the default `FACE`.
+- `cafe`: costume `outing`, canvas `1024x1280`. Sitting at a table with
+  her cheek on her hand, a coffee cup and saucer, seen slightly from
+  above, upper body; the face is tareme and jitome with upturned eyes,
+  a light smile and parted lips -- asking, not smirking.
 
 ## Assembly order
 
@@ -52,8 +57,8 @@ contributes a tag of its own to the negative.
 
 ## Render constants
 
-Fixed in `prompt_style.py`: `MODEL = "hassaku-il-v22"`, canvas `832x1664`,
-`steps=30`, `cfg=5.0`, sampler `dpmpp_2m`, scheduler `karras`, denoise
+Fixed in `prompt_style.py`: `MODEL = "hassaku-il-v22"`, canvas `832x1664`
+(a pose's own `canvas` replaces it -- `cafe` is `1024x1280`), `steps=30`, `cfg=5.0`, sampler `dpmpp_2m`, scheduler `karras`, denoise
 `1.0`. `LORA = ("sketch-style-xl-linaqruf.safetensors", 0.8)`. There is no
 hires pass -- `render_spec` raises `ValueError` if `hires` or `denoise` is
 requested.

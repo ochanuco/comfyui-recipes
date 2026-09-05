@@ -628,12 +628,12 @@ def main() -> None:
     failed = False
 
     if args.palette is not None:
-        base = json.loads(BASELINE.read_text()) if BASELINE.exists() else {}
+        base = json.loads(BASELINE.read_text(encoding="utf-8")) if BASELINE.exists() else {}
         if args.record:
             if len(args.pose) != 1:
                 raise SystemExit("--record needs exactly one --pose")
             base[args.pose[0]] = profile(args.palette[0])
-            BASELINE.write_text(json.dumps(base, indent=1, sort_keys=True) + "\n")
+            BASELINE.write_text(json.dumps(base, indent=1, sort_keys=True) + "\n", encoding="utf-8")
             print(f"recorded {args.pose[0]} from {args.palette[0].name}")
             return
         pose = args.pose[0] if args.pose else "prone"

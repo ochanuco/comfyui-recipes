@@ -323,7 +323,7 @@ def _image_output_path(output_dir: Path, filename: object) -> Path:
 
 def generate(request_path: Path, services: GenerateServices, *,
              dry_run: bool = False, force: bool = False) -> None:
-    req = json.loads(request_path.read_text())
+    req = json.loads(request_path.read_text(encoding="utf-8"))
     validate_request(req)
     generation = request_generation(req)
     if generation.get("prompt") and generation.get("negative_prompt"):

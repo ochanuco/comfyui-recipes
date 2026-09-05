@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import stat
 import tempfile
 import unittest
@@ -19,6 +20,7 @@ from comfyui_recipes.infrastructure.persistence.run_state import JsonRunState
 
 
 class AdapterTest(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix", "POSIX permission bits")
     def test_chimera_cache_permissions_are_restricted(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
@@ -203,7 +205,7 @@ class AdapterTest(unittest.TestCase):
             root = Path(directory)
             path = root / "state.json"
             state.save(path, {"value": 1})
-            self.assertEqual(json.loads(path.read_text()), {"value": 1})
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"value": 1})
             self.assertEqual(list(root.iterdir()), [path])
 
             failed = root / "failed.json"

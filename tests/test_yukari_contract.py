@@ -15,7 +15,7 @@ FIXTURE = Path(__file__).parent / "fixtures/yukari-contract-v1.json"
 class YukariContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.expected = json.loads(FIXTURE.read_text())
+        cls.expected = json.loads(FIXTURE.read_text(encoding="utf-8"))
         cls.actual = snapshot(
             yukari_recipe,
             costume_check.fingerprint(),

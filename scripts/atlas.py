@@ -44,7 +44,7 @@ def tracked(pattern: str) -> list[Path]:
 def summary(path: Path) -> str:
     """The first line of the module docstring, which is the file's own claim."""
     try:
-        doc = ast.get_docstring(ast.parse(path.read_text()))
+        doc = ast.get_docstring(ast.parse(path.read_text(encoding="utf-8")))
     except (SyntaxError, UnicodeDecodeError):
         return ""
     return (doc or "").strip().split("\n")[0]
@@ -55,7 +55,7 @@ def imported_by(paths: list[Path]) -> dict[str, set[str]]:
     names = {p.stem for p in paths}
     used: dict[str, set[str]] = {p.stem: set() for p in paths}
     for path in paths:
-        text = path.read_text(errors="replace")
+        text = path.read_text(encoding="utf-8", errors="replace")
         # Package imports and the package's own relative
         # `from .model import ...` both count: credit every dotted component.
         for match in re.finditer(r"^\s*(?:from|import)\s+\.?([\w.]+)", text, re.M):
@@ -70,7 +70,7 @@ def map_scripts() -> None:
     users = imported_by(paths)
     rows = []
     for path in sorted(paths):
-        text = path.read_text(errors="replace")
+        text = path.read_text(encoding="utf-8", errors="replace")
         callers = users[path.stem]
         if "archive/" in str(path.relative_to(REPO)):
             role = "archive"
@@ -97,7 +97,7 @@ def map_scripts() -> None:
 
 def headings() -> list[tuple[int, int, str, int]]:
     """(line, level, text, size) for every heading in the notes."""
-    lines = NOTES.read_text().split("\n")
+    lines = NOTES.read_text(encoding="utf-8").split("\n")
     marks = [(i + 1, len(m.group(1)), m.group(2))
              for i, line in enumerate(lines)
              if (m := re.match(r"^(#{2,3}) (.+)$", line))]
@@ -110,7 +110,7 @@ def headings() -> list[tuple[int, int, str, int]]:
 
 def map_notes(pattern: str | None) -> None:
     if pattern is None:
-        total = tokens(NOTES.read_text())
+        total = tokens(NOTES.read_text(encoding="utf-8"))
         print(f"docs/render-notes.md -- ~{total} tokens whole. "
               f"Read a section with --offset/--limit, or name it here.\n")
         for line, level, text, tok in headings():
@@ -118,7 +118,7 @@ def map_notes(pattern: str | None) -> None:
             print(f"{line:6d}  ~{tok:5d}  {indent}{text}")
         return
 
-    lines = NOTES.read_text().split("\n")
+    lines = NOTES.read_text(encoding="utf-8").split("\n")
     marks = headings()
     hits = [h for h in marks if re.search(pattern, h[2], re.I)]
     if not hits:
@@ -132,7 +132,7 @@ def map_notes(pattern: str | None) -> None:
 
 def find(pattern: str) -> None:
     """Matches in the notes, each shown under the heading it lives beneath."""
-    lines = NOTES.read_text().split("\n")
+    lines = NOTES.read_text(encoding="utf-8").split("\n")
     marks = headings()
     current = ""
     for index, line in enumerate(lines, 1):

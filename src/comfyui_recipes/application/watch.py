@@ -107,7 +107,7 @@ def poll_once(services: WatchServices, *, dry_run: bool = False) -> None:
                 services.generate_services.output_root, run_id)
             request_path.parent.mkdir(parents=True, exist_ok=True)
             request_path.write_text(
-                json.dumps(request, indent=2, ensure_ascii=False))
+                json.dumps(request, indent=2, ensure_ascii=False), encoding="utf-8")
             services.generate(
                 request_path, services.generate_services, dry_run=dry_run)
         except (SystemExit, Exception) as error:

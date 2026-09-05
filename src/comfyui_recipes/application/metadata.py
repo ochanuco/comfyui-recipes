@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def put_semantic(client, generation_id: str, path: Path) -> None:
-    client.put_semantic(generation_id, json.loads(path.read_text()))
+    client.put_semantic(generation_id, json.loads(path.read_text(encoding="utf-8")))
 
 
 def add_tag(client, generation_id: str, name: str) -> None:

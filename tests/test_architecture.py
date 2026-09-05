@@ -23,7 +23,7 @@ class ArchitectureTest(unittest.TestCase):
     def test_domain_has_no_io_or_framework_imports(self) -> None:
         problems = []
         for path in DOMAIN.rglob("*.py"):
-            tree = ast.parse(path.read_text(), filename=str(path))
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in ast.walk(tree):
                 names = []
                 if isinstance(node, ast.Import):
@@ -40,7 +40,7 @@ class ArchitectureTest(unittest.TestCase):
         offenders = [
             str(path.relative_to(ROOT))
             for path in DOMAIN.rglob("*.py")
-            if "class_type" in path.read_text()
+            if "class_type" in path.read_text(encoding="utf-8")
         ]
         self.assertEqual(offenders, [])
 

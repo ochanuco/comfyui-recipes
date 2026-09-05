@@ -42,7 +42,7 @@ MAX_COMMENT_BLOCK_LINES = 8
 
 def _comments(path: pathlib.Path) -> list[tuple[int, int, str]]:
     """(line, column, text) for every comment token."""
-    with path.open() as handle:
+    with path.open(encoding="utf-8") as handle:
         tokens = tokenize.generate_tokens(io.StringIO(handle.read()).readline)
         return [(tok.start[0], tok.start[1], tok.string)
                 for tok in tokens if tok.type == tokenize.COMMENT]
@@ -75,7 +75,7 @@ class CommentDisciplineTest(unittest.TestCase):
         violations = []
         for path in self._checked_files():
             rel = path.relative_to(SRC)
-            source = path.read_text().splitlines()
+            source = path.read_text(encoding="utf-8").splitlines()
             block_start, block_len, prev = None, 0, None
             # Full-line comments only: a column of trailing comments beside
             # consecutive code lines (e.g. stage constants) is not a block.

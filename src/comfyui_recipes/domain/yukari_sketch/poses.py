@@ -39,4 +39,14 @@ POSES = {
               "up:1.15), looking at viewer, (light smile:1.1), (parted "
               "lips:1.2), (blush:1.15), (head tilt:1.1), "),
         canvas=(1024, 1280)),
+    "home": Pose(
+        action=("(sitting:1.3), (bean bag chair:1.5), (sinking:1.2), (leaning "
+                "back:1.25), (from above:1.2), (slouching:1.25), (arms at "
+                "sides:1.15), (limp:1.1), (shopping bag:1.25), (paper "
+                "bag:1.15), (upper body:1.25), "),
+        costume="outing",
+        face=("(tareme:1.2), (jitome:1.15), (half-closed eyes:1.25), (head "
+              "back:1.3), (looking up:1.15), (open mouth:1.25), "
+              "(exhausted:1.25), (sigh:1.15), (blush:1.1), "),
+        canvas=(1024, 1280)),
 }

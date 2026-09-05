@@ -27,6 +27,7 @@ CINEMA = json.loads((FIXTURES / "yukari-sketch-cinema.json").read_text(encoding=
 STAND = json.loads((FIXTURES / "yukari-sketch-stand.json").read_text(encoding="utf-8"))
 DATE = json.loads((FIXTURES / "yukari-sketch-date.json").read_text(encoding="utf-8"))
 CAFE = json.loads((FIXTURES / "yukari-sketch-cafe.json").read_text(encoding="utf-8"))
+HOME = json.loads((FIXTURES / "yukari-sketch-home.json").read_text(encoding="utf-8"))
 
 
 class PromptTest(unittest.TestCase):
@@ -53,6 +54,12 @@ class PromptTest(unittest.TestCase):
 
     def test_cafe_negative_matches_the_confirmed_render(self):
         self.assertEqual(negative("cafe"), CAFE["negative"])
+
+    def test_home_positive_matches_the_confirmed_render(self):
+        self.assertEqual(positive("home"), HOME["positive"])
+
+    def test_home_negative_matches_the_confirmed_render(self):
+        self.assertEqual(negative("home"), HOME["negative"])
 
     def test_face_override_is_used_only_when_set(self):
         self.assertIn(ps.FACE, positive("cinema"))

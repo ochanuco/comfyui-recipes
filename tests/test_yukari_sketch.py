@@ -28,6 +28,7 @@ STAND = json.loads((FIXTURES / "yukari-sketch-stand.json").read_text(encoding="u
 DATE = json.loads((FIXTURES / "yukari-sketch-date.json").read_text(encoding="utf-8"))
 CAFE = json.loads((FIXTURES / "yukari-sketch-cafe.json").read_text(encoding="utf-8"))
 HOME = json.loads((FIXTURES / "yukari-sketch-home.json").read_text(encoding="utf-8"))
+BATH = json.loads((FIXTURES / "yukari-sketch-bath.json").read_text(encoding="utf-8"))
 
 
 class PromptTest(unittest.TestCase):
@@ -60,6 +61,18 @@ class PromptTest(unittest.TestCase):
 
     def test_home_negative_matches_the_confirmed_render(self):
         self.assertEqual(negative("home"), HOME["negative"])
+
+    def test_bath_positive_matches_the_confirmed_render(self):
+        self.assertEqual(positive("bath"), BATH["positive"])
+
+    def test_bath_negative_matches_the_confirmed_render(self):
+        self.assertEqual(negative("bath"), BATH["negative"])
+
+    def test_bath_costume_swaps_legwear_and_bans_the_tights(self):
+        self.assertNotIn(ps.LEGWEAR, positive("bath"))
+        self.assertIn("(bare legs:1.3), (barefoot:1.25), ", positive("bath"))
+        self.assertTrue(negative("bath").endswith("(shoes:1.4)"))
+        self.assertEqual(negative("home"), ps.NEGATIVE)
 
     def test_face_override_is_used_only_when_set(self):
         self.assertIn(ps.FACE, positive("cinema"))

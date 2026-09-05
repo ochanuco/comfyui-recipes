@@ -49,4 +49,13 @@ POSES = {
               "back:1.3), (looking up:1.15), (open mouth:1.25), "
               "(exhausted:1.25), (sigh:1.15), (blush:1.1), "),
         canvas=(1024, 1280)),
+    "bath": Pose(
+        action=("(sitting:1.3), (on floor:1.3), (knee up:1.35), (outstretched "
+                "leg:1.35), (leaning forward:1.2), (hands on own leg:1.4), "
+                "(both hands:1.2), (holding own leg:1.2), (massage:1.3), "
+                "(from above:1.1), (cowboy shot:1.25), "),
+        costume="bath",
+        face=("(tareme:1.2), (jitome:1.2), (half-closed eyes:1.2), (looking "
+              "down:1.25), closed mouth, (blush:1.3), (flushed:1.2), "),
+        canvas=(1024, 1280)),
 }

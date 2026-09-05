@@ -11,7 +11,7 @@ prompt.
 from __future__ import annotations
 
 from ..generation.models import PromptPair, RenderSpec
-from .costumes import COSTUMES
+from .costumes import COSTUMES, LEGWEAR_BY_COSTUME, NEGATIVE_BY_COSTUME
 from .poses import POSES
 from .prompt_style import (
     BACKGROUND,
@@ -37,16 +37,19 @@ from .prompt_style import (
 
 def positive(pose: str, costume: str | None = None) -> str:
     p = POSES[pose]
-    costume_block = COSTUMES[costume if costume is not None else p.costume]
+    name = costume if costume is not None else p.costume
+    costume_block = COSTUMES[name]
+    legwear = LEGWEAR_BY_COSTUME.get(name, LEGWEAR)
     face = p.face if p.face is not None else FACE
     return (QUALITY + TRIGGER + CHARACTER + IDENTITY + costume_block
-            + p.action + PROPORTION + BACKGROUND + LEGWEAR + face + BODY)
+            + p.action + PROPORTION + BACKGROUND + legwear + face + BODY)
 
 
 def negative(pose: str, costume: str | None = None) -> str:
     p = POSES[pose]
-    _ = COSTUMES[costume if costume is not None else p.costume]
-    return NEGATIVE
+    name = costume if costume is not None else p.costume
+    _ = COSTUMES[name]
+    return NEGATIVE + NEGATIVE_BY_COSTUME.get(name, "")
 
 
 def refinement_prompt(base: PromptPair) -> PromptPair:

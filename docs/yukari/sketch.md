@@ -23,7 +23,11 @@ The variable part is two small record sets:
   optional `canvas` used in place of the recipe's `WIDTH x HEIGHT`.
   Unlike `yukari` and `yukari-anima`, there is no mood, gesture or scene
   split; the pose is one tag block.
-- `costumes.py`: one tag block per costume (`default`, `outing`).
+- `costumes.py`: one tag block per costume (`default`, `outing`, `bath`),
+  plus two small per-costume tables: `LEGWEAR_BY_COSTUME` (the garment on
+  the leg when it is not the recipe's `LEGWEAR` -- `bath` is bare-legged)
+  and `NEGATIVE_BY_COSTUME` (appended to `NEGATIVE` -- `bath` bans the
+  pantyhose and shoes the shared negative never had to).
 
 ## Poses
 
@@ -42,6 +46,11 @@ The variable part is two small record sets:
   with shopping bags beside her, slouching with her arms limp, seen from
   above, upper body; the face is tareme and jitome with the head thrown
   back, mouth open, exhausted -- a groan, not a smile.
+- `bath`: costume `bath`, canvas `1024x1280`. On the floor after a bath,
+  one knee up and the other leg stretched out, leaning forward with both
+  hands rubbing the stretched leg, seen slightly from above, cowboy shot;
+  the face is tareme and jitome looking down at the leg, closed mouth,
+  flushed.
 
 ## Assembly order
 
@@ -50,19 +59,21 @@ The variable part is two small record sets:
 ```
 QUALITY + TRIGGER + CHARACTER + IDENTITY
 + COSTUMES[costume] + pose.action
-+ PROPORTION + BACKGROUND + LEGWEAR + (pose.face or FACE) + BODY
++ PROPORTION + BACKGROUND + (LEGWEAR_BY_COSTUME[costume] or LEGWEAR)
++ (pose.face or FACE) + BODY
 ```
 
-Negative is `NEGATIVE` verbatim -- `pose` and `costume` are still validated
-against their tables so an unknown one is a `KeyError`, but neither
-contributes a tag of its own to the negative.
+Negative is `NEGATIVE` plus the costume's `NEGATIVE_BY_COSTUME` entry when
+it has one -- `pose` and `costume` are still validated against their tables
+so an unknown one is a `KeyError`, and the pose never contributes a tag of
+its own to the negative.
 
 `costume` defaults to the pose's own; passing it overrides just that block.
 
 ## Render constants
 
 Fixed in `prompt_style.py`: `MODEL = "hassaku-il-v22"`, canvas `832x1664`
-(a pose's own `canvas` replaces it -- `cafe` and `home` are `1024x1280`), `steps=30`, `cfg=5.0`, sampler `dpmpp_2m`, scheduler `karras`, denoise
+(a pose's own `canvas` replaces it -- `cafe`, `home` and `bath` are `1024x1280`), `steps=30`, `cfg=5.0`, sampler `dpmpp_2m`, scheduler `karras`, denoise
 `1.0`. `LORA = ("sketch-style-xl-linaqruf.safetensors", 0.8)`. There is no
 hires pass -- `render_spec` raises `ValueError` if `hires` or `denoise` is
 requested.

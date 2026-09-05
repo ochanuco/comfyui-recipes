@@ -34,10 +34,11 @@ class Management(Protocol):
 class Heartbeat:
     """PATCHes {"status": "running"} every `interval` seconds until stopped."""
 
-    def __init__(self, management: Management, row_id: str, *,
+    def __init__(self, management: Management, row_id: str, worker_id: str, *,
                  interval: float = 30, emit: Callable[[str], None] = print) -> None:
         self.management = management
         self.row_id = row_id
+        self.worker_id = worker_id
         self.interval = interval
         self.emit = emit
         self._stop = threading.Event()
@@ -47,7 +48,8 @@ class Heartbeat:
         while not self._stop.wait(self.interval):
             try:
                 self.management.request(
-                    "PATCH", f"/api/v1/requests/{self.row_id}", {"status": "running"})
+                    "PATCH", f"/api/v1/requests/{self.row_id}",
+                    {"status": "running", "worker_id": self.worker_id})
             except (SystemExit, Exception) as error:
                 self.emit(f"heartbeat failed for {self.row_id}: {error}")
 
@@ -211,7 +213,9 @@ def execute(services: WorkServices, row: Mapping) -> dict:
 
 def _report(services: WorkServices, row_id: str, payload: dict) -> None:
     try:
-        services.management.request("PATCH", f"/api/v1/requests/{row_id}", payload)
+        services.management.request(
+            "PATCH", f"/api/v1/requests/{row_id}",
+            {**payload, "worker_id": services.worker_id})
     except SystemExit as error:
         services.emit(f"report failed for {row_id} (worker moved on?): {error}")
 
@@ -236,7 +240,7 @@ def work_once(services: WorkServices, *, dry_run: bool = False) -> bool:
     if row is None:
         return False
     failure: BaseException | None = None
-    with services.heartbeat(services.management, row["id"],
+    with services.heartbeat(services.management, row["id"], services.worker_id,
                             interval=services.heartbeat_interval, emit=services.emit):
         try:
             result = execute(services, row)

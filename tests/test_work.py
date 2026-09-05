@@ -13,6 +13,7 @@ from pathlib import Path
 
 from comfyui_recipes.application.generate import GenerateServices
 from comfyui_recipes.application.work import (
+    Heartbeat,
     WorkServices,
     execute,
     finalize_arguments,
@@ -45,9 +46,10 @@ class ManagementFake:
 
 
 class RecordingHeartbeat:
-    def __init__(self, management, row_id, *, interval=30, emit=print):
+    def __init__(self, management, row_id, worker_id, *, interval=30, emit=print):
         self.management = management
         self.row_id = row_id
+        self.worker_id = worker_id
         self.interval = interval
         self.emit = emit
         self.events = []
@@ -87,8 +89,9 @@ def make_services(directory: Path, management, *, heartbeats=None,
         kinds=kinds,
     )
     if heartbeats is not None:
-        def factory(management, row_id, *, interval=30, emit=print):
-            instance = RecordingHeartbeat(management, row_id, interval=interval, emit=emit)
+        def factory(management, row_id, worker_id, *, interval=30, emit=print):
+            instance = RecordingHeartbeat(
+                management, row_id, worker_id, interval=interval, emit=emit)
             heartbeats.append(instance)
             return instance
         kwargs["heartbeat"] = factory
@@ -303,7 +306,8 @@ class WorkOnceTest(unittest.TestCase):
                 if call[0] == "PATCH" and call[1] == "/api/v1/requests/req-1")
             self.assertEqual(
                 patch_call[2],
-                {"status": "done", "result": {"batch_id": "b1", "generation_ids": ["g1"]}})
+                {"status": "done", "result": {"batch_id": "b1", "generation_ids": ["g1"]},
+                 "worker_id": "test-worker"})
 
     def test_failed_row_patches_status_failed_with_the_error_message(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -318,7 +322,8 @@ class WorkOnceTest(unittest.TestCase):
             patch_call = next(
                 call for call in management.calls
                 if call[0] == "PATCH" and call[1] == "/api/v1/requests/req-1")
-            self.assertEqual(patch_call[2], {"status": "failed", "error": "boom"})
+            self.assertEqual(patch_call[2], {"status": "failed", "error": "boom",
+                                             "worker_id": "test-worker"})
 
     def test_recipe_ref_mismatch_reports_failed_with_the_exact_message(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -334,7 +339,8 @@ class WorkOnceTest(unittest.TestCase):
                 if call[0] == "PATCH" and call[1] == "/api/v1/requests/req-1")
             self.assertEqual(
                 patch_call[2],
-                {"status": "failed", "error": "recipe_ref not served: other-branch"})
+                {"status": "failed", "error": "recipe_ref not served: other-branch",
+                 "worker_id": "test-worker"})
 
     def test_heartbeat_is_started_and_stopped_around_execution(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -434,6 +440,26 @@ class WorkLoopTest(unittest.TestCase):
                 directory, management, sleep=interrupt, emit=messages.append)
             work(services, once=False)
             self.assertTrue(any("stopped" in message for message in messages))
+
+
+class HeartbeatTest(unittest.TestCase):
+    def test_sends_running_with_the_worker_id_until_stopped(self):
+        import threading
+
+        calls = []
+        seen = threading.Event()
+
+        class Management:
+            def request(self, method, path, payload=None, multipart=None):
+                calls.append((method, path, payload))
+                seen.set()
+                return {}
+
+        heartbeat = Heartbeat(Management(), "req-1", "test-worker", interval=0.01)
+        with heartbeat:
+            self.assertTrue(seen.wait(2))
+        self.assertEqual(calls[0], ("PATCH", "/api/v1/requests/req-1",
+                                    {"status": "running", "worker_id": "test-worker"}))
 
 
 if __name__ == "__main__":

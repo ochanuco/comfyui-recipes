@@ -18,6 +18,11 @@ def hub_url(base_url: str) -> str:
     return websocket_url(base_url, "/api/v1/worker/ws")
 
 
+def encode(message: dict) -> str:
+    """Compact JSON: the hub's hibernation auto-response matches {"type":"ping"} byte for byte."""
+    return json.dumps(message, separators=(",", ":"), ensure_ascii=False)
+
+
 class HubConnection:
     """One open websocket to the WorkerHub."""
 
@@ -37,7 +42,7 @@ class HubConnection:
 
     def send(self, message: dict) -> None:
         try:
-            self._socket.send(json.dumps(message))
+            self._socket.send(encode(message))
         except WebSocketException as error:
             raise HubClosed(str(error)) from error
 

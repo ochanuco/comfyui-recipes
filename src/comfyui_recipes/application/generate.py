@@ -299,6 +299,62 @@ def _seeds(req: dict) -> list[int]:
                 for _ in range(req["request"]["count"])])
 
 
+def request_file_path(output_root: Path, subdirectory: str, identifier: object,
+                      *, label: str = "request id") -> Path:
+    """<output_root>/<subdirectory>/<identifier>.json, containment-checked."""
+    if (not isinstance(identifier, str) or not identifier
+            or identifier in (".", "..")
+            or "/" in identifier or "\\" in identifier):
+        raise ValueError(f"invalid {label}: {identifier!r}")
+    return output_root / subdirectory / f"{identifier}.json"
+
+
+def _job_key(key_prefix: str | None, index: int) -> str:
+    return f"{key_prefix}:job:{index}" if key_prefix is not None else str(uuid.uuid4())
+
+
+def _generation_key(key_prefix: str | None, index: int, output_index: int) -> str:
+    return (f"{key_prefix}:job:{index}:gen:{output_index}"
+            if key_prefix is not None else str(uuid.uuid4()))
+
+
+def _adopt_resend_jobs(state: dict, jobs: list | None, key_prefix: str | None) -> None:
+    """Fold a batch resend's jobs[] into state."""
+    if not jobs:
+        return
+    ordered = sorted(jobs, key=lambda job: job.get("index", 0))
+    if "seeds" not in state:
+        seeds = [job.get("seed") for job in ordered]
+        if seeds and all(isinstance(seed, int) for seed in seeds):
+            state["seeds"] = seeds
+    for job in ordered:
+        index = job.get("index")
+        if index is None:
+            continue
+        while len(state["jobs"]) <= index:
+            state["jobs"].append(
+                {"idempotency_key": _job_key(key_prefix, len(state["jobs"]))})
+        if job.get("status") != "ingested":
+            continue
+        entry = state["jobs"][index]
+        entry["status"] = "ingested"
+        if job.get("id"):
+            entry["job_id"] = job["id"]
+        if job.get("comfy_prompt_id"):
+            entry["comfy_prompt_id"] = job["comfy_prompt_id"]
+        generations = entry.setdefault("generations", [])
+        known = {gen.get("comfy_output_index") for gen in generations}
+        for gen in job.get("generations") or []:
+            output_index = gen.get("comfy_output_index")
+            if not gen.get("id") or output_index is None or output_index in known:
+                continue
+            generations.append({
+                "id": gen["id"], "comfy_output_index": output_index,
+                "status": "registered",
+                "idempotency_key": _generation_key(key_prefix, index, output_index),
+            })
+
+
 def _output_directory(root: Path, identifier: object) -> Path:
     if (not isinstance(identifier, str) or not identifier
             or identifier in (".", "..")
@@ -322,7 +378,8 @@ def _image_output_path(output_dir: Path, filename: object) -> Path:
 
 
 def generate(request_path: Path, services: GenerateServices, *,
-             dry_run: bool = False, force: bool = False) -> None:
+             dry_run: bool = False, force: bool = False,
+             key_prefix: str | None = None) -> dict | None:
     req = json.loads(request_path.read_text(encoding="utf-8"))
     validate_request(req)
     generation = request_generation(req)
@@ -362,10 +419,12 @@ def generate(request_path: Path, services: GenerateServices, *,
             services.emit(f"positive: {positive[:120]}...")
         if generation.get("patches"):
             services.emit(f"patches: {len(generation['patches'])} applied")
-        return
+        return None
 
     state_path = request_path.with_suffix(request_path.suffix + ".state.json")
     state = services.state.load(state_path)
+    if key_prefix is not None:
+        state["idempotency_key"] = key_prefix
     for reference in req.get("references") or []:
         services.management.request(
             "GET", f"/api/v1/generations/{reference['generation_id']}/context")
@@ -376,6 +435,7 @@ def generate(request_path: Path, services: GenerateServices, *,
                           generation, 0, "chimera-probe"))),
     )
     state["batch_id"] = batch["id"]
+    _adopt_resend_jobs(state, batch.get("jobs"), key_prefix)
     state.setdefault("seeds", _seeds(req))
     services.state.save(state_path, state)
     short = batch.get("short_id", batch["id"][:8])
@@ -398,7 +458,8 @@ def generate(request_path: Path, services: GenerateServices, *,
 
     for index, seed in enumerate(state["seeds"]):
         while len(state["jobs"]) <= index:
-            state["jobs"].append({"idempotency_key": str(uuid.uuid4())})
+            state["jobs"].append(
+                {"idempotency_key": _job_key(key_prefix, len(state["jobs"]))})
         job = state["jobs"][index]
         if job.get("status") == "ingested":
             continue
@@ -441,14 +502,15 @@ def generate(request_path: Path, services: GenerateServices, *,
                     output = job["generations"][output_index]
                 if output is None:
                     output = {
-                        "idempotency_key": str(uuid.uuid4()),
+                        "idempotency_key": _generation_key(key_prefix, index, output_index),
                         "comfy_output_index": output_index,
                     }
                     job["generations"].append(output)
                 if output.get("status") == "registered" or output.get("id"):
                     continue
                 if "idempotency_key" not in output:
-                    output["idempotency_key"] = str(uuid.uuid4())
+                    output["idempotency_key"] = _generation_key(
+                        key_prefix, index, output_index)
                 output.setdefault("comfy_output_index", output_index)
                 services.state.save(state_path, state)
                 data = services.comfyui.fetch(image)
@@ -519,3 +581,6 @@ def generate(request_path: Path, services: GenerateServices, *,
     services.management.request(
         "PATCH", f"/api/v1/batches/{state['batch_id']}", {"status": status})
     services.emit(f"batch {status}: {done}/{len(state['seeds'])} jobs ingested")
+    generation_ids = [gen["id"] for job in state["jobs"]
+                      for gen in job.get("generations", []) if gen.get("id")]
+    return {"batch_id": state["batch_id"], "generation_ids": generation_ids}

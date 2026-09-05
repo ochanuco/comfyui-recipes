@@ -26,6 +26,38 @@ The ComfyUI server may be local or remote. Set `COMFYUI_HOST` and optionally
 `COMFYUI_PORT`; inputs and outputs are transferred through the server API when
 the host is remote. See [remote.md](remote.md).
 
+## Queue worker
+
+`comfy-recipes work` is a resident worker: it claims one row at a time from
+chimera's `requests` queue (`POST /api/v1/requests/claim`, kinds `generate`
+and `finalize`), executes it, and reports `done`/`failed` back
+(`PATCH /api/v1/requests/{id}`). While a row runs it heartbeats
+`{"status": "running"}` every 30 seconds; `--interval` is how long it sleeps
+when the queue is empty. `--once` claims and executes a single row then
+exits; `--dry-run` never claims -- it fetches and prints the next queued row
+instead. `--worker-id` defaults to the machine's hostname;
+`--kinds` (comma-separated) narrows which kinds this worker claims.
+
+A `generate` row's payload is a request.json body, written verbatim to
+`<output_root>/requests/<id>.json` before running the same `generate()` use
+case `comfy-recipes generate` does. A `finalize` row's payload is
+`{"generation_id", "options": {...}}`; `options` maps to `finalize()`'s CLI
+flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
+`size`, `handdrawn`, `skin`, `toe_guard`, `keep_scene`) with the same
+defaults `comfy-recipes finalize` has when a flag is omitted.
+
+Idempotency keys are derived from the request id, so a re-claimed row
+resumes the same batch/job/generation records: batch `request:{id}`, job
+`request:{id}:job:{index}`, generation
+`request:{id}:job:{index}:gen:{output_index}`. finalize uses the same
+batch and job keys.
+
+A row's `recipe_ref` must equal the worker's current git branch; a worker on
+the wrong branch fails the row rather than generating from a recipe it
+cannot vouch for. chimera's own `docs/worker-protocol.md` (in the chimera
+repo) is the authoritative wire contract this command implements -- this
+section is only what `--help` does not already say.
+
 ## `generation.patches`
 
 `generation.patches` declares typed diffs applied to the resolved render

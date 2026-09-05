@@ -98,7 +98,7 @@ disk looks like from over here.
 ## Running the CLI on the worker itself
 
 Since 2026-09-05 the queue runs on the GPU machine, not on the Mac: the repo
-is cloned there, `comfy-recipes watch` polls chimera from a logon task, and
+is cloned there, `comfy-recipes work` claims chimera's requests from a logon task, and
 `COMFYUI_HOST` stays unset so everything talks to `127.0.0.1:8188`. The Mac
 only edits recipes and reads chimera.
 
@@ -117,7 +117,9 @@ task `comfyui-recipes-watch` (at logon, interactive principal, so no stored
 password) and starts it. The wrapper restarts the CLI when it exits and
 appends to `.local/_nogit/worker/watch.log`. `.local/chimera-token` and
 `.local/discord-webhook` are copied onto the box by hand; they are never
-tracked.
+tracked. The wrapper runs `comfy-recipes work` (see
+[queueing.md](queueing.md#queue-worker)); the box must stay on a checkout
+whose branch matches the `recipe_ref` of the rows it should serve.
 
 Two things that only show up over `ssh comfyui-worker`:
 

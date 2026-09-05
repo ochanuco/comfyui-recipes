@@ -44,7 +44,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              keep_legwear: float | None = None,
              toe_guard: float | None = None,
              size: int | None = None, latent_route: bool | None = None,
-             finalizer: str | None = None) -> None:
+             finalizer: str | None = None,
+             key_prefix: str | None = None) -> dict:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
@@ -142,7 +143,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
 
     git = services.git_metadata()
     batch = services.management.request("POST", "/api/v1/batches", {
-        "idempotency_key": str(uuid.uuid4()),
+        "idempotency_key": key_prefix or str(uuid.uuid4()),
         "raw_instruction": (f"{generation_id} を高解像度化"
                             + ("・手書き風の仕上げ" if handdrawn else "")),
         "recipe": "yukari",
@@ -166,7 +167,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     })
     job = services.management.request(
         "POST", f"/api/v1/batches/{batch['id']}/jobs",
-        {"idempotency_key": str(uuid.uuid4()), "seed": seed, "index": 0})
+        {"idempotency_key": (f"{key_prefix}:job:0" if key_prefix else str(uuid.uuid4())),
+         "seed": seed, "index": 0})
     services.management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}",
         {"status": "queued", "comfy_prompt_id": prompt_id, "graph": graph})
@@ -199,3 +201,4 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         f"**file** `{delivered_name}`\n"
         f"**chimera** {urls[1]}", delivered_name, delivered)
     services.emit(f"batch {batch.get('short_id', batch['id'])} done")
+    return {"batch_id": batch["id"], "generation_ids": ids}

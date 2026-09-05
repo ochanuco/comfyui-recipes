@@ -25,13 +25,19 @@ from comfyui_recipes.application.generate import (
 class ManagementFake:
     def __init__(self):
         self.calls = []
+        self.batch_jobs = None
 
     def request(self, method, path, payload=None, multipart=None):
         self.calls.append((method, path, payload, multipart))
         if method == "POST" and path == "/api/v1/batches":
-            return {"id": "batch-id", "short_id": "batch"}
+            batch = {"id": "batch-id", "short_id": "batch"}
+            if self.batch_jobs is not None:
+                batch["jobs"] = self.batch_jobs
+            return batch
         if path.endswith("/generations"):
             return {"id": "generation", "short_id": "gen", "canonical_url": "https://example/g"}
+        if method == "POST" and path.endswith("/jobs"):
+            return {"id": "job-id"}
         return {}
 
     def resolve_character(self, name):
@@ -597,6 +603,108 @@ class GenerateApplicationTest(unittest.TestCase):
                 generate(path, services)
             self.assertFalse(
                 any(call[1] == "/api/v1/batches" for call in management.calls))
+
+    def test_generate_returns_batch_id_and_generation_ids(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
+            state = StateFake({
+                "idempotency_key": "fixed-key", "seeds": [42],
+                "jobs": [{"idempotency_key": "job-key", "job_id": "job-id",
+                          "comfy_prompt_id": "old-prompt", "status": "failed"}],
+            })
+            services = GenerateServices(
+                management, comfy, state, RecordingNotifier(),
+                lambda generation, seed, prefix: {
+                    "6": {"inputs": {"text": "x"}}, "7": {"inputs": {"text": "y"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None)
+            result = generate(path, services)
+            self.assertEqual(result, {"batch_id": "batch-id", "generation_ids": ["generation"]})
+
+    def test_generate_returns_none_on_dry_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            state = StateFake({"idempotency_key": "fixed-key", "seeds": [42], "jobs": []})
+            services = GenerateServices(
+                management, comfy, state, NullNotifier(),
+                lambda generation, seed, prefix: {"6": {"inputs": {"text": "x"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None)
+            self.assertIsNone(generate(path, services, dry_run=True))
+
+    def test_key_prefix_overrides_batch_job_and_generation_keys(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
+            state = StateFake({"idempotency_key": "stale-key", "jobs": []})
+            services = GenerateServices(
+                management, comfy, state, RecordingNotifier(),
+                lambda generation, seed, prefix: {
+                    "6": {"inputs": {"text": "x"}}, "7": {"inputs": {"text": "y"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None)
+            generate(path, services, key_prefix="request:req-1")
+
+            batch_call = next(
+                call for call in management.calls
+                if call[0] == "POST" and call[1] == "/api/v1/batches")
+            self.assertEqual(batch_call[2]["idempotency_key"], "request:req-1")
+
+            job_call = next(
+                call for call in management.calls
+                if call[0] == "POST" and call[1].endswith("/jobs"))
+            self.assertEqual(job_call[2]["idempotency_key"], "request:req-1:job:0")
+
+            generation_call = next(
+                call for call in management.calls
+                if call[0] == "POST" and call[1].endswith("/generations"))
+            self.assertEqual(
+                generation_call[3][0]["idempotency_key"], "request:req-1:job:0:gen:0")
+
+    def test_resend_jobs_adopts_seeds_when_state_has_none(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            request = base_request()
+            del request["request"]["seeds"]
+            request["request"]["count"] = 2
+            path.write_text(json.dumps(request), encoding="utf-8")
+
+            management = ManagementFake()
+            management.batch_jobs = [
+                {"id": "job-0", "index": 0, "seed": 111, "status": "ingested",
+                 "comfy_prompt_id": "old-prompt",
+                 "generations": [{"id": "gen-0", "comfy_output_index": 0}]},
+                {"id": "job-1", "index": 1, "seed": 222, "status": "queued"},
+            ]
+            comfy = ComfyFake()
+            state = StateFake({"idempotency_key": "fixed-key", "jobs": []})
+            services = GenerateServices(
+                management, comfy, state, NullNotifier(),
+                lambda generation, seed, prefix: {"6": {"inputs": {"text": "x"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None)
+            generate(path, services, key_prefix="request:req-2")
+
+            self.assertEqual(state.state["seeds"], [111, 222])
+            self.assertEqual(state.state["jobs"][0]["status"], "ingested")
+            self.assertEqual(state.state["jobs"][0]["job_id"], "job-0")
+            self.assertEqual(
+                state.state["jobs"][0]["generations"],
+                [{"id": "gen-0", "comfy_output_index": 0, "status": "registered",
+                  "idempotency_key": "request:req-2:job:0:gen:0"}])
+            # job 0 is already ingested, so only job 1 (the resent "queued"
+            # one) is actually submitted to ComfyUI this run.
+            self.assertEqual(len(comfy.submits), 1)
 
 
 if __name__ == "__main__":

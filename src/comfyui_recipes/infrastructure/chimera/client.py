@@ -51,7 +51,7 @@ class ChimeraClient:
         return self._credentials
 
     def request(self, method: str, path: str, payload: dict | None = None,
-                multipart: tuple[dict, str, str, bytes, str] | None = None) -> dict:
+                multipart: tuple[dict, str, str, bytes, str] | None = None) -> dict | None:
         headers = {**self.credentials(), "User-Agent": USER_AGENT}
         if multipart:
             meta, field, filename, data, content_type = multipart
@@ -77,6 +77,8 @@ class ChimeraClient:
             try:
                 with urllib.request.urlopen(request, timeout=120) as response:
                     raw = response.read()
+                    if response.status == 204 or not raw:
+                        return None
                     if "json" not in (response.headers.get("Content-Type") or ""):
                         raise SystemExit(
                             f"{method} {path}: non-JSON response -- Cloudflare "

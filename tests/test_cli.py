@@ -30,6 +30,20 @@ class CliTest(unittest.TestCase):
         self.assertEqual(run_watch.call_args.kwargs,
                          {"interval": 5.0, "once": True, "dry_run": True})
 
+    @patch.object(cli, "work")
+    @patch.object(cli, "ChimeraClient")
+    def test_work_dispatches_without_network(self, chimera_class, run_work):
+        cli.main(["work", "--interval", "5", "--once", "--dry-run",
+                  "--worker-id", "worker-1", "--kinds", "generate"])
+        work_services = run_work.call_args.args[0]
+        self.assertIs(work_services.management, chimera_class.return_value)
+        self.assertIs(
+            work_services.generate_services.management, chimera_class.return_value)
+        self.assertEqual(work_services.worker_id, "worker-1")
+        self.assertEqual(work_services.kinds, ("generate",))
+        self.assertEqual(run_work.call_args.kwargs,
+                         {"interval": 5.0, "once": True, "dry_run": True})
+
     @patch.object(cli.metadata, "add_tag")
     @patch.object(cli, "ChimeraClient")
     def test_metadata_tag_dispatches_without_network(self, chimera_class, add_tag):

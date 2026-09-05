@@ -341,6 +341,23 @@ class FinalizeApplicationTest(unittest.TestCase):
                 if call[0] == "POST" and call[1] == "/api/v1/batches")
             self.assertNotIn("finalizer", batch_call[2]["parameters"])
 
+    def test_returns_batch_id_and_generation_ids(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory, repin=lambda data: (data, []))
+            result = finalize("gen-id", services)
+            self.assertEqual(result["batch_id"], "batch-id")
+            self.assertEqual(result["generation_ids"], ["generation", "generation"])
+
+    def test_key_prefix_derives_batch_and_job_keys(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory, repin=lambda data: (data, []))
+            finalize("gen-id", services, key_prefix="request:r1")
+            posts = {call[1]: call[2] for call in services.management.calls
+                     if call[0] == "POST" and call[2]}
+            self.assertEqual(posts["/api/v1/batches"]["idempotency_key"], "request:r1")
+            self.assertEqual(posts["/api/v1/batches/batch-id/jobs"]["idempotency_key"],
+                             "request:r1:job:0")
+
 
 if __name__ == "__main__":
     unittest.main()

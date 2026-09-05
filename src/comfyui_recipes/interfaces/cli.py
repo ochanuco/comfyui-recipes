@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import socket
 from pathlib import Path
 
 from ..application import metadata
@@ -12,6 +13,7 @@ from ..application.finalize import FinalizeServices, finalize
 from ..domain.yukari.recipe import TOE_GUARD
 from ..application.generate import GenerateServices, generate, request_graph
 from ..application.watch import WatchServices, watch
+from ..application.work import WorkServices, work
 from ..domain.generation.prompt_lint import conflicts
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.poses import POSES
@@ -34,7 +36,7 @@ from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
 from ..infrastructure.comfyui.yukari_graph import build_graph as yukari_build_graph
 from ..infrastructure.imaging.delivery import (
-    clean_background, graph_from_png, keep_scene,
+    clean_background, graph_from_png, keep_scene as keep_scene_delivery,
 )
 from ..infrastructure.imaging.palette import (
     repin_png, repin_skin_png, summarize)
@@ -56,6 +58,40 @@ def _build_generation_graph(generation: dict, seed: int, prefix: str) -> dict:
         return request_graph(generation, seed, prefix, None, None)
     spec_builder, encode = RECIPES[generation["recipe"]]
     return request_graph(generation, seed, prefix, spec_builder, encode)
+
+
+def _generate_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
+                       repository: Path, repository_metadata) -> GenerateServices:
+    return GenerateServices(
+        management=chimera,
+        comfyui=comfyui,
+        state=JsonRunState(),
+        notifier=notifier,
+        graph_builder=_build_generation_graph,
+        git_metadata=repository_metadata,
+        conflicts=conflicts,
+        output_root=repository / ".local/_nogit/chimera",
+        measure=summarize,
+    )
+
+
+def _finalize_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
+                       repository: Path, repository_metadata, *,
+                       keep_scene: bool, keep_legwear: float | None) -> FinalizeServices:
+    return FinalizeServices(
+        management=chimera,
+        comfyui=comfyui,
+        graph_from_png=graph_from_png,
+        chain_pass=chain_pass,
+        deliver=(keep_scene_delivery if keep_scene else clean_background),
+        git_metadata=repository_metadata,
+        notifier=notifier,
+        output_root=repository / ".local/_nogit/finalize",
+        repin=lambda data: repin_png(data, keep_legwear=keep_legwear),
+        repin_skin=repin_skin_png,
+        measure=summarize,
+        recolor=recolor_png,
+    )
 
 
 def _positive_finite_seconds(raw: str) -> float:
@@ -85,6 +121,17 @@ def parser() -> argparse.ArgumentParser:
         "--interval", type=_positive_finite_seconds, default=30)
     watch_parser.add_argument("--once", action="store_true")
     watch_parser.add_argument("--dry-run", action="store_true")
+
+    work_parser = commands.add_parser(
+        "work", help="claim and execute rows from chimera's requests queue")
+    work_parser.add_argument(
+        "--interval", type=_positive_finite_seconds, default=30)
+    work_parser.add_argument("--once", action="store_true")
+    work_parser.add_argument("--dry-run", action="store_true")
+    work_parser.add_argument("--worker-id", default=socket.gethostname())
+    work_parser.add_argument(
+        "--kinds", default="generate,finalize",
+        help="comma-separated request kinds to claim")
 
     finalize_parser = commands.add_parser("finalize", help="deliver one picked render")
     finalize_parser.add_argument("generation_id")
@@ -211,50 +258,38 @@ def main(argv: list[str] | None = None) -> None:
         return git_metadata(repository)
 
     if args.command == "generate":
-        services = GenerateServices(
-            management=chimera,
-            comfyui=comfyui,
-            state=JsonRunState(),
-            notifier=notifier,
-            graph_builder=_build_generation_graph,
-            git_metadata=repository_metadata,
-            conflicts=conflicts,
-            output_root=repository / ".local/_nogit/chimera",
-            measure=summarize,
-        )
+        services = _generate_services(
+            chimera, comfyui, notifier, repository, repository_metadata)
         generate(args.request, services, dry_run=args.dry_run, force=args.force)
         return
     if args.command == "watch":
-        services = GenerateServices(
-            management=chimera,
-            comfyui=comfyui,
-            state=JsonRunState(),
-            notifier=notifier,
-            graph_builder=_build_generation_graph,
-            git_metadata=repository_metadata,
-            conflicts=conflicts,
-            output_root=repository / ".local/_nogit/chimera",
-            measure=summarize,
-        )
+        services = _generate_services(
+            chimera, comfyui, notifier, repository, repository_metadata)
         watch_services = WatchServices(management=chimera, generate_services=services)
         watch(watch_services, interval=args.interval, once=args.once,
               dry_run=args.dry_run)
         return
-    if args.command == "finalize":
-        services = FinalizeServices(
+    if args.command == "work":
+        generate_services = _generate_services(
+            chimera, comfyui, notifier, repository, repository_metadata)
+        work_services = WorkServices(
             management=chimera,
-            comfyui=comfyui,
-            graph_from_png=graph_from_png,
-            chain_pass=chain_pass,
-            deliver=(keep_scene if args.keep_scene else clean_background),
+            generate_services=generate_services,
+            finalize_services=lambda arguments: _finalize_services(
+                chimera, comfyui, notifier, repository, repository_metadata,
+                keep_scene=arguments.get("keep_scene", False),
+                keep_legwear=arguments.get("keep_legwear")),
             git_metadata=repository_metadata,
-            notifier=notifier,
-            output_root=repository / ".local/_nogit/finalize",
-            repin=lambda data: repin_png(data, keep_legwear=args.keep_legwear),
-            repin_skin=repin_skin_png,
-            measure=summarize,
-            recolor=recolor_png,
+            worker_id=args.worker_id,
+            kinds=tuple(kind.strip() for kind in args.kinds.split(",") if kind.strip()),
         )
+        work(work_services, interval=args.interval, once=args.once,
+             dry_run=args.dry_run)
+        return
+    if args.command == "finalize":
+        services = _finalize_services(
+            chimera, comfyui, notifier, repository, repository_metadata,
+            keep_scene=args.keep_scene, keep_legwear=args.keep_legwear)
         finalize(args.generation_id, services, denoise=args.denoise,
                  handdrawn=args.handdrawn, apply_repin=args.repin,
                  apply_skin=args.skin,

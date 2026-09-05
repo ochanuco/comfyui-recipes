@@ -44,6 +44,28 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(urlopen.call_count, 3)
         self.assertEqual(sleep.call_args_list, [call(2), call(4)])
 
+    def test_chimera_request_returns_none_on_204(self):
+        client = ChimeraClient(Path("."), base_url="https://example.invalid")
+        client._credentials = {}
+        response = MagicMock()
+        response.read.return_value = b""
+        response.status = 204
+        response.headers = {}
+        response.__enter__.return_value = response
+        with patch("urllib.request.urlopen", return_value=response):
+            self.assertIsNone(client.request("POST", "/api/v1/requests/claim"))
+
+    def test_chimera_request_returns_none_on_empty_body(self):
+        client = ChimeraClient(Path("."), base_url="https://example.invalid")
+        client._credentials = {}
+        response = MagicMock()
+        response.read.return_value = b""
+        response.status = 200
+        response.headers = {}
+        response.__enter__.return_value = response
+        with patch("urllib.request.urlopen", return_value=response):
+            self.assertIsNone(client.request("GET", "/api/v1/requests/claim"))
+
     def test_comfyui_wait_retries_transport_error_and_returns_empty_success(self):
         client = ComfyUIClient(
             "http://example.invalid", poll_interval=0, poll_timeout=1)

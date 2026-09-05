@@ -117,7 +117,8 @@ task `comfyui-recipes-watch` (at logon, interactive principal, so no stored
 password) and starts it. The wrapper restarts the CLI when it exits and
 appends to `.local/_nogit/worker/watch.log`. `.local/chimera-token` and
 `.local/discord-webhook` are copied onto the box by hand; they are never
-tracked.
+tracked. `scripts/worker/watch.ps1` switches from `watch` to `work` once
+chimera serves `/api/v1/requests` (see [queueing.md](queueing.md#queue-worker)).
 
 Two things that only show up over `ssh comfyui-worker`:
 

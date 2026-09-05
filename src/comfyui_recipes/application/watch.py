@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from .generate import GenerateServices, generate, validate_request
+from .generate import GenerateServices, generate, request_file_path, validate_request
 
 PENDING_RUNS_PATH = "/api/v1/experiment-runs?pending=true"
 
@@ -84,12 +84,10 @@ def build_request(item: Mapping) -> dict:
 def _request_path(output_root: Path, run_id: object) -> Path:
     # A stable path per Run (not a fresh temp file each poll) is what makes
     # the CLI's <request>.state.json idempotency-key cache work on a resend.
-    # The id names a file, so it gets the same containment check generate()
-    # applies to batch output identifiers.
-    if (not isinstance(run_id, str) or not run_id or run_id in (".", "..")
-            or "/" in run_id or "\\" in run_id):
-        raise SkipRun(f"invalid run id: {run_id!r}")
-    return output_root / "experiment-runs" / f"{run_id}.json"
+    try:
+        return request_file_path(output_root, "experiment-runs", run_id, label="run id")
+    except ValueError as error:
+        raise SkipRun(str(error)) from error
 
 
 def poll_once(services: WatchServices, *, dry_run: bool = False) -> None:

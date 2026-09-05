@@ -109,7 +109,7 @@ git clone https://github.com/ochanuco/comfyui-recipes.git
 uv venv --python <uv-managed 3.12 python.exe> .venv
 uv pip install --python .venv\Scripts\python.exe -e . pillow numpy opencv-python scipy pytest
 $env:PYTHONPATH = "scripts"; .\.venv\Scripts\pytest.exe -q
-.\scripts\worker\register-watch.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\worker\register-watch.ps1
 ```
 
 `register-watch.ps1` registers `scripts/worker/watch.ps1` as the per-user

@@ -3,7 +3,7 @@ $script = Join-Path $PSScriptRoot "watch.ps1"
 Stop-ScheduledTask -TaskName "comfyui-recipes-watch" -ErrorAction SilentlyContinue
 Get-CimInstance Win32_Process |
     Where-Object { $_.ProcessId -ne $PID -and
-        $_.CommandLine -match "comfy-recipes\.exe.* watch|[\\/]watch\.ps1" } |
+        $_.CommandLine -match "comfy-recipes\.exe.* work|[\\/]watch\.ps1" } |
     ForEach-Object { taskkill /PID $_.ProcessId /T /F 2>&1 | Out-Null }
 $action = New-ScheduledTaskAction -Execute "powershell.exe" `
     -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`""

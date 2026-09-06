@@ -41,6 +41,19 @@ class ComfyUIClient:
     def submit(self, graph: dict) -> str:
         return self.request("/prompt", {"prompt": graph})["prompt_id"]
 
+    def knows(self, prompt_id: str) -> bool:
+        try:
+            if self.request(f"/history/{prompt_id}").get(prompt_id):
+                return True
+            queue = self.request("/queue")
+            queued_ids = {
+                entry[1] for entry in
+                queue.get("queue_running", []) + queue.get("queue_pending", [])
+            }
+            return prompt_id in queued_ids
+        except urllib.error.URLError:
+            return True
+
     def wait_for(self, prompt_id: str) -> list[dict]:
         deadline = time.time() + self.poll_timeout
         while time.time() < deadline:

@@ -243,7 +243,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "apply_skin": False, "apply_recolor": False, "keep_legwear": None,
             "toe_guard": None, "size": None, "latent_route": None,
             "finalizer": None, "keep_scene": False, "transparent": None,
-            "backdrop": None,
+            "backdrop": None, "upscale": None,
         })
 
     def test_backdrop_null_passes_through(self):
@@ -256,6 +256,18 @@ class FinalizeArgumentsTest(unittest.TestCase):
     def test_backdrop_a_named_colour_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "backdrop"):
             finalize_arguments({"backdrop": "white"})
+
+    def test_upscale_null_passes_through(self):
+        self.assertIsNone(finalize_arguments({})["upscale"])
+
+    def test_upscale_a_known_method_passes_through(self):
+        self.assertEqual(
+            finalize_arguments({"upscale": "nearest-exact"})["upscale"],
+            "nearest-exact")
+
+    def test_upscale_an_unknown_method_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "upscale"):
+            finalize_arguments({"upscale": "mitchell"})
 
     def test_keep_legwear_true_becomes_default_cut(self):
         self.assertEqual(finalize_arguments({"keep_legwear": True})["keep_legwear"], 0.62)

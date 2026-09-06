@@ -186,6 +186,10 @@ def parser() -> argparse.ArgumentParser:
         choices=["bicubic", "nearest-exact", "bilinear", "lanczos"],
         help="pixel-route upscale method feeding the redraw, overriding the "
              "delivery's own bicubic default")
+    finalize_parser.add_argument(
+        "--lora-strength", type=float, metavar="STRENGTH",
+        help="strength the redraw's LoRA runs at, overriding the recipe's "
+             "own default")
 
     metadata_parser = commands.add_parser("metadata", help="manage generation metadata")
     metadata_commands = metadata_parser.add_subparsers(
@@ -325,7 +329,8 @@ def main(argv: list[str] | None = None) -> None:
                  finalizer=args.finalizer,
                  toe_guard=args.toe_guard,
                  backdrop=args.backdrop,
-                 upscale=args.upscale)
+                 upscale=args.upscale,
+                 lora_strength=args.lora_strength)
         return
 
     if args.metadata_command == "semantic":

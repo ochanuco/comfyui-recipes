@@ -46,7 +46,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              finalizer: str | None = None,
              key_prefix: str | None = None,
              backdrop: str | None = None,
-             upscale: str | None = None) -> dict:
+             upscale: str | None = None,
+             lora_strength: float | None = None) -> dict:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
@@ -63,6 +64,12 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     # sees it, so there is no birefnet matte and no separate delivery node.
     is_layerdiffuse = any(node.get("class_type") == "LayeredDiffusionApply"
                           for node in base.values())
+    if lora_strength is not None and not is_sketch:
+        raise SystemExit("lora_strength needs a recipe with a LoRA")
+    redraw_lora = None
+    if is_sketch and (is_layerdiffuse or lora_strength is not None):
+        strength = SKETCH_LORA[1] if lora_strength is None else lora_strength
+        redraw_lora = (SKETCH_LORA[0], strength, strength)
     if denoise is None:
         denoise = (sketch_delivery_style.FINALIZE_DENOISE if is_sketch
                    else anima_delivery_style.FINALIZE_DENOISE if is_anima
@@ -129,8 +136,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             compose=True,
             backdrop=backdrop,
             upscale=upscale or "bicubic",
-            redraw_lora=((SKETCH_LORA[0], SKETCH_LORA[1], SKETCH_LORA[1])
-                        if is_sketch else None))
+            redraw_lora=redraw_lora)
     else:
         graph = services.chain_pass(
             base, size, denoise, prefix,
@@ -148,7 +154,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             keep_scene=keep_scene,
             source_image=source_image,
             transparent=transparent,
-            upscale=upscale or "bicubic")
+            upscale=upscale or "bicubic",
+            redraw_lora=redraw_lora)
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
@@ -214,6 +221,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                        **({"compose": True} if is_layerdiffuse else {}),
                        **({"backdrop": backdrop} if backdrop else {}),
                        **({"upscale": upscale} if upscale else {}),
+                       **({"lora_strength": lora_strength}
+                          if lora_strength is not None else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,

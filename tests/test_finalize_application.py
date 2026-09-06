@@ -9,6 +9,7 @@ image) and how it classifies the three outputs, not any local pixel work.
 
 from __future__ import annotations
 
+import copy
 import tempfile
 import unittest
 from pathlib import Path
@@ -509,6 +510,43 @@ class FinalizeApplicationTest(unittest.TestCase):
             parameters = batch_call(services)[2]["parameters"]
             self.assertNotIn("upscale", parameters)
 
+    def test_lora_strength_adds_a_redraw_lora_and_leaves_the_base_alone(self):
+        with tempfile.TemporaryDirectory() as directory:
+            captured = {}
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                captured["base"] = base
+                captured["redraw_lora"] = kwargs.get("redraw_lora")
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: copy.deepcopy(SKETCH_GRAPH))
+            finalize("gen-id", services, lora_strength=1.4)
+            self.assertEqual(captured["base"]["2"]["inputs"], {})
+            self.assertEqual(captured["redraw_lora"][1:], (1.4, 1.4))
+
+    def test_lora_strength_without_a_lora_loader_raises(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory, graph_from_png=lambda data: GRAPH)
+            with self.assertRaises(SystemExit):
+                finalize("gen-id", services, lora_strength=1.0)
+
+    def test_batch_parameters_record_lora_strength_when_given(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, graph_from_png=lambda data: copy.deepcopy(SKETCH_GRAPH))
+            finalize("gen-id", services, lora_strength=1.4)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["lora_strength"], 1.4)
+
+    def test_batch_parameters_omit_lora_strength_when_not_given(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertNotIn("lora_strength", parameters)
+
 
 class FinalizeLayerDiffuseTest(unittest.TestCase):
     def test_composes_instead_of_delivering(self):
@@ -564,6 +602,21 @@ class FinalizeLayerDiffuseTest(unittest.TestCase):
             finalize("gen-id", services)
             parameters = batch_call(services)[2]["parameters"]
             self.assertNotIn("backdrop", parameters)
+
+    def test_lora_strength_overrides_redraw_lora_strength(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services, lora_strength=0.9)
+            lora_name, _ = SKETCH_LORA
+            self.assertEqual(calls[-1]["redraw_lora"], (lora_name, 0.9, 0.9))
 
 
 if __name__ == "__main__":

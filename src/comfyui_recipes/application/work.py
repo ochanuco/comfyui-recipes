@@ -24,7 +24,7 @@ DRY_RUN_PATH = "/api/v1/requests?status=queued&limit=1"
 _KNOWN_FINALIZE_OPTIONS = frozenset({
     "denoise", "repin", "recolor", "keep_legwear", "route", "finalizer",
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
-    "backdrop", "upscale",
+    "backdrop", "upscale", "lora_strength",
 })
 
 
@@ -329,6 +329,14 @@ def finalize_arguments(options: Mapping) -> dict:
             "upscale must be null, 'bicubic', 'nearest-exact', 'bilinear' or "
             f"'lanczos', got {upscale!r}")
 
+    lora_strength = options.get("lora_strength")
+    if lora_strength is not None and not (
+            isinstance(lora_strength, (int, float)) and not isinstance(lora_strength, bool)):
+        raise ValueError(
+            f"lora_strength must be null or a number, got {type(lora_strength).__name__}")
+    if lora_strength is not None and not (0 <= lora_strength <= 2):
+        raise ValueError(f"lora_strength must be between 0 and 2, got {lora_strength!r}")
+
     return {
         "denoise": float(denoise) if denoise is not None else None,
         "handdrawn": boolean("handdrawn"),
@@ -344,6 +352,7 @@ def finalize_arguments(options: Mapping) -> dict:
         "transparent": transparent,
         "backdrop": backdrop,
         "upscale": upscale,
+        "lora_strength": float(lora_strength) if lora_strength is not None else None,
     }
 
 

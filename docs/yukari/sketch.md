@@ -123,6 +123,10 @@ upscale and redraw run on, and the redraw carries the recipe's own LoRA into
 its model and CLIP -- no birefnet matte, no `YukariDeliver`. The `backdrop`
 request option (`--backdrop` on the CLI, a `#RRGGBB` hex colour) overrides
 the composite's backdrop colour; unset, it is the delivery's own default.
+The `upscale` request option (`--upscale` on the CLI: `bicubic`,
+`nearest-exact`, `bilinear` or `lanczos`) selects the pixel-route
+`ImageScale` node's `upscale_method` feeding that redraw; unset, it stays
+`bicubic`.
 
 ## Requesting it
 

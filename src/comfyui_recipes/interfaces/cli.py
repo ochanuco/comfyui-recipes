@@ -181,6 +181,11 @@ def parser() -> argparse.ArgumentParser:
         "--backdrop", metavar="#RRGGBB",
         help="backdrop colour for a layerdiffuse base's compose step, "
              "overriding the delivery's own default")
+    finalize_parser.add_argument(
+        "--upscale",
+        choices=["bicubic", "nearest-exact", "bilinear", "lanczos"],
+        help="pixel-route upscale method feeding the redraw, overriding the "
+             "delivery's own bicubic default")
 
     metadata_parser = commands.add_parser("metadata", help="manage generation metadata")
     metadata_commands = metadata_parser.add_subparsers(
@@ -319,7 +324,8 @@ def main(argv: list[str] | None = None) -> None:
                  latent_route=args.latent_route,
                  finalizer=args.finalizer,
                  toe_guard=args.toe_guard,
-                 backdrop=args.backdrop)
+                 backdrop=args.backdrop,
+                 upscale=args.upscale)
         return
 
     if args.metadata_command == "semantic":

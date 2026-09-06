@@ -7,6 +7,7 @@ file's own path rather than relying on the working directory.
 
 from __future__ import annotations
 
+import io
 import sys
 import unittest
 from pathlib import Path
@@ -104,11 +105,24 @@ class BridgeTest(unittest.TestCase):
             back = bridge.png_to_image(data, "RGBA")
         self.assertEqual(back.array.shape, (1, 64, 64, 4))
 
+    def test_image_to_png_round_trips_a_four_channel_tensor_as_rgba(self):
+        pixels = swatch()
+        alpha = matte_array()
+        rgba = np.dstack([pixels, alpha])
+        with mock.patch.dict(sys.modules, {"torch": FakeTorch()}):
+            data = bridge.image_to_png(image_tensor(rgba))
+            back = bridge.png_to_image(data, "RGBA")
+        self.assertEqual(Image.open(io.BytesIO(data)).mode, "RGBA")
+        self.assertEqual(back.array.shape, (1, 64, 64, 4))
+        np.testing.assert_allclose(
+            (back.array[0] * 255.0).round(), rgba, atol=1)
+
 
 class NodeMappingTest(unittest.TestCase):
-    def test_node_class_mappings_cover_the_four_nodes(self):
+    def test_node_class_mappings_cover_the_five_nodes(self):
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS), {
             "YukariRepinSkin", "YukariRepin", "YukariRecolor", "YukariDeliver",
+            "YukariCompose",
         })
         self.assertEqual(
             set(nodes.NODE_DISPLAY_NAME_MAPPINGS),
@@ -189,6 +203,15 @@ class NodeRunTest(unittest.TestCase):
             image_tensor(swatch()), mask_tensor(matte_array()), keep_scene=False)
         self.assertEqual(image.array.shape[-1], 3)
         self.assertTrue(tag.startswith("clean-"))
+
+    def test_compose_wiring_returns_a_three_channel_image_and_the_tag(self):
+        node = nodes.YukariCompose()
+        pixels = swatch()
+        alpha = matte_array()
+        rgba = np.dstack([pixels, alpha])
+        image, tag = node.run(image_tensor(rgba))
+        self.assertEqual(image.array.shape, (1, 64, 64, 3))
+        self.assertTrue(tag.startswith("compose-"))
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ from ..domain.yukari.recipe import refinement_prompt
 from ..domain.yukari_anima import delivery_style as anima_delivery_style
 from ..domain.yukari_anima.recipe import refinement_prompt as anima_refinement_prompt
 from ..domain.yukari_sketch import delivery_style as sketch_delivery_style
+from ..domain.yukari_sketch.prompt_style import LORA as SKETCH_LORA
 from ..domain.yukari_sketch.recipe import refinement_prompt as sketch_refinement_prompt
 from ..infrastructure.comfyui.refinement_graph import DELIVERED_SUFFIX, MATTE_SUFFIX
 
@@ -43,7 +44,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              toe_guard: float | None = None,
              size: int | None = None, latent_route: bool | None = None,
              finalizer: str | None = None,
-             key_prefix: str | None = None) -> dict:
+             key_prefix: str | None = None,
+             backdrop: str | None = None) -> dict:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
@@ -55,6 +57,11 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                     for node in base.values())
     is_anima = (not is_sketch) and any(
         node.get("class_type") == "UNETLoader" for node in base.values())
+    # A base with its own layerdiffuse alpha finalizes as compose-then-redraw:
+    # the RGBA composites onto the sticker backdrop before the redraw ever
+    # sees it, so there is no birefnet matte and no separate delivery node.
+    is_layerdiffuse = any(node.get("class_type") == "LayeredDiffusionApply"
+                          for node in base.values())
     if denoise is None:
         denoise = (sketch_delivery_style.FINALIZE_DENOISE if is_sketch
                    else anima_delivery_style.FINALIZE_DENOISE if is_anima
@@ -68,6 +75,12 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     if transparent is None:
         transparent = is_sketch and sketch_delivery_style.FINALIZE_TRANSPARENT
     if keep_scene:
+        transparent = False
+    if is_layerdiffuse:
+        # The RGBA composites straight onto the sticker backdrop, so there is
+        # no staircase for the latent route to leave and no cutout left for
+        # the delivery node to make.
+        latent_route = False
         transparent = False
     seed = base["3"]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"
@@ -92,55 +105,84 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         sampler = delivery_style.FINALIZE_SAMPLER
         loader = finalizer
         sampling = None
-    # Recolor wins over repin, same rule the redraw graph applies.
-    recolor_applied = apply_recolor
-    repin_applied = apply_repin and not apply_recolor
-    skin_applied = apply_skin
+    # Recolor wins over repin, same rule the redraw graph applies. None of
+    # the three apply to a layerdiffuse base -- there is no matte for them
+    # to run against.
+    recolor_applied = apply_recolor and not is_layerdiffuse
+    repin_applied = apply_repin and not apply_recolor and not is_layerdiffuse
+    skin_applied = apply_skin and not is_layerdiffuse
     source_image = None
     if skin_applied:
         source_image = services.comfyui.upload_image(
             f"{prefix}-source.png", picked)
-    graph = services.chain_pass(
-        base, size, denoise, prefix,
-        prompt=(prompt.positive, prompt.negative),
-        matte_model=delivery_style.MATTE_MODEL,
-        latent_route=latent_route,
-        sampler=sampler,
-        loader=loader,
-        sampling=sampling,
-        deliver=True,
-        skin=skin_applied,
-        repin=repin_applied,
-        recolor=recolor_applied,
-        keep_legwear=keep_legwear,
-        keep_scene=keep_scene,
-        source_image=source_image,
-        transparent=transparent)
+    if is_layerdiffuse:
+        graph = services.chain_pass(
+            base, size, denoise, prefix,
+            prompt=(prompt.positive, prompt.negative),
+            matte_model=None,
+            latent_route=latent_route,
+            sampler=sampler,
+            loader=loader,
+            sampling=sampling,
+            deliver=False,
+            compose=True,
+            backdrop=backdrop,
+            redraw_lora=((SKETCH_LORA[0], SKETCH_LORA[1], SKETCH_LORA[1])
+                        if is_sketch else None))
+    else:
+        graph = services.chain_pass(
+            base, size, denoise, prefix,
+            prompt=(prompt.positive, prompt.negative),
+            matte_model=delivery_style.MATTE_MODEL,
+            latent_route=latent_route,
+            sampler=sampler,
+            loader=loader,
+            sampling=sampling,
+            deliver=True,
+            skin=skin_applied,
+            repin=repin_applied,
+            recolor=recolor_applied,
+            keep_legwear=keep_legwear,
+            keep_scene=keep_scene,
+            source_image=source_image,
+            transparent=transparent)
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
-    mattes = [out for out in outputs if MATTE_SUFFIX in out["filename"]]
-    delivereds = [out for out in outputs if DELIVERED_SUFFIX in out["filename"]]
-    pictures = [out for out in outputs
-                if MATTE_SUFFIX not in out["filename"]
-                and DELIVERED_SUFFIX not in out["filename"]]
-    missing = [name for name, outs in
-               (("raw", pictures), ("matte", mattes), ("delivered", delivereds))
-               if not outs]
-    if missing:
-        raise SystemExit(
-            f"{prefix} is missing its {', '.join(missing)} output(s); one of "
-            "each is required")
-    image = pictures[-1]
-    raw = services.comfyui.fetch(image)
-    matte_name = mattes[-1]["filename"]
-    matte = services.comfyui.fetch(mattes[-1])
-    delivered_name = delivereds[-1]["filename"]
-    delivered = services.comfyui.fetch(delivereds[-1])
+    if is_layerdiffuse:
+        # Compose-then-redraw is one SaveImage, already the finished picture:
+        # no birefnet pass ran, so there is no separate matte or delivered
+        # output to classify.
+        if not outputs:
+            raise SystemExit(f"{prefix} produced no output; one is required")
+        image = outputs[-1]
+        raw = services.comfyui.fetch(image)
+        matte_name = matte = None
+        delivered_name, delivered = image["filename"], raw
+    else:
+        mattes = [out for out in outputs if MATTE_SUFFIX in out["filename"]]
+        delivereds = [out for out in outputs if DELIVERED_SUFFIX in out["filename"]]
+        pictures = [out for out in outputs
+                    if MATTE_SUFFIX not in out["filename"]
+                    and DELIVERED_SUFFIX not in out["filename"]]
+        missing = [name for name, outs in
+                   (("raw", pictures), ("matte", mattes), ("delivered", delivereds))
+                   if not outs]
+        if missing:
+            raise SystemExit(
+                f"{prefix} is missing its {', '.join(missing)} output(s); one of "
+                "each is required")
+        image = pictures[-1]
+        raw = services.comfyui.fetch(image)
+        matte_name = mattes[-1]["filename"]
+        matte = services.comfyui.fetch(mattes[-1])
+        delivered_name = delivereds[-1]["filename"]
+        delivered = services.comfyui.fetch(delivereds[-1])
     services.output_root.mkdir(parents=True, exist_ok=True)
     (services.output_root / image["filename"]).write_bytes(raw)
-    (services.output_root / matte_name).write_bytes(matte)
-    (services.output_root / delivered_name).write_bytes(delivered)
+    if not is_layerdiffuse:
+        (services.output_root / matte_name).write_bytes(matte)
+        (services.output_root / delivered_name).write_bytes(delivered)
     if services.measure is not None:
         summary = services.measure(delivered)
         status = "FAIL" if summary["fails"] else "pass"
@@ -166,6 +208,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                           if keep_legwear is not None else {}),
                        **({"keep_scene": True} if keep_scene else {}),
                        **({"transparent": True} if transparent else {}),
+                       **({"compose": True} if is_layerdiffuse else {}),
+                       **({"backdrop": backdrop} if backdrop else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,
@@ -183,9 +227,10 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         {"status": "queued", "comfy_prompt_id": prompt_id, "graph": graph})
     services.management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "completed"})
+    uploads = ([(image["filename"], raw)] if is_layerdiffuse
+              else [(image["filename"], raw), (delivered_name, delivered)])
     ids, urls = [], []
-    for index, (name, data) in enumerate(
-            [(image["filename"], raw), (delivered_name, delivered)]):
+    for index, (name, data) in enumerate(uploads):
         rendered = services.management.request(
             "POST", f"/api/v1/jobs/{job['id']}/generations",
             multipart=({"seed": seed, "original_filename": name,
@@ -194,13 +239,14 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         ids.append(rendered["id"])
         urls.append(rendered["canonical_url"])
         services.emit(f"{name} -> {rendered['canonical_url']}")
-    # The matte is the silhouette of the raw redraw, not of the delivered
-    # composite, so it hangs off generation 0. Storing it is what lets the
-    # cutout be redone later without re-running the 2048 pass.
-    services.management.request(
-        "POST", f"/api/v1/generations/{ids[0]}/assets",
-        multipart=({"role": "mask"}, "file", matte_name, matte, "image/png"))
-    services.emit(f"{matte_name} -> mask on {ids[0]}")
+    if not is_layerdiffuse:
+        # The matte is the silhouette of the raw redraw, not of the delivered
+        # composite, so it hangs off generation 0. Storing it is what lets the
+        # cutout be redone later without re-running the 2048 pass.
+        services.management.request(
+            "POST", f"/api/v1/generations/{ids[0]}/assets",
+            multipart=({"role": "mask"}, "file", matte_name, matte, "image/png"))
+        services.emit(f"{matte_name} -> mask on {ids[0]}")
     services.management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
     services.management.request(
@@ -208,6 +254,6 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     services.notifier.send(
         f"**finalize** `{generation_id}`\n"
         f"**file** `{delivered_name}`\n"
-        f"**chimera** {urls[1]}", delivered_name, delivered)
+        f"**chimera** {urls[-1]}", delivered_name, delivered)
     services.emit(f"batch {batch.get('short_id', batch['id'])} done")
     return {"batch_id": batch["id"], "generation_ids": ids}

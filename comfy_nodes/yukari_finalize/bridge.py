@@ -24,9 +24,14 @@ def png_to_array(data: bytes, mode: str) -> np.ndarray:
 
 
 def image_to_png(tensor) -> bytes:
-    """First batch item of an IMAGE tensor ([B, H, W, 3] float32 0..1) as RGB."""
+    """First batch item of an IMAGE tensor ([B, H, W, C] float32 0..1).
+
+    RGB for 3 channels, RGBA for 4 -- a layerdiffuse compose's own alpha
+    rides through this same tensor shape.
+    """
     array = np.clip(tensor[0].cpu().numpy() * 255.0, 0, 255).astype(np.uint8)
-    return array_to_png(array, "RGB")
+    mode = "RGBA" if array.shape[-1] == 4 else "RGB"
+    return array_to_png(array, mode)
 
 
 def png_to_image(data: bytes, mode: str = "RGB"):

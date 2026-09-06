@@ -45,7 +45,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              size: int | None = None, latent_route: bool | None = None,
              finalizer: str | None = None,
              key_prefix: str | None = None,
-             backdrop: str | None = None) -> dict:
+             backdrop: str | None = None,
+             upscale: str | None = None) -> dict:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
@@ -127,6 +128,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             deliver=False,
             compose=True,
             backdrop=backdrop,
+            upscale=upscale or "bicubic",
             redraw_lora=((SKETCH_LORA[0], SKETCH_LORA[1], SKETCH_LORA[1])
                         if is_sketch else None))
     else:
@@ -145,7 +147,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             keep_legwear=keep_legwear,
             keep_scene=keep_scene,
             source_image=source_image,
-            transparent=transparent)
+            transparent=transparent,
+            upscale=upscale or "bicubic")
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
@@ -210,6 +213,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                        **({"transparent": True} if transparent else {}),
                        **({"compose": True} if is_layerdiffuse else {}),
                        **({"backdrop": backdrop} if backdrop else {}),
+                       **({"upscale": upscale} if upscale else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,

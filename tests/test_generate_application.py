@@ -58,6 +58,9 @@ class ComfyFake:
         self.submits.append(graph)
         return "prompt-id"
 
+    def knows(self, prompt_id):
+        return True
+
     def wait_for(self, prompt_id):
         self.waits.append(prompt_id)
         return []
@@ -452,6 +455,49 @@ class GenerateApplicationTest(unittest.TestCase):
             self.assertFalse(any(call[0] == "POST" and call[1].endswith("/generations")
                                  for call in management.calls))
             self.assertEqual(state.state["jobs"][0]["status"], "ingested")
+
+    def test_generate_resume_unknown_prompt_resubmits(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            comfy.knows = lambda prompt_id: False
+            state = StateFake({
+                "idempotency_key": "fixed-key", "seeds": [42],
+                "jobs": [{"idempotency_key": "job-key", "job_id": "job-id",
+                          "comfy_prompt_id": "old-prompt", "status": "failed"}],
+            })
+            services = GenerateServices(
+                management, comfy, state, RecordingNotifier(),
+                lambda generation, seed, prefix: {"6": {"inputs": {"text": "x"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None)
+            generate(path, services)
+            self.assertEqual(len(comfy.submits), 1)
+            self.assertEqual(comfy.waits, ["prompt-id"])
+            self.assertEqual(state.state["jobs"][0]["comfy_prompt_id"], "prompt-id")
+
+    def test_generate_resume_known_prompt_does_not_resubmit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            state = StateFake({
+                "idempotency_key": "fixed-key", "seeds": [42],
+                "jobs": [{"idempotency_key": "job-key", "job_id": "job-id",
+                          "comfy_prompt_id": "old-prompt", "status": "failed"}],
+            })
+            services = GenerateServices(
+                management, comfy, state, RecordingNotifier(),
+                lambda generation, seed, prefix: {"6": {"inputs": {"text": "x"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None)
+            generate(path, services)
+            self.assertEqual(comfy.submits, [])
+            self.assertEqual(comfy.waits, ["old-prompt"])
+            self.assertEqual(state.state["jobs"][0]["comfy_prompt_id"], "old-prompt")
 
     def test_generate_reuses_output_idempotency_key(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -30,6 +30,8 @@ class Management(Protocol):
 class ComfyUI(Protocol):
     def submit(self, graph: dict) -> str: ...
 
+    def knows(self, prompt_id: str) -> bool: ...
+
     def wait_for(self, prompt_id: str) -> list[dict]: ...
 
     def fetch(self, image: dict) -> bytes: ...
@@ -481,6 +483,16 @@ def generate(request_path: Path, services: GenerateServices, *,
                 )
                 job["job_id"] = created["id"]
                 services.state.save(state_path, state)
+            if "comfy_prompt_id" in job:
+                if services.comfyui.knows(job["comfy_prompt_id"]):
+                    services.emit(
+                        f"  job {index}: waiting on comfy job "
+                        f"{job['comfy_prompt_id']}")
+                else:
+                    services.emit(
+                        f"  job {index}: comfy job {job['comfy_prompt_id']} "
+                        f"is unknown to ComfyUI, resubmitting")
+                    del job["comfy_prompt_id"]
             if "comfy_prompt_id" not in job:
                 graph = services.graph_builder(
                     generation, seed, f"chimera-{short}-{index}")

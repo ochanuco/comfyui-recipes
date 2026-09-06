@@ -471,6 +471,44 @@ class FinalizeApplicationTest(unittest.TestCase):
             self.assertEqual(posts["/api/v1/batches/batch-id/jobs"]["idempotency_key"],
                              "request:r1:job:0")
 
+    def test_upscale_defaults_to_bicubic_and_reaches_chain_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            self.assertEqual(calls[-1]["upscale"], "bicubic")
+
+    def test_upscale_override_reaches_chain_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, upscale="nearest-exact")
+            self.assertEqual(calls[-1]["upscale"], "nearest-exact")
+
+    def test_batch_parameters_record_upscale_when_given(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services, upscale="nearest-exact")
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["upscale"], "nearest-exact")
+
+    def test_batch_parameters_omit_upscale_when_not_given(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertNotIn("upscale", parameters)
+
 
 class FinalizeLayerDiffuseTest(unittest.TestCase):
     def test_composes_instead_of_delivering(self):
@@ -493,6 +531,20 @@ class FinalizeLayerDiffuseTest(unittest.TestCase):
             self.assertEqual(kwargs["backdrop"], "#112233")
             lora_name, weight = SKETCH_LORA
             self.assertEqual(kwargs["redraw_lora"], (lora_name, weight, weight))
+
+    def test_upscale_override_reaches_the_compose_chain_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services, upscale="nearest-exact")
+            self.assertEqual(calls[-1]["upscale"], "nearest-exact")
 
     def test_batch_parameters_record_compose_and_backdrop(self):
         with tempfile.TemporaryDirectory() as directory:

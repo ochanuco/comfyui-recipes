@@ -20,7 +20,9 @@ yukari-only, and `expression` is anima-only -- `yukari-anima` and
 and `yukari-sketch` rejects `expression` too (it has no expression records).
 A `semantic.summary` is required so each render has evaluation context
 before it is ingested. State is kept beside the request as
-`<request>.state.json`; retain it to resume safely after a crash.
+`<request>.state.json`; retain it to resume safely after a crash. A recorded
+`comfy_prompt_id` that ComfyUI no longer knows about is resubmitted rather
+than waited on.
 
 The ComfyUI server may be local or remote. Set `COMFYUI_HOST` and optionally
 `COMFYUI_PORT`; inputs and outputs are transferred through the server API when

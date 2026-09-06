@@ -39,6 +39,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              apply_recolor: bool = False,
              keep_legwear: float | None = None,
              keep_scene: bool = False,
+             transparent: bool | None = None,
              toe_guard: float | None = None,
              size: int | None = None, latent_route: bool | None = None,
              finalizer: str | None = None,
@@ -64,6 +65,10 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                 else FINALIZE_SIZE)
     if latent_route is None:
         latent_route = is_sketch and sketch_delivery_style.FINALIZE_LATENT_ROUTE
+    if transparent is None:
+        transparent = is_sketch and sketch_delivery_style.FINALIZE_TRANSPARENT
+    if keep_scene:
+        transparent = False
     seed = base["3"]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"
     base_prompt = PromptPair(
@@ -109,7 +114,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         recolor=recolor_applied,
         keep_legwear=keep_legwear,
         keep_scene=keep_scene,
-        source_image=source_image)
+        source_image=source_image,
+        transparent=transparent)
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
@@ -159,6 +165,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                        **({"keep_legwear": keep_legwear}
                           if keep_legwear is not None else {}),
                        **({"keep_scene": True} if keep_scene else {}),
+                       **({"transparent": True} if transparent else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,

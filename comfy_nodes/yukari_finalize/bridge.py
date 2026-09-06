@@ -29,10 +29,10 @@ def image_to_png(tensor) -> bytes:
     return array_to_png(array, "RGB")
 
 
-def png_to_image(data: bytes):
-    """An RGB PNG as a [1, H, W, 3] float32 0..1 IMAGE tensor."""
+def png_to_image(data: bytes, mode: str = "RGB"):
+    """A PNG as a [1, H, W, C] float32 0..1 IMAGE tensor; mode="RGBA" for 4 channels."""
     import torch
-    array = png_to_array(data, "RGB").astype(np.float32) / 255.0
+    array = png_to_array(data, mode).astype(np.float32) / 255.0
     return torch.from_numpy(array)[None, ...]
 
 

@@ -185,9 +185,11 @@ def transparent(data: bytes, matte: bytes) -> tuple[bytes, str]:
     """Cut the figure out onto a transparent background, unstroked.
 
     The refined matte is the authority on the silhouette, same as
-    `clean_background`: it gets a sub-pixel ramp of its own so the strands
-    it retraced keep their coverage, and the soft birefnet matte only adds
-    coverage inside the 1-px ring around it.
+    `clean_background`, but clamped to the soft birefnet matte's support:
+    the colour retrace on its own claims the backdrop's shading as figure
+    and cuts holes in the figure's light passages. It gets a sub-pixel ramp
+    of its own so the strands it retraced keep their coverage, and the soft
+    matte only adds coverage inside the 1-px ring around it.
     """
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(np.uint8)
     soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
@@ -196,6 +198,8 @@ def transparent(data: bytes, matte: bytes) -> tuple[bytes, str]:
         px.astype(float), soft > 127,
         int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100),
         delivery_style.MATTE_EDGE_TOLERANCE)
+    figure = ((figure & (soft > delivery_style.MATTE_SOFT_SUPPORT))
+              | (soft > delivery_style.MATTE_SOFT_CERTAIN))
 
     halo = ndimage.binary_dilation(figure, iterations=1)
     ramp = ndimage.gaussian_filter(figure.astype(float), 0.6)

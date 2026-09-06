@@ -177,6 +177,10 @@ def parser() -> argparse.ArgumentParser:
         metavar="COL_CUT",
         help="keep the asserted legwear verbatim through repin; the value is "
              "the width share the legs stay left of (default 0.62)")
+    finalize_parser.add_argument(
+        "--backdrop", metavar="#RRGGBB",
+        help="backdrop colour for a layerdiffuse base's compose step, "
+             "overriding the delivery's own default")
 
     metadata_parser = commands.add_parser("metadata", help="manage generation metadata")
     metadata_commands = metadata_parser.add_subparsers(
@@ -314,7 +318,8 @@ def main(argv: list[str] | None = None) -> None:
                  size=args.size,
                  latent_route=args.latent_route,
                  finalizer=args.finalizer,
-                 toe_guard=args.toe_guard)
+                 toe_guard=args.toe_guard,
+                 backdrop=args.backdrop)
         return
 
     if args.metadata_command == "semantic":

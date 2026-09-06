@@ -243,7 +243,19 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "apply_skin": False, "apply_recolor": False, "keep_legwear": None,
             "toe_guard": None, "size": None, "latent_route": None,
             "finalizer": None, "keep_scene": False, "transparent": None,
+            "backdrop": None,
         })
+
+    def test_backdrop_null_passes_through(self):
+        self.assertIsNone(finalize_arguments({})["backdrop"])
+
+    def test_backdrop_hex_colour_passes_through(self):
+        self.assertEqual(
+            finalize_arguments({"backdrop": "#ffffff"})["backdrop"], "#ffffff")
+
+    def test_backdrop_a_named_colour_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "backdrop"):
+            finalize_arguments({"backdrop": "white"})
 
     def test_keep_legwear_true_becomes_default_cut(self):
         self.assertEqual(finalize_arguments({"keep_legwear": True})["keep_legwear"], 0.62)

@@ -75,10 +75,14 @@ def build_graph(spec: RenderSpec) -> dict[str, dict]:
         for ksampler_id in ("3", "11"):
             if ksampler_id in graph:
                 graph[ksampler_id]["inputs"]["model"] = ["12", 0]
-        graph["13"] = {"class_type": "LayeredDiffusionDecodeRGBA", "inputs": {
+        graph["13"] = {"class_type": "LayeredDiffusionDecode", "inputs": {
             "samples": graph["8"]["inputs"]["samples"], "images": ["8", 0],
             "sd_version": "SDXL", "sub_batch_size": 16}}
-        graph["9"]["inputs"]["images"] = ["13", 0]
+        graph["14"] = {"class_type": "InvertMask", "inputs": {
+            "mask": ["13", 1]}}
+        graph["15"] = {"class_type": "JoinImageWithAlpha", "inputs": {
+            "image": ["13", 0], "alpha": ["14", 0]}}
+        graph["9"]["inputs"]["images"] = ["15", 0]
     return graph
 
 

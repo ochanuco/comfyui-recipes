@@ -177,12 +177,17 @@ class LayerDiffuseGraphTest(unittest.TestCase):
         self.assertEqual(apply_node["inputs"]["weight"], 1.0)
         self.assertEqual(graph["3"]["inputs"]["model"], ["12", 0])
         decode_node = graph["13"]
-        self.assertEqual(decode_node["class_type"], "LayeredDiffusionDecodeRGBA")
+        self.assertEqual(decode_node["class_type"], "LayeredDiffusionDecode")
         self.assertEqual(decode_node["inputs"]["samples"], ["3", 0])
         self.assertEqual(decode_node["inputs"]["images"], ["8", 0])
         self.assertEqual(decode_node["inputs"]["sd_version"], "SDXL")
         self.assertEqual(decode_node["inputs"]["sub_batch_size"], 16)
-        self.assertEqual(graph["9"]["inputs"]["images"], ["13", 0])
+        self.assertEqual(graph["14"], {"class_type": "InvertMask",
+                                       "inputs": {"mask": ["13", 1]}})
+        self.assertEqual(graph["15"], {"class_type": "JoinImageWithAlpha",
+                                       "inputs": {"image": ["13", 0],
+                                                  "alpha": ["14", 0]}})
+        self.assertEqual(graph["9"]["inputs"]["images"], ["15", 0])
         self.assertEqual(graph["8"]["class_type"], "VAEDecode")
 
     def test_layerdiffuse_rejects_a_canvas_not_a_multiple_of_64(self):
@@ -202,7 +207,7 @@ class LayerDiffuseGraphTest(unittest.TestCase):
             prompt=(spec.prompts.positive, spec.prompts.negative),
             matte_model=None, latent_route=True,
             sampler=ds.FINALIZE_SAMPLER, loader=None, sampling=None)
-        redraw_ids = [key for key in out if key.isdecimal() and int(key) > 13
+        redraw_ids = [key for key in out if key.isdecimal() and int(key) > 15
                      and out[key].get("class_type") == "VAEDecode"]
         self.assertEqual(len(redraw_ids), 1)
         self.assertEqual(out[redraw_ids[0]]["inputs"]["vae"], ["4", 2])

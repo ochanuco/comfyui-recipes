@@ -162,6 +162,15 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument(
         "--keep-scene", action="store_true",
         help="deliver the redraw uncut, background and all")
+    transparent_group = finalize_parser.add_mutually_exclusive_group()
+    transparent_group.add_argument(
+        "--transparent", dest="transparent", action="store_const",
+        const=True, default=None,
+        help="deliver the figure alone as an RGBA cutout (yukari-sketch's "
+             "default)")
+    transparent_group.add_argument(
+        "--opaque", dest="transparent", action="store_const", const=False,
+        help="composite on the backdrop with the purple stroke instead")
     finalize_parser.add_argument("--recolor", action="store_true")
     finalize_parser.add_argument(
         "--keep-legwear", nargs="?", const=0.62, type=float, default=None,
@@ -301,6 +310,7 @@ def main(argv: list[str] | None = None) -> None:
                  apply_recolor=args.recolor,
                  keep_legwear=args.keep_legwear,
                  keep_scene=args.keep_scene,
+                 transparent=args.transparent,
                  size=args.size,
                  latent_route=args.latent_route,
                  finalizer=args.finalizer,

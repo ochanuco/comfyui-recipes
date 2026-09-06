@@ -17,6 +17,7 @@ from comfyui_recipes.application.finalize import FinalizeServices, finalize
 from comfyui_recipes.domain.yukari import delivery_style
 from comfyui_recipes.domain.yukari_anima import delivery_style as anima_delivery_style
 from comfyui_recipes.domain.yukari_anima.recipe import render_spec
+from comfyui_recipes.domain.yukari_sketch import delivery_style as sketch_delivery_style
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 
@@ -28,6 +29,11 @@ ANIMA_GRAPH = {"1": {"class_type": "UNETLoader", "inputs": {}},
               "3": {"inputs": {"seed": 1}},
               "6": {"inputs": {"text": "p"}},
               "7": {"inputs": {"text": "n"}}}
+
+SKETCH_GRAPH = {"2": {"class_type": "LoraLoader", "inputs": {}},
+                "3": {"inputs": {"seed": 1}},
+                "6": {"inputs": {"text": "p"}},
+                "7": {"inputs": {"text": "n"}}}
 
 
 class ManagementFake:
@@ -243,6 +249,66 @@ class FinalizeApplicationTest(unittest.TestCase):
             services = base_services(directory)
             finalize("gen-id", services)
             self.assertNotIn("keep_scene", batch_call(services)[2]["parameters"])
+
+    def test_sketch_base_defaults_transparent_true(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            finalize("gen-id", services)
+            self.assertIs(calls[-1]["transparent"], sketch_delivery_style.FINALIZE_TRANSPARENT)
+            self.assertIs(batch_call(services)[2]["parameters"]["transparent"],
+                         sketch_delivery_style.FINALIZE_TRANSPARENT)
+
+    def test_non_sketch_base_defaults_transparent_false_and_omits_parameter(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: GRAPH)
+            finalize("gen-id", services)
+            self.assertIs(calls[-1]["transparent"], False)
+            self.assertNotIn("transparent", batch_call(services)[2]["parameters"])
+
+    def test_keep_scene_forces_transparent_false_on_a_sketch_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            finalize("gen-id", services, keep_scene=True)
+            self.assertIs(calls[-1]["transparent"], False)
+
+    def test_explicit_transparent_false_on_a_sketch_base_is_honored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            finalize("gen-id", services, transparent=False)
+            self.assertIs(calls[-1]["transparent"], False)
+            self.assertNotIn("transparent", batch_call(services)[2]["parameters"])
 
     def test_repin_and_skin_default_off_and_sampler_passed_to_chain_pass(self):
         with tempfile.TemporaryDirectory() as directory:

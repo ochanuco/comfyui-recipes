@@ -8,3 +8,5 @@ FINALIZE_SAMPLER = ("euler", "normal")
 # The latent route leaves a staircase on hard contours that the redraw turns
 # into visible stroke -- the sketch look this recipe delivers for.
 FINALIZE_LATENT_ROUTE = True
+# Deliverables are cutouts; the flat-backdrop composite's binary edge aliases.
+FINALIZE_TRANSPARENT = True

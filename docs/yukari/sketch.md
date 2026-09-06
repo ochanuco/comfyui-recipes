@@ -91,11 +91,18 @@ is exactly the pre-existing `yukari` shape.
 ## Finalize defaults
 
 `delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.55`,
-`FINALIZE_SAMPLER = ("euler", "normal")`, `FINALIZE_LATENT_ROUTE = True`.
+`FINALIZE_SAMPLER = ("euler", "normal")`, `FINALIZE_LATENT_ROUTE = True`,
+`FINALIZE_TRANSPARENT = True`.
 `application/finalize.py` detects a sketch base by a `LoraLoader` node in
 the base graph (checked before the anima check -- a base graph carries at
 most one of the two) and picks these constants over yukari's and anima's
 own. `--denoise`/`--size` still override either way.
+
+The delivered generation (gen 1) is an RGBA cutout by default: the refined
+birefnet matte decides the silhouette, the soft matte only ramps the 1-px
+edge, and there is no backdrop or stroke. `--opaque` (or request option
+`"transparent": false`) restores the framed composite instead; `--keep-scene`
+wins over both and delivers the redraw uncut.
 
 The redraw reuses the base pass's own checkpoint and prompt --
 `domain/yukari_sketch/recipe.py`'s `refinement_prompt` returns the prompt

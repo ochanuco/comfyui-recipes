@@ -70,8 +70,8 @@ def build_graph(spec: RenderSpec) -> dict[str, dict]:
                 "layerdiffuse needs width and height in multiples of 64")
         model_ref = graph["3"]["inputs"]["model"]
         graph["12"] = {"class_type": "LayeredDiffusionApply", "inputs": {
-            "model": model_ref, "config": "SDXL, Attention Injection",
-            "weight": 1.0}}
+            "model": model_ref, "config": spec.layerdiffuse_config,
+            "weight": spec.layerdiffuse_weight}}
         for ksampler_id in ("3", "11"):
             if ksampler_id in graph:
                 graph[ksampler_id]["inputs"]["model"] = ["12", 0]

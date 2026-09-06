@@ -7,6 +7,7 @@ no network.
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 
 from comfyui_recipes.domain.generation.patches import (
     Patch,
@@ -130,6 +131,47 @@ class ParsePatchesTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_patches([_patch(target="render.sampler", op="set", value="",
                                   reason="test")])
+
+    def test_rejects_layerdiffuse_weight_below_range(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.layerdiffuse_weight",
+                                  op="set", value=-1.5, reason="test")])
+
+    def test_rejects_layerdiffuse_weight_above_range(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.layerdiffuse_weight",
+                                  op="set", value=3.5, reason="test")])
+
+    def test_rejects_lora_strength_below_range(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.lora_strength", op="set",
+                                  value=-0.1, reason="test")])
+
+    def test_rejects_lora_strength_above_range(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.lora_strength", op="set",
+                                  value=2.1, reason="test")])
+
+    def test_rejects_layerdiffuse_config_not_in_enum(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(target="render.layerdiffuse_config",
+                                  op="set", value="bogus", reason="test")])
+
+    def test_accepts_new_number_and_string_targets(self):
+        parsed = parse_patches([
+            _patch(target="render.layerdiffuse_weight", op="set", value=0.7,
+                  reason="r"),
+            _patch(target="render.lora_strength", op="set", value=1.1,
+                  reason="r"),
+            _patch(target="render.layerdiffuse_config", op="set",
+                  value="SDXL, Conv Injection", reason="r"),
+        ])
+        self.assertEqual(parsed[0], Patch("render.layerdiffuse_weight", "set",
+                                          0.7, None, "r"))
+        self.assertEqual(parsed[1], Patch("render.lora_strength", "set", 1.1,
+                                          None, "r"))
+        self.assertEqual(parsed[2], Patch("render.layerdiffuse_config", "set",
+                                          "SDXL, Conv Injection", None, "r"))
 
     def test_accepts_each_op_as_patch_tuple(self):
         raw = [
@@ -270,6 +312,34 @@ class ApplyPatchesTest(unittest.TestCase):
         result = apply_patches(self.spec, patches)
         self.assertEqual(result.width, 1280)
         self.assertEqual(result.height, 2048)
+
+    def test_layerdiffuse_weight_and_config_sets(self):
+        patches = parse_patches([
+            _patch(target="render.layerdiffuse_weight", op="set", value=0.7,
+                  reason="r"),
+            _patch(target="render.layerdiffuse_config", op="set",
+                  value="SDXL, Conv Injection", reason="r"),
+        ])
+        result = apply_patches(self.spec, patches)
+        self.assertEqual(result.layerdiffuse_weight, 0.7)
+        self.assertEqual(result.layerdiffuse_config, "SDXL, Conv Injection")
+
+    def test_lora_strength_set_updates_every_lora_entry(self):
+        spec = replace(self.spec, loras=(("a.safetensors", 0.5),
+                                         ("b.safetensors", 0.7)))
+        patches = parse_patches([
+            _patch(target="render.lora_strength", op="set", value=1.1,
+                  reason="r")])
+        result = apply_patches(spec, patches)
+        self.assertEqual(result.loras, (("a.safetensors", 1.1),
+                                        ("b.safetensors", 1.1)))
+
+    def test_lora_strength_without_loras_raises(self):
+        patches = parse_patches([
+            _patch(target="render.lora_strength", op="set", value=1.0,
+                  reason="r")])
+        with self.assertRaises(ValueError):
+            apply_patches(self.spec, patches)
 
     def test_empty_patches_returns_equal_spec(self):
         result = apply_patches(self.spec, ())

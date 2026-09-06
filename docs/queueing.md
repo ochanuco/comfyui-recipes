@@ -75,12 +75,17 @@ Text targets are `prompt.positive`, `prompt.negative`,
 `prepend`, `replace`, and `remove`; `replace` and `remove` require an `old`
 needle, and a needle absent from the text is an immediate error rather than
 a silent no-op. Number targets are `render.cfg`, `render.steps`,
-`render.width`, `render.height`, and `hires.denoise`, with op `set`;
-`render.cfg` and `render.steps` govern both sampling passes, since the spec
-holds one value for each. `render.width` and `render.height` each require
-an int that is at least 64 and a multiple of 8. String targets are
-`render.model`, `render.sampler`, and `render.scheduler`, with op `set`
-only and a required non-empty string `value`.
+`render.width`, `render.height`, `hires.denoise`, `render.layerdiffuse_weight`,
+and `render.lora_strength`, with op `set`; `render.cfg` and `render.steps`
+govern both sampling passes, since the spec holds one value for each.
+`render.width` and `render.height` each require an int that is at least 64
+and a multiple of 8. `render.layerdiffuse_weight` requires `-1 <= value <= 3`.
+`render.lora_strength` requires `0 <= value <= 2` and sets every LoRA in the
+recipe to that strength; it fails on a recipe with no LoRA. String targets
+are `render.model`, `render.sampler`, `render.scheduler`, and
+`render.layerdiffuse_config`, with op `set` only and a required non-empty
+string `value`; `render.layerdiffuse_config` must be `"SDXL, Attention
+Injection"` or `"SDXL, Conv Injection"`.
 
 Every patch requires a one-line `reason`. The patch list is recorded into
 each generation's semantic attributes at ingest, and the submitted graph

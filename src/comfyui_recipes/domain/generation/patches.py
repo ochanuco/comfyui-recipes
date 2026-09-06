@@ -9,8 +9,11 @@ from .models import RenderSpec
 TEXT_TARGETS = ("prompt.positive", "prompt.negative",
                 "prompt.hires.positive", "prompt.hires.negative")
 NUMBER_TARGETS = ("render.cfg", "render.steps", "render.width",
-                  "render.height", "hires.denoise")
-STRING_TARGETS = ("render.model", "render.sampler", "render.scheduler")
+                  "render.height", "hires.denoise",
+                  "render.layerdiffuse_weight", "render.lora_strength")
+STRING_TARGETS = ("render.model", "render.sampler", "render.scheduler",
+                  "render.layerdiffuse_config")
+LAYERDIFFUSE_CONFIGS = ("SDXL, Attention Injection", "SDXL, Conv Injection")
 TEXT_OPS = ("append", "prepend", "replace", "remove")
 _KNOWN_KEYS = frozenset({"target", "op", "value", "old", "reason"})
 
@@ -72,6 +75,15 @@ def _parse_number_patch(patch: dict, target: str) -> Patch:
     elif target == "render.cfg":
         if value <= 0:
             _fail(target, "render.cfg value must be > 0")
+    elif target == "render.layerdiffuse_weight":
+        if value < -1 or value > 3:
+            _fail(target,
+                  "render.layerdiffuse_weight value must satisfy "
+                  "-1 <= value <= 3")
+    elif target == "render.lora_strength":
+        if value < 0 or value > 2:
+            _fail(target,
+                  "render.lora_strength value must satisfy 0 <= value <= 2")
     elif value <= 0 or value > 1:
         _fail(target, "hires.denoise value must satisfy 0 < value <= 1")
     return Patch(target, op, value, None, reason)
@@ -83,6 +95,11 @@ def _parse_string_patch(patch: dict, target: str) -> Patch:
         _fail(target, f"op must be 'set' for {target!r}, got {op!r}")
     reason = _require_str(patch, "reason", target)
     value = _require_str(patch, "value", target)
+    if (target == "render.layerdiffuse_config"
+            and value not in LAYERDIFFUSE_CONFIGS):
+        _fail(target,
+              "render.layerdiffuse_config value must be one of "
+              f"{LAYERDIFFUSE_CONFIGS}")
     return Patch(target, op, value, None, reason)
 
 
@@ -166,6 +183,17 @@ def _apply_one(spec: RenderSpec, patch: Patch) -> RenderSpec:
         return replace(spec, sampler_name=patch.value)
     if patch.target == "render.scheduler":
         return replace(spec, scheduler=patch.value)
+    if patch.target == "render.layerdiffuse_weight":
+        return replace(spec, layerdiffuse_weight=float(patch.value))
+    if patch.target == "render.layerdiffuse_config":
+        return replace(spec, layerdiffuse_config=patch.value)
+    if patch.target == "render.lora_strength":
+        if not spec.loras:
+            raise ValueError(
+                "render.lora_strength requires a recipe with loras")
+        strength = float(patch.value)
+        loras = tuple((name, strength) for name, _ in spec.loras)
+        return replace(spec, loras=loras)
     hires = replace(spec.hires, denoise=float(patch.value))
     return replace(spec, hires=hires)
 

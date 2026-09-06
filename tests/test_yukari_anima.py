@@ -307,6 +307,12 @@ class ValidateRequestTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             validate_request(request)
 
+    def test_layerdiffuse_is_rejected_for_yukari_anima(self):
+        request = self._request()
+        request["generation"]["parameters"]["layerdiffuse"] = True
+        with self.assertRaises(SystemExit):
+            validate_request(request)
+
     def test_expression_is_rejected_for_yukari(self):
         request = {
             "schema_version": 1,

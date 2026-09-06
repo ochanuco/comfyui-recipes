@@ -10,7 +10,7 @@ from comfyui_recipes.domain.yukari.delivery_style import (
     ACCENT_KEEP, REPIN_DARK, REPIN_LIGHT,
 )
 from comfyui_recipes.infrastructure.imaging.palette import (
-    repin, repin_png, summarize,
+    measure, repin, repin_png, summarize,
 )
 
 KNEE, RATIO = REPIN_LIGHT
@@ -106,6 +106,40 @@ class SummarizeTest(unittest.TestCase):
         summary = summarize(data)
         figure_fails = [f for f in summary["fails"] if "figure midtone" in f]
         self.assertEqual(figure_fails, [])
+
+
+class RGBAMeasureTest(unittest.TestCase):
+    def test_garbage_under_alpha_zero_measures_as_the_flat_backdrop(self):
+        # A plain low-saturation figure on a transparent field whose RGB
+        # channels, ignored by every renderer, hold garbage that would spike
+        # corner_spread if it leaked into the measurement uncomposited.
+        pixels = swatch((191, 30, 200))
+        alpha = np.full((64, 64), 255, dtype=np.uint8)
+        alpha[:16, :16] = 0
+        alpha[:16, -16:] = 0
+        alpha[-16:, :16] = 0
+        alpha[-16:, -16:] = 0
+        garbage = pixels.copy()
+        garbage[:16, :16] = (255, 0, 0)
+        garbage[:16, -16:] = (0, 255, 0)
+        garbage[-16:, :16] = (0, 0, 255)
+        garbage[-16:, -16:] = (255, 255, 0)
+        rgba = np.dstack([garbage, alpha])
+        output = io.BytesIO()
+        Image.fromarray(rgba, "RGBA").save(output, "PNG")
+        summary = summarize(output.getvalue())
+        self.assertLess(summary["corner_spread"], 1.0)
+        figure_fails = [f for f in summary["fails"] if "figure midtone" in f]
+        self.assertEqual(figure_fails, [])
+
+    def test_measure_composites_onto_the_flat_grey_backdrop(self):
+        rgba = np.zeros((8, 8, 4), dtype=np.uint8)
+        rgba[..., :3] = (10, 200, 10)
+        rgba[..., 3] = 0
+        output = io.BytesIO()
+        Image.fromarray(rgba, "RGBA").save(output, "PNG")
+        summary = measure(output.getvalue())
+        self.assertEqual(summary["bg"], (200, 200, 200))
 
 
 if __name__ == "__main__":

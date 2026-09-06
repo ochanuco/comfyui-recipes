@@ -50,7 +50,7 @@ ConflictFinder = Callable[[str, str], list[tuple[str, str, str]]]
 
 KNOWN_PARAMETERS = frozenset(
     {"pose", "costume", "hires", "denoise", "character", "character_id",
-     "arm", "expression"})
+     "arm", "expression", "layerdiffuse"})
 
 
 @dataclass(frozen=True)
@@ -112,6 +112,9 @@ def validate_request(req: object) -> None:
             "belong in semantic.attributes, executable diffs in "
             "generation.patches"
         )
+    elif ("layerdiffuse" in parameters
+          and not isinstance(parameters["layerdiffuse"], bool)):
+        raise SystemExit("generation.parameters.layerdiffuse must be a bool")
     elif generation["recipe"] == "yukari" and "expression" in parameters:
         raise SystemExit(
             "generation.parameters.expression is not supported for yukari")
@@ -120,6 +123,11 @@ def validate_request(req: object) -> None:
         raise SystemExit(
             "generation.parameters.hires and denoise are not supported for "
             "yukari-anima -- it has no second pass"
+        )
+    elif generation["recipe"] == "yukari-anima" and "layerdiffuse" in parameters:
+        raise SystemExit(
+            "generation.parameters.layerdiffuse is not supported for "
+            "yukari-anima -- its render_spec does not accept it"
         )
     elif generation["recipe"] == "yukari-sketch" and (
             "hires" in parameters or "denoise" in parameters
@@ -213,7 +221,8 @@ def request_graph(generation: dict, seed: int, prefix: str,
     params = generation.get("parameters", {})
     # Optional parameters reach the recipe only when the request sets them.
     kwargs = {key: params[key] for key in
-             ("hires", "denoise", "costume", "expression") if key in params}
+             ("hires", "denoise", "costume", "expression", "layerdiffuse")
+             if key in params}
     spec = spec_builder(params["pose"], seed, prefix, **kwargs)
     if generation.get("prompt") or generation.get("negative_prompt"):
         spec = spec_replace(spec, prompts=PromptPair(
@@ -549,7 +558,8 @@ def generate(request_path: Path, services: GenerateServices, *,
                 semantic = json.loads(json.dumps(req["semantic"]))
                 semantic.setdefault("attributes", {}).update(
                     {"seed": seed, **{key: value for key, value in params.items()
-                                      if key in ("arm", "pose", "costume")}})
+                                      if key in ("arm", "pose", "costume",
+                                                "layerdiffuse")}})
                 if generation.get("patches"):
                     semantic["attributes"]["patches"] = generation["patches"]
                 if palette:

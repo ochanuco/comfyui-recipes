@@ -59,7 +59,8 @@ def refinement_prompt(base: PromptPair) -> PromptPair:
 
 def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
                 denoise: float | None = None,
-                costume: str | None = None) -> RenderSpec:
+                costume: str | None = None,
+                layerdiffuse: bool = False) -> RenderSpec:
     if hires:
         raise ValueError("yukari-sketch has no second pass -- hires must be 0")
     if denoise is not None:
@@ -71,4 +72,5 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
         prompts=PromptPair(positive(pose, costume), negative(pose, costume)),
         width=width, height=height, seed=seed, steps=STEPS, cfg=CFG,
         sampler_name=SAMPLER, scheduler=SCHEDULER, denoise=1.0,
-        filename_prefix=prefix, hires=None, loras=(LORA,))
+        filename_prefix=prefix, hires=None, loras=(LORA,),
+        layerdiffuse=layerdiffuse)

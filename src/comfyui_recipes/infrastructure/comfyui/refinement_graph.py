@@ -51,6 +51,8 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     model_ref = graph["3"]["inputs"].get("model", ["4", 0])
     clip_ref = graph["6"]["inputs"].get("clip", ["4", 1])
     tail = graph[graph["9"]["inputs"]["images"][0]]
+    if tail.get("class_type") == "LayeredDiffusionDecodeRGBA":
+        tail = graph[tail["inputs"]["images"][0]]
     if tail.get("class_type") != "VAEDecode":
         raise ValueError(
             "base graph's SaveImage must be fed by a VAEDecode, got "

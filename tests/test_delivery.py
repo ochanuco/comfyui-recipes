@@ -187,6 +187,19 @@ class DeliveryTest(unittest.TestCase):
         self.assertEqual(arr[0, 0, 3], 0)
         self.assertEqual(tag, "transparent")
 
+    def test_transparent_keeps_the_retrace_inside_the_soft_matte(self):
+        pixels = np.full((256, 256, 3), (210, 230, 235), dtype=np.uint8)
+        pixels[64:192, 64:160] = (40, 40, 40)
+        pixels[64:192, 160:161] = (150, 150, 150)   # backdrop shading at the edge
+        pixels[120:136, 159:160] = (215, 228, 232)  # a light passage at the edge
+        soft = np.zeros((256, 256), dtype=np.uint8)
+        soft[64:192, 64:160] = 255
+        cut, _ = transparent(png(pixels), png(soft))
+        alpha = np.array(Image.open(io.BytesIO(cut)))[..., 3]
+        self.assertLess(alpha[128, 160], 128)   # the 1-px ramp, not figure
+        self.assertEqual(alpha[128, 161], 0)
+        self.assertEqual(alpha[128, 159], 255)
+
     def test_stroke_alpha_ramps_over_one_pixel_at_the_outer_edge(self):
         mask = np.ones((1, 12), dtype=bool)
         mask[0, 0] = False

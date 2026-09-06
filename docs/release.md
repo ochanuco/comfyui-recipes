@@ -27,10 +27,15 @@ are joined by a promotion PR, the same shape as ochanuco/webull-trading.
   the `work` task. The repository is public; limiting the runner to
   `production` pushes is what keeps fork PRs off the box.
   `deploy.ps1` also re-junctions `comfy_nodes/yukari_finalize/` into the
-  ComfyUI install named by the repository variable `COMFYUI_ROOT`, and
-  restarts the `comfyui` scheduled task only when the deploy actually changed
-  the node pack or the imaging code under it -- ComfyUI reads `custom_nodes`
-  once, at startup.
+  ComfyUI install named by the repository variable `COMFYUI_ROOT`, brings
+  the third-party node packs under its `custom_nodes/` to the commits pinned
+  in `manifests/worker-nodes.toml` (`scripts/worker/sync-nodes.ps1`: clone,
+  detached checkout, `requirements.txt` into the portable Python when an
+  entry moved), and restarts ComfyUI (`scripts/worker/restart-comfyui.ps1`)
+  only when the deploy changed our node pack, the imaging code under it, or
+  a pinned node -- ComfyUI reads `custom_nodes` once, at startup.
+- `restart worker comfyui` is a manual `workflow_dispatch` that runs the same
+  restart on the box, for changes made outside a deploy.
 
 ## The box
 

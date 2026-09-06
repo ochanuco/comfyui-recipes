@@ -24,15 +24,15 @@ if ($ComfyRoot) {
     & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\register-nodes.ps1 `
         -Checkout $Checkout -ComfyRoot $ComfyRoot
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
-    # A restart is only needed when the node pack or the imaging it wraps
-    # actually changed -- ComfyUI reads custom_nodes once, at startup.
+    $sync = & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\sync-nodes.ps1 `
+        -Checkout $Checkout -ComfyRoot $ComfyRoot
+    if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    $sync
+    # ComfyUI reads custom_nodes once, at startup: restart only when the deploy
+    # changed a node pack or the imaging it wraps.
     git diff --quiet $oldHead HEAD -- comfy_nodes src/comfyui_recipes/infrastructure/imaging src/comfyui_recipes/domain/yukari/delivery_style.py
-    if ($LASTEXITCODE -ne 0) {
-        Stop-ScheduledTask -TaskName "comfyui" -ErrorAction SilentlyContinue
-        Get-CimInstance Win32_Process |
-            Where-Object { $_.CommandLine -match "ComfyUI[\\/]main\.py" } |
-            ForEach-Object { cmd /c "taskkill /PID $($_.ProcessId) /T /F >nul 2>&1" }
-        Start-ScheduledTask -TaskName "comfyui"
+    if ($LASTEXITCODE -ne 0 -or ($sync -match "^changed: True")) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\restart-comfyui.ps1
     }
 }
 

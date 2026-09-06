@@ -1,0 +1,33 @@
+# Third-party custom nodes the GPU worker runs, pinned by commit.
+# scripts/worker/sync-nodes.ps1 clones or moves each one under ComfyUI's
+# custom_nodes/ on deploy; ComfyUI is restarted when any entry changed.
+
+[[node]]
+name = "ComfyUI-layerdiffuse"
+repo = "https://github.com/huchenlei/ComfyUI-layerdiffuse.git"
+commit = "b4f6a9e024064a4489f774a8b91049ce0b606ea3"
+install_requirements = true
+
+[[node]]
+name = "ComfyUI-Inpaint-CropAndStitch"
+repo = "https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git"
+commit = "606e2b4fd83fc44e1f0b403e1f076501db8c3749"
+install_requirements = true
+
+[[node]]
+name = "ComfyUI-See-through"
+repo = "https://github.com/jtydhr88/ComfyUI-See-through.git"
+commit = "98d754bf04f668647919ab750eccb0e0640faa81"
+install_requirements = true
+
+[[node]]
+name = "comfyui_controlnet_aux"
+repo = "https://github.com/Fannovel16/comfyui_controlnet_aux.git"
+commit = "e8b689a513c3e6b63edc44066560ca5919c0576e"
+install_requirements = true
+
+[[node]]
+name = "ComfyUI_IPAdapter_plus"
+repo = "https://github.com/cubiq/ComfyUI_IPAdapter_plus.git"
+commit = "a0f451a5113cf9becb0847b92884cb10cbdec0ef"
+install_requirements = true

@@ -142,7 +142,8 @@ The `upscale` request option (`--upscale` on the CLI: `bicubic`,
 [queueing.md](../queueing.md).
 
 `layerdiffuse` (bool, default `false`) adds a LayerDiffuse stage to the base
-pass -- attention injection against the SDXL model, decoded through
+pass -- conv injection against the SDXL model by default
+(`render.layerdiffuse_config` patches it), decoded through
 `LayeredDiffusionDecode` and joined with its alpha by the core
 `JoinImageWithAlpha` (whose alpha input is inverted, hence the `InvertMask`
 between them) -- so the output PNG is RGBA instead of RGB. The

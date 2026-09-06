@@ -174,7 +174,7 @@ class LayerDiffuseGraphTest(unittest.TestCase):
         self.assertEqual(apply_node["class_type"], "LayeredDiffusionApply")
         self.assertEqual(apply_node["inputs"]["model"], ["10", 0])
         self.assertEqual(apply_node["inputs"]["config"],
-                         "SDXL, Attention Injection")
+                         "SDXL, Conv Injection")
         self.assertEqual(apply_node["inputs"]["weight"], 1.0)
         self.assertEqual(graph["3"]["inputs"]["model"], ["12", 0])
         decode_node = graph["13"]
@@ -194,12 +194,12 @@ class LayerDiffuseGraphTest(unittest.TestCase):
     def test_layerdiffuse_apply_reads_weight_and_config_from_spec(self):
         spec = replace(render_spec("cinema", 7, "ab11", layerdiffuse=True),
                        layerdiffuse_weight=0.7,
-                       layerdiffuse_config="SDXL, Conv Injection")
+                       layerdiffuse_config="SDXL, Attention Injection")
         graph = build_graph(spec)
         apply_node = graph["12"]
         self.assertEqual(apply_node["inputs"]["weight"], 0.7)
         self.assertEqual(apply_node["inputs"]["config"],
-                         "SDXL, Conv Injection")
+                         "SDXL, Attention Injection")
 
     def test_layerdiffuse_rejects_a_canvas_not_a_multiple_of_64(self):
         spec = RenderSpec(

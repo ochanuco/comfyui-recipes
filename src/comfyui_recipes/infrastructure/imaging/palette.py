@@ -190,7 +190,13 @@ def repin_png(data: bytes,
 
 
 def measure(data: bytes) -> dict:
-    im = np.array(Image.open(io.BytesIO(data)).convert("RGB"))
+    img = Image.open(io.BytesIO(data))
+    if img.mode in ("RGBA", "LA"):
+        rgba = img.convert("RGBA")
+        backdrop = Image.new("RGB", rgba.size, (200, 200, 200))
+        backdrop.paste(rgba, mask=rgba.getchannel("A"))
+        img = backdrop
+    im = np.array(img.convert("RGB"))
     hsv = np.array(Image.fromarray(im).convert("HSV")).astype(float)
     edge = np.concatenate([im[:30].reshape(-1, 3), im[-30:].reshape(-1, 3),
                            im[:, :30].reshape(-1, 3), im[:, -30:].reshape(-1, 3)])

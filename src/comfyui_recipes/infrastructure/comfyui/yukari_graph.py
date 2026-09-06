@@ -45,32 +45,47 @@ def build_graph(spec: RenderSpec) -> dict[str, dict]:
         graph["3"]["inputs"]["model"] = model_ref
         graph["6"]["inputs"]["clip"] = clip_ref
         graph["7"]["inputs"]["clip"] = clip_ref
-    if spec.hires is None:
-        return graph
-
-    graph["10"] = {"class_type": "LatentUpscale", "inputs": {
-        "samples": ["3", 0], "upscale_method": "bicubic",
-        "width": spec.hires.width, "height": spec.hires.height,
-        "crop": "disabled"}}
-    graph["11"] = {"class_type": "KSampler", "inputs": {
-        "model": ["4", 0], "positive": ["6", 0],
-        "negative": ["7", 0], "latent_image": ["10", 0],
-        "seed": spec.seed, "steps": spec.steps, "cfg": spec.cfg,
-        "sampler_name": spec.sampler_name, "scheduler": spec.scheduler,
-        "denoise": spec.hires.denoise}}
-    if spec.hires.positive is not None:
-        graph["6b"] = {"class_type": "CLIPTextEncode", "inputs": {
-            "clip": ["4", 1], "text": spec.hires.positive}}
-        graph["11"]["inputs"]["positive"] = ["6b", 0]
-    graph["7b"] = {"class_type": "CLIPTextEncode", "inputs": {
-        "clip": ["4", 1], "text": spec.hires.negative}}
-    graph["11"]["inputs"]["negative"] = ["7b", 0]
-    graph["8"]["inputs"]["samples"] = ["11", 0]
+    if spec.hires is not None:
+        graph["10"] = {"class_type": "LatentUpscale", "inputs": {
+            "samples": ["3", 0], "upscale_method": "bicubic",
+            "width": spec.hires.width, "height": spec.hires.height,
+            "crop": "disabled"}}
+        graph["11"] = {"class_type": "KSampler", "inputs": {
+            "model": ["4", 0], "positive": ["6", 0],
+            "negative": ["7", 0], "latent_image": ["10", 0],
+            "seed": spec.seed, "steps": spec.steps, "cfg": spec.cfg,
+            "sampler_name": spec.sampler_name, "scheduler": spec.scheduler,
+            "denoise": spec.hires.denoise}}
+        if spec.hires.positive is not None:
+            graph["6b"] = {"class_type": "CLIPTextEncode", "inputs": {
+                "clip": ["4", 1], "text": spec.hires.positive}}
+            graph["11"]["inputs"]["positive"] = ["6b", 0]
+        graph["7b"] = {"class_type": "CLIPTextEncode", "inputs": {
+            "clip": ["4", 1], "text": spec.hires.negative}}
+        graph["11"]["inputs"]["negative"] = ["7b", 0]
+        graph["8"]["inputs"]["samples"] = ["11", 0]
+    if spec.layerdiffuse:
+        if spec.width % 64 or spec.height % 64:
+            raise ValueError(
+                "layerdiffuse needs width and height in multiples of 64")
+        model_ref = graph["3"]["inputs"]["model"]
+        graph["12"] = {"class_type": "LayeredDiffusionApply", "inputs": {
+            "model": model_ref, "config": "SDXL, Attention Injection",
+            "weight": 1.0}}
+        for ksampler_id in ("3", "11"):
+            if ksampler_id in graph:
+                graph[ksampler_id]["inputs"]["model"] = ["12", 0]
+        graph["13"] = {"class_type": "LayeredDiffusionDecodeRGBA", "inputs": {
+            "samples": graph["8"]["inputs"]["samples"], "images": ["8", 0],
+            "sd_version": "SDXL", "sub_batch_size": 16}}
+        graph["9"]["inputs"]["images"] = ["13", 0]
     return graph
 
 
 def build(pose: str, seed: int, prefix: str, hires: int = 0,
-          denoise: float | None = None, costume: str = "default") -> dict:
+          denoise: float | None = None, costume: str = "default",
+          layerdiffuse: bool = False) -> dict:
     """Compatibility builder with the legacy recipe signature."""
     return build_graph(render_spec(
-        pose, seed, prefix, hires=hires, denoise=denoise, costume=costume))
+        pose, seed, prefix, hires=hires, denoise=denoise, costume=costume,
+        layerdiffuse=layerdiffuse))

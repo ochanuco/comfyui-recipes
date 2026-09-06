@@ -79,6 +79,32 @@ class AdapterTest(unittest.TestCase):
         ])
         self.assertEqual(client.wait_for("prompt"), [])
 
+    def test_comfyui_knows_true_via_history(self):
+        client = ComfyUIClient("http://example.invalid")
+        client.request = MagicMock(return_value={"prompt": {"status": {}}})
+        self.assertTrue(client.knows("prompt"))
+
+    def test_comfyui_knows_true_via_queue_pending(self):
+        client = ComfyUIClient("http://example.invalid")
+        client.request = MagicMock(side_effect=[
+            {},
+            {"queue_running": [], "queue_pending": [[0, "prompt", {}, {}, []]]},
+        ])
+        self.assertTrue(client.knows("prompt"))
+
+    def test_comfyui_knows_false_when_both_empty(self):
+        client = ComfyUIClient("http://example.invalid")
+        client.request = MagicMock(side_effect=[
+            {},
+            {"queue_running": [], "queue_pending": []},
+        ])
+        self.assertFalse(client.knows("prompt"))
+
+    def test_comfyui_knows_true_on_url_error(self):
+        client = ComfyUIClient("http://example.invalid")
+        client.request = MagicMock(side_effect=urllib.error.URLError("offline"))
+        self.assertTrue(client.knows("prompt"))
+
     def test_comfyui_upload_image_posts_multipart_and_returns_the_stored_name(self):
         client = ComfyUIClient("http://example.invalid")
         response = MagicMock()

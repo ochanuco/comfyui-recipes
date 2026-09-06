@@ -95,6 +95,15 @@ class BridgeTest(unittest.TestCase):
         back = bridge.png_to_array(data, "L")
         np.testing.assert_array_equal(back, mask)
 
+    def test_png_to_image_rgba_yields_four_channels(self):
+        pixels = swatch()
+        alpha = matte_array()
+        rgba = np.dstack([pixels, alpha])
+        data = bridge.array_to_png(rgba, "RGBA")
+        with mock.patch.dict(sys.modules, {"torch": FakeTorch()}):
+            back = bridge.png_to_image(data, "RGBA")
+        self.assertEqual(back.array.shape, (1, 64, 64, 4))
+
 
 class NodeMappingTest(unittest.TestCase):
     def test_node_class_mappings_cover_the_four_nodes(self):
@@ -156,6 +165,30 @@ class NodeRunTest(unittest.TestCase):
         self.assertEqual(tag, "scene")
         np.testing.assert_allclose(
             (image.array[0] * 255.0).round(), pixels, atol=1)
+
+    def test_deliver_transparent_returns_an_rgba_cutout(self):
+        node = nodes.YukariDeliver()
+        image, tag = node.run(
+            image_tensor(swatch()), mask_tensor(matte_array()),
+            keep_scene=False, transparent=True)
+        self.assertEqual(image.array.shape, (1, 64, 64, 4))
+        self.assertEqual(tag, "transparent")
+
+    def test_deliver_keep_scene_wins_over_transparent(self):
+        node = nodes.YukariDeliver()
+        pixels = swatch()
+        image, tag = node.run(
+            image_tensor(pixels), mask_tensor(matte_array()),
+            keep_scene=True, transparent=True)
+        self.assertEqual(image.array.shape[-1], 3)
+        self.assertEqual(tag, "scene")
+
+    def test_deliver_run_without_transparent_kwarg_still_works(self):
+        node = nodes.YukariDeliver()
+        image, tag = node.run(
+            image_tensor(swatch()), mask_tensor(matte_array()), keep_scene=False)
+        self.assertEqual(image.array.shape[-1], 3)
+        self.assertTrue(tag.startswith("clean-"))
 
 
 if __name__ == "__main__":

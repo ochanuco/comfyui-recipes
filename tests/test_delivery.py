@@ -20,6 +20,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     parse_color,
     refine_matte,
     stroke_alpha,
+    transparent,
 )
 
 
@@ -172,6 +173,19 @@ class DeliveryTest(unittest.TestCase):
         backdrop_at = first_match(backdrop)
         self.assertLess(white_at, purple_at)
         self.assertLess(purple_at, backdrop_at)
+
+    def test_transparent_cuts_the_figure_out_with_a_soft_edge(self):
+        pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
+        pixels[8:24, 10:22] = (40, 40, 40)
+        cut, tag = transparent(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)))
+        image = Image.open(io.BytesIO(cut))
+        self.assertEqual(image.mode, "RGBA")
+        self.assertEqual(image.size, (32, 32))
+        arr = np.array(image)
+        np.testing.assert_array_equal(arr[..., :3], pixels)
+        self.assertEqual(arr[16, 16, 3], 255)
+        self.assertEqual(arr[0, 0, 3], 0)
+        self.assertEqual(tag, "transparent")
 
     def test_stroke_alpha_ramps_over_one_pixel_at_the_outer_edge(self):
         mask = np.ones((1, 12), dtype=bool)

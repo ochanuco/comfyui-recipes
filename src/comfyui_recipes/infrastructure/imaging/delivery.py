@@ -179,3 +179,31 @@ def clean_background(data: bytes, matte: bytes) -> tuple[bytes, str]:
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
     return output.getvalue(), f"clean-w{white_w:.0f}-p{purple_w:.0f}"
+
+
+def transparent(data: bytes, matte: bytes) -> tuple[bytes, str]:
+    """Cut the figure out onto a transparent background, unstroked.
+
+    The refined matte is the authority on the silhouette, same as
+    `clean_background`: it gets a sub-pixel ramp of its own so the strands
+    it retraced keep their coverage, and the soft birefnet matte only adds
+    coverage inside the 1-px ring around it.
+    """
+    px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(np.uint8)
+    soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
+    height, width = px.shape[:2]
+    figure = refine_matte(
+        px.astype(float), soft > 127,
+        int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100),
+        delivery_style.MATTE_EDGE_TOLERANCE)
+
+    halo = ndimage.binary_dilation(figure, iterations=1)
+    ramp = ndimage.gaussian_filter(figure.astype(float), 0.6)
+    alpha = np.maximum(ramp, soft / 255.0)
+    alpha[~halo] = 0.0
+    alpha[ndimage.binary_erosion(figure, iterations=1)] = 1.0
+
+    rgba = np.dstack([px, np.clip(alpha * 255, 0, 255).astype(np.uint8)])
+    output = io.BytesIO()
+    Image.fromarray(rgba, "RGBA").save(output, "PNG")
+    return output.getvalue(), "transparent"

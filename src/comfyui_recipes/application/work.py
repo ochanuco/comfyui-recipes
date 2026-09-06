@@ -22,7 +22,7 @@ DRY_RUN_PATH = "/api/v1/requests?status=queued&limit=1"
 
 _KNOWN_FINALIZE_OPTIONS = frozenset({
     "denoise", "repin", "recolor", "keep_legwear", "route", "finalizer",
-    "size", "handdrawn", "skin", "toe_guard", "keep_scene",
+    "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
 })
 
 
@@ -304,6 +304,11 @@ def finalize_arguments(options: Mapping) -> dict:
             "toe_guard must be null, true or a number, got "
             f"{type(toe_guard).__name__}")
 
+    transparent = options.get("transparent")
+    if transparent is not None and not isinstance(transparent, bool):
+        raise ValueError(
+            f"transparent must be null or a boolean, got {type(transparent).__name__}")
+
     return {
         "denoise": float(denoise) if denoise is not None else None,
         "handdrawn": boolean("handdrawn"),
@@ -316,6 +321,7 @@ def finalize_arguments(options: Mapping) -> dict:
         "latent_route": latent_route,
         "finalizer": finalizer,
         "keep_scene": boolean("keep_scene"),
+        "transparent": transparent,
     }
 
 

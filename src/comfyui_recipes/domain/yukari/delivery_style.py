@@ -135,6 +135,12 @@ MATTE_MODEL = "birefnet.safetensors"
 # than MATTE_EDGE_TOLERANCE on any channel.
 MATTE_EDGE_BAND_PCT = 0.6
 MATTE_EDGE_TOLERANCE = 20
+# The colour retrace is bounded by the matte model's own soft output: it may
+# only add a pixel the model gave any coverage (> SUPPORT) and may not drop
+# one the model was sure of (> CERTAIN). A shaded backdrop next to the figure
+# fails the tolerance test, and the figure's own light passages pass it.
+MATTE_SOFT_SUPPORT = 8
+MATTE_SOFT_CERTAIN = 200
 
 # finalize's masked refine, the denoise a 2048 print's touch-up runs at.
 FINALIZE_DENOISE = 0.45

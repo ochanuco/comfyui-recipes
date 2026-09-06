@@ -165,6 +165,49 @@ class GraphTest(unittest.TestCase):
         self.assertEqual(redraw["inputs"]["model"], ["10", 0])
 
 
+class LayerDiffuseGraphTest(unittest.TestCase):
+    def test_layerdiffuse_wires_apply_and_rgba_decode(self):
+        spec = render_spec("cinema", 7, "ab11", layerdiffuse=True)
+        graph = build_graph(spec)
+        apply_node = graph["12"]
+        self.assertEqual(apply_node["class_type"], "LayeredDiffusionApply")
+        self.assertEqual(apply_node["inputs"]["model"], ["10", 0])
+        self.assertEqual(apply_node["inputs"]["config"],
+                         "SDXL, Attention Injection")
+        self.assertEqual(apply_node["inputs"]["weight"], 1.0)
+        self.assertEqual(graph["3"]["inputs"]["model"], ["12", 0])
+        decode_node = graph["13"]
+        self.assertEqual(decode_node["class_type"], "LayeredDiffusionDecodeRGBA")
+        self.assertEqual(decode_node["inputs"]["samples"], ["3", 0])
+        self.assertEqual(decode_node["inputs"]["images"], ["8", 0])
+        self.assertEqual(decode_node["inputs"]["sd_version"], "SDXL")
+        self.assertEqual(decode_node["inputs"]["sub_batch_size"], 16)
+        self.assertEqual(graph["9"]["inputs"]["images"], ["13", 0])
+        self.assertEqual(graph["8"]["class_type"], "VAEDecode")
+
+    def test_layerdiffuse_rejects_a_canvas_not_a_multiple_of_64(self):
+        spec = RenderSpec(
+            model_path="hassaku-il-v22", prompts=PromptPair("p", "n"),
+            width=830, height=1664, seed=7, steps=30, cfg=5.0,
+            sampler_name="dpmpp_2m", scheduler="karras", denoise=1.0,
+            filename_prefix="ab11", layerdiffuse=True)
+        with self.assertRaises(ValueError):
+            build_graph(spec)
+
+    def test_chain_pass_on_a_layerdiffuse_graph_finds_the_vae_decode(self):
+        spec = render_spec("cinema", 7, "ab11", layerdiffuse=True)
+        base = build_graph(spec)
+        out = chain_pass(
+            base, 2560, 0.55, "fin-prefix",
+            prompt=(spec.prompts.positive, spec.prompts.negative),
+            matte_model=None, latent_route=True,
+            sampler=ds.FINALIZE_SAMPLER, loader=None, sampling=None)
+        redraw_ids = [key for key in out if key.isdecimal() and int(key) > 13
+                     and out[key].get("class_type") == "VAEDecode"]
+        self.assertEqual(len(redraw_ids), 1)
+        self.assertEqual(out[redraw_ids[0]]["inputs"]["vae"], ["4", 2])
+
+
 class ManagementFake:
     def __init__(self, base_graph):
         self.base_graph = base_graph
@@ -275,6 +318,17 @@ class ValidateRequestTest(unittest.TestCase):
     def test_expression_is_rejected_for_yukari_sketch(self):
         request = self._request()
         request["generation"]["parameters"]["expression"] = "doya"
+        with self.assertRaises(SystemExit):
+            validate_request(request)
+
+    def test_layerdiffuse_true_is_accepted_for_yukari_sketch(self):
+        request = self._request()
+        request["generation"]["parameters"]["layerdiffuse"] = True
+        validate_request(request)
+
+    def test_layerdiffuse_non_bool_is_rejected(self):
+        request = self._request()
+        request["generation"]["parameters"]["layerdiffuse"] = "true"
         with self.assertRaises(SystemExit):
             validate_request(request)
 

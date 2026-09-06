@@ -35,3 +35,4 @@ class RenderSpec:
     filename_prefix: str
     hires: HiresSpec | None = None
     loras: tuple[tuple[str, float], ...] = ()
+    layerdiffuse: bool = False

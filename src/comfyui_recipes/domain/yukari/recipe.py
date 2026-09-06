@@ -205,7 +205,8 @@ def refinement_prompt(base: PromptPair, *, handdrawn: bool = False,
 
 def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
                 denoise: float | None = None,
-                costume: str = "default") -> RenderSpec:
+                costume: str = "default",
+                layerdiffuse: bool = False) -> RenderSpec:
     """The settled recipe, independent of ComfyUI node ids and transport.
 
     The canvas of the first pass never changes, because that is the pass that
@@ -291,6 +292,7 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
         denoise=1.0,
         filename_prefix=f"{prefix}-{pose}-{seed}",
         hires=hires_spec,
+        layerdiffuse=layerdiffuse,
     )
 
 

@@ -1,0 +1,24 @@
+name: restart worker comfyui
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  restart:
+    name: restart the GPU box's ComfyUI
+    runs-on: [self-hosted, gpu-box]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Restart
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File "%GITHUB_WORKSPACE%\scripts\worker\restart-comfyui.ps1"

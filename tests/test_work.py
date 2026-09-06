@@ -243,7 +243,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "apply_skin": False, "apply_recolor": False, "keep_legwear": None,
             "toe_guard": None, "size": None, "latent_route": None,
             "finalizer": None, "keep_scene": False, "transparent": None,
-            "backdrop": None, "upscale": None,
+            "backdrop": None, "upscale": None, "lora_strength": None,
         })
 
     def test_backdrop_null_passes_through(self):
@@ -271,6 +271,21 @@ class FinalizeArgumentsTest(unittest.TestCase):
 
     def test_keep_legwear_true_becomes_default_cut(self):
         self.assertEqual(finalize_arguments({"keep_legwear": True})["keep_legwear"], 0.62)
+
+    def test_lora_strength_null_passes_through(self):
+        self.assertIsNone(finalize_arguments({})["lora_strength"])
+
+    def test_lora_strength_a_number_passes_through(self):
+        self.assertEqual(
+            finalize_arguments({"lora_strength": 1.2})["lora_strength"], 1.2)
+
+    def test_lora_strength_above_the_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "lora_strength"):
+            finalize_arguments({"lora_strength": 3})
+
+    def test_lora_strength_a_boolean_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "lora_strength"):
+            finalize_arguments({"lora_strength": True})
 
     def test_keep_legwear_number_passes_through(self):
         self.assertEqual(finalize_arguments({"keep_legwear": 0.4})["keep_legwear"], 0.4)

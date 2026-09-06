@@ -130,7 +130,9 @@ route instead.
 
 `layerdiffuse` (bool, default `false`) adds a LayerDiffuse stage to the base
 pass -- attention injection against the SDXL model, decoded through
-`LayeredDiffusionDecodeRGBA` -- so the output PNG is RGBA instead of RGB. The
+`LayeredDiffusionDecode` and joined with its alpha by the core
+`JoinImageWithAlpha` (whose alpha input is inverted, hence the `InvertMask`
+between them) -- so the output PNG is RGBA instead of RGB. The
 canvas must be a multiple of 64 in both dimensions; the recipe's own pose
 canvases already are.
 

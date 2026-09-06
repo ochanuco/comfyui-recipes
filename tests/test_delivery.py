@@ -14,6 +14,7 @@ from comfyui_recipes.infrastructure.imaging.palette import repin_skin_png
 from comfyui_recipes.infrastructure.imaging.delivery import (
     background_mask,
     clean_background,
+    compose,
     down2,
     graph_from_png,
     keep_scene,
@@ -211,6 +212,70 @@ class DeliveryTest(unittest.TestCase):
     def test_down2_averages_each_2x2_block(self):
         block = np.array([[1.0, 3.0], [5.0, 7.0]])
         self.assertEqual(float(down2(block)[0, 0]), 4.0)
+
+
+def rgba_png(pixels: np.ndarray, alpha: np.ndarray) -> bytes:
+    """A layerdiffuse render's own RGBA, alpha unrefined."""
+    output = io.BytesIO()
+    Image.fromarray(np.dstack([pixels, alpha]).astype(np.uint8), "RGBA").save(
+        output, "PNG")
+    return output.getvalue()
+
+
+class ComposeTest(unittest.TestCase):
+    def test_compose_returns_rgb_of_the_same_size(self):
+        pixels = np.full((32, 32, 3), (40, 40, 40), dtype=np.uint8)
+        alpha = np.zeros((32, 32), dtype=np.uint8)
+        alpha[8:24, 10:22] = 255
+        composed, tag = compose(rgba_png(pixels, alpha))
+        image = Image.open(io.BytesIO(composed))
+        self.assertEqual(image.mode, "RGB")
+        self.assertEqual(image.size, (32, 32))
+        self.assertTrue(tag.startswith("compose-"))
+
+    def test_compose_uses_the_backdrop_colour_where_alpha_is_zero(self):
+        pixels = np.full((32, 32, 3), (40, 40, 40), dtype=np.uint8)
+        alpha = np.zeros((32, 32), dtype=np.uint8)
+        alpha[8:24, 10:22] = 255
+        composed, _ = compose(rgba_png(pixels, alpha))
+        arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB"))
+        backdrop = np.array(parse_color(delivery_style.BACKDROP))
+        np.testing.assert_array_equal(arr[0, 0], backdrop)
+
+    def test_compose_keeps_the_figures_own_colour_where_alpha_is_full(self):
+        pixels = np.full((32, 32, 3), (40, 40, 40), dtype=np.uint8)
+        alpha = np.zeros((32, 32), dtype=np.uint8)
+        alpha[8:24, 10:22] = 255
+        composed, _ = compose(rgba_png(pixels, alpha))
+        arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB"))
+        np.testing.assert_array_equal(arr[16, 16], pixels[16, 16])
+
+    def test_compose_draws_the_stroke_band_just_outside_the_figure(self):
+        pixels = np.full((240, 240, 3), (40, 40, 40), dtype=np.uint8)
+        alpha = np.zeros((240, 240), dtype=np.uint8)
+        alpha[80:160, 80:160] = 255
+        composed, _ = compose(rgba_png(pixels, alpha))
+        arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB")).astype(int)
+        backdrop = np.array(parse_color(delivery_style.BACKDROP))
+        row = 120
+        cols = np.arange(160, 240)
+        strip = arr[row, cols]
+
+        def not_backdrop(tolerance=20):
+            distance = np.abs(strip - backdrop).sum(axis=1)
+            hits = np.where(distance > tolerance)[0]
+            self.assertTrue(hits.size, "no band pixel found just outside the figure")
+            return cols[hits[0]]
+
+        self.assertLess(not_backdrop(), 165)
+
+    def test_compose_honors_an_explicit_backdrop(self):
+        pixels = np.full((32, 32, 3), (40, 40, 40), dtype=np.uint8)
+        alpha = np.zeros((32, 32), dtype=np.uint8)
+        alpha[8:24, 10:22] = 255
+        composed, _ = compose(rgba_png(pixels, alpha), backdrop="#112233")
+        arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB"))
+        np.testing.assert_array_equal(arr[0, 0], np.array(parse_color("#112233")))
 
 
 if __name__ == "__main__":

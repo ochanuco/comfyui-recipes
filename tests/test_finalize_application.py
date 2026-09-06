@@ -18,6 +18,7 @@ from comfyui_recipes.domain.yukari import delivery_style
 from comfyui_recipes.domain.yukari_anima import delivery_style as anima_delivery_style
 from comfyui_recipes.domain.yukari_anima.recipe import render_spec
 from comfyui_recipes.domain.yukari_sketch import delivery_style as sketch_delivery_style
+from comfyui_recipes.domain.yukari_sketch.prompt_style import LORA as SKETCH_LORA
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 
@@ -34,6 +35,13 @@ SKETCH_GRAPH = {"2": {"class_type": "LoraLoader", "inputs": {}},
                 "3": {"inputs": {"seed": 1}},
                 "6": {"inputs": {"text": "p"}},
                 "7": {"inputs": {"text": "n"}}}
+
+LAYERDIFFUSE_SKETCH_GRAPH = {"2": {"class_type": "LoraLoader", "inputs": {}},
+                            "3": {"inputs": {"seed": 1}},
+                            "6": {"inputs": {"text": "p"}},
+                            "7": {"inputs": {"text": "n"}},
+                            "12": {"class_type": "LayeredDiffusionApply",
+                                  "inputs": {}}}
 
 
 class ManagementFake:
@@ -462,6 +470,48 @@ class FinalizeApplicationTest(unittest.TestCase):
             self.assertEqual(posts["/api/v1/batches"]["idempotency_key"], "request:r1")
             self.assertEqual(posts["/api/v1/batches/batch-id/jobs"]["idempotency_key"],
                              "request:r1:job:0")
+
+
+class FinalizeLayerDiffuseTest(unittest.TestCase):
+    def test_composes_instead_of_delivering(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services, backdrop="#112233")
+            kwargs = calls[-1]
+            self.assertIs(kwargs["compose"], True)
+            self.assertIs(kwargs["latent_route"], False)
+            self.assertIsNone(kwargs["matte_model"])
+            self.assertIs(kwargs["deliver"], False)
+            self.assertEqual(kwargs["backdrop"], "#112233")
+            lora_name, weight = SKETCH_LORA
+            self.assertEqual(kwargs["redraw_lora"], (lora_name, weight, weight))
+
+    def test_batch_parameters_record_compose_and_backdrop(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, chain_pass=lambda *a, **k: {},
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services, backdrop="#112233")
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertIs(parameters["compose"], True)
+            self.assertEqual(parameters["backdrop"], "#112233")
+
+    def test_batch_parameters_omit_backdrop_when_not_given(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, chain_pass=lambda *a, **k: {},
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertNotIn("backdrop", parameters)
 
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                skin: bool = False, repin: bool = False, recolor: bool = False,
                keep_legwear: float | None = None, keep_scene: bool = False,
                source_image: str | None = None,
-               deliver: bool = False) -> dict:
+               deliver: bool = False, transparent: bool = False) -> dict:
     required = {"3", "4", "5", "6", "7", "9"}
     missing = sorted(required - base.keys(), key=int)
     if missing:
@@ -166,7 +166,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             deliver_id = allocate()
             graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
                 "image": image_ref, "matte": [remove, 0],
-                "keep_scene": keep_scene}}
+                "keep_scene": keep_scene, "transparent": transparent}}
             save_delivered = allocate()
             graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
                 "images": [deliver_id, 0],

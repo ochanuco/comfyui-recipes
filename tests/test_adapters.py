@@ -257,6 +257,7 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(deliver_node["inputs"]["image"], ["13", 0])
         self.assertEqual(deliver_node["inputs"]["matte"], ["17", 0])
         self.assertIs(deliver_node["inputs"]["keep_scene"], False)
+        self.assertIs(deliver_node["inputs"]["transparent"], False)
         save = graph["21"]
         self.assertEqual(save["class_type"], "SaveImage")
         self.assertEqual(save["inputs"]["images"], ["20", 0])
@@ -270,6 +271,11 @@ class AdapterTest(unittest.TestCase):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
                            matte_model="birefnet", deliver=True, keep_scene=True)
         self.assertIs(graph["20"]["inputs"]["keep_scene"], True)
+
+    def test_chain_pass_deliver_transparent_is_passed_through(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True, transparent=True)
+        self.assertIs(graph["20"]["inputs"]["transparent"], True)
 
     def test_chain_pass_deliver_with_skin_chains_repin_skin_before_delivery(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",

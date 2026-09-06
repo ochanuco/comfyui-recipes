@@ -242,7 +242,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "denoise": None, "handdrawn": False, "apply_repin": False,
             "apply_skin": False, "apply_recolor": False, "keep_legwear": None,
             "toe_guard": None, "size": None, "latent_route": None,
-            "finalizer": None, "keep_scene": False,
+            "finalizer": None, "keep_scene": False, "transparent": None,
         })
 
     def test_keep_legwear_true_becomes_default_cut(self):
@@ -267,7 +267,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
         arguments = finalize_arguments({
             "repin": True, "recolor": True, "handdrawn": True, "skin": True,
             "keep_scene": True, "size": 2048, "finalizer": "some-model",
-            "denoise": 0.5,
+            "denoise": 0.5, "transparent": True,
         })
         self.assertEqual(arguments["apply_repin"], True)
         self.assertEqual(arguments["apply_recolor"], True)
@@ -277,6 +277,10 @@ class FinalizeArgumentsTest(unittest.TestCase):
         self.assertEqual(arguments["size"], 2048)
         self.assertEqual(arguments["finalizer"], "some-model")
         self.assertEqual(arguments["denoise"], 0.5)
+        self.assertIs(arguments["transparent"], True)
+
+    def test_transparent_false_passes_through(self):
+        self.assertIs(finalize_arguments({"transparent": False})["transparent"], False)
 
     def test_unknown_key_is_rejected(self):
         with self.assertRaises(ValueError) as ctx:
@@ -292,6 +296,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
             {"finalizer": 123},
             {"size": 2048.5},
             {"toe_guard": "on"},
+            {"transparent": "yes"},
         ]
         for options in cases:
             with self.subTest(options=options), self.assertRaises(ValueError) as ctx:

@@ -80,12 +80,20 @@ class YukariDeliver:
             "image": ("IMAGE",),
             "matte": ("MASK",),
             "keep_scene": ("BOOLEAN", {"default": False}),
+        }, "optional": {
+            "transparent": ("BOOLEAN", {"default": False}),
         }}
 
-    def run(self, image, matte, keep_scene):
-        deliver = delivery.keep_scene if keep_scene else delivery.clean_background
+    def run(self, image, matte, keep_scene, transparent=False):
+        if keep_scene:
+            deliver = delivery.keep_scene
+        elif transparent:
+            deliver = delivery.transparent
+        else:
+            deliver = delivery.clean_background
         data, tag = deliver(bridge.image_to_png(image), bridge.mask_to_png(matte))
-        return (bridge.png_to_image(data), tag)
+        mode = "RGBA" if (deliver is delivery.transparent) else "RGB"
+        return (bridge.png_to_image(data, mode), tag)
 
 
 NODE_CLASS_MAPPINGS = {

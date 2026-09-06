@@ -37,4 +37,4 @@ class RenderSpec:
     loras: tuple[tuple[str, float], ...] = ()
     layerdiffuse: bool = False
     layerdiffuse_weight: float = 1.0
-    layerdiffuse_config: str = "SDXL, Attention Injection"
+    layerdiffuse_config: str = "SDXL, Conv Injection"

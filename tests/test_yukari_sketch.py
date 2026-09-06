@@ -7,6 +7,7 @@ import json
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -189,6 +190,16 @@ class LayerDiffuseGraphTest(unittest.TestCase):
                                                   "alpha": ["14", 0]}})
         self.assertEqual(graph["9"]["inputs"]["images"], ["15", 0])
         self.assertEqual(graph["8"]["class_type"], "VAEDecode")
+
+    def test_layerdiffuse_apply_reads_weight_and_config_from_spec(self):
+        spec = replace(render_spec("cinema", 7, "ab11", layerdiffuse=True),
+                       layerdiffuse_weight=0.7,
+                       layerdiffuse_config="SDXL, Conv Injection")
+        graph = build_graph(spec)
+        apply_node = graph["12"]
+        self.assertEqual(apply_node["inputs"]["weight"], 0.7)
+        self.assertEqual(apply_node["inputs"]["config"],
+                         "SDXL, Conv Injection")
 
     def test_layerdiffuse_rejects_a_canvas_not_a_multiple_of_64(self):
         spec = RenderSpec(

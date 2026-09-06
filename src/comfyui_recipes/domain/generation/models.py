@@ -36,3 +36,5 @@ class RenderSpec:
     hires: HiresSpec | None = None
     loras: tuple[tuple[str, float], ...] = ()
     layerdiffuse: bool = False
+    layerdiffuse_weight: float = 1.0
+    layerdiffuse_config: str = "SDXL, Attention Injection"

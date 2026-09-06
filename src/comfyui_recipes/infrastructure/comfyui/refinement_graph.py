@@ -31,7 +31,10 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                source_image: str | None = None,
                deliver: bool = False, transparent: bool = False,
                compose: bool = False, backdrop: str | None = None,
-               redraw_lora: tuple[str, float, float] | None = None) -> dict:
+               redraw_lora: tuple[str, float, float] | None = None,
+               upscale: str = "bicubic") -> dict:
+    if upscale not in ("bicubic", "nearest-exact", "bilinear", "lanczos"):
+        raise ValueError(f"unsupported upscale method: {upscale!r}")
     required = {"3", "4", "5", "6", "7", "9"}
     missing = sorted(required - base.keys(), key=int)
     if missing:
@@ -125,7 +128,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         # as pixels, and the redraw has to start from it, not from the RGBA.
         image_ref = [compose_id, 0] if compose else graph["9"]["inputs"]["images"]
         graph[scale] = {"class_type": "ImageScale", "inputs": {
-            "image": image_ref, "upscale_method": "bicubic",
+            "image": image_ref, "upscale_method": upscale,
             "width": width, "height": height, "crop": "disabled"}}
         graph[encode] = {"class_type": "VAEEncode", "inputs": {
             "pixels": [scale, 0], "vae": vae_ref}}

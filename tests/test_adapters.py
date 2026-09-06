@@ -133,6 +133,40 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(graph["12"]["inputs"]["latent_image"], ["11", 0])
         self.assertEqual(graph["9"]["inputs"]["images"], ["13", 0])
 
+    def test_chain_pass_pixel_route_honours_the_upscale_method(self):
+        base = {
+            "3": {"class_type": "KSampler", "inputs": {"seed": 7}},
+            "4": {"class_type": "DiffusersLoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                  "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+            "9": {"class_type": "SaveImage",
+                  "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+        }
+        graph = chain_pass(base, 2048, 0.45, "fin", upscale="nearest-exact")
+        scale = graph["10"]
+        self.assertEqual(scale["class_type"], "ImageScale")
+        self.assertEqual(scale["inputs"]["upscale_method"], "nearest-exact")
+
+    def test_chain_pass_rejects_an_unknown_upscale_method(self):
+        base = {
+            "3": {"class_type": "KSampler", "inputs": {"seed": 7}},
+            "4": {"class_type": "DiffusersLoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                  "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+            "9": {"class_type": "SaveImage",
+                  "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+        }
+        with self.assertRaisesRegex(ValueError, "unsupported upscale method"):
+            chain_pass(base, 2048, 0.45, "fin", upscale="mitchell")
+
     def test_chain_pass_sampler_override_keeps_steps_cfg_and_seed(self):
         base = {
             "3": {"class_type": "KSampler",

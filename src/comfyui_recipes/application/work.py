@@ -24,7 +24,7 @@ DRY_RUN_PATH = "/api/v1/requests?status=queued&limit=1"
 _KNOWN_FINALIZE_OPTIONS = frozenset({
     "denoise", "repin", "recolor", "keep_legwear", "route", "finalizer",
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
-    "backdrop",
+    "backdrop", "upscale",
 })
 
 
@@ -322,6 +322,13 @@ def finalize_arguments(options: Mapping) -> dict:
             raise ValueError(
                 f"backdrop must be null or a #RRGGBB colour, got {backdrop!r}") from error
 
+    upscale = options.get("upscale")
+    if upscale is not None and upscale not in (
+            "bicubic", "nearest-exact", "bilinear", "lanczos"):
+        raise ValueError(
+            "upscale must be null, 'bicubic', 'nearest-exact', 'bilinear' or "
+            f"'lanczos', got {upscale!r}")
+
     return {
         "denoise": float(denoise) if denoise is not None else None,
         "handdrawn": boolean("handdrawn"),
@@ -336,6 +343,7 @@ def finalize_arguments(options: Mapping) -> dict:
         "keep_scene": boolean("keep_scene"),
         "transparent": transparent,
         "backdrop": backdrop,
+        "upscale": upscale,
     }
 
 

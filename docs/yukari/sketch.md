@@ -128,6 +128,12 @@ route instead.
 `hires`, `denoise` and `expression` are rejected for this recipe -- see
 [queueing.md](../queueing.md).
 
+`layerdiffuse` (bool, default `false`) adds a LayerDiffuse stage to the base
+pass -- attention injection against the SDXL model, decoded through
+`LayeredDiffusionDecodeRGBA` -- so the output PNG is RGBA instead of RGB. The
+canvas must be a multiple of 64 in both dimensions; the recipe's own pose
+canvases already are.
+
 ```bash
 uv run comfy-recipes sketch prompt --pose cinema --json
 ```

@@ -29,7 +29,9 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                skin: bool = False, repin: bool = False, recolor: bool = False,
                keep_legwear: float | None = None, keep_scene: bool = False,
                source_image: str | None = None,
-               deliver: bool = False, transparent: bool = False) -> dict:
+               deliver: bool = False, transparent: bool = False,
+               compose: bool = False, backdrop: str | None = None,
+               redraw_lora: tuple[str, float, float] | None = None) -> dict:
     required = {"3", "4", "5", "6", "7", "9"}
     missing = sorted(required - base.keys(), key=int)
     if missing:
@@ -49,6 +51,11 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     # than assumed: a single DiffusersLoader answers all three from node 4, a
     # split-file model answers them from three separate loaders.
     model_ref = graph["3"]["inputs"].get("model", ["4", 0])
+    # A layerdiffuse base samples through its own LayeredDiffusionApply node,
+    # so the redraw's model is what that node itself sampled, not the node.
+    apply_node = graph.get(model_ref[0], {})
+    if apply_node.get("class_type") == "LayeredDiffusionApply":
+        model_ref = apply_node["inputs"]["model"]
     clip_ref = graph["6"]["inputs"].get("clip", ["4", 1])
     tail = graph[graph["9"]["inputs"]["images"][0]]
     while tail.get("class_type") in ("JoinImageWithAlpha", "LayeredDiffusionDecode"):
@@ -59,6 +66,21 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             "base graph's SaveImage must be fed by a VAEDecode, got "
             f"{tail.get('class_type')!r}")
     vae_ref = tail["inputs"].get("vae", ["4", 2])
+    compose_id = None
+    if compose:
+        if matte_model or deliver:
+            raise ValueError(
+                "compose cannot be combined with matte_model or deliver")
+        join_ref = graph["9"]["inputs"]["images"]
+        join_node = graph.get(join_ref[0], {})
+        if join_node.get("class_type") != "JoinImageWithAlpha":
+            raise ValueError(
+                "compose requires the base graph's SaveImage to be fed "
+                f"directly by a JoinImageWithAlpha node, got "
+                f"{join_node.get('class_type')!r}")
+        compose_id = str(next_id + 11)
+        graph[compose_id] = {"class_type": "YukariCompose", "inputs": {
+            "image": join_ref, "backdrop": backdrop or ""}}
     if loader:
         # A different checkpoint redraws: its own model, CLIP and VAE, with the
         # base prompts re-encoded through its CLIP.
@@ -69,6 +91,17 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             [loader_id, 0], [loader_id, 1], [loader_id, 2])
         if prompt is None:
             prompt = (graph["6"]["inputs"]["text"], graph["7"]["inputs"]["text"])
+    if redraw_lora:
+        while graph.get(model_ref[0], {}).get("class_type") == "LoraLoader":
+            model_ref = graph[model_ref[0]]["inputs"]["model"]
+        while graph.get(clip_ref[0], {}).get("class_type") == "LoraLoader":
+            clip_ref = graph[clip_ref[0]]["inputs"]["clip"]
+        lora_name, strength_model, strength_clip = redraw_lora
+        lora_id = str(next_id + 12)
+        graph[lora_id] = {"class_type": "LoraLoader", "inputs": {
+            "model": model_ref, "clip": clip_ref, "lora_name": lora_name,
+            "strength_model": strength_model, "strength_clip": strength_clip}}
+        model_ref, clip_ref = [lora_id, 0], [lora_id, 1]
     positive, negative = ["6", 0], ["7", 0]
     if prompt:
         positive_id, negative_id = str(next_id + 4), str(next_id + 5)
@@ -82,14 +115,17 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     # Pixel space is faithful; the latent route leaves a staircase on hard
     # contours that the redraw turns into visible stroke, which is the hand in
     # the line this delivery is judged on.
-    if latent_route:
+    if latent_route and not compose:
         graph[scale] = {"class_type": "LatentUpscale", "inputs": {
             "samples": ["3", 0], "upscale_method": "bicubic",
             "width": width, "height": height, "crop": "disabled"}}
         latent_in = [scale, 0]
     else:
+        # compose forces the pixel route: the composited backdrop only exists
+        # as pixels, and the redraw has to start from it, not from the RGBA.
+        image_ref = [compose_id, 0] if compose else graph["9"]["inputs"]["images"]
         graph[scale] = {"class_type": "ImageScale", "inputs": {
-            "image": graph["9"]["inputs"]["images"], "upscale_method": "bicubic",
+            "image": image_ref, "upscale_method": "bicubic",
             "width": width, "height": height, "crop": "disabled"}}
         graph[encode] = {"class_type": "VAEEncode", "inputs": {
             "pixels": [scale, 0], "vae": vae_ref}}

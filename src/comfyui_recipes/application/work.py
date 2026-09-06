@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Protocol
 
 from ..domain.yukari.recipe import TOE_GUARD
+from ..infrastructure.imaging.delivery import parse_color
 from .finalize import FinalizeServices, finalize
 from .generate import GenerateServices, generate, request_file_path
 
@@ -23,6 +24,7 @@ DRY_RUN_PATH = "/api/v1/requests?status=queued&limit=1"
 _KNOWN_FINALIZE_OPTIONS = frozenset({
     "denoise", "repin", "recolor", "keep_legwear", "route", "finalizer",
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
+    "backdrop",
 })
 
 
@@ -309,6 +311,17 @@ def finalize_arguments(options: Mapping) -> dict:
         raise ValueError(
             f"transparent must be null or a boolean, got {type(transparent).__name__}")
 
+    backdrop = options.get("backdrop")
+    if backdrop is not None:
+        if not isinstance(backdrop, str):
+            raise ValueError(
+                f"backdrop must be null or a string, got {type(backdrop).__name__}")
+        try:
+            parse_color(backdrop)
+        except SystemExit as error:
+            raise ValueError(
+                f"backdrop must be null or a #RRGGBB colour, got {backdrop!r}") from error
+
     return {
         "denoise": float(denoise) if denoise is not None else None,
         "handdrawn": boolean("handdrawn"),
@@ -322,6 +335,7 @@ def finalize_arguments(options: Mapping) -> dict:
         "finalizer": finalizer,
         "keep_scene": boolean("keep_scene"),
         "transparent": transparent,
+        "backdrop": backdrop,
     }
 
 

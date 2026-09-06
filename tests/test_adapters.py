@@ -12,11 +12,13 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
+from comfyui_recipes.domain.yukari_sketch.recipe import render_spec as sketch_render_spec
 from comfyui_recipes.infrastructure.chimera.client import ChimeraClient
 from comfyui_recipes.infrastructure.comfyui.client import ComfyUIClient
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import (
     DELIVERED_SUFFIX, MATTE_SUFFIX, chain_pass,
 )
+from comfyui_recipes.infrastructure.comfyui.yukari_graph import build_graph
 from comfyui_recipes.infrastructure.notifications.discord import DiscordNotifier
 from comfyui_recipes.infrastructure.persistence.run_state import JsonRunState
 
@@ -324,6 +326,78 @@ class AdapterTest(unittest.TestCase):
         deliver_node = graph["21"]
         self.assertEqual(deliver_node["class_type"], "YukariDeliver")
         self.assertEqual(deliver_node["inputs"]["image"], ["20", 0])
+
+    def _layerdiffuse_sketch_base(self):
+        spec = sketch_render_spec("cinema", 7, "ab11", layerdiffuse=True)
+        return build_graph(spec)
+
+    def _single(self, graph, class_type):
+        matches = [node for node in graph.values()
+                  if node.get("class_type") == class_type]
+        self.assertEqual(len(matches), 1, class_type)
+        return matches[0]
+
+    def _id_of(self, graph, node):
+        return next(key for key, candidate in graph.items() if candidate is node)
+
+    def test_chain_pass_compose_wires_compose_into_the_pixel_route(self):
+        base = self._layerdiffuse_sketch_base()
+        graph = chain_pass(base, 2048, 0.55, "fin", prompt=("p", "n"),
+                           latent_route=True, compose=True)
+        compose_node = self._single(graph, "YukariCompose")
+        self.assertEqual(compose_node["inputs"]["image"], ["15", 0])
+        self.assertEqual(compose_node["inputs"]["backdrop"], "")
+        compose_id = self._id_of(graph, compose_node)
+
+        scale = self._single(graph, "ImageScale")
+        self.assertEqual(scale["inputs"]["image"], [compose_id, 0])
+        scale_id = self._id_of(graph, scale)
+
+        encode = self._single(graph, "VAEEncode")
+        self.assertEqual(encode["inputs"]["pixels"], [scale_id, 0])
+        encode_id = self._id_of(graph, encode)
+
+        redraw_ids = [key for key in graph if key.isdecimal() and int(key) > 15
+                     and graph[key].get("class_type") == "KSampler"]
+        self.assertEqual(len(redraw_ids), 1)
+        sampler = graph[redraw_ids[0]]
+        self.assertEqual(sampler["inputs"]["latent_image"], [encode_id, 0])
+        # Sees through node 12 (LayeredDiffusionApply) to the LoRA it samples.
+        self.assertEqual(sampler["inputs"]["model"], ["10", 0])
+
+    def test_chain_pass_redraw_lora_adds_a_loraloader_feeding_the_redraw(self):
+        base = self._layerdiffuse_sketch_base()
+        graph = chain_pass(
+            base, 2048, 0.55, "fin", prompt=("p", "n"), latent_route=True,
+            compose=True, redraw_lora=("some-lora.safetensors", 0.8, 0.7))
+        new_lora_ids = [key for key, node in graph.items()
+                        if node.get("class_type") == "LoraLoader" and key != "10"]
+        self.assertEqual(len(new_lora_ids), 1)
+        lora_node = graph[new_lora_ids[0]]
+        self.assertEqual(lora_node["inputs"]["model"], ["4", 0])
+        self.assertEqual(lora_node["inputs"]["clip"], ["4", 1])
+        self.assertEqual(lora_node["inputs"]["lora_name"], "some-lora.safetensors")
+        self.assertEqual(lora_node["inputs"]["strength_model"], 0.8)
+        self.assertEqual(lora_node["inputs"]["strength_clip"], 0.7)
+
+        redraw_ids = [key for key in graph if key.isdecimal() and int(key) > 15
+                     and graph[key].get("class_type") == "KSampler"]
+        sampler = graph[redraw_ids[0]]
+        self.assertEqual(sampler["inputs"]["model"], [new_lora_ids[0], 0])
+
+        prompt_nodes = [node for node in graph.values()
+                        if node.get("class_type") == "CLIPTextEncode"
+                        and node["inputs"]["clip"] == [new_lora_ids[0], 1]]
+        self.assertEqual(len(prompt_nodes), 2)
+
+    def test_chain_pass_compose_with_matte_model_raises(self):
+        base = self._layerdiffuse_sketch_base()
+        with self.assertRaisesRegex(ValueError, "compose cannot be combined"):
+            chain_pass(base, 2048, 0.55, "fin", compose=True, matte_model="birefnet")
+
+    def test_chain_pass_compose_on_a_non_rgba_base_raises(self):
+        with self.assertRaisesRegex(ValueError, "JoinImageWithAlpha"):
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin", compose=True)
 
     def test_discord_closes_response_and_swallows_transport_errors(self):
         notifier = DiscordNotifier(Path("."))

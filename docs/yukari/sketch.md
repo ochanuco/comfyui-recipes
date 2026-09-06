@@ -115,6 +115,15 @@ The latent route is this recipe's own default (`FINALIZE_LATENT_ROUTE`):
 `--latent-route` is then a no-op, and `--pixel-route` forces the pixel-space
 route instead.
 
+A base rendered with `layerdiffuse` carries its own RGBA, so its finalize is
+compose, then redraw instead of redraw, then matte, then deliver: the alpha
+composites onto the sticker backdrop (flat colour, white band, purple band)
+in the `YukariCompose` node, the opaque result is what the pixel-route
+upscale and redraw run on, and the redraw carries the recipe's own LoRA into
+its model and CLIP -- no birefnet matte, no `YukariDeliver`. The `backdrop`
+request option (`--backdrop` on the CLI, a `#RRGGBB` hex colour) overrides
+the composite's backdrop colour; unset, it is the delivery's own default.
+
 ## Requesting it
 
 ```json

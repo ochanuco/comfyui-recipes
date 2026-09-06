@@ -142,6 +142,38 @@ def keep_scene(data: bytes, matte: bytes) -> tuple[bytes, str]:
     return data, "scene"
 
 
+def _band_widths(height: int, width: int) -> tuple[float, float]:
+    white_w = max(height, width) * delivery_style.WHITE_WIDTH_PCT / 100
+    purple_w = white_w * delivery_style.STROKE_WIDTH_BAND
+    return white_w, purple_w
+
+
+def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
+           backdrop_rgb) -> np.ndarray:
+    """Frame `figure` on `backdrop_rgb`, white band then purple band outside it.
+
+    `coverage` is the figure's own per-pixel alpha in 0..1; the composite is
+    coverage * px + (1 - coverage) * (the stroke bands over the backdrop).
+    `figure` alone decides where the bands sit -- coverage may be soft at the
+    edge the bands are drawn from a hard boundary.
+    """
+    height, width = px.shape[:2]
+    bg2 = ~(np.array(Image.fromarray(figure)
+                     .resize((width * 2, height * 2), Image.NEAREST)))
+
+    white_w, purple_w = _band_widths(height, width)
+    white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2))
+    purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2))
+
+    white_rgb = np.array([255.0, 255.0, 255.0])
+    purple_rgb = np.array(parse_color(delivery_style.STROKE), dtype=float)
+    flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
+
+    bands = flat + purple_a[..., None] * (purple_rgb - flat)
+    bands = bands + white_a[..., None] * (white_rgb - bands)
+    return bands + coverage[..., None] * (px - bands)
+
+
 def clean_background(data: bytes, matte: bytes) -> tuple[bytes, str]:
     """Frame the figure the matte cuts out, in the delivery's own colours.
 
@@ -157,28 +189,36 @@ def clean_background(data: bytes, matte: bytes) -> tuple[bytes, str]:
         px, figure,
         int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100),
         delivery_style.MATTE_EDGE_TOLERANCE)
-    px[~figure] = backdrop_rgb
-
-    bg2 = ~(np.array(Image.fromarray(figure)
-                     .resize((width * 2, height * 2), Image.NEAREST)))
-
-    white_w = max(height, width) * delivery_style.WHITE_WIDTH_PCT / 100
-    purple_w = white_w * delivery_style.STROKE_WIDTH_BAND
-    white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2))
-    purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2))
-    fig_a = down2((~bg2).astype(float))
-
-    white_rgb = np.array([255.0, 255.0, 255.0])
-    purple_rgb = np.array(parse_color(delivery_style.STROKE), dtype=float)
-    flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
-
-    composite = flat + purple_a[..., None] * (purple_rgb - flat)
-    composite = composite + white_a[..., None] * (white_rgb - composite)
-    composite = composite + fig_a[..., None] * (px - composite)
+    composite = sticker(px, figure, figure.astype(float), backdrop_rgb)
+    white_w, purple_w = _band_widths(height, width)
 
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
     return output.getvalue(), f"clean-w{white_w:.0f}-p{purple_w:.0f}"
+
+
+def compose(data: bytes, backdrop: str | None = None) -> tuple[bytes, str]:
+    """Composite an RGBA figure onto the sticker backdrop, unrefined.
+
+    The alpha is a layerdiffuse render's own -- islands and holes are left
+    as drawn, unlike `clean_background`'s birefnet matte, which `refine_matte`
+    retraces because the model loses strands `refine_matte` was written to
+    put back.
+    """
+    backdrop_rgb = (parse_color(backdrop) if backdrop
+                    else parse_color(delivery_style.BACKDROP))
+    rgba = Image.open(io.BytesIO(data)).convert("RGBA")
+    px = np.array(rgba)[..., :3].astype(float)
+    alpha = np.array(rgba)[..., 3]
+    figure = alpha > 127
+    coverage = alpha.astype(float) / 255.0
+    height, width = px.shape[:2]
+    composite = sticker(px, figure, coverage, backdrop_rgb)
+    white_w, purple_w = _band_widths(height, width)
+
+    output = io.BytesIO()
+    Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
+    return output.getvalue(), f"compose-w{white_w:.0f}-p{purple_w:.0f}"
 
 
 def transparent(data: bytes, matte: bytes) -> tuple[bytes, str]:

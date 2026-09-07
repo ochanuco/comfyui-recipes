@@ -204,6 +204,21 @@ class NodeRunTest(unittest.TestCase):
         self.assertEqual(image.array.shape[-1], 3)
         self.assertTrue(tag.startswith("clean-"))
 
+    def test_deliver_stroke_light_returns_an_image_and_a_light_tag(self):
+        node = nodes.YukariDeliver()
+        image, tag = node.run(
+            image_tensor(swatch()), mask_tensor(matte_array()),
+            keep_scene=False, transparent=True, stroke_light="ne")
+        self.assertEqual(image.array.shape, (1, 64, 64, 4))
+        self.assertTrue(tag.endswith("-light-ne"))
+
+    def test_deliver_default_stroke_light_yields_the_old_tag(self):
+        node = nodes.YukariDeliver()
+        image, tag = node.run(
+            image_tensor(swatch()), mask_tensor(matte_array()),
+            keep_scene=False, transparent=True)
+        self.assertEqual(tag, "transparent-w1-p1")
+
     def test_compose_wiring_returns_a_three_channel_image_and_the_tag(self):
         node = nodes.YukariCompose()
         pixels = swatch()

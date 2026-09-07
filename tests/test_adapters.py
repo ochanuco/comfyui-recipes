@@ -339,6 +339,21 @@ class AdapterTest(unittest.TestCase):
                            matte_model="birefnet", deliver=True, transparent=True)
         self.assertIs(graph["20"]["inputs"]["transparent"], True)
 
+    def test_chain_pass_stroke_light_is_passed_onto_the_deliver_node(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True, stroke_light="sw")
+        self.assertEqual(graph["20"]["inputs"]["stroke_light"], "sw")
+
+    def test_chain_pass_stroke_light_defaults_to_an_empty_string(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True)
+        self.assertEqual(graph["20"]["inputs"]["stroke_light"], "")
+
+    def test_chain_pass_bad_stroke_light_raises(self):
+        with self.assertRaisesRegex(ValueError, "stroke_light"):
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                      matte_model="birefnet", deliver=True, stroke_light="north")
+
     def test_chain_pass_deliver_with_skin_chains_repin_skin_before_delivery(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
                            matte_model="birefnet", deliver=True,
@@ -407,6 +422,7 @@ class AdapterTest(unittest.TestCase):
         compose_node = self._single(graph, "YukariCompose")
         self.assertEqual(compose_node["inputs"]["image"], ["15", 0])
         self.assertEqual(compose_node["inputs"]["backdrop"], "")
+        self.assertEqual(compose_node["inputs"]["stroke_light"], "")
         compose_id = self._id_of(graph, compose_node)
 
         scale = self._single(graph, "ImageScale")
@@ -424,6 +440,13 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(sampler["inputs"]["latent_image"], [encode_id, 0])
         # Sees through node 12 (LayeredDiffusionApply) to the LoRA it samples.
         self.assertEqual(sampler["inputs"]["model"], ["10", 0])
+
+    def test_chain_pass_compose_stroke_light_is_passed_onto_the_compose_node(self):
+        base = self._layerdiffuse_sketch_base()
+        graph = chain_pass(base, 2048, 0.55, "fin", prompt=("p", "n"),
+                           latent_route=False, compose=True, stroke_light="ne")
+        compose_node = self._single(graph, "YukariCompose")
+        self.assertEqual(compose_node["inputs"]["stroke_light"], "ne")
 
     def test_chain_pass_compose_latent_route_wires_compose_into_latent_space(self):
         base = self._layerdiffuse_sketch_base()

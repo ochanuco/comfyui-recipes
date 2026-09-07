@@ -48,7 +48,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              backdrop: str | None = None,
              upscale: str | None = None,
              lora_strength: float | None = None,
-             deliver_size: int | None = None) -> dict:
+             deliver_size: int | None = None,
+             stroke_light: str | None = None) -> dict:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
@@ -145,7 +146,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             backdrop=backdrop,
             upscale=upscale or "bicubic",
             redraw_lora=redraw_lora,
-            deliver_size=deliver_size)
+            deliver_size=deliver_size,
+            stroke_light=stroke_light)
     else:
         graph = services.chain_pass(
             base, size, denoise, prefix,
@@ -165,7 +167,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             transparent=transparent,
             upscale=upscale or "bicubic",
             redraw_lora=redraw_lora,
-            deliver_size=deliver_size)
+            deliver_size=deliver_size,
+            stroke_light=stroke_light)
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
@@ -235,6 +238,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                           if lora_strength is not None else {}),
                        **({"deliver_size": deliver_size}
                           if deliver_size is not None else {}),
+                       **({"stroke_light": stroke_light}
+                          if stroke_light is not None else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,

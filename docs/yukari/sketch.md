@@ -111,6 +111,10 @@ backdrop. `--opaque` (or request option
 `"transparent": false`) restores the composite on the flat backdrop instead; `--keep-scene`
 wins over both and delivers the redraw uncut.
 
+`--stroke-light` (request option `stroke_light`, one of the eight compass
+keys) shades the purple stroke's width by that light direction instead of
+drawing it at the uniform width; unset, the stroke stays uniform.
+
 The redraw reuses the base pass's own checkpoint and prompt --
 `domain/yukari_sketch/recipe.py`'s `refinement_prompt` returns the prompt
 pair unchanged, since the LoRA (not a prompt swap) is what gives the base

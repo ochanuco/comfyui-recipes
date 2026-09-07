@@ -245,6 +245,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "latent_route": None,
             "finalizer": None, "keep_scene": False, "transparent": None,
             "backdrop": None, "upscale": None, "lora_strength": None,
+            "stroke_light": None,
         })
 
     def test_backdrop_null_passes_through(self):
@@ -287,6 +288,21 @@ class FinalizeArgumentsTest(unittest.TestCase):
     def test_lora_strength_a_boolean_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "lora_strength"):
             finalize_arguments({"lora_strength": True})
+
+    def test_stroke_light_null_passes_through(self):
+        self.assertIsNone(finalize_arguments({})["stroke_light"])
+
+    def test_stroke_light_a_known_key_passes_through(self):
+        self.assertEqual(
+            finalize_arguments({"stroke_light": "ne"})["stroke_light"], "ne")
+
+    def test_stroke_light_an_unknown_key_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "stroke_light"):
+            finalize_arguments({"stroke_light": "north"})
+
+    def test_stroke_light_a_boolean_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "stroke_light"):
+            finalize_arguments({"stroke_light": True})
 
     def test_deliver_size_null_passes_through(self):
         self.assertIsNone(finalize_arguments({})["deliver_size"])

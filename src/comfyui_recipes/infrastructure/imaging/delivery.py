@@ -137,6 +137,33 @@ def stroke_alpha(mask: np.ndarray, gap: float, width: float) -> np.ndarray:
     return alpha
 
 
+def directional_stroke_alpha(mask: np.ndarray, gap: float, w_min: float,
+                             w_max: float, light: tuple[float, float],
+                             smooth: float) -> np.ndarray:
+    """Coverage of a purple band whose width follows the outline's own normal.
+
+    Thin where the outward normal faces `light` (image coordinates, x right,
+    y down), thick on the opposite side. The normal is read from the
+    gradient of a Gaussian-blurred distance field rather than the raw one, so
+    a hair strand or a notch does not flip the width pixel to pixel.
+    """
+    distance = ndimage.distance_transform_edt(mask)
+    field = ndimage.gaussian_filter(distance, smooth)
+    ny, nx = np.gradient(field)
+    norm = np.hypot(nx, ny)
+    norm[norm == 0] = 1.0
+    facing = (nx / norm) * light[0] + (ny / norm) * light[1]
+    k = (1.0 - facing) / 2.0
+    k = k * k * (3 - 2 * k)
+    width = w_min + (w_max - w_min) * k
+    width = ndimage.gaussian_filter(width, smooth / 2)
+    outer = np.clip(gap + width + 0.5 - distance, 0.0, 1.0)
+    inner = np.clip(distance - gap + 0.5, 0.0, 1.0)
+    alpha = outer * inner
+    alpha[~mask] = 0.0
+    return alpha
+
+
 def keep_scene(data: bytes, matte: bytes) -> tuple[bytes, str]:
     """Deliver the redraw as drawn, background included."""
     return data, "scene"
@@ -148,18 +175,33 @@ def _band_widths(height: int, width: int) -> tuple[float, float]:
     return white_w, purple_w
 
 
-def band_alphas(figure: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def band_alphas(figure: np.ndarray,
+                light: str | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Coverage of the white band and the purple band outside `figure`.
 
     Drawn from a hard boundary at 2x and averaged down, so the edge of each
-    band is a half-pixel gradient rather than a staircase.
+    band is a half-pixel gradient rather than a staircase. `light`, one of
+    `delivery_style.STROKE_LIGHTS`' keys, shades the purple band's width by
+    direction instead of drawing it at the uniform width; the white band is
+    never shaded.
     """
     height, width = figure.shape
     bg2 = ~(np.array(Image.fromarray(figure)
                      .resize((width * 2, height * 2), Image.NEAREST)))
     white_w, purple_w = _band_widths(height, width)
     white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2))
-    purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2))
+    if light is None:
+        purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2))
+    else:
+        if light not in delivery_style.STROKE_LIGHTS:
+            valid = ", ".join(repr(key) for key in sorted(delivery_style.STROKE_LIGHTS))
+            raise ValueError(f"light must be null or one of {valid}, got {light!r}")
+        purple_a = down2(directional_stroke_alpha(
+            bg2, white_w * 2,
+            purple_w * 2 * delivery_style.STROKE_LIGHT_THIN,
+            purple_w * 2 * delivery_style.STROKE_LIGHT_THICK,
+            delivery_style.STROKE_LIGHTS[light],
+            delivery_style.STROKE_LIGHT_SMOOTH * purple_w * 2))
     return white_a, purple_a
 
 
@@ -172,7 +214,7 @@ def _bands_over(white_a: np.ndarray, purple_a: np.ndarray,
 
 
 def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
-           backdrop_rgb) -> np.ndarray:
+           backdrop_rgb, light: str | None = None) -> np.ndarray:
     """Frame `figure` on `backdrop_rgb`, white band then purple band outside it.
 
     `coverage` is the figure's own per-pixel alpha in 0..1; the composite is
@@ -180,13 +222,14 @@ def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
     `figure` alone decides where the bands sit -- coverage may be soft at the
     edge the bands are drawn from a hard boundary.
     """
-    white_a, purple_a = band_alphas(figure)
+    white_a, purple_a = band_alphas(figure, light)
     flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
     bands = _bands_over(white_a, purple_a, flat)
     return bands + coverage[..., None] * (px - bands)
 
 
-def clean_background(data: bytes, matte: bytes) -> tuple[bytes, str]:
+def clean_background(data: bytes, matte: bytes,
+                     light: str | None = None) -> tuple[bytes, str]:
     """Frame the figure the matte cuts out, in the delivery's own colours.
 
     The matte is the authority on the silhouette. Colour cannot be: repin
@@ -201,15 +244,17 @@ def clean_background(data: bytes, matte: bytes) -> tuple[bytes, str]:
         px, figure,
         int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100),
         delivery_style.MATTE_EDGE_TOLERANCE)
-    composite = sticker(px, figure, figure.astype(float), backdrop_rgb)
+    composite = sticker(px, figure, figure.astype(float), backdrop_rgb, light)
     white_w, purple_w = _band_widths(height, width)
 
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
-    return output.getvalue(), f"clean-w{white_w:.0f}-p{purple_w:.0f}"
+    tag = f"clean-w{white_w:.0f}-p{purple_w:.0f}"
+    return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 
-def compose(data: bytes, backdrop: str | None = None) -> tuple[bytes, str]:
+def compose(data: bytes, backdrop: str | None = None,
+           light: str | None = None) -> tuple[bytes, str]:
     """Composite an RGBA figure onto the sticker backdrop, unrefined.
 
     The alpha is a layerdiffuse render's own -- islands and holes are left
@@ -225,15 +270,17 @@ def compose(data: bytes, backdrop: str | None = None) -> tuple[bytes, str]:
     figure = alpha > 127
     coverage = alpha.astype(float) / 255.0
     height, width = px.shape[:2]
-    composite = sticker(px, figure, coverage, backdrop_rgb)
+    composite = sticker(px, figure, coverage, backdrop_rgb, light)
     white_w, purple_w = _band_widths(height, width)
 
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
-    return output.getvalue(), f"compose-w{white_w:.0f}-p{purple_w:.0f}"
+    tag = f"compose-w{white_w:.0f}-p{purple_w:.0f}"
+    return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 
-def transparent(data: bytes, matte: bytes) -> tuple[bytes, str]:
+def transparent(data: bytes, matte: bytes,
+                light: str | None = None) -> tuple[bytes, str]:
     """Cut the figure out and frame it with the sticker bands on alpha 0.
 
     The refined matte is the authority on the silhouette, same as
@@ -261,7 +308,7 @@ def transparent(data: bytes, matte: bytes) -> tuple[bytes, str]:
     coverage[~halo] = 0.0
     coverage[ndimage.binary_erosion(figure, iterations=1)] = 1.0
 
-    white_a, purple_a = band_alphas(figure)
+    white_a, purple_a = band_alphas(figure, light)
     band_alpha = np.clip(white_a + purple_a, 0.0, 1.0)
     band_rgb = _bands_over(white_a, purple_a, np.zeros(px.shape))
     band_rgb = band_rgb / np.maximum(band_alpha, 1e-6)[..., None]
@@ -277,4 +324,5 @@ def transparent(data: bytes, matte: bytes) -> tuple[bytes, str]:
     white_w, purple_w = _band_widths(height, width)
     output = io.BytesIO()
     Image.fromarray(rgba, "RGBA").save(output, "PNG")
-    return output.getvalue(), f"transparent-w{white_w:.0f}-p{purple_w:.0f}"
+    tag = f"transparent-w{white_w:.0f}-p{purple_w:.0f}"
+    return output.getvalue(), tag + (f"-light-{light}" if light else "")

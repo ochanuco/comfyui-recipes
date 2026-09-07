@@ -613,6 +613,44 @@ class FinalizeApplicationTest(unittest.TestCase):
             parameters = batch_call(services)[2]["parameters"]
             self.assertNotIn("deliver_size", parameters)
 
+    def test_stroke_light_reaches_chain_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, stroke_light="ne")
+            self.assertEqual(calls[-1]["stroke_light"], "ne")
+
+    def test_stroke_light_default_is_none_in_chain_pass_kwargs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            self.assertIsNone(calls[-1]["stroke_light"])
+
+    def test_batch_parameters_record_stroke_light_when_given(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services, stroke_light="ne")
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["stroke_light"], "ne")
+
+    def test_batch_parameters_omit_stroke_light_when_not_given(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertNotIn("stroke_light", parameters)
+
 
 class FinalizeLayerDiffuseTest(unittest.TestCase):
     def test_composes_instead_of_delivering(self):
@@ -649,6 +687,20 @@ class FinalizeLayerDiffuseTest(unittest.TestCase):
                 graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
             finalize("gen-id", services, upscale="nearest-exact")
             self.assertEqual(calls[-1]["upscale"], "nearest-exact")
+
+    def test_stroke_light_reaches_the_compose_chain_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services, stroke_light="sw")
+            self.assertEqual(calls[-1]["stroke_light"], "sw")
 
     def test_batch_parameters_record_compose_and_backdrop(self):
         with tempfile.TemporaryDirectory() as directory:

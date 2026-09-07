@@ -213,6 +213,24 @@ def parser() -> argparse.ArgumentParser:
         "--stroke-light", choices=sorted(STROKE_LIGHTS),
         help="light direction the purple stroke is shaded from; thin toward "
              "it, thick away from it")
+    finalize_parser.add_argument(
+        "--repair", metavar="PARTS",
+        help="comma-separated hands/feet to reroll in this same submission "
+             "(default: off)")
+    finalize_parser.add_argument(
+        "--repair-region", dest="repair_regions", action="append",
+        metavar="X0,Y0,X1,Y1",
+        help="fractional rectangle [0..1], in the redraw's own frame, added "
+             "to the repair mask; repeatable")
+    finalize_parser.add_argument(
+        "--repair-denoise", type=float, default=0.6,
+        help="the repair reroll's own denoise")
+    finalize_parser.add_argument(
+        "--repair-pad", type=float, default=1.0,
+        help="multiplier on the repair's auto-detected region radius")
+    finalize_parser.add_argument(
+        "--repair-size", type=int, default=1024, metavar="LONGEST",
+        help="the repair crop's target long side")
 
     repair_parser = commands.add_parser(
         "repair", help="masked local redraw of hands/feet on an existing generation")
@@ -362,6 +380,10 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "finalize":
         services = _finalize_services(
             chimera, comfyui, notifier, repository, repository_metadata)
+        repair_parts = ([part.strip() for part in args.repair.split(",") if part.strip()]
+                        if args.repair else None)
+        repair_regions = [[float(value) for value in region.split(",")]
+                          for region in (args.repair_regions or [])]
         finalize(args.generation_id, services, denoise=args.denoise,
                  handdrawn=args.handdrawn, apply_repin=args.repin,
                  apply_skin=args.skin,
@@ -377,7 +399,12 @@ def main(argv: list[str] | None = None) -> None:
                  upscale=args.upscale,
                  lora_strength=args.lora_strength,
                  deliver_size=args.deliver_size,
-                 stroke_light=args.stroke_light)
+                 stroke_light=args.stroke_light,
+                 repair=repair_parts,
+                 repair_regions=repair_regions,
+                 repair_denoise=args.repair_denoise,
+                 repair_pad=args.repair_pad,
+                 repair_size=args.repair_size)
         return
     if args.command == "repair":
         services = _repair_services(

@@ -263,6 +263,8 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "finalizer": None, "keep_scene": False, "transparent": None,
             "backdrop": None, "upscale": None, "lora_strength": None,
             "stroke_light": None,
+            "repair": None, "repair_regions": [], "repair_denoise": 0.6,
+            "repair_pad": 1.0, "repair_size": 1024,
         })
 
     def test_backdrop_null_passes_through(self):
@@ -385,6 +387,59 @@ class FinalizeArgumentsTest(unittest.TestCase):
 
     def test_transparent_false_passes_through(self):
         self.assertIs(finalize_arguments({"transparent": False})["transparent"], False)
+
+    def test_repair_null_passes_through(self):
+        self.assertIsNone(finalize_arguments({})["repair"])
+
+    def test_repair_parts_pass_through(self):
+        self.assertEqual(
+            finalize_arguments({"repair": ["hands", "feet"]})["repair"],
+            ["hands", "feet"])
+
+    def test_repair_empty_list_passes_through(self):
+        self.assertEqual(finalize_arguments({"repair": []})["repair"], [])
+
+    def test_repair_unknown_part_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "repair"):
+            finalize_arguments({"repair": ["elbows"]})
+
+    def test_repair_regions_default_empty(self):
+        self.assertEqual(finalize_arguments({})["repair_regions"], [])
+
+    def test_repair_regions_pass_through(self):
+        self.assertEqual(
+            finalize_arguments({"repair_regions": [[0.1, 0.2, 0.3, 0.4]]})["repair_regions"],
+            [[0.1, 0.2, 0.3, 0.4]])
+
+    def test_repair_regions_out_of_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "region"):
+            finalize_arguments({"repair_regions": [[0, 0, 1, 1.5]]})
+
+    def test_repair_denoise_default(self):
+        self.assertEqual(finalize_arguments({})["repair_denoise"], 0.6)
+
+    def test_repair_denoise_out_of_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "repair_denoise"):
+            finalize_arguments({"repair_denoise": 1.5})
+
+    def test_repair_pad_default(self):
+        self.assertEqual(finalize_arguments({})["repair_pad"], 1.0)
+
+    def test_repair_pad_out_of_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "repair_pad"):
+            finalize_arguments({"repair_pad": 4})
+
+    def test_repair_size_default(self):
+        self.assertEqual(finalize_arguments({})["repair_size"], 1024)
+
+    def test_repair_size_not_a_multiple_of_8_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "repair_size"):
+            finalize_arguments({"repair_size": 1001})
+
+    def test_repair_regions_allowed_without_repair_parts(self):
+        arguments = finalize_arguments({"repair_regions": [[0.0, 0.0, 0.1, 0.1]]})
+        self.assertIsNone(arguments["repair"])
+        self.assertEqual(arguments["repair_regions"], [[0.0, 0.0, 0.1, 0.1]])
 
     def test_unknown_key_is_rejected(self):
         with self.assertRaises(ValueError) as ctx:

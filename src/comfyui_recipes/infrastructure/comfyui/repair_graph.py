@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import itertools
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 # Reused from refinement_graph's own delivery tail, so a source graph that
 # already carries a matte/delivered pair keeps the same suffix convention.
@@ -130,25 +130,113 @@ def source_prompts(graph: Mapping) -> tuple[str, str]:
     return positive, negative
 
 
+def redraw_canvas(graph: Mapping) -> tuple[int, int]:
+    """The (width, height) of the final sampler's own canvas.
+
+    Reads whatever feeds the final KSampler's `latent_image`: a `LatentUpscale`
+    or an `ImageScale` -> `VAEEncode` pair gives the redraw's own dimensions;
+    a plain raw graph samples straight off an `EmptyLatentImage`.
+    """
+    decode_id = _find_decode(graph)
+    sampler_id = _find_sampler(graph, decode_id)
+    latent_ref = graph[sampler_id]["inputs"]["latent_image"]
+    node = graph[latent_ref[0]]
+    class_type = node.get("class_type")
+    if class_type in ("LatentUpscale", "EmptyLatentImage"):
+        return node["inputs"]["width"], node["inputs"]["height"]
+    if class_type == "VAEEncode":
+        image_node = graph[node["inputs"]["pixels"][0]]
+        if image_node.get("class_type") == "ImageScale":
+            return image_node["inputs"]["width"], image_node["inputs"]["height"]
+    raise ValueError(
+        f"could not read the redraw canvas size from latent_image node "
+        f"{latent_ref[0]!r} ({class_type!r})")
+
+
+def _splice_reroll(graph: dict, allocate: Callable[[], str], *, image_ref: list,
+                   mask_name: str, positive: str, negative: str,
+                   model_ref: list, positive_clip_ref: list,
+                   negative_clip_ref: list, vae_ref: list, steps: int, cfg: float,
+                   sampler_name: str, scheduler: str, seed: int, denoise: float,
+                   size: int) -> tuple[str, list]:
+    """Adds the crop/resample/stitch reroll subgraph to `graph` (mutated).
+
+    Returns `(crop_id, repaired_ref)`: `crop_id` so a caller that spliced
+    `image_ref` from its own graph's output can exclude the crop's own input
+    when rewiring every other consumer of that output; `repaired_ref` is the
+    stitch node's `[id, 0]` output.
+    """
+    load_mask = allocate()
+    graph[load_mask] = {"class_type": "LoadImage", "inputs": {"image": mask_name}}
+    to_mask = allocate()
+    graph[to_mask] = {"class_type": "ImageToMask", "inputs": {
+        "image": [load_mask, 0], "channel": "red"}}
+    crop = allocate()
+    graph[crop] = {"class_type": "InpaintCropImproved", "inputs": {
+        **_INPAINT_CROP_DEFAULTS,
+        "image": image_ref, "mask": [to_mask, 0],
+        "output_target_width": size, "output_target_height": size}}
+    stitcher_ref, cropped_image_ref, cropped_mask_ref = (
+        [crop, 0], [crop, 1], [crop, 2])
+
+    positive_id = allocate()
+    graph[positive_id] = {"class_type": "CLIPTextEncode", "inputs": {
+        "clip": positive_clip_ref, "text": positive}}
+    negative_id = allocate()
+    graph[negative_id] = {"class_type": "CLIPTextEncode", "inputs": {
+        "clip": negative_clip_ref, "text": negative}}
+
+    encode = allocate()
+    graph[encode] = {"class_type": "VAEEncode", "inputs": {
+        "pixels": cropped_image_ref, "vae": vae_ref}}
+    noise_mask = allocate()
+    graph[noise_mask] = {"class_type": "SetLatentNoiseMask", "inputs": {
+        "samples": [encode, 0], "mask": cropped_mask_ref}}
+    sample = allocate()
+    graph[sample] = {"class_type": "KSampler", "inputs": {
+        "model": model_ref, "positive": [positive_id, 0],
+        "negative": [negative_id, 0], "latent_image": [noise_mask, 0],
+        "seed": seed, "steps": steps, "cfg": cfg,
+        "sampler_name": sampler_name, "scheduler": scheduler, "denoise": denoise}}
+    decode = allocate()
+    graph[decode] = {"class_type": "VAEDecode", "inputs": {
+        "samples": [sample, 0], "vae": vae_ref}}
+    stitch = allocate()
+    graph[stitch] = {"class_type": "InpaintStitchImproved", "inputs": {
+        "stitcher": stitcher_ref, "inpainted_image": [decode, 0]}}
+    return crop, [stitch, 0]
+
+
+def _redraw_pass(graph: Mapping) -> dict:
+    """The final sampler/decode's own model, CLIP, VAE refs and sampling settings."""
+    decode_id = _find_decode(graph)
+    sampler_id = _find_sampler(graph, decode_id)
+    sampler_inputs = graph[sampler_id]["inputs"]
+    return {
+        "decode_id": decode_id,
+        "model_ref": sampler_inputs["model"],
+        "positive_clip_ref": graph[sampler_inputs["positive"][0]]["inputs"]["clip"],
+        "negative_clip_ref": graph[sampler_inputs["negative"][0]]["inputs"]["clip"],
+        "vae_ref": graph[decode_id]["inputs"]["vae"],
+        "steps": sampler_inputs["steps"],
+        "cfg": sampler_inputs["cfg"],
+        "sampler_name": sampler_inputs["sampler_name"],
+        "scheduler": sampler_inputs["scheduler"],
+        "seed": sampler_inputs["seed"],
+    }
+
+
 def repair_graph(source: Mapping, *, image_name: str, mask_name: str,
                  positive: str, negative: str, seed: int, denoise: float,
                  size: int, prefix: str) -> dict:
     graph = json.loads(json.dumps(source))
-    decode_id = _find_decode(graph)
-    sampler_id = _find_sampler(graph, decode_id)
-    sampler_inputs = graph[sampler_id]["inputs"]
-    model_ref = sampler_inputs["model"]
-    positive_clip_ref = graph[sampler_inputs["positive"][0]]["inputs"]["clip"]
-    negative_clip_ref = graph[sampler_inputs["negative"][0]]["inputs"]["clip"]
-    vae_ref = graph[decode_id]["inputs"]["vae"]
-    steps = sampler_inputs["steps"]
-    cfg = sampler_inputs["cfg"]
-    sampler_name = sampler_inputs["sampler_name"]
-    scheduler = sampler_inputs["scheduler"]
+    pass_ = _redraw_pass(graph)
+    decode_id = pass_["decode_id"]
 
     # The loaders/LoRA the redraw needs -- not `sampler_id` itself, and not
     # the latent/pass-1 chain feeding it, since neither ref reaches those.
-    keep = _upstream(graph, [model_ref, vae_ref, positive_clip_ref, negative_clip_ref])
+    keep = _upstream(graph, [pass_["model_ref"], pass_["vae_ref"],
+                            pass_["positive_clip_ref"], pass_["negative_clip_ref"]])
 
     consumers = _consumers(graph)
     tail: set[str] = set()
@@ -184,45 +272,15 @@ def repair_graph(source: Mapping, *, image_name: str, mask_name: str,
 
     load_image = allocate()
     result[load_image] = {"class_type": "LoadImage", "inputs": {"image": image_name}}
-    load_mask = allocate()
-    result[load_mask] = {"class_type": "LoadImage", "inputs": {"image": mask_name}}
-    to_mask = allocate()
-    result[to_mask] = {"class_type": "ImageToMask", "inputs": {
-        "image": [load_mask, 0], "channel": "red"}}
-    crop = allocate()
-    result[crop] = {"class_type": "InpaintCropImproved", "inputs": {
-        **_INPAINT_CROP_DEFAULTS,
-        "image": [load_image, 0], "mask": [to_mask, 0],
-        "output_target_width": size, "output_target_height": size}}
-    stitcher_ref, cropped_image_ref, cropped_mask_ref = (
-        [crop, 0], [crop, 1], [crop, 2])
 
-    positive_id = allocate()
-    result[positive_id] = {"class_type": "CLIPTextEncode", "inputs": {
-        "clip": positive_clip_ref, "text": positive}}
-    negative_id = allocate()
-    result[negative_id] = {"class_type": "CLIPTextEncode", "inputs": {
-        "clip": negative_clip_ref, "text": negative}}
-
-    encode = allocate()
-    result[encode] = {"class_type": "VAEEncode", "inputs": {
-        "pixels": cropped_image_ref, "vae": vae_ref}}
-    noise_mask = allocate()
-    result[noise_mask] = {"class_type": "SetLatentNoiseMask", "inputs": {
-        "samples": [encode, 0], "mask": cropped_mask_ref}}
-    sample = allocate()
-    result[sample] = {"class_type": "KSampler", "inputs": {
-        "model": model_ref, "positive": [positive_id, 0],
-        "negative": [negative_id, 0], "latent_image": [noise_mask, 0],
-        "seed": seed, "steps": steps, "cfg": cfg,
-        "sampler_name": sampler_name, "scheduler": scheduler, "denoise": denoise}}
-    decode = allocate()
-    result[decode] = {"class_type": "VAEDecode", "inputs": {
-        "samples": [sample, 0], "vae": vae_ref}}
-    stitch = allocate()
-    result[stitch] = {"class_type": "InpaintStitchImproved", "inputs": {
-        "stitcher": stitcher_ref, "inpainted_image": [decode, 0]}}
-    repaired_ref = [stitch, 0]
+    _, repaired_ref = _splice_reroll(
+        result, allocate, image_ref=[load_image, 0], mask_name=mask_name,
+        positive=positive, negative=negative, model_ref=pass_["model_ref"],
+        positive_clip_ref=pass_["positive_clip_ref"],
+        negative_clip_ref=pass_["negative_clip_ref"], vae_ref=pass_["vae_ref"],
+        steps=pass_["steps"], cfg=pass_["cfg"], sampler_name=pass_["sampler_name"],
+        scheduler=pass_["scheduler"], seed=seed, denoise=denoise, size=size)
+    stitch = repaired_ref[0]
 
     direct_save = False
     for node_id in tail:
@@ -249,5 +307,43 @@ def repair_graph(source: Mapping, *, image_name: str, mask_name: str,
         save = allocate()
         result[save] = {"class_type": "SaveImage", "inputs": {
             "images": repaired_ref, "filename_prefix": prefix}}
+
+    return result
+
+
+def splice_repair(graph: Mapping, *, mask_name: str, positive: str, negative: str,
+                  denoise: float, size: int, seed: int | None = None) -> dict:
+    """Splice a masked reroll into an already-built graph (e.g. `chain_pass`'s).
+
+    Unlike `repair_graph`, nothing is pruned or renamed: the reroll's image
+    input is the final decode's own output (no staged-source LoadImage), every
+    other consumer of that output is rewired onto the stitch, and every
+    SaveImage prefix is left exactly as the caller built it.
+    """
+    result = json.loads(json.dumps(graph))
+    pass_ = _redraw_pass(result)
+    decode_id = pass_["decode_id"]
+
+    ids = itertools.count(max((int(key) for key in result), default=0) + 1)
+
+    def allocate() -> str:
+        return str(next(ids))
+
+    crop_id, repaired_ref = _splice_reroll(
+        result, allocate, image_ref=[decode_id, 0], mask_name=mask_name,
+        positive=positive, negative=negative, model_ref=pass_["model_ref"],
+        positive_clip_ref=pass_["positive_clip_ref"],
+        negative_clip_ref=pass_["negative_clip_ref"], vae_ref=pass_["vae_ref"],
+        steps=pass_["steps"], cfg=pass_["cfg"], sampler_name=pass_["sampler_name"],
+        scheduler=pass_["scheduler"],
+        seed=pass_["seed"] if seed is None else seed,
+        denoise=denoise, size=size)
+
+    for node_id, node in result.items():
+        if node_id == crop_id:
+            continue
+        for key, value in list(node.get("inputs", {}).items()):
+            if _is_ref(value) and value[0] == decode_id:
+                node["inputs"][key] = repaired_ref
 
     return result

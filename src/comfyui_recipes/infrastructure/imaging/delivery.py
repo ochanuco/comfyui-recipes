@@ -14,6 +14,10 @@ from ...domain.yukari import delivery_style
 from . import backdrops
 
 
+def image_size(data: bytes) -> tuple[int, int]:
+    return Image.open(io.BytesIO(data)).size
+
+
 def graph_from_png(data: bytes) -> dict:
     prompt = Image.open(io.BytesIO(data)).info.get("prompt")
     if prompt is None:

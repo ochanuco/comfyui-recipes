@@ -1,0 +1,264 @@
+{
+ "3": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "10",
+    0
+   ],
+   "positive": [
+    "6",
+    0
+   ],
+   "negative": [
+    "7",
+    0
+   ],
+   "latent_image": [
+    "5",
+    0
+   ],
+   "seed": 8,
+   "steps": 30,
+   "cfg": 5,
+   "sampler_name": "dpmpp_2m",
+   "scheduler": "karras",
+   "denoise": 1
+  }
+ },
+ "4": {
+  "class_type": "DiffusersLoader",
+  "inputs": {
+   "model_path": "hassaku-il-v22"
+  }
+ },
+ "5": {
+  "class_type": "EmptyLatentImage",
+  "inputs": {
+   "batch_size": 1,
+   "width": 832,
+   "height": 1664
+  }
+ },
+ "6": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "clip": [
+    "10",
+    1
+   ],
+   "text": "masterpiece, best quality, sketch, traditional media, 1girl, solo, yuzuki yukari, vocaloid, voiceroid, (light purple hair:1.15), (short hair with long locks:1.25), (very long sidelocks:1.2), (purple eyes:1.15), (hair ornament:1.2), (black hooded cardigan:1.25), open cardigan, (rabbit hood:1.3), long sleeves, drawstring, (purple dress:1.25), (long dress:1.15), (knee-length dress:1.1), frills, (sleeves past wrists:1.15), hood down, (sitting:1.3), (on floor:1.35), (outstretched legs:1.4), (legs together:1.15), (feet towards viewer:1.35), (foreshortening:1.3), (legs:1.2), (arm support:1.2), (leaning back:1.1), (from front:1.15), (full body:1.3), (no shoes:1.3), (pantyhose feet:1.2), (long legs:1.2), (tall:1.1), adult, (simple background:1.3), (grey background:1.2), (black pantyhose:1.3), (pale purple pantyhose:1.15), (gradient legwear:1.2), (tareme:1.2), (jitome:1.35), (half-closed eyes:1.3), (unamused:1.3), (sigh:1.25), (annoyed:1.1), closed mouth, looking at viewer, (head tilt:1.05), (wide hips:1.2), (thick thighs:1.3), (soft thighs:1.2), narrow waist, pale skin, (flat color:1.05), (flat color:0.9)"
+  }
+ },
+ "7": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "clip": [
+    "10",
+    1
+   ],
+   "text": "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, extra fingers, extra limbs, watermark, signature, text, (brown legwear:1.4), brown pantyhose, (fishnet:1.3), (upskirt:1.3), panties, (from below:1.2), (blue legwear:1.4), (mismatched legwear:1.4), (skirt:1.2), (see-through dress:1.3), (hood up:1.4), (huge breasts:1.3), (large breasts:1.2), cleavage, (cropped jacket:1.3), midriff, navel, (thighhighs:1.4), (kneehighs:1.4), (socks:1.3), (multiple girls:1.3), (3d:1.3), (realistic:1.2), (child:1.2), (loli:1.2), (chibi:1.25), (short legs:1.15), (blue background:1.5), (blue tint:1.4), (shiny:1.3), (shiny clothes:1.3), (glossy:1.2), (specular highlights:1.2), (shiny:1.3), (shiny clothes:1.3), (glossy:1.2), (specular highlights:1.2), (shoes:1.4), (sneakers:1.4), (footwear:1.3)"
+  }
+ },
+ "8": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "3",
+    0
+   ],
+   "vae": [
+    "4",
+    2
+   ]
+  }
+ },
+ "9": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "images": [
+    "14",
+    0
+   ],
+   "filename_prefix": "fin-g76ufg"
+  }
+ },
+ "10": {
+  "class_type": "LoraLoader",
+  "inputs": {
+   "model": [
+    "4",
+    0
+   ],
+   "clip": [
+    "4",
+    1
+   ],
+   "lora_name": "sketch-style-xl-linaqruf.safetensors",
+   "strength_model": 0.8,
+   "strength_clip": 0.8
+  }
+ },
+ "11": {
+  "class_type": "LatentUpscale",
+  "inputs": {
+   "samples": [
+    "3",
+    0
+   ],
+   "upscale_method": "bicubic",
+   "width": 1280,
+   "height": 2560,
+   "crop": "disabled"
+  }
+ },
+ "13": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "10",
+    0
+   ],
+   "positive": [
+    "15",
+    0
+   ],
+   "negative": [
+    "16",
+    0
+   ],
+   "latent_image": [
+    "11",
+    0
+   ],
+   "seed": 8,
+   "steps": 30,
+   "cfg": 5,
+   "sampler_name": "euler",
+   "scheduler": "normal",
+   "denoise": 0.55
+  }
+ },
+ "14": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "13",
+    0
+   ],
+   "vae": [
+    "4",
+    2
+   ]
+  }
+ },
+ "15": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "clip": [
+    "10",
+    1
+   ],
+   "text": "masterpiece, best quality, sketch, traditional media, 1girl, solo, yuzuki yukari, vocaloid, voiceroid, (light purple hair:1.15), (short hair with long locks:1.25), (very long sidelocks:1.2), (purple eyes:1.15), (hair ornament:1.2), (black hooded cardigan:1.25), open cardigan, (rabbit hood:1.3), long sleeves, drawstring, (purple dress:1.25), (long dress:1.15), (knee-length dress:1.1), frills, (sleeves past wrists:1.15), hood down, (sitting:1.3), (on floor:1.35), (outstretched legs:1.4), (legs together:1.15), (feet towards viewer:1.35), (foreshortening:1.3), (legs:1.2), (arm support:1.2), (leaning back:1.1), (from front:1.15), (full body:1.3), (no shoes:1.3), (pantyhose feet:1.2), (long legs:1.2), (tall:1.1), adult, (simple background:1.3), (grey background:1.2), (black pantyhose:1.3), (pale purple pantyhose:1.15), (gradient legwear:1.2), (tareme:1.2), (jitome:1.35), (half-closed eyes:1.3), (unamused:1.3), (sigh:1.25), (annoyed:1.1), closed mouth, looking at viewer, (head tilt:1.05), (wide hips:1.2), (thick thighs:1.3), (soft thighs:1.2), narrow waist, pale skin, (flat color:1.05), (flat color:0.9)"
+  }
+ },
+ "16": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "clip": [
+    "10",
+    1
+   ],
+   "text": "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad hands, extra fingers, extra limbs, watermark, signature, text, (brown legwear:1.4), brown pantyhose, (fishnet:1.3), (upskirt:1.3), panties, (from below:1.2), (blue legwear:1.4), (mismatched legwear:1.4), (skirt:1.2), (see-through dress:1.3), (hood up:1.4), (huge breasts:1.3), (large breasts:1.2), cleavage, (cropped jacket:1.3), midriff, navel, (thighhighs:1.4), (kneehighs:1.4), (socks:1.3), (multiple girls:1.3), (3d:1.3), (realistic:1.2), (child:1.2), (loli:1.2), (chibi:1.25), (short legs:1.15), (blue background:1.5), (blue tint:1.4), (shiny:1.3), (shiny clothes:1.3), (glossy:1.2), (specular highlights:1.2), (shiny:1.3), (shiny clothes:1.3), (glossy:1.2), (specular highlights:1.2), (shoes:1.4), (sneakers:1.4), (footwear:1.3)"
+  }
+ },
+ "17": {
+  "class_type": "LoadBackgroundRemovalModel",
+  "inputs": {
+   "bg_removal_name": "birefnet.safetensors"
+  }
+ },
+ "18": {
+  "class_type": "RemoveBackground",
+  "inputs": {
+   "bg_removal_model": [
+    "17",
+    0
+   ],
+   "image": [
+    "14",
+    0
+   ]
+  }
+ },
+ "19": {
+  "class_type": "MaskToImage",
+  "inputs": {
+   "mask": [
+    "18",
+    0
+   ]
+  }
+ },
+ "20": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "images": [
+    "19",
+    0
+   ],
+   "filename_prefix": "fin-g76ufg-matte"
+  }
+ },
+ "21": {
+  "class_type": "YukariRepin",
+  "inputs": {
+   "image": [
+    "14",
+    0
+   ],
+   "keep_legwear": false,
+   "keep_legwear_cut": 0.62
+  }
+ },
+ "22": {
+  "class_type": "YukariDeliver",
+  "inputs": {
+   "image": [
+    "21",
+    0
+   ],
+   "matte": [
+    "18",
+    0
+   ],
+   "keep_scene": false,
+   "transparent": false,
+   "stroke_light": "se",
+   "backdrop": "stripes"
+  }
+ },
+ "23": {
+  "class_type": "ImageScale",
+  "inputs": {
+   "image": [
+    "22",
+    0
+   ],
+   "upscale_method": "lanczos",
+   "width": 768,
+   "height": 1536,
+   "crop": "disabled"
+  }
+ },
+ "24": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "images": [
+    "23",
+    0
+   ],
+   "filename_prefix": "fin-g76ufg-delivered"
+  }
+ }
+}

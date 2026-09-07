@@ -44,6 +44,44 @@ class CliTest(unittest.TestCase):
         self.assertEqual(run_work.call_args.kwargs,
                          {"interval": 5.0, "once": True, "dry_run": True})
 
+    @patch.object(cli, "repair")
+    @patch.object(cli, "ChimeraClient")
+    def test_repair_dispatches_without_network(self, chimera_class, run_repair):
+        cli.main(["repair", "gen-1", "--parts", "hands, feet",
+                  "--region", "0.1,0.2,0.3,0.4", "--region", "0.5,0.5,0.9,0.9",
+                  "--denoise", "0.7", "--seeds", "1,2,3", "--size", "768",
+                  "--pad", "1.5"])
+        args, kwargs = run_repair.call_args
+        self.assertEqual(args[0], "gen-1")
+        self.assertIs(args[1].management, chimera_class.return_value)
+        self.assertEqual(kwargs["parts"], ["hands", "feet"])
+        self.assertEqual(kwargs["regions"], [[0.1, 0.2, 0.3, 0.4], [0.5, 0.5, 0.9, 0.9]])
+        self.assertEqual(kwargs["denoise"], 0.7)
+        self.assertEqual(kwargs["seeds"], [1, 2, 3])
+        self.assertEqual(kwargs["size"], 768)
+        self.assertEqual(kwargs["pad"], 1.5)
+
+    @patch.object(cli, "repair")
+    @patch.object(cli, "ChimeraClient")
+    def test_repair_defaults_need_no_flags(self, chimera_class, run_repair):
+        cli.main(["repair", "gen-1"])
+        args, kwargs = run_repair.call_args
+        self.assertEqual(kwargs["parts"], ["hands", "feet"])
+        self.assertEqual(kwargs["regions"], [])
+        self.assertEqual(kwargs["denoise"], 0.6)
+        self.assertEqual(kwargs["seeds"], [1, 2, 3, 4])
+        self.assertEqual(kwargs["size"], 1024)
+        self.assertEqual(kwargs["pad"], 1.0)
+
+    @patch.object(cli, "work")
+    @patch.object(cli, "ChimeraClient")
+    def test_work_default_kinds_include_repair(self, chimera_class, run_work):
+        cli.main(["work", "--once"])
+        work_services = run_work.call_args.args[0]
+        self.assertEqual(work_services.kinds, ("generate", "finalize", "repair"))
+        self.assertIs(
+            work_services.repair_services.management, chimera_class.return_value)
+
     @patch.object(cli.metadata, "add_tag")
     @patch.object(cli, "ChimeraClient")
     def test_metadata_tag_dispatches_without_network(self, chimera_class, add_tag):

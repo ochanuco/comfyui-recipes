@@ -11312,3 +11312,46 @@ canvas, LoRA, ControlNet) shown on generations, Compare and the experiment
 table, and free `variables` on a run for the factor the graph cannot name.
 Chimera PRs #60 and #61. The rounds above are readable there without this
 file.
+
+## Toes are a repair, not a prompt: the masked reroll becomes `repair` (2026-09-08)
+
+g76ufg (floor, feet towards viewer, black pantyhose, seed 8) drew a mush of
+six-plus toes on the near sole, and its finalize 11vlk5 enlarged the mush
+faithfully. The prompt-side levers were already spent in the `kick` rounds
+above: a positive toe tag moves the palette, a negative toe guard dissolves
+the separation, and the redraw only reproduces what pass 1 decided. The
+canvas lever (raw at 1024x2048) works but changes the composition.
+
+What was left is the hair fix from 39corc, applied to a foot: mask the
+region from its structural root, reroll it at a size the model can draw,
+stitch it back. Probed by hand on the worker (direct `/prompt`, so these
+have no chimera record; the chimera-driven `repair` runs below supersede
+them):
+
+    source            crop     denoise   result
+    g76ufg  832x1664  1024^2   0.6       4/4 seeds countable toes; one sigh puff in the crop
+    g76ufg            1024^2   0.6/0.7   trimmed prompt: no puffs, toes hold at both
+    8wazo3  1280x2560 1024^2   0.6       the finalize redraw: 4/4 countable, same as the raw
+
+- **The crop is the lever, again.** Two feet in a ~600x450 region of an
+  832-wide raw become a 1024 crop; the model draws toes at that size and
+  fails at the other. Same mechanism as the 1024x2048 raw, applied locally.
+- **The whole-picture prompt leaks into the crop.** `(sigh:1.25)` drew its
+  puff beside the foot in one seed of four. Dropping the face, hair,
+  expression and framing tags and appending `(feet:1.2), (soles:1.2),
+  (foot focus:1.2), (pantyhose feet:1.3)` removed it; inside a mask the
+  palette cost of a positive foot tag has nowhere to land.
+- **Mask the foot from the ankle, not the toes.** A toe-only mask reproduces
+  the neighbouring count; a circle around the ankle biased downward
+  (radius 0.3 shin) lets the sampler redraw the foot as one shape.
+- `SetLatentNoiseMask` over `VAEEncode`, never `VAEEncodeForInpaint` (the
+  hand-fix rule from 2026-08-16 holds).
+- DWPose finds the ankles and any visible hand; its yolox bbox detectors
+  return no person on this style, so the whole frame is the box.
+
+Settled as request kind `repair` (comfyui-recipes and chimera `dev/repair`):
+DWPose regions for `parts` hands/feet plus optional fraction rectangles,
+`InpaintCropImproved` at `size` 1024, denoise 0.6, one job per seed, the
+source's own loader, LoRA and sampler, the deliver tail rewired onto the
+stitched image so a repair of a finalize redraw comes out delivered. The
+per-render record for the rounds that follow is on chimera.

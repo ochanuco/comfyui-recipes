@@ -12,6 +12,7 @@ from ..application import metadata
 from ..application.finalize import FinalizeServices, finalize
 from ..domain.yukari.recipe import TOE_GUARD
 from ..application.generate import GenerateServices, generate, request_graph
+from ..application.repair import RepairServices, repair
 from ..application.watch import WatchServices, watch
 from ..application.work import WorkServices, work
 from ..domain.generation.prompt_lint import conflicts
@@ -36,7 +37,7 @@ from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_grap
 from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
 from ..infrastructure.comfyui.yukari_graph import build_graph as yukari_build_graph
-from ..infrastructure.imaging.delivery import graph_from_png
+from ..infrastructure.imaging.delivery import graph_from_png, image_size
 from ..infrastructure.imaging.palette import summarize
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
@@ -86,6 +87,19 @@ def _finalize_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
     )
 
 
+def _repair_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
+                     repository: Path, repository_metadata) -> RepairServices:
+    return RepairServices(
+        management=chimera,
+        comfyui=comfyui,
+        graph_from_png=graph_from_png,
+        image_size=image_size,
+        git_metadata=repository_metadata,
+        notifier=notifier,
+        output_root=repository / ".local/_nogit/repair",
+    )
+
+
 def _positive_finite_seconds(raw: str) -> float:
     """argparse type= for --interval: rejects 0, negatives, nan and inf."""
     try:
@@ -122,7 +136,7 @@ def parser() -> argparse.ArgumentParser:
     work_parser.add_argument("--dry-run", action="store_true")
     work_parser.add_argument("--worker-id", default=socket.gethostname())
     work_parser.add_argument(
-        "--kinds", default="generate,finalize",
+        "--kinds", default="generate,finalize,repair",
         help="comma-separated request kinds to claim")
     work_parser.add_argument(
         "--no-hub", action="store_true",
@@ -199,6 +213,26 @@ def parser() -> argparse.ArgumentParser:
         "--stroke-light", choices=sorted(STROKE_LIGHTS),
         help="light direction the purple stroke is shaded from; thin toward "
              "it, thick away from it")
+
+    repair_parser = commands.add_parser(
+        "repair", help="masked local redraw of hands/feet on an existing generation")
+    repair_parser.add_argument("generation_id")
+    repair_parser.add_argument(
+        "--parts", default="hands,feet",
+        help="comma-separated: hands, feet (default: both)")
+    repair_parser.add_argument(
+        "--region", dest="regions", action="append", metavar="X0,Y0,X1,Y1",
+        help="fractional rectangle [0..1] added to the mask; repeatable")
+    repair_parser.add_argument("--denoise", type=float, default=0.6)
+    repair_parser.add_argument(
+        "--seeds", default="1,2,3,4",
+        help="comma-separated seeds; one job per seed")
+    repair_parser.add_argument(
+        "--size", type=int, default=1024, metavar="LONGEST",
+        help="crop target's longest side")
+    repair_parser.add_argument(
+        "--pad", type=float, default=1.0,
+        help="multiplier on the auto region radius")
 
     metadata_parser = commands.add_parser("metadata", help="manage generation metadata")
     metadata_commands = metadata_parser.add_subparsers(
@@ -314,6 +348,8 @@ def main(argv: list[str] | None = None) -> None:
             generate_services=generate_services,
             finalize_services=_finalize_services(
                 chimera, comfyui, notifier, repository, repository_metadata),
+            repair_services=_repair_services(
+                chimera, comfyui, notifier, repository, repository_metadata),
             git_metadata=repository_metadata,
             worker_id=args.worker_id,
             kinds=tuple(kind.strip() for kind in args.kinds.split(",") if kind.strip()),
@@ -342,6 +378,16 @@ def main(argv: list[str] | None = None) -> None:
                  lora_strength=args.lora_strength,
                  deliver_size=args.deliver_size,
                  stroke_light=args.stroke_light)
+        return
+    if args.command == "repair":
+        services = _repair_services(
+            chimera, comfyui, notifier, repository, repository_metadata)
+        parts = [part.strip() for part in args.parts.split(",") if part.strip()]
+        regions = [[float(value) for value in region.split(",")]
+                  for region in (args.regions or [])]
+        seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
+        repair(args.generation_id, services, parts=parts, regions=regions,
+              denoise=args.denoise, seeds=seeds, size=args.size, pad=args.pad)
         return
 
     if args.metadata_command == "semantic":

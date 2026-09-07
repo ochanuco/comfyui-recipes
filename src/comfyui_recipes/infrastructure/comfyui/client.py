@@ -54,7 +54,7 @@ class ComfyUIClient:
         except urllib.error.URLError:
             return True
 
-    def wait_for(self, prompt_id: str) -> list[dict]:
+    def _wait_for_entry(self, prompt_id: str) -> dict:
         deadline = time.time() + self.poll_timeout
         while time.time() < deadline:
             try:
@@ -65,11 +65,19 @@ class ComfyUIClient:
                 status = entry.get("status", {}).get("status_str")
                 if status == "error":
                     raise RuntimeError(f"comfy job {prompt_id} failed")
-                images = images_of(entry)
-                if images or status == "success":
-                    return images
+                if images_of(entry) or status == "success":
+                    return entry
             time.sleep(self.poll_interval)
         raise RuntimeError(f"comfy job {prompt_id} timed out")
+
+    def wait_for(self, prompt_id: str) -> list[dict]:
+        return images_of(self._wait_for_entry(prompt_id))
+
+    def wait_for_outputs(self, prompt_id: str) -> dict:
+        """Like `wait_for`, but the raw node-keyed outputs instead of only
+        images -- e.g. a DWPreprocessor node's `openpose_json` text output,
+        which has no image to be found by `wait_for`."""
+        return self._wait_for_entry(prompt_id).get("outputs", {})
 
     def fetch(self, image: dict) -> bytes:
         query = urllib.parse.urlencode({

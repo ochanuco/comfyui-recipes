@@ -275,6 +275,17 @@ class FinalizeApplicationTest(unittest.TestCase):
             self.assertIs(batch_call(services)[2]["parameters"]["transparent"],
                          sketch_delivery_style.FINALIZE_TRANSPARENT)
 
+    def test_recolor_is_refused_on_a_sketch_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, chain_pass=lambda *args, **kwargs: {},
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            with self.assertRaises(SystemExit) as raised:
+                finalize("gen-id", services, apply_recolor=True)
+            self.assertIn("recolor", str(raised.exception))
+            self.assertFalse(any(call[1] == "/api/v1/batches"
+                                 for call in services.management.calls))
+
     def test_non_sketch_base_defaults_transparent_false_and_omits_parameter(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []

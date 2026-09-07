@@ -1,8 +1,8 @@
 """Yukari-sketch's fixed prompt blocks and render constants.
 
 Every block ends with its own ", " so `recipe.py` can join them end to end
-with no separator of its own -- `BODY` is the exception, since it is always
-the tail of the positive prompt and carries no trailing comma.
+with no separator of its own -- `FINISH` is the exception, since it is
+always the tail of the positive prompt and carries no trailing comma.
 """
 
 from __future__ import annotations
@@ -20,7 +20,8 @@ LEGWEAR = ("(black pantyhose:1.3), (pale purple pantyhose:1.15), "
 FACE = ("(tareme:1.2), (half-closed eyes:1.2), (unamused:1.1), "
         "closed mouth, looking at viewer, ")
 BODY = ("(wide hips:1.2), (thick thighs:1.3), (soft thighs:1.2), "
-        "narrow waist, pale skin")
+        "narrow waist, pale skin, ")
+FINISH = "(flat color:1.05)"
 
 NEGATIVE = (
     "worst quality, low quality, blurry, jpeg artifacts, bad anatomy, bad "
@@ -34,6 +35,9 @@ NEGATIVE = (
     "(loli:1.2), (chibi:1.25), (short legs:1.15), (blue background:1.5), "
     "(blue tint:1.4)"
 )
+# Appended after the costume's own negative.
+GLOSS_BAN = (", (shiny:1.3), (shiny clothes:1.3), (glossy:1.2), "
+             "(specular highlights:1.2)")
 
 MODEL = "hassaku-il-v22"
 LORA = ("sketch-style-xl-linaqruf.safetensors", 0.8)

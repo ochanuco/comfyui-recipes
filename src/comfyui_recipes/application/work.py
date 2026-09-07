@@ -18,6 +18,7 @@ from ..domain.yukari.recipe import TOE_GUARD
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
 from .finalize import FinalizeServices, finalize
 from .generate import GenerateServices, generate, request_file_path
+from .repair import RepairServices, repair
 
 CLAIM_PATH = "/api/v1/requests/claim"
 DRY_RUN_PATH = "/api/v1/requests?status=queued&limit=1"
@@ -27,6 +28,12 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
     "backdrop", "upscale", "lora_strength", "deliver_size", "stroke_light",
 })
+
+_KNOWN_REPAIR_OPTIONS = frozenset({
+    "parts", "regions", "denoise", "seeds", "size", "pad",
+})
+
+_REPAIR_PARTS = frozenset({"hands", "feet"})
 
 
 class Management(Protocol):
@@ -86,14 +93,16 @@ class WorkServices:
     management: Management
     generate_services: GenerateServices
     finalize_services: FinalizeServices
+    repair_services: RepairServices
     git_metadata: Callable[[], dict]
     worker_id: str
     generate: Callable[..., dict | None] = generate
     finalize: Callable[..., dict] = finalize
+    repair: Callable[..., dict] = repair
     emit: Callable[[str], None] = print
     sleep: Callable[[float], None] = time.sleep
     heartbeat_interval: float = 30
-    kinds: tuple[str, ...] = ("generate", "finalize")
+    kinds: tuple[str, ...] = ("generate", "finalize", "repair")
     heartbeat: Callable[..., Heartbeat] = Heartbeat
     hub: Callable[[], Connection] | None = None
     progress_feed: Callable[[], Connection] | None = None
@@ -371,6 +380,75 @@ def finalize_arguments(options: Mapping) -> dict:
     }
 
 
+def repair_arguments(options: Mapping) -> dict:
+    """Validate a repair request's `options` and map it to repair() kwargs.
+
+    Every key in the return value is a repair() kwarg; unknown keys or a
+    wrong type raise ValueError naming the offending key.
+    """
+    if not isinstance(options, Mapping):
+        raise ValueError(
+            f"repair options must be an object, got {type(options).__name__}")
+    unknown = sorted(set(options) - _KNOWN_REPAIR_OPTIONS)
+    if unknown:
+        raise ValueError(f"unknown repair options keys: {unknown}")
+
+    parts = options.get("parts", ["hands", "feet"])
+    if (not isinstance(parts, list)
+            or any(not isinstance(part, str) for part in parts)):
+        raise ValueError(f"parts must be a list of strings, got {parts!r}")
+    invalid_parts = sorted(set(parts) - _REPAIR_PARTS)
+    if invalid_parts:
+        raise ValueError(f"unknown parts: {invalid_parts}")
+
+    regions = options.get("regions", [])
+    if not isinstance(regions, list):
+        raise ValueError(f"regions must be an array, got {type(regions).__name__}")
+    parsed_regions = []
+    for region in regions:
+        if (not isinstance(region, list) or len(region) != 4
+                or any(not isinstance(value, (int, float))
+                       or isinstance(value, bool) for value in region)):
+            raise ValueError(
+                f"each region must be [x0, y0, x1, y1] numbers, got {region!r}")
+        if any(not (0 <= value <= 1) for value in region):
+            raise ValueError(f"region values must be within 0..1, got {region!r}")
+        parsed_regions.append([float(value) for value in region])
+
+    if not parts and not parsed_regions:
+        raise ValueError("repair needs at least one of parts or regions")
+
+    denoise = options.get("denoise", 0.6)
+    if not (isinstance(denoise, (int, float)) and not isinstance(denoise, bool)):
+        raise ValueError(f"denoise must be a number, got {type(denoise).__name__}")
+    if not (0 < denoise <= 1):
+        raise ValueError(f"denoise must be > 0 and <= 1, got {denoise!r}")
+
+    seeds = options.get("seeds", [1, 2, 3, 4])
+    if (not isinstance(seeds, list) or not seeds
+            or any(not isinstance(seed, int) or isinstance(seed, bool)
+                   for seed in seeds)):
+        raise ValueError(f"seeds must be a non-empty array of integers, got {seeds!r}")
+
+    size = options.get("size", 1024)
+    if not isinstance(size, int) or isinstance(size, bool):
+        raise ValueError(f"size must be an integer, got {type(size).__name__}")
+    if size < 256 or size % 8 != 0:
+        raise ValueError(
+            f"size must be a multiple of 8, at least 256, got {size!r}")
+
+    pad = options.get("pad", 1.0)
+    if not (isinstance(pad, (int, float)) and not isinstance(pad, bool)):
+        raise ValueError(f"pad must be a number, got {type(pad).__name__}")
+    if not (0.5 <= pad <= 3):
+        raise ValueError(f"pad must be between 0.5 and 3, got {pad!r}")
+
+    return {
+        "parts": parts, "regions": parsed_regions, "denoise": float(denoise),
+        "seeds": seeds, "size": size, "pad": float(pad),
+    }
+
+
 def _request_path(output_root: Path, request_id: object) -> Path:
     return request_file_path(output_root, "requests", request_id)
 
@@ -400,6 +478,19 @@ def _execute_finalize(services: WorkServices, row: Mapping) -> dict:
                              key_prefix=f"request:{row['id']}", **arguments)
 
 
+def _execute_repair(services: WorkServices, row: Mapping) -> dict:
+    payload = row.get("payload") or {}
+    generation_id = payload.get("generation_id")
+    if not generation_id:
+        raise SystemExit("repair payload.generation_id is required")
+    try:
+        arguments = repair_arguments(payload.get("options") or {})
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    return services.repair(generation_id, services.repair_services,
+                           key_prefix=f"request:{row['id']}", **arguments)
+
+
 def execute(services: WorkServices, row: Mapping) -> dict:
     ref = row.get("recipe_ref")
     if ref != services.git_metadata().get("branch"):
@@ -409,6 +500,8 @@ def execute(services: WorkServices, row: Mapping) -> dict:
         return _execute_generate(services, row)
     if kind == "finalize":
         return _execute_finalize(services, row)
+    if kind == "repair":
+        return _execute_repair(services, row)
     raise SystemExit(f"unsupported request kind: {kind!r}")
 
 

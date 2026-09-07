@@ -174,6 +174,11 @@ the pick has been finalized. The birefnet matte that cut the figure out is
 still stored on chimera as a `mask` GenerationAsset of the raw redraw, so a
 cutout can be redone from the record without another 2048 pass.
 
+`comfy-recipes repair <generation>` is a third, optional stage: a masked
+local redraw of just the hands/feet on an already-finalized (or raw)
+generation, for fixing a hand/foot defect without a full re-finalize. See
+`docs/queueing.md`'s Repair section.
+
 Discord notification is built into `comfy-recipes` — every ingest and every
 finalize posts to the webhook itself. There is no separate watcher daemon
 (`post_renders.py` is archived), and `deliver.py`, the old manual path that

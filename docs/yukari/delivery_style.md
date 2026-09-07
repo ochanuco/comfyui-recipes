@@ -36,6 +36,21 @@ The old share-of-canvas rule, `0.3`, is kept as a FLOOR under the band rule:
 both rules only ever failed by drawing too thin, so the larger of the two
 values is the one that is never the failure.
 
+## STROKE_LIGHT_THIN / STROKE_LIGHT_THICK / STROKE_LIGHT_SMOOTH
+
+An optional finalize option (`stroke_light`) shades the purple band's width
+by a picked light direction instead of drawing it at the uniform
+`STROKE_WIDTH_BAND` width: `STROKE_LIGHT_THIN` and `STROKE_LIGHT_THICK` are
+multiples of the uniform width, drawn where the outline's own outward normal
+faces toward and away from the light. `STROKE_LIGHTS` holds the eight
+directions (`n`, `ne`, `e`, `se`, `s`, `sw`, `w`, `nw`) as unit vectors in
+image coordinates -- x right, y down, so `n` is `(0, -1)`. The normal is not
+read from the raw silhouette but from the gradient of a distance field
+blurred by `STROKE_LIGHT_SMOOTH` purple widths, so a stray hair strand or a
+notch in the outline does not flip the width from one pixel to the next.
+Only the purple band is shaded; the white band stays the uniform width
+regardless of `stroke_light`.
+
 ## SAT_BAND / BG_SAT_MAX
 
 The acceptance band, from measured approved work: `kfuthu` 54.5, `lx2mjb`

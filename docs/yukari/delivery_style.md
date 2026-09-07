@@ -51,6 +51,20 @@ notch in the outline does not flip the width from one pixel to the next.
 Only the purple band is shaded; the white band stays the uniform width
 regardless of `stroke_light`.
 
+## STRIPES_BASE / STRIPES_PITCH / STRIPES_CONTRAST / STRIPES_BURST_RAYS / STRIPES_BURST / STRIPES_BURST_CENTER / STRIPES_BURST_REACH
+
+The `stripes` named backdrop (`infrastructure/imaging/backdrops.py`), an
+opaque `backdrop` option reachable from both `clean_background` and
+`compose`. `STRIPES_BASE` is the hair's own lavender, drawn in two-tone
+diagonal bands whose period is `STRIPES_PITCH` and whose light band is
+`STRIPES_BASE` blended `STRIPES_CONTRAST` of the way toward white; both are
+shares of the longest side, so the band pitch scales with the canvas rather
+than holding a fixed pixel count. A white radial burst sits behind the
+figure: `STRIPES_BURST_RAYS` is the ray count, `STRIPES_BURST` the burst's
+peak opacity, `STRIPES_BURST_CENTER` the burst's centre as a share of the
+canvas (`(0.5, 0.55)`, a little below the middle), and `STRIPES_BURST_REACH`
+the fade radius, again a share of the longest side.
+
 ## SAT_BAND / BG_SAT_MAX
 
 The acceptance band, from measured approved work: `kfuthu` 54.5, `lx2mjb`

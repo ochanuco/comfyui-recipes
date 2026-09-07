@@ -219,6 +219,21 @@ class NodeRunTest(unittest.TestCase):
             keep_scene=False, transparent=True)
         self.assertEqual(tag, "transparent-w1-p1")
 
+    def test_deliver_backdrop_stripes_returns_rgb_and_a_bg_tag(self):
+        node = nodes.YukariDeliver()
+        image, tag = node.run(
+            image_tensor(swatch()), mask_tensor(matte_array()),
+            keep_scene=False, backdrop="stripes")
+        self.assertEqual(image.array.shape[-1], 3)
+        self.assertTrue(tag.endswith("-bg-stripes"))
+
+    def test_deliver_default_backdrop_yields_the_old_tag(self):
+        node = nodes.YukariDeliver()
+        image, tag = node.run(
+            image_tensor(swatch()), mask_tensor(matte_array()), keep_scene=False)
+        self.assertTrue(tag.startswith("clean-"))
+        self.assertNotIn("-bg-", tag)
+
     def test_compose_wiring_returns_a_three_channel_image_and_the_tag(self):
         node = nodes.YukariCompose()
         pixels = swatch()

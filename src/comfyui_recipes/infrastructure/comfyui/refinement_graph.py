@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from ...domain.yukari.delivery_style import STROKE_LIGHTS
+from ..imaging import backdrops
 
 # Both images come out of one submission, so the matte is the redraw's own
 # alpha rather than a second pass's guess at it.
@@ -42,6 +43,10 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     if stroke_light is not None and stroke_light not in STROKE_LIGHTS:
         valid = ", ".join(repr(key) for key in sorted(STROKE_LIGHTS))
         raise ValueError(f"stroke_light must be null or one of {valid}, got {stroke_light!r}")
+    if backdrop is not None and not backdrops.is_backdrop(backdrop):
+        valid = ", ".join(repr(key) for key in sorted(backdrops.PATTERNS))
+        raise ValueError(
+            f"backdrop must be null, a #RRGGBB colour or one of {valid}, got {backdrop!r}")
     required = {"3", "4", "5", "6", "7", "9"}
     missing = sorted(required - base.keys(), key=int)
     if missing:
@@ -238,7 +243,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
                 "image": image_ref, "matte": [remove, 0],
                 "keep_scene": keep_scene, "transparent": transparent,
-                "stroke_light": stroke_light or ""}}
+                "stroke_light": stroke_light or "", "backdrop": backdrop or ""}}
             delivered_ref = [deliver_id, 0]
             if deliver_target is not None:
                 deliver_scale = allocate()

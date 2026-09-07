@@ -277,6 +277,31 @@ class DeliveryTest(unittest.TestCase):
                                   light="sw")
         self.assertRegex(tag, r"^clean-w\d+-p\d+-light-sw$")
 
+    def test_clean_background_backdrop_stripes_tag_and_pattern(self):
+        pixels = np.full((64, 64, 3), (210, 230, 235), dtype=np.uint8)
+        pixels[16:48, 16:48] = (40, 40, 40)
+        cleaned, tag = clean_background(
+            png(pixels), matte(pixels.shape[:2], (16, 48, 16, 48)),
+            backdrop="stripes")
+        self.assertRegex(tag, r"^clean-w\d+-p\d+-bg-stripes$")
+        arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB"))
+        corners = [tuple(arr[0, 0]), tuple(arr[0, -1]),
+                  tuple(arr[-1, 0]), tuple(arr[-1, -1])]
+        self.assertGreater(len(set(corners)), 1)
+
+    def test_clean_background_backdrop_colour_tag_suffix(self):
+        pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
+        pixels[8:24, 10:22] = (40, 40, 40)
+        _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)),
+                                  backdrop="#c7e5e9")
+        self.assertRegex(tag, r"^clean-w\d+-p\d+-bg-c7e5e9$")
+
+    def test_clean_background_backdrop_none_tag_unchanged(self):
+        pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
+        pixels[8:24, 10:22] = (40, 40, 40)
+        _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)))
+        self.assertRegex(tag, r"^clean-w\d+-p\d+$")
+
 
 def rgba_png(pixels: np.ndarray, alpha: np.ndarray) -> bytes:
     """A layerdiffuse render's own RGBA, alpha unrefined."""
@@ -340,6 +365,17 @@ class ComposeTest(unittest.TestCase):
         composed, _ = compose(rgba_png(pixels, alpha), backdrop="#112233")
         arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB"))
         np.testing.assert_array_equal(arr[0, 0], np.array(parse_color("#112233")))
+
+    def test_compose_backdrop_stripes_tag_suffix_and_pattern(self):
+        pixels = np.full((64, 64, 3), (40, 40, 40), dtype=np.uint8)
+        alpha = np.zeros((64, 64), dtype=np.uint8)
+        alpha[16:48, 16:48] = 255
+        composed, tag = compose(rgba_png(pixels, alpha), backdrop="stripes")
+        self.assertRegex(tag, r"^compose-w\d+-p\d+-bg-stripes$")
+        arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB"))
+        corners = [tuple(arr[0, 0]), tuple(arr[0, -1]),
+                  tuple(arr[-1, 0]), tuple(arr[-1, -1])]
+        self.assertGreater(len(set(corners)), 1)
 
 
 if __name__ == "__main__":

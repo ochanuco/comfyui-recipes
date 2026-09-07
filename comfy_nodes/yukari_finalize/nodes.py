@@ -83,9 +83,11 @@ class YukariDeliver:
         }, "optional": {
             "transparent": ("BOOLEAN", {"default": False}),
             "stroke_light": ("STRING", {"default": ""}),
+            "backdrop": ("STRING", {"default": ""}),
         }}
 
-    def run(self, image, matte, keep_scene, transparent=False, stroke_light=""):
+    def run(self, image, matte, keep_scene, transparent=False, stroke_light="",
+           backdrop=""):
         image_png, matte_png = bridge.image_to_png(image), bridge.mask_to_png(matte)
         light = stroke_light or None
         if keep_scene:
@@ -93,7 +95,8 @@ class YukariDeliver:
         elif transparent:
             data, tag = delivery.transparent(image_png, matte_png, light=light)
         else:
-            data, tag = delivery.clean_background(image_png, matte_png, light=light)
+            data, tag = delivery.clean_background(
+                image_png, matte_png, light=light, backdrop=backdrop or None)
         mode = "RGBA" if (transparent and not keep_scene) else "RGB"
         return (bridge.png_to_image(data, mode), tag)
 

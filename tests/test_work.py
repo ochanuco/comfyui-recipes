@@ -259,6 +259,18 @@ class FinalizeArgumentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "backdrop"):
             finalize_arguments({"backdrop": "white"})
 
+    def test_backdrop_a_pattern_name_is_accepted(self):
+        self.assertEqual(
+            finalize_arguments({"backdrop": "stripes"})["backdrop"], "stripes")
+
+    def test_backdrop_an_unknown_pattern_name_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "backdrop"):
+            finalize_arguments({"backdrop": "plaid"})
+
+    def test_backdrop_c7e5e9_colour_is_still_accepted(self):
+        self.assertEqual(
+            finalize_arguments({"backdrop": "#c7e5e9"})["backdrop"], "#c7e5e9")
+
     def test_upscale_null_passes_through(self):
         self.assertIsNone(finalize_arguments({})["upscale"])
 

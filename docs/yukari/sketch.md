@@ -12,9 +12,10 @@ trigger words are what a minimal prompt needs to read as a sketch.
 
 `prompt_style.py` holds the blocks every pose wears: `QUALITY`, `TRIGGER`,
 `CHARACTER`, `IDENTITY` (positive), `PROPORTION`, `BACKGROUND`, `LEGWEAR`,
-`FACE`, `BODY` (also positive, always the tail), and `NEGATIVE` -- one
-fixed string, since there is no pose-specific ban and no style guard to
-vary it.
+`FACE`, `BODY`, `FINISH` (also positive; `FINISH` is always the tail and
+holds the one finish tag, `(flat color:1.05)`), `NEGATIVE` -- one fixed
+string, since there is no pose-specific ban and no style guard to vary
+it -- and `GLOSS_BAN`, the shine tags every negative ends with.
 
 The variable part is two small record sets:
 
@@ -60,13 +61,13 @@ The variable part is two small record sets:
 QUALITY + TRIGGER + CHARACTER + IDENTITY
 + COSTUMES[costume] + pose.action
 + PROPORTION + BACKGROUND + (LEGWEAR_BY_COSTUME[costume] or LEGWEAR)
-+ (pose.face or FACE) + BODY
++ (pose.face or FACE) + BODY + FINISH
 ```
 
 Negative is `NEGATIVE` plus the costume's `NEGATIVE_BY_COSTUME` entry when
-it has one -- `pose` and `costume` are still validated against their tables
-so an unknown one is a `KeyError`, and the pose never contributes a tag of
-its own to the negative.
+it has one, then `GLOSS_BAN` -- `pose` and `costume` are still validated
+against their tables so an unknown one is a `KeyError`, and the pose never
+contributes a tag of its own to the negative.
 
 `costume` defaults to the pose's own; passing it overrides just that block.
 
@@ -111,6 +112,11 @@ backdrop. `--opaque` (or request option
 `"transparent": false`) restores the composite on the flat backdrop instead; `--keep-scene`
 wins over both and delivers the redraw uncut.
 
+`--backdrop stripes` (request option `"backdrop": "stripes"`) ships the
+cutout on the lavender diagonal stripes with the white burst, opaque;
+`--backdrop #RRGGBB` a flat colour. Either leaves `transparent` unset to
+resolve to `false` instead of this recipe's usual `true`.
+
 `--stroke-light` (request option `stroke_light`, one of the eight compass
 keys) shades the purple stroke's width by that light direction instead of
 drawing it at the uniform width; unset, the stroke stays uniform.
@@ -132,8 +138,9 @@ composites onto the sticker backdrop (flat colour, white band, purple band)
 in the `YukariCompose` node, the opaque result is what the pixel-route
 upscale and redraw run on, and the redraw carries the recipe's own LoRA into
 its model and CLIP -- no birefnet matte, no `YukariDeliver`. The `backdrop`
-request option (`--backdrop` on the CLI, a `#RRGGBB` hex colour) overrides
-the composite's backdrop colour; unset, it is the delivery's own default.
+request option (`--backdrop` on the CLI, a `#RRGGBB` hex colour or the named
+pattern `stripes`) overrides the composite's backdrop; unset, it is the
+delivery's own flat default.
 The `upscale` request option (`--upscale` on the CLI: `bicubic`,
 `nearest-exact`, `bilinear` or `lanczos`) selects the pixel-route
 `ImageScale` node's `upscale_method` feeding that redraw; unset, it stays

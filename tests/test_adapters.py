@@ -354,6 +354,21 @@ class AdapterTest(unittest.TestCase):
             chain_pass(self._deliver_base(), 2048, 0.45, "fin",
                       matte_model="birefnet", deliver=True, stroke_light="north")
 
+    def test_chain_pass_backdrop_is_passed_onto_the_deliver_node(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True, backdrop="stripes")
+        self.assertEqual(graph["20"]["inputs"]["backdrop"], "stripes")
+
+    def test_chain_pass_backdrop_defaults_to_an_empty_string(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True)
+        self.assertEqual(graph["20"]["inputs"]["backdrop"], "")
+
+    def test_chain_pass_bad_backdrop_raises(self):
+        with self.assertRaisesRegex(ValueError, "backdrop"):
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                      matte_model="birefnet", deliver=True, backdrop="plaid")
+
     def test_chain_pass_deliver_with_skin_chains_repin_skin_before_delivery(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
                            matte_model="birefnet", deliver=True,

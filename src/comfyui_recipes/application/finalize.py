@@ -89,7 +89,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     if latent_route is None:
         latent_route = is_sketch and sketch_delivery_style.FINALIZE_LATENT_ROUTE
     if transparent is None:
-        transparent = is_sketch and sketch_delivery_style.FINALIZE_TRANSPARENT
+        transparent = False if backdrop else (
+            is_sketch and sketch_delivery_style.FINALIZE_TRANSPARENT)
     if keep_scene:
         transparent = False
     if is_layerdiffuse:
@@ -165,6 +166,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             keep_scene=keep_scene,
             source_image=source_image,
             transparent=transparent,
+            backdrop=backdrop,
             upscale=upscale or "bicubic",
             redraw_lora=redraw_lora,
             deliver_size=deliver_size,

@@ -98,10 +98,12 @@ the base graph (checked before the anima check -- a base graph carries at
 most one of the two) and picks these constants over yukari's and anima's
 own. `--denoise`/`--size` still override either way.
 
-The delivered generation (gen 1) is an RGBA cutout by default: the refined
+The delivered generation (gen 1) is an RGBA sticker by default: the refined
 birefnet matte decides the silhouette, the soft matte only ramps the 1-px
-edge, and there is no backdrop or stroke. `--opaque` (or request option
-`"transparent": false`) restores the framed composite instead; `--keep-scene`
+edge, the white band and purple stroke are drawn around it exactly as in the
+framed composite, and outside the stroke the alpha is 0 -- there is no
+backdrop. `--opaque` (or request option
+`"transparent": false`) restores the composite on the flat backdrop instead; `--keep-scene`
 wins over both and delivers the redraw uncut.
 
 The redraw reuses the base pass's own checkpoint and prompt --

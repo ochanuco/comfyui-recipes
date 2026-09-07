@@ -66,6 +66,9 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                           for node in base.values())
     if lora_strength is not None and not is_sketch:
         raise SystemExit("lora_strength needs a recipe with a LoRA")
+    if apply_recolor and is_sketch:
+        raise SystemExit("recolor asserts the lap-look palette and strips a "
+                         "yukari-sketch render's own; use repin or nothing")
     redraw_lora = None
     if is_sketch and (is_layerdiffuse or lora_strength is not None):
         strength = SKETCH_LORA[1] if lora_strength is None else lora_strength

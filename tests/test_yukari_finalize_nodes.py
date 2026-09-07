@@ -186,7 +186,7 @@ class NodeRunTest(unittest.TestCase):
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, transparent=True)
         self.assertEqual(image.array.shape, (1, 64, 64, 4))
-        self.assertEqual(tag, "transparent")
+        self.assertEqual(tag, "transparent-w1-p1")
 
     def test_deliver_keep_scene_wins_over_transparent(self):
         node = nodes.YukariDeliver()

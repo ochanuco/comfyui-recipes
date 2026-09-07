@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from ..domain.generation.models import PromptPair
+from ..domain.repair.prompt import repair_prompt
+from ..domain.repair.regions import rects_from_fractions, regions_from_pose, scale_circles
 from ..domain.yukari import delivery_style
 from ..domain.yukari.recipe import refinement_prompt
 from ..domain.yukari_anima import delivery_style as anima_delivery_style
@@ -15,7 +17,11 @@ from ..domain.yukari_anima.recipe import refinement_prompt as anima_refinement_p
 from ..domain.yukari_sketch import delivery_style as sketch_delivery_style
 from ..domain.yukari_sketch.prompt_style import LORA as SKETCH_LORA
 from ..domain.yukari_sketch.recipe import refinement_prompt as sketch_refinement_prompt
+from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
 from ..infrastructure.comfyui.refinement_graph import DELIVERED_SUFFIX, MATTE_SUFFIX
+from ..infrastructure.comfyui.repair_graph import redraw_canvas, splice_repair
+from ..infrastructure.imaging.delivery import image_size
+from ..infrastructure.imaging.masks import mask_bbox_fraction, render_mask_png
 
 # The delivery redraw's longest side.
 FINALIZE_SIZE = 2560
@@ -32,6 +38,9 @@ class FinalizeServices:
     output_root: Path
     emit: Callable[[str], None] = print
     measure: Callable[[bytes], dict] | None = None
+    pose_graph: Callable[..., dict] = pose_graph
+    splice_repair: Callable[..., dict] = splice_repair
+    image_size: Callable[[bytes], tuple[int, int]] = image_size
 
 
 def finalize(generation_id: str, services: FinalizeServices, *,
@@ -49,7 +58,12 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              upscale: str | None = None,
              lora_strength: float | None = None,
              deliver_size: int | None = None,
-             stroke_light: str | None = None) -> dict:
+             stroke_light: str | None = None,
+             repair: Sequence[str] | None = None,
+             repair_regions: Sequence[Sequence[float]] = (),
+             repair_denoise: float = 0.6,
+             repair_pad: float = 1.0,
+             repair_size: int = 1024) -> dict:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
@@ -129,9 +143,20 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     recolor_applied = apply_recolor and not is_layerdiffuse
     repin_applied = apply_repin and not apply_recolor and not is_layerdiffuse
     skin_applied = apply_skin and not is_layerdiffuse
+    repair_parts = list(repair) if repair else []
+    repair_region_list = [list(region) for region in repair_regions]
+    repair_requested = bool(repair_parts) or bool(repair_region_list)
+    # One staged name per run, shared by skin and repair: a second upload of
+    # the same picked bytes buys nothing, and ComfyUI would report a cached
+    # node's pose text for nothing if the pose pass reused a stale name.
+    staged_prefix = f"{prefix}-{uuid.uuid4().hex[:8]}" if repair_requested else None
     source_image = None
+    staged_source = None
+    if repair_requested:
+        staged_source = services.comfyui.upload_image(
+            f"{staged_prefix}-source.png", picked)
     if skin_applied:
-        source_image = services.comfyui.upload_image(
+        source_image = staged_source or services.comfyui.upload_image(
             f"{prefix}-source.png", picked)
     if is_layerdiffuse:
         graph = services.chain_pass(
@@ -171,6 +196,37 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             redraw_lora=redraw_lora,
             deliver_size=deliver_size,
             stroke_light=stroke_light)
+
+    repair_mask_png = None
+    repair_mask_bbox = None
+    if repair_requested:
+        raw_width, raw_height = services.image_size(picked)
+        redraw_width, redraw_height = redraw_canvas(graph)
+        circles = []
+        if repair_parts:
+            pose_prompt_id = services.comfyui.submit(
+                services.pose_graph(staged_source, prefix=prefix))
+            pose_outputs = services.comfyui.wait_for_outputs(pose_prompt_id)
+            pose = pose_from_outputs(pose_outputs)
+            raw_circles = regions_from_pose(pose, repair_parts, repair_pad)
+            circles = scale_circles(
+                raw_circles, redraw_width / raw_width, redraw_height / raw_height)
+        rects = rects_from_fractions(repair_region_list, redraw_width, redraw_height)
+        if not circles and not rects:
+            wanted = ", ".join(repair_parts) if repair_parts else "(none requested)"
+            raise SystemExit(
+                f"no repair region found: pose detection located none of "
+                f"[{wanted}] on {generation_id}, and no repair_regions "
+                "rectangles were given")
+        repair_mask_png = render_mask_png(redraw_width, redraw_height, circles, rects)
+        repair_mask_bbox = mask_bbox_fraction(redraw_width, redraw_height, circles, rects)
+        mask_name = services.comfyui.upload_image(
+            f"{staged_prefix}-mask.png", repair_mask_png)
+        repaired_positive = repair_prompt(prompt.positive, repair_parts)
+        graph = services.splice_repair(
+            graph, mask_name=mask_name, positive=repaired_positive,
+            negative=prompt.negative, denoise=repair_denoise, size=repair_size)
+
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
@@ -242,6 +298,12 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                           if deliver_size is not None else {}),
                        **({"stroke_light": stroke_light}
                           if stroke_light is not None else {}),
+                       **({"repair": {
+                              "parts": repair_parts, "regions": repair_region_list,
+                              "denoise": repair_denoise, "pad": repair_pad,
+                              "size": repair_size,
+                              "mask_bbox": list(repair_mask_bbox)}}
+                          if repair_requested else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,
@@ -279,6 +341,13 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             "POST", f"/api/v1/generations/{ids[0]}/assets",
             multipart=({"role": "mask"}, "file", matte_name, matte, "image/png"))
         services.emit(f"{matte_name} -> mask on {ids[0]}")
+    if repair_requested:
+        mask_filename = f"{staged_prefix}-mask.png"
+        services.management.request(
+            "POST", f"/api/v1/generations/{ids[0]}/assets",
+            multipart=({"role": "repair-mask"}, "file", mask_filename,
+                       repair_mask_png, "image/png"))
+        services.emit(f"{mask_filename} -> repair-mask on {ids[0]}")
     services.management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
     services.management.request(

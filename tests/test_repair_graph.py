@@ -16,8 +16,10 @@ from pathlib import Path
 from comfyui_recipes.infrastructure.comfyui.repair_graph import (
     DELIVERED_SUFFIX,
     MATTE_SUFFIX,
+    redraw_canvas,
     repair_graph,
     source_prompts,
+    splice_repair,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -255,6 +257,91 @@ class RepairGraphErrorsTest(unittest.TestCase):
             repair_graph(broken, image_name="i", mask_name="m",
                         positive="p", negative="n", seed=1, denoise=0.5,
                         size=512, prefix="rep")
+
+
+class RedrawCanvasTest(unittest.TestCase):
+    def test_finalize_graph_reads_the_latent_upscale_size(self):
+        self.assertEqual(redraw_canvas(FINALIZE), (1280, 2560))
+
+    def test_raw_graph_falls_back_to_the_empty_latent_size(self):
+        self.assertEqual(redraw_canvas(RAW), (832, 1664))
+
+
+class SpliceRepairFinalizeTest(unittest.TestCase):
+    def setUp(self):
+        self.graph = splice_repair(
+            FINALIZE, mask_name="mask.png", positive="p", negative="n",
+            denoise=0.6, size=1024)
+
+    def test_nothing_is_pruned(self):
+        self.assertTrue(set(FINALIZE) <= set(self.graph))
+
+    def test_the_crops_image_is_the_redraws_own_decode(self):
+        crop = next(node for node in self.graph.values()
+                   if node["class_type"] == "InpaintCropImproved")
+        self.assertEqual(crop["inputs"]["image"], ["14", 0])
+        self.assertEqual(crop["inputs"]["output_target_width"], 1024)
+        self.assertEqual(crop["inputs"]["output_target_height"], 1024)
+
+    def test_no_loadimage_is_added_for_a_staged_source(self):
+        load_images = [node for node in self.graph.values()
+                       if node["class_type"] == "LoadImage"]
+        self.assertEqual(len(load_images), 1)
+        self.assertEqual(load_images[0]["inputs"]["image"], "mask.png")
+
+    def test_tail_consumers_of_the_old_decode_are_rewired_to_the_stitch(self):
+        stitch_id = next(
+            key for key, node in self.graph.items()
+            if node["class_type"] == "InpaintStitchImproved")
+        self.assertEqual(self.graph["18"]["inputs"]["image"], [stitch_id, 0])
+        self.assertEqual(self.graph["21"]["inputs"]["image"], [stitch_id, 0])
+        self.assertEqual(self.graph["9"]["inputs"]["images"], [stitch_id, 0])
+
+    def test_saveimage_prefixes_are_left_untouched(self):
+        self.assertEqual(self.graph["9"]["inputs"]["filename_prefix"], "fin-g76ufg")
+        self.assertEqual(
+            self.graph["20"]["inputs"]["filename_prefix"], "fin-g76ufg-matte")
+        self.assertEqual(
+            self.graph["24"]["inputs"]["filename_prefix"], "fin-g76ufg-delivered")
+
+    def test_sampler_settings_come_from_the_redraw_pass(self):
+        sample = next(
+            node for node in self.graph.values()
+            if node["class_type"] == "KSampler" and node["inputs"]["denoise"] == 0.6)
+        self.assertEqual(sample["inputs"]["seed"], 8)
+        self.assertEqual(sample["inputs"]["sampler_name"], "euler")
+        self.assertEqual(sample["inputs"]["scheduler"], "normal")
+        self.assertEqual(sample["inputs"]["cfg"], 5)
+        self.assertEqual(sample["inputs"]["steps"], 30)
+
+    def test_explicit_seed_overrides_the_redraw_passs_own(self):
+        graph = splice_repair(
+            FINALIZE, mask_name="mask.png", positive="p", negative="n",
+            denoise=0.6, size=1024, seed=99)
+        sample = next(
+            node for node in graph.values()
+            if node["class_type"] == "KSampler" and node["inputs"]["denoise"] == 0.6)
+        self.assertEqual(sample["inputs"]["seed"], 99)
+
+    def test_does_not_mutate_the_source_graph(self):
+        before = json.dumps(FINALIZE, sort_keys=True)
+        splice_repair(FINALIZE, mask_name="m.png", positive="p", negative="n",
+                      denoise=0.5, size=512)
+        self.assertEqual(json.dumps(FINALIZE, sort_keys=True), before)
+
+
+class SpliceRepairRawTest(unittest.TestCase):
+    def test_the_only_saveimage_is_rewired_to_the_stitch(self):
+        graph = splice_repair(
+            RAW, mask_name="mask.png", positive="p", negative="n",
+            denoise=0.6, size=1024)
+        stitch_id = next(
+            key for key, node in graph.items()
+            if node["class_type"] == "InpaintStitchImproved")
+        self.assertEqual(graph["9"]["inputs"]["images"], [stitch_id, 0])
+        crop = next(node for node in graph.values()
+                   if node["class_type"] == "InpaintCropImproved")
+        self.assertEqual(crop["inputs"]["image"], ["8", 0])
 
 
 if __name__ == "__main__":

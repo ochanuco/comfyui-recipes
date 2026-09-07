@@ -47,7 +47,8 @@ case `comfy-recipes generate` does. A `finalize` row's payload is
 `{"generation_id", "options": {...}}`; `options` maps to `finalize()`'s CLI
 flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
 `size`, `deliver_size`, `handdrawn`, `skin`, `toe_guard`, `keep_scene`,
-`stroke_light`) with the same defaults `comfy-recipes finalize` has when a
+`stroke_light`, `repair`, `repair_regions`, `repair_denoise`, `repair_pad`,
+`repair_size`) with the same defaults `comfy-recipes finalize` has when a
 flag is omitted. A `repair` row's payload is `{"generation_id", "options":
 {...}}` too; see [Repair](#repair) below for its options.
 
@@ -84,6 +85,15 @@ and prompt resample it at a moderate denoise, and `InpaintStitchImproved`
 blends the crop back into the full frame. It is a queue kind
 (`{"kind": "repair", "payload": {"generation_id": ..., "options": {...}}}`)
 and a CLI subcommand with the same options:
+
+The same reroll is available inside finalize: `--repair`/`--repair-region`/
+`--repair-denoise`/`--repair-pad`/`--repair-size` on `comfy-recipes finalize`
+(or `repair`/`repair_regions`/`repair_denoise`/`repair_pad`/`repair_size` in a
+queued finalize row's `options`) splice the same masked reroll into the
+delivery redraw's own ComfyUI submission, instead of queueing a second
+`repair` request against the finalized result. Pose detection runs on the
+raw pick, and the resulting regions are scaled into the redraw's own (larger)
+canvas before the mask is rendered.
 
 ```bash
 uv run comfy-recipes repair <generation_id> \

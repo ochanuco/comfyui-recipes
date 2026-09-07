@@ -123,9 +123,16 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             "samples": ["3", 0], "upscale_method": "bicubic",
             "width": width, "height": height, "crop": "disabled"}}
         latent_in = [scale, 0]
+    elif compose and latent_route:
+        graph[encode] = {"class_type": "VAEEncode", "inputs": {
+            "pixels": [compose_id, 0], "vae": vae_ref}}
+        graph[scale] = {"class_type": "LatentUpscale", "inputs": {
+            "samples": [encode, 0], "upscale_method": "bicubic",
+            "width": width, "height": height, "crop": "disabled"}}
+        latent_in = [scale, 0]
     else:
-        # compose forces the pixel route: the composited backdrop only exists
-        # as pixels, and the redraw has to start from it, not from the RGBA.
+        # The composited backdrop only exists as pixels, so a plain compose
+        # redraw has to start from it, not from the RGBA.
         image_ref = [compose_id, 0] if compose else graph["9"]["inputs"]["images"]
         graph[scale] = {"class_type": "ImageScale", "inputs": {
             "image": image_ref, "upscale_method": upscale,

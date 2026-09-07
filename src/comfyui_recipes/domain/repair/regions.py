@@ -123,3 +123,13 @@ def rects_from_fractions(regions: Sequence[Sequence[float]], width: float,
     """Caller-given `[x0, y0, x1, y1]` fractions (0..1) as pixel Rects."""
     return [Rect(x0 * width, y0 * height, x1 * width, y1 * height)
             for x0, y0, x1, y1 in regions]
+
+
+def scale_circles(circles: Sequence[Circle], sx: float, sy: float) -> list[Circle]:
+    """`circles` carried from one pixel space into another (`sx`/`sy` per axis).
+
+    The radius scales by the geometric mean of the two axis factors, so a
+    non-uniform resize still yields one number for a circle's radius.
+    """
+    return [Circle(cx=circle.cx * sx, cy=circle.cy * sy,
+                   r=circle.r * math.sqrt(sx * sy)) for circle in circles]

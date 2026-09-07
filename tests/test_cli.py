@@ -73,6 +73,33 @@ class CliTest(unittest.TestCase):
         self.assertEqual(kwargs["size"], 1024)
         self.assertEqual(kwargs["pad"], 1.0)
 
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_repair_flags_dispatch_without_network(
+            self, chimera_class, run_finalize):
+        cli.main(["finalize", "gen-1", "--repair", "hands, feet",
+                  "--repair-region", "0.1,0.2,0.3,0.4",
+                  "--repair-denoise", "0.7", "--repair-pad", "1.5",
+                  "--repair-size", "768"])
+        args, kwargs = run_finalize.call_args
+        self.assertEqual(args[0], "gen-1")
+        self.assertEqual(kwargs["repair"], ["hands", "feet"])
+        self.assertEqual(kwargs["repair_regions"], [[0.1, 0.2, 0.3, 0.4]])
+        self.assertEqual(kwargs["repair_denoise"], 0.7)
+        self.assertEqual(kwargs["repair_pad"], 1.5)
+        self.assertEqual(kwargs["repair_size"], 768)
+
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_repair_defaults_need_no_flags(self, chimera_class, run_finalize):
+        cli.main(["finalize", "gen-1"])
+        args, kwargs = run_finalize.call_args
+        self.assertIsNone(kwargs["repair"])
+        self.assertEqual(kwargs["repair_regions"], [])
+        self.assertEqual(kwargs["repair_denoise"], 0.6)
+        self.assertEqual(kwargs["repair_pad"], 1.0)
+        self.assertEqual(kwargs["repair_size"], 1024)
+
     @patch.object(cli, "work")
     @patch.object(cli, "ChimeraClient")
     def test_work_default_kinds_include_repair(self, chimera_class, run_work):

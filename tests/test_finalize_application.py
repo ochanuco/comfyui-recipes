@@ -10,12 +10,16 @@ image) and how it classifies the three outputs, not any local pixel work.
 from __future__ import annotations
 
 import copy
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
 from comfyui_recipes.application.finalize import FinalizeServices, finalize
+from comfyui_recipes.domain.generation.models import PromptPair
+from comfyui_recipes.domain.repair.prompt import PART_TAGS
 from comfyui_recipes.domain.yukari import delivery_style
+from comfyui_recipes.domain.yukari.recipe import refinement_prompt
 from comfyui_recipes.domain.yukari_anima import delivery_style as anima_delivery_style
 from comfyui_recipes.domain.yukari_anima.recipe import render_spec
 from comfyui_recipes.domain.yukari_sketch import delivery_style as sketch_delivery_style
@@ -693,6 +697,184 @@ class FinalizeApplicationTest(unittest.TestCase):
                 graph_from_png=lambda data: SKETCH_GRAPH)
             finalize("gen-id", services)
             self.assertIs(calls[-1]["transparent"], sketch_delivery_style.FINALIZE_TRANSPARENT)
+
+
+# A minimal redraw graph `redraw_canvas` (not faked -- it is not injectable)
+# can trace on its own: KSampler <- EmptyLatentImage, VAEDecode <- KSampler.
+REDRAW_GRAPH = {
+    "50": {"class_type": "DiffusersLoader", "inputs": {"model_path": "m"}},
+    "51": {"class_type": "EmptyLatentImage", "inputs": {
+        "width": 832, "height": 1664, "batch_size": 1}},
+    "52": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["50", 1], "text": "p"}},
+    "53": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["50", 1], "text": "n"}},
+    "54": {"class_type": "KSampler", "inputs": {
+        "model": ["50", 0], "positive": ["52", 0], "negative": ["53", 0],
+        "latent_image": ["51", 0], "seed": 8, "steps": 30, "cfg": 5,
+        "sampler_name": "euler", "scheduler": "normal", "denoise": 0.55}},
+    "55": {"class_type": "VAEDecode", "inputs": {"samples": ["54", 0], "vae": ["50", 2]}},
+    "56": {"class_type": "SaveImage", "inputs": {
+        "images": ["55", 0], "filename_prefix": "fin-gen-id"}},
+}
+
+
+def _pose_outputs(found=True):
+    """A minimal DWPreprocessor outputs dict; `found=False` locates nothing."""
+    if not found:
+        return {"2": {"openpose_json": [json.dumps([{"people": []}])]}}
+    body = [0.0, 0.0, 0.0] * 18
+    body[9 * 3:9 * 3 + 3] = [100.0, 300.0, 1.0]  # Rknee
+    body[10 * 3:10 * 3 + 3] = [100.0, 500.0, 1.0]  # Rank
+    frame = {"people": [{"pose_keypoints_2d": body,
+                         "hand_left_keypoints_2d": None,
+                         "hand_right_keypoints_2d": None}],
+            "canvas_width": 800, "canvas_height": 1000}
+    return {"2": {"openpose_json": [json.dumps([frame])]}}
+
+
+class RepairComfyFake(ComfyFake):
+    def __init__(self, pose_outputs=None):
+        super().__init__()
+        self.submitted = []
+        self.pose_outputs = pose_outputs if pose_outputs is not None else _pose_outputs()
+
+    def submit(self, graph):
+        self.submitted.append(graph)
+        return f"prompt-{len(self.submitted)}"
+
+    def wait_for_outputs(self, prompt_id):
+        return self.pose_outputs
+
+
+class FinalizeRepairTest(unittest.TestCase):
+    def _splice_recorder(self):
+        calls = []
+
+        def splice_repair(graph, **kwargs):
+            calls.append(kwargs)
+            return graph
+
+        return calls, splice_repair
+
+    def test_repair_off_by_default_stages_nothing_and_never_splices(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake()
+            splice_calls, splice_repair = self._splice_recorder()
+            services = base_services(
+                directory, comfyui=comfy,
+                chain_pass=lambda *a, **k: copy.deepcopy(REDRAW_GRAPH),
+                splice_repair=splice_repair, image_size=lambda data: (800, 1000))
+            finalize("gen-id", services)
+            self.assertEqual(splice_calls, [])
+            self.assertEqual(comfy.uploaded, [])
+            self.assertEqual(len(comfy.submitted), 1)
+
+    def test_repair_parts_submits_the_pose_pass_before_the_main_graph(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake()
+            splice_calls, splice_repair = self._splice_recorder()
+            services = base_services(
+                directory, comfyui=comfy,
+                chain_pass=lambda *a, **k: copy.deepcopy(REDRAW_GRAPH),
+                splice_repair=splice_repair, image_size=lambda data: (800, 1000))
+            finalize("gen-id", services, repair=["feet"])
+            self.assertEqual(len(comfy.submitted), 2)
+            self.assertEqual(comfy.submitted[0]["2"]["class_type"], "DWPreprocessor")
+            self.assertEqual(len(splice_calls), 1)
+
+    def test_repair_regions_only_skips_the_pose_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake()
+            splice_calls, splice_repair = self._splice_recorder()
+            services = base_services(
+                directory, comfyui=comfy,
+                chain_pass=lambda *a, **k: copy.deepcopy(REDRAW_GRAPH),
+                splice_repair=splice_repair, image_size=lambda data: (800, 1000))
+            finalize("gen-id", services, repair_regions=[[0.0, 0.0, 0.2, 0.2]])
+            self.assertEqual(len(comfy.submitted), 1)
+            self.assertEqual(len(splice_calls), 1)
+
+    def test_no_repair_region_found_raises_system_exit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake(pose_outputs=_pose_outputs(found=False))
+            _, splice_repair = self._splice_recorder()
+            services = base_services(
+                directory, comfyui=comfy,
+                chain_pass=lambda *a, **k: copy.deepcopy(REDRAW_GRAPH),
+                splice_repair=splice_repair, image_size=lambda data: (800, 1000))
+            with self.assertRaises(SystemExit):
+                finalize("gen-id", services, repair=["feet"])
+
+    def test_splice_repair_receives_the_chain_pass_graph_and_repaired_prompt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake()
+            splice_calls, splice_repair = self._splice_recorder()
+            services = base_services(
+                directory, comfyui=comfy,
+                chain_pass=lambda *a, **k: copy.deepcopy(REDRAW_GRAPH),
+                splice_repair=splice_repair, image_size=lambda data: (800, 1000))
+            finalize("gen-id", services, repair=["feet"],
+                     repair_denoise=0.7, repair_size=768)
+            call = splice_calls[0]
+            self.assertEqual(call["denoise"], 0.7)
+            self.assertEqual(call["size"], 768)
+            self.assertIn(PART_TAGS["feet"], call["positive"])
+            expected_negative = refinement_prompt(PromptPair("p", "n")).negative
+            self.assertEqual(call["negative"], expected_negative)
+            self.assertTrue(call["mask_name"].startswith("uploaded-fin-gen-id-"))
+            self.assertTrue(call["mask_name"].endswith("-mask.png"))
+
+    def test_repair_and_skin_share_one_staged_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake()
+            _, splice_repair = self._splice_recorder()
+            services = base_services(
+                directory, comfyui=comfy,
+                chain_pass=lambda *a, **k: copy.deepcopy(REDRAW_GRAPH),
+                splice_repair=splice_repair, image_size=lambda data: (800, 1000))
+            finalize("gen-id", services, repair=["feet"], apply_skin=True)
+            source_uploads = [name for name, _ in comfy.uploaded
+                              if name.endswith("-source.png")]
+            self.assertEqual(len(source_uploads), 1)
+
+    def test_batch_parameters_record_repair_when_requested(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake()
+            _, splice_repair = self._splice_recorder()
+            services = base_services(
+                directory, comfyui=comfy,
+                chain_pass=lambda *a, **k: copy.deepcopy(REDRAW_GRAPH),
+                splice_repair=splice_repair, image_size=lambda data: (800, 1000))
+            finalize("gen-id", services, repair=["feet"], repair_pad=1.5)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["repair"]["parts"], ["feet"])
+            self.assertEqual(parameters["repair"]["regions"], [])
+            self.assertEqual(parameters["repair"]["denoise"], 0.6)
+            self.assertEqual(parameters["repair"]["pad"], 1.5)
+            self.assertEqual(parameters["repair"]["size"], 1024)
+            self.assertIn("mask_bbox", parameters["repair"])
+
+    def test_batch_parameters_omit_repair_when_not_requested(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertNotIn("repair", parameters)
+
+    def test_repair_mask_uploaded_as_an_asset_on_the_raw_generation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake()
+            _, splice_repair = self._splice_recorder()
+            services = base_services(
+                directory, comfyui=comfy,
+                chain_pass=lambda *a, **k: copy.deepcopy(REDRAW_GRAPH),
+                splice_repair=splice_repair, image_size=lambda data: (800, 1000))
+            finalize("gen-id", services, repair=["feet"])
+            asset_calls = [call for call in services.management.calls
+                          if call[0] == "POST" and call[1].endswith("/assets")]
+            repair_mask_calls = [call for call in asset_calls
+                                 if call[3][0] == {"role": "repair-mask"}]
+            self.assertEqual(len(repair_mask_calls), 1)
+            self.assertEqual(repair_mask_calls[0][1], "/api/v1/generations/generation/assets")
 
 
 class FinalizeLayerDiffuseTest(unittest.TestCase):

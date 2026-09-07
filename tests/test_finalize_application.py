@@ -651,6 +651,49 @@ class FinalizeApplicationTest(unittest.TestCase):
             parameters = batch_call(services)[2]["parameters"]
             self.assertNotIn("stroke_light", parameters)
 
+    def test_backdrop_reaches_chain_pass_and_forces_transparent_false(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            finalize("gen-id", services, backdrop="stripes")
+            self.assertEqual(calls[-1]["backdrop"], "stripes")
+            self.assertIs(calls[-1]["transparent"], False)
+
+    def test_backdrop_with_explicit_transparent_true_is_honored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            finalize("gen-id", services, backdrop="stripes", transparent=True)
+            self.assertIs(calls[-1]["transparent"], True)
+
+    def test_no_backdrop_keeps_the_sketch_default_transparent_true(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            finalize("gen-id", services)
+            self.assertIs(calls[-1]["transparent"], sketch_delivery_style.FINALIZE_TRANSPARENT)
+
 
 class FinalizeLayerDiffuseTest(unittest.TestCase):
     def test_composes_instead_of_delivering(self):

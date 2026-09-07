@@ -11,6 +11,7 @@ from PIL import Image
 from scipy import ndimage
 
 from ...domain.yukari import delivery_style
+from . import backdrops
 
 
 def graph_from_png(data: bytes) -> dict:
@@ -223,20 +224,28 @@ def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
     edge the bands are drawn from a hard boundary.
     """
     white_a, purple_a = band_alphas(figure, light)
+    # backdrop_rgb may be a 3-vector or a full (H, W, 3) pattern; either
+    # broadcasts onto px.shape unchanged.
     flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
     bands = _bands_over(white_a, purple_a, flat)
     return bands + coverage[..., None] * (px - bands)
 
 
-def clean_background(data: bytes, matte: bytes,
-                     light: str | None = None) -> tuple[bytes, str]:
+def _backdrop_tag_suffix(backdrop: str | None) -> str:
+    if not backdrop:
+        return ""
+    name = backdrop if backdrop in backdrops.PATTERNS else backdrop.lstrip("#")
+    return f"-bg-{name}"
+
+
+def clean_background(data: bytes, matte: bytes, light: str | None = None,
+                     backdrop: str | None = None) -> tuple[bytes, str]:
     """Frame the figure the matte cuts out, in the delivery's own colours.
 
     The matte is the authority on the silhouette. Colour cannot be: repin
     moves the figure's own colours, and the pale hair lands inside the
     backdrop's tolerance once it has.
     """
-    backdrop_rgb = parse_color(delivery_style.BACKDROP)
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
     figure = np.array(Image.open(io.BytesIO(matte)).convert("L")) > 127
     height, width = px.shape[:2]
@@ -244,12 +253,13 @@ def clean_background(data: bytes, matte: bytes,
         px, figure,
         int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100),
         delivery_style.MATTE_EDGE_TOLERANCE)
+    backdrop_rgb = backdrops.render(backdrop, height, width)
     composite = sticker(px, figure, figure.astype(float), backdrop_rgb, light)
     white_w, purple_w = _band_widths(height, width)
 
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
-    tag = f"clean-w{white_w:.0f}-p{purple_w:.0f}"
+    tag = f"clean-w{white_w:.0f}-p{purple_w:.0f}" + _backdrop_tag_suffix(backdrop)
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 
@@ -262,20 +272,19 @@ def compose(data: bytes, backdrop: str | None = None,
     retraces because the model loses strands `refine_matte` was written to
     put back.
     """
-    backdrop_rgb = (parse_color(backdrop) if backdrop
-                    else parse_color(delivery_style.BACKDROP))
     rgba = Image.open(io.BytesIO(data)).convert("RGBA")
     px = np.array(rgba)[..., :3].astype(float)
     alpha = np.array(rgba)[..., 3]
     figure = alpha > 127
     coverage = alpha.astype(float) / 255.0
     height, width = px.shape[:2]
+    backdrop_rgb = backdrops.render(backdrop, height, width)
     composite = sticker(px, figure, coverage, backdrop_rgb, light)
     white_w, purple_w = _band_widths(height, width)
 
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
-    tag = f"compose-w{white_w:.0f}-p{purple_w:.0f}"
+    tag = f"compose-w{white_w:.0f}-p{purple_w:.0f}" + _backdrop_tag_suffix(backdrop)
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 

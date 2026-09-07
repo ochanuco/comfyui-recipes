@@ -183,9 +183,9 @@ def parser() -> argparse.ArgumentParser:
         help="keep the asserted legwear verbatim through repin; the value is "
              "the width share the legs stay left of (default 0.62)")
     finalize_parser.add_argument(
-        "--backdrop", metavar="#RRGGBB",
-        help="backdrop colour for a layerdiffuse base's compose step, "
-             "overriding the delivery's own default")
+        "--backdrop", metavar="#RRGGBB|stripes",
+        help="backdrop under the sticker -- a colour or a named pattern; "
+             "setting it delivers opaque instead of the transparent cutout")
     finalize_parser.add_argument(
         "--upscale",
         choices=["bicubic", "nearest-exact", "bilinear", "lanczos"],

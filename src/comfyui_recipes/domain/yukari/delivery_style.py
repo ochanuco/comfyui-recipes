@@ -42,6 +42,17 @@ STROKE_LIGHTS = {
     "s": (0.0, 1.0), "sw": (-_R, _R), "w": (-1.0, 0.0), "nw": (-_R, -_R),
 }
 
+# The `stripes` backdrop: two-tone diagonal bands in the hair's lavender,
+# a white radial burst behind the figure. Lengths are shares of the
+# longest side; the burst is centred a little below the middle.
+STRIPES_BASE = "#d9c6ee"
+STRIPES_PITCH = 0.12
+STRIPES_CONTRAST = 0.45
+STRIPES_BURST_RAYS = 16
+STRIPES_BURST = 0.6
+STRIPES_BURST_CENTER = (0.5, 0.55)
+STRIPES_BURST_REACH = 0.75
+
 # The acceptance band, from measured approved work. A pass is not approval
 # -- the human still judges -- but a FAIL never goes forward. The frame mean
 # moves with the figure's share of the canvas, so the upper bound is only an

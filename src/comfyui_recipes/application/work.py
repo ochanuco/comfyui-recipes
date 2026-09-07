@@ -15,7 +15,7 @@ from typing import Protocol
 
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.recipe import TOE_GUARD
-from ..infrastructure.imaging.delivery import parse_color
+from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
 from .finalize import FinalizeServices, finalize
 from .generate import GenerateServices, generate, request_file_path
 
@@ -325,11 +325,10 @@ def finalize_arguments(options: Mapping) -> dict:
         if not isinstance(backdrop, str):
             raise ValueError(
                 f"backdrop must be null or a string, got {type(backdrop).__name__}")
-        try:
-            parse_color(backdrop)
-        except SystemExit as error:
+        if not is_backdrop(backdrop):
+            names = ", ".join(repr(key) for key in sorted(PATTERNS))
             raise ValueError(
-                f"backdrop must be null or a #RRGGBB colour, got {backdrop!r}") from error
+                f"backdrop must be null, a #RRGGBB colour or one of {names}, got {backdrop!r}")
 
     upscale = options.get("upscale")
     if upscale is not None and upscale not in (

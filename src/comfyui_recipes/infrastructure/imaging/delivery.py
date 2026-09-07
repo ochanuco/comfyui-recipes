@@ -148,6 +148,29 @@ def _band_widths(height: int, width: int) -> tuple[float, float]:
     return white_w, purple_w
 
 
+def band_alphas(figure: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Coverage of the white band and the purple band outside `figure`.
+
+    Drawn from a hard boundary at 2x and averaged down, so the edge of each
+    band is a half-pixel gradient rather than a staircase.
+    """
+    height, width = figure.shape
+    bg2 = ~(np.array(Image.fromarray(figure)
+                     .resize((width * 2, height * 2), Image.NEAREST)))
+    white_w, purple_w = _band_widths(height, width)
+    white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2))
+    purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2))
+    return white_a, purple_a
+
+
+def _bands_over(white_a: np.ndarray, purple_a: np.ndarray,
+                flat: np.ndarray) -> np.ndarray:
+    white_rgb = np.array([255.0, 255.0, 255.0])
+    purple_rgb = np.array(parse_color(delivery_style.STROKE), dtype=float)
+    bands = flat + purple_a[..., None] * (purple_rgb - flat)
+    return bands + white_a[..., None] * (white_rgb - bands)
+
+
 def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
            backdrop_rgb) -> np.ndarray:
     """Frame `figure` on `backdrop_rgb`, white band then purple band outside it.
@@ -157,20 +180,9 @@ def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
     `figure` alone decides where the bands sit -- coverage may be soft at the
     edge the bands are drawn from a hard boundary.
     """
-    height, width = px.shape[:2]
-    bg2 = ~(np.array(Image.fromarray(figure)
-                     .resize((width * 2, height * 2), Image.NEAREST)))
-
-    white_w, purple_w = _band_widths(height, width)
-    white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2))
-    purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2))
-
-    white_rgb = np.array([255.0, 255.0, 255.0])
-    purple_rgb = np.array(parse_color(delivery_style.STROKE), dtype=float)
+    white_a, purple_a = band_alphas(figure)
     flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
-
-    bands = flat + purple_a[..., None] * (purple_rgb - flat)
-    bands = bands + white_a[..., None] * (white_rgb - bands)
+    bands = _bands_over(white_a, purple_a, flat)
     return bands + coverage[..., None] * (px - bands)
 
 
@@ -222,14 +234,16 @@ def compose(data: bytes, backdrop: str | None = None) -> tuple[bytes, str]:
 
 
 def transparent(data: bytes, matte: bytes) -> tuple[bytes, str]:
-    """Cut the figure out onto a transparent background, unstroked.
+    """Cut the figure out and frame it with the sticker bands on alpha 0.
 
     The refined matte is the authority on the silhouette, same as
     `clean_background`, but clamped to the soft birefnet matte's support:
     the colour retrace on its own claims the backdrop's shading as figure
     and cuts holes in the figure's light passages. It gets a sub-pixel ramp
     of its own so the strands it retraced keep their coverage, and the soft
-    matte only adds coverage inside the 1-px ring around it.
+    matte only adds coverage inside the 1-px ring around it. The white and
+    purple bands are the same as `clean_background`'s; outside them the
+    alpha is 0 instead of the backdrop.
     """
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(np.uint8)
     soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
@@ -243,11 +257,24 @@ def transparent(data: bytes, matte: bytes) -> tuple[bytes, str]:
 
     halo = ndimage.binary_dilation(figure, iterations=1)
     ramp = ndimage.gaussian_filter(figure.astype(float), 0.6)
-    alpha = np.maximum(ramp, soft / 255.0)
-    alpha[~halo] = 0.0
-    alpha[ndimage.binary_erosion(figure, iterations=1)] = 1.0
+    coverage = np.maximum(ramp, soft / 255.0)
+    coverage[~halo] = 0.0
+    coverage[ndimage.binary_erosion(figure, iterations=1)] = 1.0
 
-    rgba = np.dstack([px, np.clip(alpha * 255, 0, 255).astype(np.uint8)])
+    white_a, purple_a = band_alphas(figure)
+    band_alpha = np.clip(white_a + purple_a, 0.0, 1.0)
+    band_rgb = _bands_over(white_a, purple_a, np.zeros(px.shape))
+    band_rgb = band_rgb / np.maximum(band_alpha, 1e-6)[..., None]
+    # Figure over bands, straight alpha out.
+    alpha = coverage + (1.0 - coverage) * band_alpha
+    premultiplied = (coverage[..., None] * px
+                     + ((1.0 - coverage) * band_alpha)[..., None] * band_rgb)
+    rgb = premultiplied / np.maximum(alpha, 1e-6)[..., None]
+    rgb[alpha <= 0.0] = 0.0
+
+    rgba = np.dstack([np.clip(rgb, 0, 255).astype(np.uint8),
+                      np.clip(alpha * 255, 0, 255).astype(np.uint8)])
+    white_w, purple_w = _band_widths(height, width)
     output = io.BytesIO()
     Image.fromarray(rgba, "RGBA").save(output, "PNG")
-    return output.getvalue(), "transparent"
+    return output.getvalue(), f"transparent-w{white_w:.0f}-p{purple_w:.0f}"

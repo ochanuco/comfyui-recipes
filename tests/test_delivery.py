@@ -175,18 +175,27 @@ class DeliveryTest(unittest.TestCase):
         self.assertLess(white_at, purple_at)
         self.assertLess(purple_at, backdrop_at)
 
-    def test_transparent_cuts_the_figure_out_with_a_soft_edge(self):
-        pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
-        pixels[8:24, 10:22] = (40, 40, 40)
-        cut, tag = transparent(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)))
+    def test_transparent_frames_the_cutout_with_the_sticker_bands(self):
+        pixels = np.full((256, 256, 3), (210, 230, 235), dtype=np.uint8)
+        pixels[64:192, 64:160] = (40, 40, 40)
+        cut, tag = transparent(png(pixels), matte(pixels.shape[:2], (64, 192, 64, 160)))
         image = Image.open(io.BytesIO(cut))
         self.assertEqual(image.mode, "RGBA")
-        self.assertEqual(image.size, (32, 32))
+        self.assertEqual(image.size, (256, 256))
         arr = np.array(image)
-        np.testing.assert_array_equal(arr[..., :3], pixels)
-        self.assertEqual(arr[16, 16, 3], 255)
+        purple = np.array(parse_color(delivery_style.STROKE))
+        white = np.array([255, 255, 255])
+        # Inside the figure: its own pixels, opaque.
+        np.testing.assert_array_equal(arr[128, 100, :3], (40, 40, 40))
+        self.assertEqual(arr[128, 100, 3], 255)
+        # 256 * 1.3% = 3.3px of white, then 0.8x that of purple, then nothing.
+        np.testing.assert_array_equal(arr[128, 162, :3], white)
+        self.assertEqual(arr[128, 162, 3], 255)
+        np.testing.assert_array_equal(arr[128, 164, :3], purple)
+        self.assertEqual(arr[128, 164, 3], 255)
+        self.assertEqual(arr[128, 172, 3], 0)
         self.assertEqual(arr[0, 0, 3], 0)
-        self.assertEqual(tag, "transparent")
+        self.assertEqual(tag, "transparent-w3-p3")
 
     def test_transparent_keeps_the_retrace_inside_the_soft_matte(self):
         pixels = np.full((256, 256, 3), (210, 230, 235), dtype=np.uint8)
@@ -196,10 +205,13 @@ class DeliveryTest(unittest.TestCase):
         soft = np.zeros((256, 256), dtype=np.uint8)
         soft[64:192, 64:160] = 255
         cut, _ = transparent(png(pixels), png(soft))
-        alpha = np.array(Image.open(io.BytesIO(cut)))[..., 3]
-        self.assertLess(alpha[128, 160], 128)   # the 1-px ramp, not figure
-        self.assertEqual(alpha[128, 161], 0)
-        self.assertEqual(alpha[128, 159], 255)
+        arr = np.array(Image.open(io.BytesIO(cut)))
+        # The shading column is band, not figure: the white band paints over
+        # it, and the figure's own edge stays where the soft matte put it.
+        np.testing.assert_array_equal(arr[128, 161, :3], (255, 255, 255))
+        self.assertGreater(arr[128, 160, :3].min(), 200)
+        np.testing.assert_array_equal(arr[128, 159, :3], (215, 228, 232))
+        self.assertEqual(arr[128, 159, 3], 255)
 
     def test_stroke_alpha_ramps_over_one_pixel_at_the_outer_edge(self):
         mask = np.ones((1, 12), dtype=bool)

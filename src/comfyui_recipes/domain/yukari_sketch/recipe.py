@@ -19,6 +19,8 @@ from .prompt_style import (
     CFG,
     CHARACTER,
     FACE,
+    FINISH,
+    GLOSS_BAN,
     HEIGHT,
     IDENTITY,
     LEGWEAR,
@@ -42,14 +44,14 @@ def positive(pose: str, costume: str | None = None) -> str:
     legwear = LEGWEAR_BY_COSTUME.get(name, LEGWEAR)
     face = p.face if p.face is not None else FACE
     return (QUALITY + TRIGGER + CHARACTER + IDENTITY + costume_block
-            + p.action + PROPORTION + BACKGROUND + legwear + face + BODY)
+            + p.action + PROPORTION + BACKGROUND + legwear + face + BODY + FINISH)
 
 
 def negative(pose: str, costume: str | None = None) -> str:
     p = POSES[pose]
     name = costume if costume is not None else p.costume
     _ = COSTUMES[name]
-    return NEGATIVE + NEGATIVE_BY_COSTUME.get(name, "")
+    return NEGATIVE + NEGATIVE_BY_COSTUME.get(name, "") + GLOSS_BAN
 
 
 def refinement_prompt(base: PromptPair) -> PromptPair:

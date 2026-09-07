@@ -72,8 +72,13 @@ class PromptTest(unittest.TestCase):
     def test_bath_costume_swaps_legwear_and_bans_the_tights(self):
         self.assertNotIn(ps.LEGWEAR, positive("bath"))
         self.assertIn("(bare legs:1.3), (barefoot:1.25), ", positive("bath"))
-        self.assertTrue(negative("bath").endswith("(shoes:1.4)"))
-        self.assertEqual(negative("home"), ps.NEGATIVE)
+        self.assertTrue(negative("bath").endswith("(shoes:1.4)" + ps.GLOSS_BAN))
+        self.assertEqual(negative("home"), ps.NEGATIVE + ps.GLOSS_BAN)
+
+    def test_every_pose_ends_with_the_finish_and_the_gloss_ban(self):
+        for pose in ("cinema", "stand", "date", "cafe", "home", "bath"):
+            self.assertTrue(positive(pose).endswith(", " + ps.FINISH), pose)
+            self.assertTrue(negative(pose).endswith(ps.GLOSS_BAN), pose)
 
     def test_face_override_is_used_only_when_set(self):
         self.assertIn(ps.FACE, positive("cinema"))

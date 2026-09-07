@@ -22,6 +22,7 @@ from comfyui_recipes.application.work import (
     WorkServices,
     execute,
     finalize_arguments,
+    repair_arguments,
     work,
     work_once,
 )
@@ -163,6 +164,7 @@ def make_generate_services(directory: Path, **overrides) -> GenerateServices:
 
 def make_services(directory: Path, management, *, heartbeats=None,
                   generate=None, finalize=None, finalize_services=None,
+                  repair=None, repair_services=None,
                   branch="dev/requests-worker", emit=None, sleep=None,
                   kinds=("generate", "finalize")) -> WorkServices:
     kwargs = dict(
@@ -170,6 +172,8 @@ def make_services(directory: Path, management, *, heartbeats=None,
         generate_services=make_generate_services(Path(directory)),
         finalize_services=(finalize_services if finalize_services is not None
                           else "finalize-services"),
+        repair_services=(repair_services if repair_services is not None
+                         else "repair-services"),
         git_metadata=lambda: {"branch": branch},
         worker_id="test-worker",
         emit=(emit or (lambda message: None)),
@@ -186,6 +190,8 @@ def make_services(directory: Path, management, *, heartbeats=None,
         kwargs["generate"] = generate
     if finalize is not None:
         kwargs["finalize"] = finalize
+    if repair is not None:
+        kwargs["repair"] = repair
     if sleep is not None:
         kwargs["sleep"] = sleep
     return WorkServices(**kwargs)
@@ -198,6 +204,7 @@ def make_hub_services(directory: Path, *, hub=None, progress_feed=None,
         management=ManagementFake(),
         generate_services=make_generate_services(Path(directory)),
         finalize_services="finalize-services",
+        repair_services="repair-services",
         git_metadata=lambda: {"branch": "dev/requests-worker"},
         worker_id="test-worker",
         emit=(emit or (lambda message: None)),
@@ -212,6 +219,16 @@ def make_hub_services(directory: Path, *, hub=None, progress_feed=None,
     if clock is not None:
         kwargs["clock"] = clock
     return WorkServices(**kwargs)
+
+
+def repair_row(**overrides):
+    row = {
+        "id": "req-3", "kind": "repair", "status": "running",
+        "recipe_ref": "dev/requests-worker", "run_id": None, "attempt": 1,
+        "payload": {"generation_id": "gen-1", "options": {}},
+    }
+    row.update(overrides)
+    return row
 
 
 def generate_row(**overrides):
@@ -396,6 +413,85 @@ class FinalizeArgumentsTest(unittest.TestCase):
             finalize_arguments([])
 
 
+class RepairArgumentsTest(unittest.TestCase):
+    def test_defaults(self):
+        arguments = repair_arguments({})
+        self.assertEqual(arguments, {
+            "parts": ["hands", "feet"], "regions": [], "denoise": 0.6,
+            "seeds": [1, 2, 3, 4], "size": 1024, "pad": 1.0,
+        })
+
+    def test_not_a_mapping_is_rejected(self):
+        with self.assertRaises(ValueError):
+            repair_arguments([])
+
+    def test_unknown_key_is_rejected(self):
+        with self.assertRaises(ValueError) as ctx:
+            repair_arguments({"nope": True})
+        self.assertIn("nope", str(ctx.exception))
+
+    def test_parts_must_be_hands_or_feet(self):
+        with self.assertRaisesRegex(ValueError, "parts"):
+            repair_arguments({"parts": ["elbows"]})
+
+    def test_parts_empty_list_is_valid_with_regions(self):
+        arguments = repair_arguments({"parts": [], "regions": [[0, 0, 1, 1]]})
+        self.assertEqual(arguments["parts"], [])
+
+    def test_parts_and_regions_both_empty_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "parts or regions"):
+            repair_arguments({"parts": [], "regions": []})
+
+    def test_regions_must_be_four_numbers_in_0_1(self):
+        with self.assertRaisesRegex(ValueError, "region"):
+            repair_arguments({"regions": [[0, 0, 1]]})
+        with self.assertRaisesRegex(ValueError, "region"):
+            repair_arguments({"regions": [[0, 0, 1, 1.5]]})
+        with self.assertRaisesRegex(ValueError, "region"):
+            repair_arguments({"regions": [["a", 0, 1, 1]]})
+
+    def test_regions_pass_through_as_floats(self):
+        arguments = repair_arguments({"regions": [[0, 0.25, 1, 0.75]]})
+        self.assertEqual(arguments["regions"], [[0.0, 0.25, 1.0, 0.75]])
+
+    def test_denoise_must_be_in_0_1(self):
+        with self.assertRaisesRegex(ValueError, "denoise"):
+            repair_arguments({"denoise": 0})
+        with self.assertRaisesRegex(ValueError, "denoise"):
+            repair_arguments({"denoise": 1.5})
+        with self.assertRaisesRegex(ValueError, "denoise"):
+            repair_arguments({"denoise": "0.5"})
+
+    def test_denoise_one_is_valid(self):
+        self.assertEqual(repair_arguments({"denoise": 1})["denoise"], 1.0)
+
+    def test_seeds_must_be_a_non_empty_list_of_ints(self):
+        with self.assertRaisesRegex(ValueError, "seeds"):
+            repair_arguments({"seeds": []})
+        with self.assertRaisesRegex(ValueError, "seeds"):
+            repair_arguments({"seeds": [1.5]})
+        with self.assertRaisesRegex(ValueError, "seeds"):
+            repair_arguments({"seeds": [True]})
+
+    def test_size_must_be_a_multiple_of_8_at_least_256(self):
+        with self.assertRaisesRegex(ValueError, "size"):
+            repair_arguments({"size": 200})
+        with self.assertRaisesRegex(ValueError, "size"):
+            repair_arguments({"size": 1001})
+        with self.assertRaisesRegex(ValueError, "size"):
+            repair_arguments({"size": 1024.0})
+
+    def test_pad_must_be_between_half_and_three(self):
+        with self.assertRaisesRegex(ValueError, "pad"):
+            repair_arguments({"pad": 0.4})
+        with self.assertRaisesRegex(ValueError, "pad"):
+            repair_arguments({"pad": 3.1})
+
+    def test_pad_bounds_are_inclusive(self):
+        self.assertEqual(repair_arguments({"pad": 0.5})["pad"], 0.5)
+        self.assertEqual(repair_arguments({"pad": 3})["pad"], 3.0)
+
+
 class ExecuteTest(unittest.TestCase):
     def test_recipe_ref_mismatch_fails_without_executing(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -475,6 +571,48 @@ class ExecuteTest(unittest.TestCase):
             services = make_services(directory, ManagementFake())
             with self.assertRaises(SystemExit):
                 execute(services, generate_row(kind="probe"))
+
+    def test_repair_kind_maps_options_and_uses_the_configured_services(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repair_calls = []
+
+            def fake_repair(generation_id, repair_services, **kwargs):
+                repair_calls.append((generation_id, repair_services, kwargs))
+                return {"batch_id": "b3", "generation_ids": ["g3"]}
+
+            services = make_services(
+                directory, ManagementFake(), repair=fake_repair,
+                repair_services="repair-services-sentinel")
+            row = repair_row(payload={
+                "generation_id": "gen-1",
+                "options": {"parts": ["feet"], "seeds": [7]},
+            })
+            result = execute(services, row)
+            self.assertEqual(result, {"batch_id": "b3", "generation_ids": ["g3"]})
+            self.assertEqual(repair_calls[0][0], "gen-1")
+            self.assertEqual(repair_calls[0][1], "repair-services-sentinel")
+            self.assertEqual(repair_calls[0][2]["parts"], ["feet"])
+            self.assertEqual(repair_calls[0][2]["seeds"], [7])
+
+    def test_repair_kind_with_bad_options_fails_before_repairing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repair_calls = []
+            services = make_services(
+                directory, ManagementFake(),
+                repair=lambda *a, **k: repair_calls.append((a, k)))
+            row = repair_row(payload={
+                "generation_id": "gen-1", "options": {"nope": True}})
+            with self.assertRaises(SystemExit) as ctx:
+                execute(services, row)
+            self.assertIn("nope", str(ctx.exception))
+            self.assertEqual(repair_calls, [])
+
+    def test_repair_kind_without_generation_id_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = make_services(directory, ManagementFake())
+            row = repair_row(payload={"options": {}})
+            with self.assertRaises(SystemExit):
+                execute(services, row)
 
 
 class WorkOnceTest(unittest.TestCase):

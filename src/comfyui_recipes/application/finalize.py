@@ -78,6 +78,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         size = (sketch_delivery_style.FINALIZE_SIZE if is_sketch
                 else anima_delivery_style.FINALIZE_SIZE if is_anima
                 else FINALIZE_SIZE)
+    caller_latent_route = latent_route
     if latent_route is None:
         latent_route = is_sketch and sketch_delivery_style.FINALIZE_LATENT_ROUTE
     if transparent is None:
@@ -86,9 +87,10 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         transparent = False
     if is_layerdiffuse:
         # The RGBA composites straight onto the sticker backdrop, so there is
-        # no staircase for the latent route to leave and no cutout left for
-        # the delivery node to make.
-        latent_route = False
+        # no cutout left for the delivery node to make; only an explicit
+        # opt-in encodes the composite and upscales it in latent space.
+        latent_route = (caller_latent_route if caller_latent_route is not None
+                        else False)
         transparent = False
     seed = base["3"]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"

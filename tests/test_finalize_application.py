@@ -558,6 +558,61 @@ class FinalizeApplicationTest(unittest.TestCase):
             parameters = batch_call(services)[2]["parameters"]
             self.assertNotIn("lora_strength", parameters)
 
+    def test_deliver_size_defaults_to_1536_for_a_sketch_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: copy.deepcopy(SKETCH_GRAPH))
+            finalize("gen-id", services)
+            self.assertEqual(calls[-1]["deliver_size"], 1536)
+
+    def test_deliver_size_defaults_to_none_for_a_non_sketch_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            self.assertIsNone(calls[-1]["deliver_size"])
+
+    def test_deliver_size_override_is_passed_through(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: copy.deepcopy(SKETCH_GRAPH))
+            finalize("gen-id", services, deliver_size=2048)
+            self.assertEqual(calls[-1]["deliver_size"], 2048)
+
+    def test_batch_parameters_record_deliver_size_for_a_sketch_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, graph_from_png=lambda data: copy.deepcopy(SKETCH_GRAPH))
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["deliver_size"], 1536)
+
+    def test_batch_parameters_omit_deliver_size_for_a_non_sketch_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertNotIn("deliver_size", parameters)
+
 
 class FinalizeLayerDiffuseTest(unittest.TestCase):
     def test_composes_instead_of_delivering(self):

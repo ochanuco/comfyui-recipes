@@ -98,6 +98,11 @@ the base graph (checked before the anima check -- a base graph carries at
 most one of the two) and picks these constants over yukari's and anima's
 own. `--denoise`/`--size` still override either way.
 
+The redraw runs at `FINALIZE_SIZE` (2560), but the delivered file is then
+downscaled (lanczos) to `delivery_style.DELIVER_SIZE` (1536), the recipe's
+own default for the `deliver_size` request option (`--deliver-size` on the
+CLI). A value at or above the redraw's own longest side means no downscale.
+
 The delivered generation (gen 1) is an RGBA sticker by default: the refined
 birefnet matte decides the silhouette, the soft matte only ramps the 1-px
 edge, the white band and purple stroke are drawn around it exactly as in the

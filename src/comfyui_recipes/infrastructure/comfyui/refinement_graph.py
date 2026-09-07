@@ -32,7 +32,8 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                deliver: bool = False, transparent: bool = False,
                compose: bool = False, backdrop: str | None = None,
                redraw_lora: tuple[str, float, float] | None = None,
-               upscale: str = "bicubic") -> dict:
+               upscale: str = "bicubic",
+               deliver_size: int | None = None) -> dict:
     if upscale not in ("bicubic", "nearest-exact", "bilinear", "lanczos"):
         raise ValueError(f"unsupported upscale method: {upscale!r}")
     required = {"3", "4", "5", "6", "7", "9"}
@@ -114,6 +115,11 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             "clip": clip_ref, "text": prompt[1]}}
         positive, negative = [positive_id, 0], [negative_id, 0]
     width, height = sizes(graph, size)
+    longest = max(width, height)
+    deliver_target = None
+    if deliver_size is not None and deliver_size < longest:
+        deliver_target = (round(width * deliver_size / longest),
+                          round(height * deliver_size / longest))
     # Two routes to the bigger latent, and they do not draw the same picture.
     # Pixel space is faithful; the latent route leaves a staircase on hard
     # contours that the redraw turns into visible stroke, which is the hand in
@@ -163,6 +169,15 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         "samples": [sample, 0], "vae": vae_ref}}
     graph["9"]["inputs"]["images"] = [decode, 0]
     graph["9"]["inputs"]["filename_prefix"] = prefix
+    if compose and deliver_target is not None:
+        # compose is the whole delivered picture here -- no separate
+        # YukariDeliver node downstream to scale instead.
+        deliver_scale = str(max(int(key) for key in graph) + 1)
+        graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {
+            "image": [decode, 0], "upscale_method": "lanczos",
+            "width": deliver_target[0], "height": deliver_target[1],
+            "crop": "disabled"}}
+        graph["9"]["inputs"]["images"] = [deliver_scale, 0]
     if deliver and not matte_model:
         raise ValueError("deliver requires matte_model")
     if matte_model:
@@ -216,8 +231,16 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
                 "image": image_ref, "matte": [remove, 0],
                 "keep_scene": keep_scene, "transparent": transparent}}
+            delivered_ref = [deliver_id, 0]
+            if deliver_target is not None:
+                deliver_scale = allocate()
+                graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {
+                    "image": delivered_ref, "upscale_method": "lanczos",
+                    "width": deliver_target[0], "height": deliver_target[1],
+                    "crop": "disabled"}}
+                delivered_ref = [deliver_scale, 0]
             save_delivered = allocate()
             graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
-                "images": [deliver_id, 0],
+                "images": delivered_ref,
                 "filename_prefix": prefix + DELIVERED_SUFFIX}}
     return graph

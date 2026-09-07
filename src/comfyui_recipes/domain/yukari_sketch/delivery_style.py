@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 FINALIZE_SIZE = 2560
+# Longest side the delivered file is downscaled to after the redraw.
+DELIVER_SIZE = 1536
 FINALIZE_DENOISE = 0.55
 FINALIZE_SAMPLER = ("euler", "normal")
 # The latent route leaves a staircase on hard contours that the redraw turns

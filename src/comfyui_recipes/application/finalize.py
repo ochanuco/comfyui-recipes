@@ -47,7 +47,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              key_prefix: str | None = None,
              backdrop: str | None = None,
              upscale: str | None = None,
-             lora_strength: float | None = None) -> dict:
+             lora_strength: float | None = None,
+             deliver_size: int | None = None) -> dict:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
@@ -81,6 +82,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         size = (sketch_delivery_style.FINALIZE_SIZE if is_sketch
                 else anima_delivery_style.FINALIZE_SIZE if is_anima
                 else FINALIZE_SIZE)
+    if deliver_size is None:
+        deliver_size = sketch_delivery_style.DELIVER_SIZE if is_sketch else None
     caller_latent_route = latent_route
     if latent_route is None:
         latent_route = is_sketch and sketch_delivery_style.FINALIZE_LATENT_ROUTE
@@ -141,7 +144,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             compose=True,
             backdrop=backdrop,
             upscale=upscale or "bicubic",
-            redraw_lora=redraw_lora)
+            redraw_lora=redraw_lora,
+            deliver_size=deliver_size)
     else:
         graph = services.chain_pass(
             base, size, denoise, prefix,
@@ -160,7 +164,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             source_image=source_image,
             transparent=transparent,
             upscale=upscale or "bicubic",
-            redraw_lora=redraw_lora)
+            redraw_lora=redraw_lora,
+            deliver_size=deliver_size)
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
@@ -228,6 +233,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                        **({"upscale": upscale} if upscale else {}),
                        **({"lora_strength": lora_strength}
                           if lora_strength is not None else {}),
+                       **({"deliver_size": deliver_size}
+                          if deliver_size is not None else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,

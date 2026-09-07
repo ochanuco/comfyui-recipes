@@ -24,7 +24,7 @@ DRY_RUN_PATH = "/api/v1/requests?status=queued&limit=1"
 _KNOWN_FINALIZE_OPTIONS = frozenset({
     "denoise", "repin", "recolor", "keep_legwear", "route", "finalizer",
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
-    "backdrop", "upscale", "lora_strength",
+    "backdrop", "upscale", "lora_strength", "deliver_size",
 })
 
 
@@ -297,6 +297,14 @@ def finalize_arguments(options: Mapping) -> dict:
     if size is not None and not (isinstance(size, int) and not isinstance(size, bool)):
         raise ValueError(f"size must be null or an integer, got {type(size).__name__}")
 
+    deliver_size = options.get("deliver_size")
+    if deliver_size is not None and not (
+            isinstance(deliver_size, int) and not isinstance(deliver_size, bool)):
+        raise ValueError(
+            f"deliver_size must be null or an integer, got {type(deliver_size).__name__}")
+    if deliver_size is not None and deliver_size < 1:
+        raise ValueError(f"deliver_size must be at least 1, got {deliver_size!r}")
+
     toe_guard = options.get("toe_guard")
     if toe_guard is True:
         toe_guard = TOE_GUARD
@@ -346,6 +354,7 @@ def finalize_arguments(options: Mapping) -> dict:
         "keep_legwear": float(keep_legwear) if keep_legwear is not None else None,
         "toe_guard": float(toe_guard) if toe_guard is not None else None,
         "size": size,
+        "deliver_size": deliver_size,
         "latent_route": latent_route,
         "finalizer": finalizer,
         "keep_scene": boolean("keep_scene"),

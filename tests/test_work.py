@@ -241,7 +241,8 @@ class FinalizeArgumentsTest(unittest.TestCase):
         self.assertEqual(arguments, {
             "denoise": None, "handdrawn": False, "apply_repin": False,
             "apply_skin": False, "apply_recolor": False, "keep_legwear": None,
-            "toe_guard": None, "size": None, "latent_route": None,
+            "toe_guard": None, "size": None, "deliver_size": None,
+            "latent_route": None,
             "finalizer": None, "keep_scene": False, "transparent": None,
             "backdrop": None, "upscale": None, "lora_strength": None,
         })
@@ -286,6 +287,25 @@ class FinalizeArgumentsTest(unittest.TestCase):
     def test_lora_strength_a_boolean_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "lora_strength"):
             finalize_arguments({"lora_strength": True})
+
+    def test_deliver_size_null_passes_through(self):
+        self.assertIsNone(finalize_arguments({})["deliver_size"])
+
+    def test_deliver_size_an_integer_passes_through(self):
+        self.assertEqual(
+            finalize_arguments({"deliver_size": 1536})["deliver_size"], 1536)
+
+    def test_deliver_size_a_boolean_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "deliver_size"):
+            finalize_arguments({"deliver_size": True})
+
+    def test_deliver_size_a_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "deliver_size"):
+            finalize_arguments({"deliver_size": "1536"})
+
+    def test_deliver_size_zero_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "deliver_size"):
+            finalize_arguments({"deliver_size": 0})
 
     def test_keep_legwear_number_passes_through(self):
         self.assertEqual(finalize_arguments({"keep_legwear": 0.4})["keep_legwear"], 0.4)

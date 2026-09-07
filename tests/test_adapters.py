@@ -478,6 +478,72 @@ class AdapterTest(unittest.TestCase):
                         and node["inputs"]["clip"] == [new_lora_ids[0], 1]]
         self.assertEqual(len(prompt_nodes), 2)
 
+    def test_chain_pass_deliver_size_scales_the_delivered_save_image(self):
+        base = self._deliver_base()
+        base["5"]["inputs"]["width"] = 1024
+        base["5"]["inputs"]["height"] = 1280
+        graph = chain_pass(base, 2560, 0.45, "fin",
+                           matte_model="birefnet", deliver=True,
+                           deliver_size=1536)
+        deliver_node = self._single(graph, "YukariDeliver")
+        deliver_id = self._id_of(graph, deliver_node)
+        scale = next(node for node in graph.values()
+                    if node.get("class_type") == "ImageScale"
+                    and node["inputs"]["image"] == [deliver_id, 0])
+        self.assertEqual(scale["inputs"]["upscale_method"], "lanczos")
+        self.assertEqual(
+            (scale["inputs"]["width"], scale["inputs"]["height"]), (1229, 1536))
+        self.assertEqual(scale["inputs"]["crop"], "disabled")
+        scale_id = self._id_of(graph, scale)
+        matches = [node for node in graph.values()
+                  if node.get("class_type") == "SaveImage"
+                  and node["inputs"]["filename_prefix"] == "fin" + DELIVERED_SUFFIX]
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0]["inputs"]["images"], [scale_id, 0])
+        # The raw pass and the matte are untouched by the downscale.
+        self.assertEqual(graph["9"]["inputs"]["filename_prefix"], "fin")
+        matte_save = next(node for node in graph.values()
+                          if node.get("class_type") == "SaveImage"
+                          and node["inputs"]["filename_prefix"] == "fin" + MATTE_SUFFIX)
+        self.assertNotEqual(matte_save["inputs"]["images"], [scale_id, 0])
+
+    def test_chain_pass_deliver_size_at_or_above_the_redraw_adds_no_scale(self):
+        base = self._deliver_base()
+        base["5"]["inputs"]["width"] = 1024
+        base["5"]["inputs"]["height"] = 1280
+        graph = chain_pass(base, 2560, 0.45, "fin",
+                           matte_model="birefnet", deliver=True,
+                           latent_route=True, deliver_size=2560)
+        self.assertFalse(any(node.get("class_type") == "ImageScale"
+                             for node in graph.values()))
+
+    def test_chain_pass_deliver_size_none_adds_no_scale(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                           matte_model="birefnet", deliver=True,
+                           latent_route=True)
+        self.assertFalse(any(node.get("class_type") == "ImageScale"
+                             for node in graph.values()))
+
+    def test_chain_pass_compose_deliver_size_scales_node_9s_input(self):
+        base = self._layerdiffuse_sketch_base()
+        base["5"]["inputs"]["width"] = 1024
+        base["5"]["inputs"]["height"] = 1280
+        graph = chain_pass(base, 2560, 0.55, "fin", prompt=("p", "n"),
+                           latent_route=False, compose=True, deliver_size=1536)
+        # Two ImageScale nodes exist on this route (the pixel-route upscale
+        # feeding the redraw, and the delivery downscale); the delivery one
+        # is the one feeding node "9".
+        scales = [node for node in graph.values()
+                 if node.get("class_type") == "ImageScale"]
+        self.assertEqual(len(scales), 2)
+        deliver_scale = next(
+            node for node in scales if node["inputs"]["upscale_method"] == "lanczos")
+        deliver_scale_id = self._id_of(graph, deliver_scale)
+        self.assertEqual(graph["9"]["inputs"]["images"], [deliver_scale_id, 0])
+        self.assertEqual(
+            (deliver_scale["inputs"]["width"], deliver_scale["inputs"]["height"]),
+            (1229, 1536))
+
     def test_chain_pass_compose_with_matte_model_raises(self):
         base = self._layerdiffuse_sketch_base()
         with self.assertRaisesRegex(ValueError, "compose cannot be combined"):

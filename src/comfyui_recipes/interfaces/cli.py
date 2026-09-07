@@ -144,6 +144,10 @@ def parser() -> argparse.ArgumentParser:
         "--size", type=int, metavar="LONGEST",
         help="longest side of the delivery redraw; a DiT's cost tracks pixel "
              "count, so this is the speed dial")
+    finalize_parser.add_argument(
+        "--deliver-size", type=int, metavar="LONGEST",
+        help="downscale the delivered file to this longest side (lanczos) "
+             "after the redraw; the redraw itself still runs at --size")
     route_group = finalize_parser.add_mutually_exclusive_group()
     route_group.add_argument(
         "--latent-route", dest="latent_route", action="store_const",
@@ -330,7 +334,8 @@ def main(argv: list[str] | None = None) -> None:
                  toe_guard=args.toe_guard,
                  backdrop=args.backdrop,
                  upscale=args.upscale,
-                 lora_strength=args.lora_strength)
+                 lora_strength=args.lora_strength,
+                 deliver_size=args.deliver_size)
         return
 
     if args.metadata_command == "semantic":

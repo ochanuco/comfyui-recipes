@@ -128,7 +128,8 @@ The `upscale` request option (`--upscale` on the CLI: `bicubic`,
 `ImageScale` node's `upscale_method` feeding that redraw; unset, it stays
 `bicubic`. The `lora_strength` request option (`--lora-strength` on the CLI)
 overrides the redraw's LoRA `strength_model`/`strength_clip`; unset, it stays
-the recipe's own default.
+the recipe's own default. `route: "latent"` (`--latent-route`) encodes the
+composite and upscales it in latent space instead.
 
 ## Requesting it
 

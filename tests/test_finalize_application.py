@@ -618,6 +618,22 @@ class FinalizeLayerDiffuseTest(unittest.TestCase):
             lora_name, _ = SKETCH_LORA
             self.assertEqual(calls[-1]["redraw_lora"], (lora_name, 0.9, 0.9))
 
+    def test_latent_route_opt_in_reaches_the_compose_chain_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services, latent_route=True)
+            kwargs = calls[-1]
+            self.assertIs(kwargs["compose"], True)
+            self.assertIs(kwargs["latent_route"], True)
+
 
 if __name__ == "__main__":
     unittest.main()

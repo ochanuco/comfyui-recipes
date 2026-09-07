@@ -49,6 +49,10 @@ flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
 `stroke_light`) with the same defaults `comfy-recipes finalize` has when a
 flag is omitted.
 
+`backdrop` (`--backdrop` on the CLI) takes a `#RRGGBB` colour or the named
+pattern `stripes`; setting it turns off the sketch recipe's transparent
+default and delivers an opaque sticker on that backdrop instead.
+
 Idempotency keys are derived from the request id, so a re-claimed row
 resumes the same batch/job/generation records: batch `request:{id}`, job
 `request:{id}:job:{index}`, generation

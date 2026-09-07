@@ -45,8 +45,9 @@ A `generate` row's payload is a request.json body, written verbatim to
 case `comfy-recipes generate` does. A `finalize` row's payload is
 `{"generation_id", "options": {...}}`; `options` maps to `finalize()`'s CLI
 flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
-`size`, `deliver_size`, `handdrawn`, `skin`, `toe_guard`, `keep_scene`) with
-the same defaults `comfy-recipes finalize` has when a flag is omitted.
+`size`, `deliver_size`, `handdrawn`, `skin`, `toe_guard`, `keep_scene`,
+`stroke_light`) with the same defaults `comfy-recipes finalize` has when a
+flag is omitted.
 
 Idempotency keys are derived from the request id, so a re-claimed row
 resumes the same batch/job/generation records: batch `request:{id}`, job

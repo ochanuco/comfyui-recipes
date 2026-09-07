@@ -29,6 +29,19 @@ WHITE_WIDTH_PCT = 1.3
 STROKE = "#6a3494"
 # Width as a share of the white band's own width, both computed together.
 STROKE_WIDTH_BAND = 0.80
+
+# Purple width on the lit and the shadow side, as multiples of the uniform width.
+STROKE_LIGHT_THIN = 0.5
+STROKE_LIGHT_THICK = 2.8
+# Sigma of the distance-field blur the outline normal is read from, in purple widths.
+STROKE_LIGHT_SMOOTH = 1.0
+# Unit vectors toward the light, image coordinates (x right, y down).
+_R = 2 ** -0.5
+STROKE_LIGHTS = {
+    "n": (0.0, -1.0), "ne": (_R, -_R), "e": (1.0, 0.0), "se": (_R, _R),
+    "s": (0.0, 1.0), "sw": (-_R, _R), "w": (-1.0, 0.0), "nw": (-_R, -_R),
+}
+
 # The acceptance band, from measured approved work. A pass is not approval
 # -- the human still judges -- but a FAIL never goes forward. The frame mean
 # moves with the figure's share of the canvas, so the upper bound is only an

@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.recipe import TOE_GUARD
 from ..infrastructure.imaging.delivery import parse_color
 from .finalize import FinalizeServices, finalize
@@ -24,7 +25,7 @@ DRY_RUN_PATH = "/api/v1/requests?status=queued&limit=1"
 _KNOWN_FINALIZE_OPTIONS = frozenset({
     "denoise", "repin", "recolor", "keep_legwear", "route", "finalizer",
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
-    "backdrop", "upscale", "lora_strength", "deliver_size",
+    "backdrop", "upscale", "lora_strength", "deliver_size", "stroke_light",
 })
 
 
@@ -345,6 +346,11 @@ def finalize_arguments(options: Mapping) -> dict:
     if lora_strength is not None and not (0 <= lora_strength <= 2):
         raise ValueError(f"lora_strength must be between 0 and 2, got {lora_strength!r}")
 
+    stroke_light = options.get("stroke_light")
+    if stroke_light is not None and stroke_light not in STROKE_LIGHTS:
+        valid = ", ".join(repr(key) for key in sorted(STROKE_LIGHTS))
+        raise ValueError(f"stroke_light must be null or one of {valid}, got {stroke_light!r}")
+
     return {
         "denoise": float(denoise) if denoise is not None else None,
         "handdrawn": boolean("handdrawn"),
@@ -362,6 +368,7 @@ def finalize_arguments(options: Mapping) -> dict:
         "backdrop": backdrop,
         "upscale": upscale,
         "lora_strength": float(lora_strength) if lora_strength is not None else None,
+        "stroke_light": stroke_light,
     }
 
 

@@ -13,6 +13,7 @@ from comfyui_recipes.domain.yukari import delivery_style
 from comfyui_recipes.infrastructure.imaging.palette import repin_skin_png
 from comfyui_recipes.infrastructure.imaging.delivery import (
     background_mask,
+    band_alphas,
     clean_background,
     compose,
     down2,
@@ -224,6 +225,57 @@ class DeliveryTest(unittest.TestCase):
     def test_down2_averages_each_2x2_block(self):
         block = np.array([[1.0, 3.0], [5.0, 7.0]])
         self.assertEqual(float(down2(block)[0, 0]), 4.0)
+
+    def _disc_figure(self, size=200, radius=40):
+        figure = np.zeros((size, size), dtype=bool)
+        yy, xx = np.mgrid[0:size, 0:size]
+        cy = cx = size / 2
+        figure[(yy - cy) ** 2 + (xx - cx) ** 2 <= radius ** 2] = True
+        return figure, cy, cx, radius
+
+    def test_band_alphas_light_thins_the_purple_band_toward_the_light(self):
+        figure, cy, cx, radius = self._disc_figure()
+        _, purple = band_alphas(figure, light="ne")
+        r = 2 ** -0.5
+        steps = np.arange(0, 40)
+
+        def band_width(dx, dy):
+            ys = np.clip((cy + (radius + steps) * dy).round().astype(int), 0, 199)
+            xs = np.clip((cx + (radius + steps) * dx).round().astype(int), 0, 199)
+            return purple[ys, xs].sum()
+
+        thin_side = band_width(r, -r)    # toward the ne light
+        thick_side = band_width(-r, r)   # away from it, sw
+        self.assertGreater(thick_side, thin_side * 2)
+
+    def test_band_alphas_without_light_matches_omitting_the_argument(self):
+        figure, *_ = self._disc_figure()
+        white_a, purple_a = band_alphas(figure)
+        white_b, purple_b = band_alphas(figure, light=None)
+        np.testing.assert_array_equal(white_a, white_b)
+        np.testing.assert_array_equal(purple_a, purple_b)
+
+    def test_band_alphas_unknown_light_key_raises(self):
+        figure, *_ = self._disc_figure()
+        with self.assertRaises(ValueError) as context:
+            band_alphas(figure, light="north")
+        message = str(context.exception)
+        for key in ("n", "ne", "e", "se", "s", "sw", "w", "nw"):
+            self.assertIn(repr(key), message)
+
+    def test_transparent_light_appends_a_tag_suffix(self):
+        pixels = np.full((256, 256, 3), (210, 230, 235), dtype=np.uint8)
+        pixels[64:192, 64:160] = (40, 40, 40)
+        _, tag = transparent(png(pixels), matte(pixels.shape[:2], (64, 192, 64, 160)),
+                             light="ne")
+        self.assertEqual(tag, "transparent-w3-p3-light-ne")
+
+    def test_clean_background_light_appends_a_tag_suffix(self):
+        pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
+        pixels[8:24, 10:22] = (40, 40, 40)
+        _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)),
+                                  light="sw")
+        self.assertRegex(tag, r"^clean-w\d+-p\d+-light-sw$")
 
 
 def rgba_png(pixels: np.ndarray, alpha: np.ndarray) -> bytes:

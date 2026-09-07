@@ -16,6 +16,7 @@ from ..application.watch import WatchServices, watch
 from ..application.work import WorkServices, work
 from ..domain.generation.prompt_lint import conflicts
 from ..domain.yukari.costumes import COSTUMES
+from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.poses import POSES
 from ..domain.yukari.recipe import negative, positive
 from ..domain.yukari.recipe import render_spec as yukari_render_spec
@@ -194,6 +195,10 @@ def parser() -> argparse.ArgumentParser:
         "--lora-strength", type=float, metavar="STRENGTH",
         help="strength the redraw's LoRA runs at, overriding the recipe's "
              "own default")
+    finalize_parser.add_argument(
+        "--stroke-light", choices=sorted(STROKE_LIGHTS),
+        help="light direction the purple stroke is shaded from; thin toward "
+             "it, thick away from it")
 
     metadata_parser = commands.add_parser("metadata", help="manage generation metadata")
     metadata_commands = metadata_parser.add_subparsers(
@@ -335,7 +340,8 @@ def main(argv: list[str] | None = None) -> None:
                  backdrop=args.backdrop,
                  upscale=args.upscale,
                  lora_strength=args.lora_strength,
-                 deliver_size=args.deliver_size)
+                 deliver_size=args.deliver_size,
+                 stroke_light=args.stroke_light)
         return
 
     if args.metadata_command == "semantic":

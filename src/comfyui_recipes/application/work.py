@@ -27,6 +27,7 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "denoise", "repin", "recolor", "keep_legwear", "route", "finalizer",
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
     "backdrop", "upscale", "lora_strength", "deliver_size", "stroke_light",
+    "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
@@ -34,6 +35,59 @@ _KNOWN_REPAIR_OPTIONS = frozenset({
 })
 
 _REPAIR_PARTS = frozenset({"hands", "feet"})
+
+
+# Shared by `finalize_arguments`' `repair`/`repair_*` options and
+# `repair_arguments`' own -- both validate the same reroll geometry, just
+# under different option names and defaults.
+def _parts_argument(value: object, *, key: str = "parts") -> list[str]:
+    if (not isinstance(value, list)
+            or any(not isinstance(part, str) for part in value)):
+        raise ValueError(f"{key} must be a list of strings, got {value!r}")
+    invalid = sorted(set(value) - _REPAIR_PARTS)
+    if invalid:
+        raise ValueError(f"unknown {key}: {invalid}")
+    return value
+
+
+def _regions_argument(value: object, *, key: str = "regions") -> list[list[float]]:
+    if not isinstance(value, list):
+        raise ValueError(f"{key} must be an array, got {type(value).__name__}")
+    parsed = []
+    for region in value:
+        if (not isinstance(region, list) or len(region) != 4
+                or any(not isinstance(v, (int, float)) or isinstance(v, bool)
+                       for v in region)):
+            raise ValueError(
+                f"each region must be [x0, y0, x1, y1] numbers, got {region!r}")
+        if any(not (0 <= v <= 1) for v in region):
+            raise ValueError(f"region values must be within 0..1, got {region!r}")
+        parsed.append([float(v) for v in region])
+    return parsed
+
+
+def _denoise_argument(value: object, *, key: str = "denoise") -> float:
+    if not (isinstance(value, (int, float)) and not isinstance(value, bool)):
+        raise ValueError(f"{key} must be a number, got {type(value).__name__}")
+    if not (0 < value <= 1):
+        raise ValueError(f"{key} must be > 0 and <= 1, got {value!r}")
+    return float(value)
+
+
+def _pad_argument(value: object, *, key: str = "pad") -> float:
+    if not (isinstance(value, (int, float)) and not isinstance(value, bool)):
+        raise ValueError(f"{key} must be a number, got {type(value).__name__}")
+    if not (0.5 <= value <= 3):
+        raise ValueError(f"{key} must be between 0.5 and 3, got {value!r}")
+    return float(value)
+
+
+def _crop_size_argument(value: object, *, key: str = "size") -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{key} must be an integer, got {type(value).__name__}")
+    if value < 256 or value % 8 != 0:
+        raise ValueError(f"{key} must be a multiple of 8, at least 256, got {value!r}")
+    return value
 
 
 class Management(Protocol):
@@ -359,6 +413,17 @@ def finalize_arguments(options: Mapping) -> dict:
         valid = ", ".join(repr(key) for key in sorted(STROKE_LIGHTS))
         raise ValueError(f"stroke_light must be null or one of {valid}, got {stroke_light!r}")
 
+    repair_raw = options.get("repair")
+    repair = (None if repair_raw is None
+             else _parts_argument(repair_raw, key="repair"))
+    repair_regions = _regions_argument(
+        options.get("repair_regions", []), key="repair_regions")
+    repair_denoise = _denoise_argument(
+        options.get("repair_denoise", 0.6), key="repair_denoise")
+    repair_pad = _pad_argument(options.get("repair_pad", 1.0), key="repair_pad")
+    repair_size = _crop_size_argument(
+        options.get("repair_size", 1024), key="repair_size")
+
     return {
         "denoise": float(denoise) if denoise is not None else None,
         "handdrawn": boolean("handdrawn"),
@@ -377,6 +442,11 @@ def finalize_arguments(options: Mapping) -> dict:
         "upscale": upscale,
         "lora_strength": float(lora_strength) if lora_strength is not None else None,
         "stroke_light": stroke_light,
+        "repair": repair,
+        "repair_regions": repair_regions,
+        "repair_denoise": repair_denoise,
+        "repair_pad": repair_pad,
+        "repair_size": repair_size,
     }
 
 
@@ -393,36 +463,13 @@ def repair_arguments(options: Mapping) -> dict:
     if unknown:
         raise ValueError(f"unknown repair options keys: {unknown}")
 
-    parts = options.get("parts", ["hands", "feet"])
-    if (not isinstance(parts, list)
-            or any(not isinstance(part, str) for part in parts)):
-        raise ValueError(f"parts must be a list of strings, got {parts!r}")
-    invalid_parts = sorted(set(parts) - _REPAIR_PARTS)
-    if invalid_parts:
-        raise ValueError(f"unknown parts: {invalid_parts}")
-
-    regions = options.get("regions", [])
-    if not isinstance(regions, list):
-        raise ValueError(f"regions must be an array, got {type(regions).__name__}")
-    parsed_regions = []
-    for region in regions:
-        if (not isinstance(region, list) or len(region) != 4
-                or any(not isinstance(value, (int, float))
-                       or isinstance(value, bool) for value in region)):
-            raise ValueError(
-                f"each region must be [x0, y0, x1, y1] numbers, got {region!r}")
-        if any(not (0 <= value <= 1) for value in region):
-            raise ValueError(f"region values must be within 0..1, got {region!r}")
-        parsed_regions.append([float(value) for value in region])
+    parts = _parts_argument(options.get("parts", ["hands", "feet"]))
+    parsed_regions = _regions_argument(options.get("regions", []))
 
     if not parts and not parsed_regions:
         raise ValueError("repair needs at least one of parts or regions")
 
-    denoise = options.get("denoise", 0.6)
-    if not (isinstance(denoise, (int, float)) and not isinstance(denoise, bool)):
-        raise ValueError(f"denoise must be a number, got {type(denoise).__name__}")
-    if not (0 < denoise <= 1):
-        raise ValueError(f"denoise must be > 0 and <= 1, got {denoise!r}")
+    denoise = _denoise_argument(options.get("denoise", 0.6))
 
     seeds = options.get("seeds", [1, 2, 3, 4])
     if (not isinstance(seeds, list) or not seeds
@@ -430,22 +477,12 @@ def repair_arguments(options: Mapping) -> dict:
                    for seed in seeds)):
         raise ValueError(f"seeds must be a non-empty array of integers, got {seeds!r}")
 
-    size = options.get("size", 1024)
-    if not isinstance(size, int) or isinstance(size, bool):
-        raise ValueError(f"size must be an integer, got {type(size).__name__}")
-    if size < 256 or size % 8 != 0:
-        raise ValueError(
-            f"size must be a multiple of 8, at least 256, got {size!r}")
-
-    pad = options.get("pad", 1.0)
-    if not (isinstance(pad, (int, float)) and not isinstance(pad, bool)):
-        raise ValueError(f"pad must be a number, got {type(pad).__name__}")
-    if not (0.5 <= pad <= 3):
-        raise ValueError(f"pad must be between 0.5 and 3, got {pad!r}")
+    size = _crop_size_argument(options.get("size", 1024))
+    pad = _pad_argument(options.get("pad", 1.0))
 
     return {
-        "parts": parts, "regions": parsed_regions, "denoise": float(denoise),
-        "seeds": seeds, "size": size, "pad": float(pad),
+        "parts": parts, "regions": parsed_regions, "denoise": denoise,
+        "seeds": seeds, "size": size, "pad": pad,
     }
 
 

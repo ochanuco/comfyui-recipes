@@ -17,6 +17,7 @@ from comfyui_recipes.domain.repair.regions import (
     Rect,
     rects_from_fractions,
     regions_from_pose,
+    scale_circles,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -111,6 +112,26 @@ class RegionsFromPoseTest(unittest.TestCase):
         pose = {"people": [{**POSE, "pose_keypoints_2d": body}]}
         circles = regions_from_pose(pose, ["hands"])
         self.assertEqual(circles, [])
+
+
+class ScaleCirclesTest(unittest.TestCase):
+    def test_uniform_scale_multiplies_centre_and_radius(self):
+        scaled = scale_circles([Circle(10.0, 20.0, 5.0)], 2.0, 2.0)
+        self.assertEqual(scaled, [Circle(20.0, 40.0, 10.0)])
+
+    def test_nonuniform_scale_uses_the_geometric_mean_for_radius(self):
+        scaled = scale_circles([Circle(10.0, 20.0, 4.0)], 2.0, 8.0)
+        self.assertAlmostEqual(scaled[0].cx, 20.0)
+        self.assertAlmostEqual(scaled[0].cy, 160.0)
+        self.assertAlmostEqual(scaled[0].r, 4.0 * math.sqrt(16.0))
+
+    def test_empty_list_yields_empty_list(self):
+        self.assertEqual(scale_circles([], 1.5, 1.5), [])
+
+    def test_order_is_preserved(self):
+        circles = [Circle(0.0, 0.0, 1.0), Circle(1.0, 1.0, 2.0)]
+        scaled = scale_circles(circles, 1.0, 1.0)
+        self.assertEqual(scaled, circles)
 
 
 class RectsFromFractionsTest(unittest.TestCase):

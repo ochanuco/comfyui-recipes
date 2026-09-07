@@ -403,7 +403,7 @@ class AdapterTest(unittest.TestCase):
     def test_chain_pass_compose_wires_compose_into_the_pixel_route(self):
         base = self._layerdiffuse_sketch_base()
         graph = chain_pass(base, 2048, 0.55, "fin", prompt=("p", "n"),
-                           latent_route=True, compose=True)
+                           latent_route=False, compose=True)
         compose_node = self._single(graph, "YukariCompose")
         self.assertEqual(compose_node["inputs"]["image"], ["15", 0])
         self.assertEqual(compose_node["inputs"]["backdrop"], "")
@@ -423,6 +423,34 @@ class AdapterTest(unittest.TestCase):
         sampler = graph[redraw_ids[0]]
         self.assertEqual(sampler["inputs"]["latent_image"], [encode_id, 0])
         # Sees through node 12 (LayeredDiffusionApply) to the LoRA it samples.
+        self.assertEqual(sampler["inputs"]["model"], ["10", 0])
+
+    def test_chain_pass_compose_latent_route_wires_compose_into_latent_space(self):
+        base = self._layerdiffuse_sketch_base()
+        graph = chain_pass(base, 2048, 0.55, "fin", prompt=("p", "n"),
+                           latent_route=True, compose=True)
+        compose_node = self._single(graph, "YukariCompose")
+        self.assertEqual(compose_node["inputs"]["image"], ["15", 0])
+        compose_id = self._id_of(graph, compose_node)
+
+        self.assertFalse(any(node.get("class_type") == "ImageScale"
+                             for node in graph.values()))
+
+        encode = self._single(graph, "VAEEncode")
+        self.assertEqual(encode["inputs"]["pixels"], [compose_id, 0])
+        encode_id = self._id_of(graph, encode)
+
+        upscale = self._single(graph, "LatentUpscale")
+        self.assertEqual(upscale["inputs"]["samples"], [encode_id, 0])
+        self.assertEqual(upscale["inputs"]["upscale_method"], "bicubic")
+        self.assertEqual(upscale["inputs"]["crop"], "disabled")
+        upscale_id = self._id_of(graph, upscale)
+
+        redraw_ids = [key for key in graph if key.isdecimal() and int(key) > 15
+                     and graph[key].get("class_type") == "KSampler"]
+        self.assertEqual(len(redraw_ids), 1)
+        sampler = graph[redraw_ids[0]]
+        self.assertEqual(sampler["inputs"]["latent_image"], [upscale_id, 0])
         self.assertEqual(sampler["inputs"]["model"], ["10", 0])
 
     def test_chain_pass_redraw_lora_adds_a_loraloader_feeding_the_redraw(self):

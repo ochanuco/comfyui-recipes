@@ -126,7 +126,9 @@ the composite's backdrop colour; unset, it is the delivery's own default.
 The `upscale` request option (`--upscale` on the CLI: `bicubic`,
 `nearest-exact`, `bilinear` or `lanczos`) selects the pixel-route
 `ImageScale` node's `upscale_method` feeding that redraw; unset, it stays
-`bicubic`.
+`bicubic`. The `lora_strength` request option (`--lora-strength` on the CLI)
+overrides the redraw's LoRA `strength_model`/`strength_clip`; unset, it stays
+the recipe's own default.
 
 ## Requesting it
 

@@ -113,6 +113,9 @@ class ChimeraClient:
         return self.request(
             "PUT", f"/api/v1/generations/{generation_id}/semantic", semantic)
 
+    def put_catalog(self, recipe_ref: str, catalog: dict) -> dict:
+        return self.request("PUT", f"/api/v1/catalogs/{recipe_ref}", catalog)
+
     def add_tag(self, generation_id: str, name: str) -> dict:
         return self.request(
             "POST", f"/api/v1/generations/{generation_id}/tags",

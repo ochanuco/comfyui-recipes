@@ -42,7 +42,8 @@ class CliTest(unittest.TestCase):
         self.assertEqual(work_services.worker_id, "worker-1")
         self.assertEqual(work_services.kinds, ("generate",))
         self.assertEqual(run_work.call_args.kwargs,
-                         {"interval": 5.0, "once": True, "dry_run": True})
+                         {"interval": 5.0, "once": True, "dry_run": True,
+                          "publish_catalog": True})
 
     @patch.object(cli, "repair")
     @patch.object(cli, "ChimeraClient")
@@ -108,6 +109,36 @@ class CliTest(unittest.TestCase):
         self.assertEqual(work_services.kinds, ("generate", "finalize", "repair"))
         self.assertIs(
             work_services.repair_services.management, chimera_class.return_value)
+
+    @patch.object(cli, "work")
+    @patch.object(cli, "ChimeraClient")
+    def test_work_no_catalog_flag_disables_publish(self, chimera_class, run_work):
+        cli.main(["work", "--once", "--no-catalog"])
+        self.assertFalse(run_work.call_args.kwargs["publish_catalog"])
+
+    @patch.object(cli, "ChimeraClient")
+    def test_catalog_prints_the_document_and_does_not_publish(self, chimera_class):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            cli.main(["catalog"])
+        chimera_class.return_value.put_catalog.assert_not_called()
+        document = cli.json.loads(output.getvalue())
+        self.assertEqual(document["schema_version"], 1)
+        self.assertEqual(
+            {recipe["name"] for recipe in document["recipes"]},
+            {"yukari", "yukari-anima", "yukari-sketch"})
+
+    @patch.object(cli, "publish_catalog_document")
+    @patch.object(cli, "ChimeraClient")
+    def test_catalog_publish_flag_puts_and_prints_the_response(
+            self, chimera_class, publish):
+        publish.return_value = {"ok": True}
+        output = io.StringIO()
+        with redirect_stdout(output):
+            cli.main(["catalog", "--publish"])
+        args, kwargs = publish.call_args
+        self.assertIs(args[0], chimera_class.return_value)
+        self.assertIn('"ok": true', output.getvalue())
 
     @patch.object(cli.metadata, "add_tag")
     @patch.object(cli, "ChimeraClient")

@@ -70,6 +70,25 @@ class AdapterTest(unittest.TestCase):
         with patch("urllib.request.urlopen", return_value=response):
             self.assertIsNone(client.request("GET", "/api/v1/requests/claim"))
 
+    def test_chimera_put_catalog_puts_to_the_recipe_refs_catalog_path(self):
+        client = ChimeraClient(Path("."), base_url="https://example.invalid")
+        client._credentials = {}
+        response = MagicMock()
+        response.read.return_value = json.dumps({"ok": True}).encode()
+        response.status = 200
+        response.headers = {"Content-Type": "application/json"}
+        response.__enter__.return_value = response
+        with patch("urllib.request.urlopen", return_value=response) as urlopen:
+            result = client.put_catalog(
+                "dev/catalog-publish", {"schema_version": 1})
+        self.assertEqual(result, {"ok": True})
+        request = urlopen.call_args[0][0]
+        self.assertEqual(
+            request.full_url,
+            "https://example.invalid/api/v1/catalogs/dev/catalog-publish")
+        self.assertEqual(request.get_method(), "PUT")
+        self.assertEqual(json.loads(request.data), {"schema_version": 1})
+
     def test_comfyui_wait_retries_transport_error_and_returns_empty_success(self):
         client = ComfyUIClient(
             "http://example.invalid", poll_interval=0, poll_timeout=1)

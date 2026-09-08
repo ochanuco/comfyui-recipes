@@ -12,15 +12,15 @@ sampler, resolution and prompt blocks that took batches of rendering to find.
 `comfy-recipes yukari prompt --pose lounge` inspects the exact prompt without
 queueing; actual generation always uses a recorded request.
 
-**The GPU does not have to be local.** One environment variable points every
-script at a ComfyUI on another machine, and nothing else changes — including the
-post-processing scripts, which still receive plain local paths.
-`scripts/comfy_host.py` closes the filesystem gap through `/view` and
+**The GPU box is the only executor.** `comfy-recipes work` runs there next to
+ComfyUI, claims request rows from chimera, and renders them; a session on any
+other machine queues rows and reads results, and never talks to ComfyUI. The
+low-level scripts still take `COMFYUI_HOST` for a ComfyUI on another machine,
+with `scripts/comfy_host.py` closing the filesystem gap through `/view` and
 `/upload/image`.
 
 ```bash
-export COMFYUI_HOST=192.168.x.x        # omit for a local ComfyUI
-uv run comfy-recipes generate --request request.json
+uv run comfy-recipes work                # on the GPU box: serve chimera's queue
 ```
 
 ## Finding your way
@@ -68,15 +68,18 @@ model these recipes were tuned against.
 
 A round is queued on [chimera](https://chimera.chanu.co) — through its MCP
 tools (`derive_request`, `finalize_generation`, `repair_generation`) or
-`POST /api/v1/requests` — and executed by `comfy-recipes work` on the GPU
-box. `comfy-recipes generate` is the executor behind a `generate` row: it
-runs a batch from a request and records it in the Management API on the way
-through: Batch and Job registration, image ingest into R2, and a Discord
-notification that carries the generation's canonical URL.
+`POST /api/v1/requests` — and `comfy-recipes work` on the GPU box is the one
+command that executes it. Inside the worker, a `generate` row runs the same
+code as `comfy-recipes generate --request`: it validates the request, submits
+the graph, and records the batch in the Management API on the way through —
+Batch and Job registration, image ingest into R2, and a Discord notification
+that carries the generation's canonical URL. Running `generate` by hand is a
+worker-box operation for replaying a recorded request file, not a way to
+queue work.
 
 ```bash
-uv run comfy-recipes generate --request request.json            # run and record
-uv run comfy-recipes generate --request request.json --dry-run  # show what would be sent
+uv run comfy-recipes work                                        # serve the queue (GPU box)
+uv run comfy-recipes generate --request request.json --dry-run   # validate a request file, nothing sent
 ```
 
 `request.json` follows the contract in the chimera repository's

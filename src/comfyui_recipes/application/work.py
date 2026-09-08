@@ -19,6 +19,7 @@ from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
 from .catalog import publish_catalog as publish_catalog_document
 from .finalize import FinalizeServices, finalize
 from .generate import GenerateServices, generate, request_file_path
+from .masked_redraw import MaskedRedrawServices, masked_redraw
 from .repair import RepairServices, repair
 
 CLAIM_PATH = "/api/v1/requests/claim"
@@ -35,7 +36,15 @@ _KNOWN_REPAIR_OPTIONS = frozenset({
     "parts", "regions", "denoise", "seeds", "size", "pad",
 })
 
+_KNOWN_MASKED_REDRAW_OPTIONS = frozenset({
+    "regions", "prompt_patch", "denoise", "mask_padding", "mask_feather",
+    "size", "seeds",
+})
+
 _REPAIR_PARTS = frozenset({"hands", "feet"})
+
+_MASKED_REDRAW_PROMPT_PATCH_MAX_LENGTH = 4096
+_MASKED_REDRAW_SEEDS_MAX = 16
 
 
 # Shared by `finalize_arguments`' `repair`/`repair_*` options and
@@ -67,11 +76,19 @@ def _regions_argument(value: object, *, key: str = "regions") -> list[list[float
     return parsed
 
 
-def _denoise_argument(value: object, *, key: str = "denoise") -> float:
+def _denoise_argument(value: object, *, key: str = "denoise", max_value: float = 1) -> float:
     if not (isinstance(value, (int, float)) and not isinstance(value, bool)):
         raise ValueError(f"{key} must be a number, got {type(value).__name__}")
-    if not (0 < value <= 1):
-        raise ValueError(f"{key} must be > 0 and <= 1, got {value!r}")
+    if not (0 < value <= max_value):
+        raise ValueError(f"{key} must be > 0 and <= {max_value}, got {value!r}")
+    return float(value)
+
+
+def _pixel_argument(value: object, *, key: str, max_value: float) -> float:
+    if not (isinstance(value, (int, float)) and not isinstance(value, bool)):
+        raise ValueError(f"{key} must be a number, got {type(value).__name__}")
+    if not (0 <= value <= max_value):
+        raise ValueError(f"{key} must be between 0 and {max_value}, got {value!r}")
     return float(value)
 
 
@@ -149,15 +166,17 @@ class WorkServices:
     generate_services: GenerateServices
     finalize_services: FinalizeServices
     repair_services: RepairServices
+    masked_redraw_services: MaskedRedrawServices
     git_metadata: Callable[[], dict]
     worker_id: str
     generate: Callable[..., dict | None] = generate
     finalize: Callable[..., dict] = finalize
     repair: Callable[..., dict] = repair
+    masked_redraw: Callable[..., dict] = masked_redraw
     emit: Callable[[str], None] = print
     sleep: Callable[[float], None] = time.sleep
     heartbeat_interval: float = 30
-    kinds: tuple[str, ...] = ("generate", "finalize", "repair")
+    kinds: tuple[str, ...] = ("generate", "finalize", "repair", "masked_redraw")
     heartbeat: Callable[..., Heartbeat] = Heartbeat
     hub: Callable[[], Connection] | None = None
     progress_feed: Callable[[], Connection] | None = None
@@ -487,6 +506,56 @@ def repair_arguments(options: Mapping) -> dict:
     }
 
 
+def masked_redraw_arguments(options: Mapping) -> dict:
+    """Validate a masked_redraw request's `options` and map it to
+    masked_redraw() kwargs.
+
+    Every key in the return value is a masked_redraw() kwarg; unknown keys or
+    a wrong type raise ValueError naming the offending key.
+    """
+    if not isinstance(options, Mapping):
+        raise ValueError(
+            f"masked_redraw options must be an object, got {type(options).__name__}")
+    unknown = sorted(set(options) - _KNOWN_MASKED_REDRAW_OPTIONS)
+    if unknown:
+        raise ValueError(f"unknown masked_redraw options keys: {unknown}")
+
+    regions = _regions_argument(options.get("regions", []))
+    if not regions:
+        raise ValueError("masked_redraw needs at least one region")
+
+    prompt_patch = options.get("prompt_patch")
+    if not isinstance(prompt_patch, str) or not prompt_patch:
+        raise ValueError(
+            f"prompt_patch must be a non-empty string, got {prompt_patch!r}")
+    if len(prompt_patch) > _MASKED_REDRAW_PROMPT_PATCH_MAX_LENGTH:
+        raise ValueError(
+            "prompt_patch must be at most "
+            f"{_MASKED_REDRAW_PROMPT_PATCH_MAX_LENGTH} characters, got {len(prompt_patch)}")
+
+    denoise = _denoise_argument(options.get("denoise", 0.45), max_value=0.75)
+    mask_padding = _pixel_argument(
+        options.get("mask_padding", 0), key="mask_padding", max_value=512)
+    mask_feather = _pixel_argument(
+        options.get("mask_feather", 32), key="mask_feather", max_value=256)
+    size = _crop_size_argument(options.get("size", 1024))
+
+    seeds = options.get("seeds", [1, 2, 3, 4])
+    if (not isinstance(seeds, list) or not seeds
+            or any(not isinstance(seed, int) or isinstance(seed, bool)
+                   for seed in seeds)):
+        raise ValueError(f"seeds must be a non-empty array of integers, got {seeds!r}")
+    if len(seeds) > _MASKED_REDRAW_SEEDS_MAX:
+        raise ValueError(
+            f"seeds must have at most {_MASKED_REDRAW_SEEDS_MAX} entries, got {len(seeds)}")
+
+    return {
+        "regions": regions, "prompt_patch": prompt_patch, "denoise": denoise,
+        "mask_padding": mask_padding, "mask_feather": mask_feather, "size": size,
+        "seeds": seeds,
+    }
+
+
 def _request_path(output_root: Path, request_id: object) -> Path:
     return request_file_path(output_root, "requests", request_id)
 
@@ -529,6 +598,19 @@ def _execute_repair(services: WorkServices, row: Mapping) -> dict:
                            key_prefix=f"request:{row['id']}", **arguments)
 
 
+def _execute_masked_redraw(services: WorkServices, row: Mapping) -> dict:
+    payload = row.get("payload") or {}
+    generation_id = payload.get("generation_id")
+    if not generation_id:
+        raise SystemExit("masked_redraw payload.generation_id is required")
+    try:
+        arguments = masked_redraw_arguments(payload.get("options") or {})
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    return services.masked_redraw(generation_id, services.masked_redraw_services,
+                                  key_prefix=f"request:{row['id']}", **arguments)
+
+
 def execute(services: WorkServices, row: Mapping) -> dict:
     ref = row.get("recipe_ref")
     if ref != services.git_metadata().get("branch"):
@@ -540,6 +622,8 @@ def execute(services: WorkServices, row: Mapping) -> dict:
         return _execute_finalize(services, row)
     if kind == "repair":
         return _execute_repair(services, row)
+    if kind == "masked_redraw":
+        return _execute_masked_redraw(services, row)
     raise SystemExit(f"unsupported request kind: {kind!r}")
 
 

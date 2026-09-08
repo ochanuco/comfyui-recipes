@@ -158,7 +158,8 @@ def _splice_reroll(graph: dict, allocate: Callable[[], str], *, image_ref: list,
                    model_ref: list, positive_clip_ref: list,
                    negative_clip_ref: list, vae_ref: list, steps: int, cfg: float,
                    sampler_name: str, scheduler: str, seed: int, denoise: float,
-                   size: int) -> tuple[str, list]:
+                   size: int, mask_expand_pixels: int = 0,
+                   mask_blend_pixels: int = 32) -> tuple[str, list]:
     """Adds the crop/resample/stitch reroll subgraph to `graph` (mutated).
 
     Returns `(crop_id, repaired_ref)`: `crop_id` so a caller that spliced
@@ -174,6 +175,8 @@ def _splice_reroll(graph: dict, allocate: Callable[[], str], *, image_ref: list,
     crop = allocate()
     graph[crop] = {"class_type": "InpaintCropImproved", "inputs": {
         **_INPAINT_CROP_DEFAULTS,
+        "mask_expand_pixels": mask_expand_pixels,
+        "mask_blend_pixels": mask_blend_pixels,
         "image": image_ref, "mask": [to_mask, 0],
         "output_target_width": size, "output_target_height": size}}
     stitcher_ref, cropped_image_ref, cropped_mask_ref = (
@@ -226,9 +229,14 @@ def _redraw_pass(graph: Mapping) -> dict:
     }
 
 
-def repair_graph(source: Mapping, *, image_name: str, mask_name: str,
-                 positive: str, negative: str, seed: int, denoise: float,
-                 size: int, prefix: str) -> dict:
+def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
+                      positive: str, negative: str, seed: int, denoise: float,
+                      size: int, prefix: str, mask_expand_pixels: int,
+                      mask_blend_pixels: int) -> dict:
+    """Shared body of `repair_graph`/`masked_redraw_graph`: prune to the
+    redraw pass's own loaders, keep the tail downstream of its decode, and
+    splice a fresh crop/resample/stitch reroll off a staged source image.
+    """
     graph = json.loads(json.dumps(source))
     pass_ = _redraw_pass(graph)
     decode_id = pass_["decode_id"]
@@ -279,7 +287,8 @@ def repair_graph(source: Mapping, *, image_name: str, mask_name: str,
         positive_clip_ref=pass_["positive_clip_ref"],
         negative_clip_ref=pass_["negative_clip_ref"], vae_ref=pass_["vae_ref"],
         steps=pass_["steps"], cfg=pass_["cfg"], sampler_name=pass_["sampler_name"],
-        scheduler=pass_["scheduler"], seed=seed, denoise=denoise, size=size)
+        scheduler=pass_["scheduler"], seed=seed, denoise=denoise, size=size,
+        mask_expand_pixels=mask_expand_pixels, mask_blend_pixels=mask_blend_pixels)
     stitch = repaired_ref[0]
 
     direct_save = False
@@ -309,6 +318,31 @@ def repair_graph(source: Mapping, *, image_name: str, mask_name: str,
             "images": repaired_ref, "filename_prefix": prefix}}
 
     return result
+
+
+def repair_graph(source: Mapping, *, image_name: str, mask_name: str,
+                 positive: str, negative: str, seed: int, denoise: float,
+                 size: int, prefix: str) -> dict:
+    return _prune_and_splice(
+        source, image_name=image_name, mask_name=mask_name, positive=positive,
+        negative=negative, seed=seed, denoise=denoise, size=size, prefix=prefix,
+        mask_expand_pixels=_INPAINT_CROP_DEFAULTS["mask_expand_pixels"],
+        mask_blend_pixels=_INPAINT_CROP_DEFAULTS["mask_blend_pixels"])
+
+
+def masked_redraw_graph(source: Mapping, *, image_name: str, mask_name: str,
+                        positive: str, negative: str, seed: int, denoise: float,
+                        mask_padding: int, mask_feather: int, size: int,
+                        prefix: str) -> dict:
+    """Like `repair_graph`, but the mask expand/blend pixels are caller-given.
+
+    `parts`/pose-driven regions do not apply here -- the mask is whatever
+    rectangles the caller already rendered.
+    """
+    return _prune_and_splice(
+        source, image_name=image_name, mask_name=mask_name, positive=positive,
+        negative=negative, seed=seed, denoise=denoise, size=size, prefix=prefix,
+        mask_expand_pixels=mask_padding, mask_blend_pixels=mask_feather)
 
 
 def splice_repair(graph: Mapping, *, mask_name: str, positive: str, negative: str,

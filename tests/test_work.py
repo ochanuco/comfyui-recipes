@@ -22,6 +22,7 @@ from comfyui_recipes.application.work import (
     WorkServices,
     execute,
     finalize_arguments,
+    masked_redraw_arguments,
     repair_arguments,
     work,
     work_once,
@@ -165,6 +166,7 @@ def make_generate_services(directory: Path, **overrides) -> GenerateServices:
 def make_services(directory: Path, management, *, heartbeats=None,
                   generate=None, finalize=None, finalize_services=None,
                   repair=None, repair_services=None,
+                  masked_redraw=None, masked_redraw_services=None,
                   branch="dev/requests-worker", emit=None, sleep=None,
                   kinds=("generate", "finalize")) -> WorkServices:
     kwargs = dict(
@@ -174,6 +176,9 @@ def make_services(directory: Path, management, *, heartbeats=None,
                           else "finalize-services"),
         repair_services=(repair_services if repair_services is not None
                          else "repair-services"),
+        masked_redraw_services=(masked_redraw_services
+                                if masked_redraw_services is not None
+                                else "masked-redraw-services"),
         git_metadata=lambda: {"branch": branch},
         worker_id="test-worker",
         emit=(emit or (lambda message: None)),
@@ -192,6 +197,8 @@ def make_services(directory: Path, management, *, heartbeats=None,
         kwargs["finalize"] = finalize
     if repair is not None:
         kwargs["repair"] = repair
+    if masked_redraw is not None:
+        kwargs["masked_redraw"] = masked_redraw
     if sleep is not None:
         kwargs["sleep"] = sleep
     return WorkServices(**kwargs)
@@ -205,6 +212,7 @@ def make_hub_services(directory: Path, *, hub=None, progress_feed=None,
         generate_services=make_generate_services(Path(directory)),
         finalize_services="finalize-services",
         repair_services="repair-services",
+        masked_redraw_services="masked-redraw-services",
         git_metadata=lambda: {"branch": "dev/requests-worker"},
         worker_id="test-worker",
         emit=(emit or (lambda message: None)),
@@ -226,6 +234,17 @@ def repair_row(**overrides):
         "id": "req-3", "kind": "repair", "status": "running",
         "recipe_ref": "dev/requests-worker", "run_id": None, "attempt": 1,
         "payload": {"generation_id": "gen-1", "options": {}},
+    }
+    row.update(overrides)
+    return row
+
+
+def masked_redraw_row(**overrides):
+    row = {
+        "id": "req-4", "kind": "masked_redraw", "status": "running",
+        "recipe_ref": "dev/requests-worker", "run_id": None, "attempt": 1,
+        "payload": {"generation_id": "gen-1", "options": {
+            "regions": [[0.1, 0.1, 0.5, 0.5]], "prompt_patch": "a dress"}},
     }
     row.update(overrides)
     return row
@@ -547,6 +566,102 @@ class RepairArgumentsTest(unittest.TestCase):
         self.assertEqual(repair_arguments({"pad": 3})["pad"], 3.0)
 
 
+class MaskedRedrawArgumentsTest(unittest.TestCase):
+    def _valid(self, **overrides):
+        options = {"regions": [[0.1, 0.1, 0.5, 0.5]], "prompt_patch": "a dress"}
+        options.update(overrides)
+        return options
+
+    def test_defaults(self):
+        arguments = masked_redraw_arguments(self._valid())
+        self.assertEqual(arguments, {
+            "regions": [[0.1, 0.1, 0.5, 0.5]], "prompt_patch": "a dress",
+            "denoise": 0.45, "mask_padding": 0.0, "mask_feather": 32.0,
+            "size": 1024, "seeds": [1, 2, 3, 4],
+        })
+
+    def test_not_a_mapping_is_rejected(self):
+        with self.assertRaises(ValueError):
+            masked_redraw_arguments([])
+
+    def test_unknown_key_is_rejected(self):
+        with self.assertRaises(ValueError) as ctx:
+            masked_redraw_arguments(self._valid(nope=True))
+        self.assertIn("nope", str(ctx.exception))
+
+    def test_regions_empty_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "region"):
+            masked_redraw_arguments(self._valid(regions=[]))
+
+    def test_regions_out_of_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "region"):
+            masked_redraw_arguments(self._valid(regions=[[0, 0, 1, 1.5]]))
+
+    def test_overlapping_regions_are_not_rejected(self):
+        # _regions_argument only validates shape/range; chimera already
+        # enforces ordering and non-overlap before the row is queued.
+        arguments = masked_redraw_arguments(self._valid(
+            regions=[[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.6, 0.6]]))
+        self.assertEqual(
+            arguments["regions"], [[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.6, 0.6]])
+
+    def test_prompt_patch_empty_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "prompt_patch"):
+            masked_redraw_arguments(self._valid(prompt_patch=""))
+
+    def test_prompt_patch_not_a_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "prompt_patch"):
+            masked_redraw_arguments(self._valid(prompt_patch=1))
+
+    def test_prompt_patch_over_4096_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "prompt_patch"):
+            masked_redraw_arguments(self._valid(prompt_patch="x" * 4097))
+
+    def test_prompt_patch_exactly_4096_is_valid(self):
+        arguments = masked_redraw_arguments(self._valid(prompt_patch="x" * 4096))
+        self.assertEqual(len(arguments["prompt_patch"]), 4096)
+
+    def test_denoise_upper_bound_is_0_75_not_1(self):
+        arguments = masked_redraw_arguments(self._valid(denoise=0.75))
+        self.assertEqual(arguments["denoise"], 0.75)
+        with self.assertRaisesRegex(ValueError, "denoise"):
+            masked_redraw_arguments(self._valid(denoise=0.76))
+
+    def test_mask_padding_bounds(self):
+        arguments = masked_redraw_arguments(self._valid(mask_padding=512))
+        self.assertEqual(arguments["mask_padding"], 512.0)
+        with self.assertRaisesRegex(ValueError, "mask_padding"):
+            masked_redraw_arguments(self._valid(mask_padding=513))
+
+    def test_mask_feather_bounds(self):
+        arguments = masked_redraw_arguments(self._valid(mask_feather=256))
+        self.assertEqual(arguments["mask_feather"], 256.0)
+        with self.assertRaisesRegex(ValueError, "mask_feather"):
+            masked_redraw_arguments(self._valid(mask_feather=257))
+
+    def test_size_must_be_a_multiple_of_8_at_least_256(self):
+        arguments = masked_redraw_arguments(self._valid(size=256))
+        self.assertEqual(arguments["size"], 256)
+        with self.assertRaisesRegex(ValueError, "size"):
+            masked_redraw_arguments(self._valid(size=200))
+        with self.assertRaisesRegex(ValueError, "size"):
+            masked_redraw_arguments(self._valid(size=1001))
+
+    def test_seeds_up_to_16_are_valid_17_is_rejected(self):
+        arguments = masked_redraw_arguments(self._valid(seeds=list(range(16))))
+        self.assertEqual(len(arguments["seeds"]), 16)
+        with self.assertRaisesRegex(ValueError, "seeds"):
+            masked_redraw_arguments(self._valid(seeds=list(range(17))))
+
+    def test_seeds_must_be_a_non_empty_list_of_ints(self):
+        with self.assertRaisesRegex(ValueError, "seeds"):
+            masked_redraw_arguments(self._valid(seeds=[]))
+        with self.assertRaisesRegex(ValueError, "seeds"):
+            masked_redraw_arguments(self._valid(seeds=[1.5]))
+        with self.assertRaisesRegex(ValueError, "seeds"):
+            masked_redraw_arguments(self._valid(seeds=[True]))
+
+
 class ExecuteTest(unittest.TestCase):
     def test_recipe_ref_mismatch_fails_without_executing(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -666,6 +781,51 @@ class ExecuteTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             services = make_services(directory, ManagementFake())
             row = repair_row(payload={"options": {}})
+            with self.assertRaises(SystemExit):
+                execute(services, row)
+
+    def test_masked_redraw_kind_maps_options_and_uses_the_configured_services(self):
+        with tempfile.TemporaryDirectory() as directory:
+            masked_redraw_calls = []
+
+            def fake_masked_redraw(generation_id, masked_redraw_services, **kwargs):
+                masked_redraw_calls.append((generation_id, masked_redraw_services, kwargs))
+                return {"batch_id": "b4", "generation_ids": ["g4"]}
+
+            services = make_services(
+                directory, ManagementFake(), masked_redraw=fake_masked_redraw,
+                masked_redraw_services="masked-redraw-services-sentinel")
+            row = masked_redraw_row(payload={
+                "generation_id": "gen-1",
+                "options": {"regions": [[0.1, 0.1, 0.5, 0.5]],
+                            "prompt_patch": "a dress", "seeds": [7]},
+            })
+            result = execute(services, row)
+            self.assertEqual(result, {"batch_id": "b4", "generation_ids": ["g4"]})
+            self.assertEqual(masked_redraw_calls[0][0], "gen-1")
+            self.assertEqual(masked_redraw_calls[0][1], "masked-redraw-services-sentinel")
+            self.assertEqual(masked_redraw_calls[0][2]["regions"], [[0.1, 0.1, 0.5, 0.5]])
+            self.assertEqual(masked_redraw_calls[0][2]["prompt_patch"], "a dress")
+            self.assertEqual(masked_redraw_calls[0][2]["seeds"], [7])
+
+    def test_masked_redraw_kind_with_bad_options_fails_before_running(self):
+        with tempfile.TemporaryDirectory() as directory:
+            masked_redraw_calls = []
+            services = make_services(
+                directory, ManagementFake(),
+                masked_redraw=lambda *a, **k: masked_redraw_calls.append((a, k)))
+            row = masked_redraw_row(payload={
+                "generation_id": "gen-1", "options": {"nope": True}})
+            with self.assertRaises(SystemExit) as ctx:
+                execute(services, row)
+            self.assertIn("nope", str(ctx.exception))
+            self.assertEqual(masked_redraw_calls, [])
+
+    def test_masked_redraw_kind_without_generation_id_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = make_services(directory, ManagementFake())
+            row = masked_redraw_row(payload={
+                "options": {"regions": [[0.1, 0.1, 0.5, 0.5]], "prompt_patch": "a dress"}})
             with self.assertRaises(SystemExit):
                 execute(services, row)
 

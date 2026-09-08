@@ -36,14 +36,14 @@ the host is remote. See [remote.md](remote.md).
 
 `comfy-recipes work` is a resident worker: it claims one row at a time from
 chimera's `requests` queue (`POST /api/v1/requests/claim`, kinds `generate`,
-`finalize` and `repair`), executes it, and reports `done`/`failed` back
-(`PATCH /api/v1/requests/{id}`). While a row runs it heartbeats
-`{"status": "running"}` every 30 seconds; `--interval` is how long it sleeps
-when the queue is empty. `--once` claims and executes a single row then
-exits; `--dry-run` never claims -- it fetches and prints the next queued row
-instead. `--worker-id` defaults to the machine's hostname;
-`--kinds` (comma-separated, default `generate,finalize,repair`) narrows which
-kinds this worker claims.
+`finalize`, `repair` and `masked_redraw`), executes it, and reports
+`done`/`failed` back (`PATCH /api/v1/requests/{id}`). While a row runs it
+heartbeats `{"status": "running"}` every 30 seconds; `--interval` is how long
+it sleeps when the queue is empty. `--once` claims and executes a single row
+then exits; `--dry-run` never claims -- it fetches and prints the next
+queued row instead. `--worker-id` defaults to the machine's hostname;
+`--kinds` (comma-separated, default `generate,finalize,repair,masked_redraw`)
+narrows which kinds this worker claims.
 
 A `generate` row's payload is a request.json body, written verbatim to
 `<output_root>/requests/<id>.json` before running the same `generate()` use
@@ -54,7 +54,9 @@ flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
 `stroke_light`, `repair`, `repair_regions`, `repair_denoise`, `repair_pad`,
 `repair_size`) with the same defaults `comfy-recipes finalize` has when a
 flag is omitted. A `repair` row's payload is `{"generation_id", "options":
-{...}}` too; see [Repair](#repair) below for its options.
+{...}}` too; see [Repair](#repair) below for its options. A `masked_redraw`
+row's payload is the same shape again; see
+[Masked redraw](#masked-redraw) below for its options.
 
 `backdrop` (`--backdrop` on the CLI) takes a `#RRGGBB` colour or the named
 pattern `stripes`; setting it turns off the sketch recipe's transparent
@@ -63,8 +65,8 @@ default and delivers an opaque sticker on that backdrop instead.
 Idempotency keys are derived from the request id, so a re-claimed row
 resumes the same batch/job/generation records: batch `request:{id}`, job
 `request:{id}:job:{index}`, generation
-`request:{id}:job:{index}:gen:{output_index}`. finalize and repair use the
-same batch and job keys.
+`request:{id}:job:{index}:gen:{output_index}`. finalize, repair and
+masked_redraw use the same batch and job keys.
 
 A row's `recipe_ref` must equal the worker's current git branch; a worker on
 the wrong branch fails the row rather than generating from a recipe it
@@ -157,6 +159,39 @@ raw generation, a `-delivered` suffixed output becomes a second generation,
 anything else is the raw generation. The rendered region mask itself is
 also stored as a `repair-mask` asset on every job's raw generation, so the
 exact region redrawn is on record without recomputing it from the pose.
+
+## Masked redraw
+
+`comfy-recipes masked_redraw <generation>` is `repair` without DWPose: the
+mask is built only from caller-given rectangles, and the prompt edit is a
+free-text patch instead of a fixed hands/feet vocabulary -- for any region a
+caller can already point at (garment swaps, prop removal, background
+patches), not just hands and feet. It shares `repair`'s crop/resample/stitch
+machinery (`InpaintCropImproved` -> `KSampler` -> `InpaintStitchImproved`)
+and its source-resolution and output-ingestion rules verbatim; see
+[Repair](#repair) above for both. It is a queue kind
+(`{"kind": "masked_redraw", "payload": {"generation_id": ..., "options":
+{...}}}`) and a CLI subcommand with the same options:
+
+```bash
+uv run comfy-recipes masked_redraw <generation_id> \
+  --region 0.18,0.42,0.86,0.96 \
+  --prompt-patch "replace only the waist-to-hem garment with a long loose A-line mid-calf dress" \
+  --denoise 0.48 --mask-padding 24 --mask-feather 8 --size 768 --seeds 101,202
+```
+
+| option | CLI flag | default | meaning |
+| --- | --- | --- | --- |
+| `regions` | `--region x0,y0,x1,y1` (repeatable) | required, at least one | rectangles, as fractions (0..1) of width/height, that make up the mask; `x0<x1`, `y0<y1`, non-overlapping |
+| `prompt_patch` | `--prompt-patch` | required | text appended to the source's own positive prompt (after the same face/hair/framing drop `repair` applies), at most 4096 characters |
+| `denoise` | `--denoise` | `0.45` | the local redraw's own denoise, `0 < d <= 0.75` |
+| `mask_padding` | `--mask-padding` | `0` | `InpaintCropImproved`'s `mask_expand_pixels`, `0..512` |
+| `mask_feather` | `--mask-feather` | `32` | `InpaintCropImproved`'s `mask_blend_pixels`, `0..256` |
+| `size` | `--size` | `1024` | the crop's target long side, a multiple of 8, at least 256 |
+| `seeds` | `--seeds` | `[1, 2, 3, 4]` | one job per seed, at most 16 |
+
+Unlike `repair`, there is no `parts`/pose-driven region and no part-specific
+prompt vocabulary -- `regions` is always required, and DWPose never runs.
 
 ## `generation.patches`
 

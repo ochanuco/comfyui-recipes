@@ -164,7 +164,8 @@ class GraphTest(unittest.TestCase):
             base, 2560, 0.55, "fin-prefix",
             prompt=(spec.prompts.positive, spec.prompts.negative),
             matte_model=None, latent_route=True,
-            sampler=ds.FINALIZE_SAMPLER, loader=None, sampling=None)
+            sampler=ds.FINALIZE_SAMPLER, loader=None, sampling=None,
+            canvas=(spec.width, spec.height))
         redraw_ids = [key for key in out if key.isdecimal() and int(key) > 9
                      and out[key].get("class_type") == "KSampler"]
         redraw = out[redraw_ids[0]]
@@ -222,7 +223,8 @@ class LayerDiffuseGraphTest(unittest.TestCase):
             base, 2560, 0.55, "fin-prefix",
             prompt=(spec.prompts.positive, spec.prompts.negative),
             matte_model=None, latent_route=True,
-            sampler=ds.FINALIZE_SAMPLER, loader=None, sampling=None)
+            sampler=ds.FINALIZE_SAMPLER, loader=None, sampling=None,
+            canvas=(spec.width, spec.height))
         redraw_ids = [key for key in out if key.isdecimal() and int(key) > 15
                      and out[key].get("class_type") == "VAEDecode"]
         self.assertEqual(len(redraw_ids), 1)
@@ -297,6 +299,7 @@ class FinalizeSketchTest(unittest.TestCase):
                 notifier=RecordingNotifier(),
                 output_root=Path(directory),
                 emit=lambda message: None,
+                image_size=lambda data: (832, 1664),
             )
             finalize("gen-id", services)
 

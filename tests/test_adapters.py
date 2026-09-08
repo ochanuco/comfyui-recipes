@@ -156,19 +156,22 @@ class AdapterTest(unittest.TestCase):
         self.assertTrue(
             request.headers["Content-type"].startswith("multipart/form-data"))
 
-    def test_chain_pass_rejects_missing_and_non_numeric_node_ids(self):
+    def test_chain_pass_rejects_a_base_with_no_vaedecode_and_non_numeric_ids(self):
         base = {
-            "3": {}, "4": {}, "5": {}, "6": {}, "7": {}, "9": {},
+            "3": {"class_type": "KSampler",
+                  "inputs": {"positive": ["6", 0], "negative": ["7", 0]}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
         }
-        with self.assertRaisesRegex(ValueError, "missing required node IDs: 9"):
-            chain_pass({key: value for key, value in base.items() if key != "9"},
-                       2048, 0.2, "test")
+        with self.assertRaises(ValueError):
+            chain_pass(base, 2048, 0.2, "test", canvas=(832, 1664))
         with self.assertRaisesRegex(ValueError, "non-numeric node IDs"):
-            chain_pass({**base, "output": {}}, 2048, 0.2, "test")
+            chain_pass({**base, "output": {}}, 2048, 0.2, "test", canvas=(832, 1664))
 
     def test_chain_pass_upscales_the_decoded_image_in_pixel_space(self):
         base = {
-            "3": {"class_type": "KSampler", "inputs": {"seed": 7}},
+            "3": {"class_type": "KSampler",
+                  "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
             "4": {"class_type": "DiffusersLoader", "inputs": {}},
             "5": {"class_type": "EmptyLatentImage",
                   "inputs": {"width": 832, "height": 1664}},
@@ -179,7 +182,7 @@ class AdapterTest(unittest.TestCase):
             "9": {"class_type": "SaveImage",
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
-        graph = chain_pass(base, 2048, 0.45, "fin")
+        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664))
         scale = graph["10"]
         self.assertEqual(scale["class_type"], "ImageScale")
         self.assertEqual(scale["inputs"]["upscale_method"], "bicubic")
@@ -194,7 +197,8 @@ class AdapterTest(unittest.TestCase):
 
     def test_chain_pass_pixel_route_honours_the_upscale_method(self):
         base = {
-            "3": {"class_type": "KSampler", "inputs": {"seed": 7}},
+            "3": {"class_type": "KSampler",
+                  "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
             "4": {"class_type": "DiffusersLoader", "inputs": {}},
             "5": {"class_type": "EmptyLatentImage",
                   "inputs": {"width": 832, "height": 1664}},
@@ -205,14 +209,15 @@ class AdapterTest(unittest.TestCase):
             "9": {"class_type": "SaveImage",
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
-        graph = chain_pass(base, 2048, 0.45, "fin", upscale="nearest-exact")
+        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664), upscale="nearest-exact")
         scale = graph["10"]
         self.assertEqual(scale["class_type"], "ImageScale")
         self.assertEqual(scale["inputs"]["upscale_method"], "nearest-exact")
 
     def test_chain_pass_rejects_an_unknown_upscale_method(self):
         base = {
-            "3": {"class_type": "KSampler", "inputs": {"seed": 7}},
+            "3": {"class_type": "KSampler",
+                  "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
             "4": {"class_type": "DiffusersLoader", "inputs": {}},
             "5": {"class_type": "EmptyLatentImage",
                   "inputs": {"width": 832, "height": 1664}},
@@ -224,13 +229,14 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
         with self.assertRaisesRegex(ValueError, "unsupported upscale method"):
-            chain_pass(base, 2048, 0.45, "fin", upscale="mitchell")
+            chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664), upscale="mitchell")
 
     def test_chain_pass_sampler_override_keeps_steps_cfg_and_seed(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "steps": 30, "cfg": 5.0,
-                             "sampler_name": "dpmpp_2m", "scheduler": "karras"}},
+                             "sampler_name": "dpmpp_2m", "scheduler": "karras",
+                             "positive": ["6", 0], "negative": ["7", 0]}},
             "4": {"class_type": "DiffusersLoader", "inputs": {}},
             "5": {"class_type": "EmptyLatentImage",
                   "inputs": {"width": 832, "height": 1664}},
@@ -241,7 +247,7 @@ class AdapterTest(unittest.TestCase):
             "9": {"class_type": "SaveImage",
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
-        graph = chain_pass(base, 2048, 0.45, "fin", sampler=("euler", "normal"))
+        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664), sampler=("euler", "normal"))
         sample = graph["12"]
         self.assertEqual(sample["inputs"]["sampler_name"], "euler")
         self.assertEqual(sample["inputs"]["scheduler"], "normal")
@@ -253,7 +259,7 @@ class AdapterTest(unittest.TestCase):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"model": ["1", 0], "seed": 7, "steps": 25,
-                             "cfg": 3.5}},
+                             "cfg": 3.5, "positive": ["6", 0], "negative": ["7", 0]}},
             "4": {"class_type": "VAELoader", "inputs": {}},
             "5": {"class_type": "EmptyLatentImage",
                   "inputs": {"width": 832, "height": 1664}},
@@ -267,7 +273,8 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
         original = json.loads(json.dumps(base))
-        graph = chain_pass(base, 2048, 0.75, "fin", loader="hassaku-il-v22")
+        graph = chain_pass(base, 2048, 0.75, "fin", loader="hassaku-il-v22",
+                           canvas=(832, 1664))
         loader_id = "20"
         self.assertEqual(graph[loader_id],
                          {"class_type": "DiffusersLoader",
@@ -284,7 +291,8 @@ class AdapterTest(unittest.TestCase):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "steps": 25, "cfg": 3.5,
-                             "sampler_name": "er_sde", "scheduler": "normal"}},
+                             "sampler_name": "er_sde", "scheduler": "normal",
+                             "positive": ["6", 0], "negative": ["7", 0]}},
             "4": {"class_type": "DiffusersLoader", "inputs": {}},
             "5": {"class_type": "EmptyLatentImage",
                   "inputs": {"width": 832, "height": 1664}},
@@ -298,7 +306,7 @@ class AdapterTest(unittest.TestCase):
         original_node_3 = json.loads(json.dumps(base["3"]))
         graph = chain_pass(base, 2048, 0.75, "fin",
                            sampler=("dpmpp_2m", "karras"),
-                           sampling=(30, 5.0))
+                           sampling=(30, 5.0), canvas=(832, 1664))
         sample = graph["12"]
         self.assertEqual(sample["inputs"]["steps"], 30)
         self.assertEqual(sample["inputs"]["cfg"], 5.0)
@@ -306,7 +314,8 @@ class AdapterTest(unittest.TestCase):
 
     def test_chain_pass_rejects_a_saved_image_that_is_not_decoded(self):
         base = {
-            "3": {"class_type": "KSampler", "inputs": {"seed": 7}},
+            "3": {"class_type": "KSampler",
+                  "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
             "4": {"class_type": "DiffusersLoader", "inputs": {}},
             "5": {"class_type": "EmptyLatentImage",
                   "inputs": {"width": 832, "height": 1664}},
@@ -317,11 +326,12 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
         with self.assertRaisesRegex(ValueError, "must be fed by a VAEDecode"):
-            chain_pass(base, 2048, 0.45, "fin")
+            chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664))
 
     def _deliver_base(self):
         return {
-            "3": {"class_type": "KSampler", "inputs": {"seed": 7}},
+            "3": {"class_type": "KSampler",
+                  "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
             "4": {"class_type": "DiffusersLoader", "inputs": {}},
             "5": {"class_type": "EmptyLatentImage",
                   "inputs": {"width": 832, "height": 1664}},
@@ -335,15 +345,15 @@ class AdapterTest(unittest.TestCase):
 
     def test_chain_pass_deliver_requires_matte_model(self):
         with self.assertRaisesRegex(ValueError, "deliver requires matte_model"):
-            chain_pass(self._deliver_base(), 2048, 0.45, "fin", deliver=True)
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664), deliver=True)
 
     def test_chain_pass_skin_requires_source_image(self):
         with self.assertRaisesRegex(ValueError, "skin requires source_image"):
-            chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                       matte_model="birefnet", deliver=True, skin=True)
 
     def test_chain_pass_deliver_wires_deliver_onto_the_matte_branch(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True)
         remove = graph["17"]
         self.assertEqual(remove["class_type"], "RemoveBackground")
@@ -363,47 +373,47 @@ class AdapterTest(unittest.TestCase):
                          "fin" + MATTE_SUFFIX)
 
     def test_chain_pass_deliver_keep_scene_is_passed_through(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True, keep_scene=True)
         self.assertIs(graph["20"]["inputs"]["keep_scene"], True)
 
     def test_chain_pass_deliver_transparent_is_passed_through(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True, transparent=True)
         self.assertIs(graph["20"]["inputs"]["transparent"], True)
 
     def test_chain_pass_stroke_light_is_passed_onto_the_deliver_node(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True, stroke_light="sw")
         self.assertEqual(graph["20"]["inputs"]["stroke_light"], "sw")
 
     def test_chain_pass_stroke_light_defaults_to_an_empty_string(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True)
         self.assertEqual(graph["20"]["inputs"]["stroke_light"], "")
 
     def test_chain_pass_bad_stroke_light_raises(self):
         with self.assertRaisesRegex(ValueError, "stroke_light"):
-            chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                       matte_model="birefnet", deliver=True, stroke_light="north")
 
     def test_chain_pass_backdrop_is_passed_onto_the_deliver_node(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True, backdrop="stripes")
         self.assertEqual(graph["20"]["inputs"]["backdrop"], "stripes")
 
     def test_chain_pass_backdrop_defaults_to_an_empty_string(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True)
         self.assertEqual(graph["20"]["inputs"]["backdrop"], "")
 
     def test_chain_pass_bad_backdrop_raises(self):
         with self.assertRaisesRegex(ValueError, "backdrop"):
-            chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                       matte_model="birefnet", deliver=True, backdrop="plaid")
 
     def test_chain_pass_deliver_with_skin_chains_repin_skin_before_delivery(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True,
                            skin=True, source_image="fin-source.png")
         load_source = graph["20"]
@@ -420,7 +430,7 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(save["inputs"]["images"], ["22", 0])
 
     def test_chain_pass_deliver_with_repin_chains_repin_before_delivery(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True,
                            repin=True, keep_legwear=0.4)
         repin_node = graph["20"]
@@ -432,14 +442,14 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(deliver_node["inputs"]["image"], ["20", 0])
 
     def test_chain_pass_deliver_repin_without_keep_legwear_defaults_the_cut(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True, repin=True)
         repin_node = graph["20"]
         self.assertIs(repin_node["inputs"]["keep_legwear"], False)
         self.assertEqual(repin_node["inputs"]["keep_legwear_cut"], 0.62)
 
     def test_chain_pass_deliver_recolor_wins_over_repin(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True,
                            repin=True, recolor=True)
         recolor_node = graph["20"]
@@ -466,7 +476,7 @@ class AdapterTest(unittest.TestCase):
     def test_chain_pass_compose_wires_compose_into_the_pixel_route(self):
         base = self._layerdiffuse_sketch_base()
         graph = chain_pass(base, 2048, 0.55, "fin", prompt=("p", "n"),
-                           latent_route=False, compose=True)
+                           canvas=(832, 1664), latent_route=False, compose=True)
         compose_node = self._single(graph, "YukariCompose")
         self.assertEqual(compose_node["inputs"]["image"], ["15", 0])
         self.assertEqual(compose_node["inputs"]["backdrop"], "")
@@ -492,14 +502,14 @@ class AdapterTest(unittest.TestCase):
     def test_chain_pass_compose_stroke_light_is_passed_onto_the_compose_node(self):
         base = self._layerdiffuse_sketch_base()
         graph = chain_pass(base, 2048, 0.55, "fin", prompt=("p", "n"),
-                           latent_route=False, compose=True, stroke_light="ne")
+                           canvas=(832, 1664), latent_route=False, compose=True, stroke_light="ne")
         compose_node = self._single(graph, "YukariCompose")
         self.assertEqual(compose_node["inputs"]["stroke_light"], "ne")
 
     def test_chain_pass_compose_latent_route_wires_compose_into_latent_space(self):
         base = self._layerdiffuse_sketch_base()
         graph = chain_pass(base, 2048, 0.55, "fin", prompt=("p", "n"),
-                           latent_route=True, compose=True)
+                           canvas=(832, 1664), latent_route=True, compose=True)
         compose_node = self._single(graph, "YukariCompose")
         self.assertEqual(compose_node["inputs"]["image"], ["15", 0])
         compose_id = self._id_of(graph, compose_node)
@@ -528,7 +538,8 @@ class AdapterTest(unittest.TestCase):
         base = self._layerdiffuse_sketch_base()
         graph = chain_pass(
             base, 2048, 0.55, "fin", prompt=("p", "n"), latent_route=True,
-            compose=True, redraw_lora=("some-lora.safetensors", 0.8, 0.7))
+            compose=True, redraw_lora=("some-lora.safetensors", 0.8, 0.7),
+            canvas=(832, 1664))
         new_lora_ids = [key for key, node in graph.items()
                         if node.get("class_type") == "LoraLoader" and key != "10"]
         self.assertEqual(len(new_lora_ids), 1)
@@ -553,7 +564,7 @@ class AdapterTest(unittest.TestCase):
         base = self._deliver_base()
         base["5"]["inputs"]["width"] = 1024
         base["5"]["inputs"]["height"] = 1280
-        graph = chain_pass(base, 2560, 0.45, "fin",
+        graph = chain_pass(base, 2560, 0.45, "fin", canvas=(1024, 1280),
                            matte_model="birefnet", deliver=True,
                            deliver_size=1536)
         deliver_node = self._single(graph, "YukariDeliver")
@@ -582,14 +593,14 @@ class AdapterTest(unittest.TestCase):
         base = self._deliver_base()
         base["5"]["inputs"]["width"] = 1024
         base["5"]["inputs"]["height"] = 1280
-        graph = chain_pass(base, 2560, 0.45, "fin",
+        graph = chain_pass(base, 2560, 0.45, "fin", canvas=(1024, 1280),
                            matte_model="birefnet", deliver=True,
                            latent_route=True, deliver_size=2560)
         self.assertFalse(any(node.get("class_type") == "ImageScale"
                              for node in graph.values()))
 
     def test_chain_pass_deliver_size_none_adds_no_scale(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True,
                            latent_route=True)
         self.assertFalse(any(node.get("class_type") == "ImageScale"
@@ -600,7 +611,8 @@ class AdapterTest(unittest.TestCase):
         base["5"]["inputs"]["width"] = 1024
         base["5"]["inputs"]["height"] = 1280
         graph = chain_pass(base, 2560, 0.55, "fin", prompt=("p", "n"),
-                           latent_route=False, compose=True, deliver_size=1536)
+                           canvas=(1024, 1280), latent_route=False, compose=True,
+                           deliver_size=1536)
         # Two ImageScale nodes exist on this route (the pixel-route upscale
         # feeding the redraw, and the delivery downscale); the delivery one
         # is the one feeding node "9".
@@ -618,11 +630,21 @@ class AdapterTest(unittest.TestCase):
     def test_chain_pass_compose_with_matte_model_raises(self):
         base = self._layerdiffuse_sketch_base()
         with self.assertRaisesRegex(ValueError, "compose cannot be combined"):
-            chain_pass(base, 2048, 0.55, "fin", compose=True, matte_model="birefnet")
+            chain_pass(base, 2048, 0.55, "fin", canvas=(832, 1664),
+                      compose=True, matte_model="birefnet")
 
     def test_chain_pass_compose_on_a_non_rgba_base_raises(self):
         with self.assertRaisesRegex(ValueError, "JoinImageWithAlpha"):
-            chain_pass(self._deliver_base(), 2048, 0.45, "fin", compose=True)
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664), compose=True)
+
+    def test_chain_pass_canvas_drives_sizes_not_the_bases_empty_latent_image(self):
+        base = self._deliver_base()
+        # The base's own EmptyLatentImage stays 832x1664; a caller-given
+        # canvas of a different shape is what the redraw is sized from.
+        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(1000, 1000))
+        scale = graph["10"]
+        self.assertEqual(
+            (scale["inputs"]["width"], scale["inputs"]["height"]), (2048, 2048))
 
     def test_discord_closes_response_and_swallows_transport_errors(self):
         notifier = DiscordNotifier(Path("."))

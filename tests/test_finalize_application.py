@@ -27,26 +27,64 @@ from comfyui_recipes.domain.yukari_sketch.prompt_style import LORA as SKETCH_LOR
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 
-GRAPH = {"3": {"inputs": {"seed": 1}},
-         "6": {"inputs": {"text": "p"}},
-         "7": {"inputs": {"text": "n"}}}
+# base_roles resolves each fixture's sampler/decode/save/prompt roles by
+# structure, so every fixture needs a real KSampler <- decode <- save chain
+# plus positive/negative refs, not just the fields finalize() reads directly.
+_DECODE_SAVE = {
+    "8": {"class_type": "VAEDecode", "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+    "9": {"class_type": "SaveImage", "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+}
+
+GRAPH = {"3": {"class_type": "KSampler",
+              "inputs": {"seed": 1, "positive": ["6", 0], "negative": ["7", 0]}},
+         "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+         "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+         **_DECODE_SAVE}
 
 ANIMA_GRAPH = {"1": {"class_type": "UNETLoader", "inputs": {}},
-              "3": {"inputs": {"seed": 1}},
-              "6": {"inputs": {"text": "p"}},
-              "7": {"inputs": {"text": "n"}}}
+              "3": {"class_type": "KSampler",
+                   "inputs": {"seed": 1, "positive": ["6", 0], "negative": ["7", 0]}},
+              "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+              "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+              **_DECODE_SAVE}
 
 SKETCH_GRAPH = {"2": {"class_type": "LoraLoader", "inputs": {}},
-                "3": {"inputs": {"seed": 1}},
-                "6": {"inputs": {"text": "p"}},
-                "7": {"inputs": {"text": "n"}}}
+                "3": {"class_type": "KSampler",
+                     "inputs": {"seed": 1, "positive": ["6", 0], "negative": ["7", 0]}},
+                "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+                "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+                **_DECODE_SAVE}
 
 LAYERDIFFUSE_SKETCH_GRAPH = {"2": {"class_type": "LoraLoader", "inputs": {}},
-                            "3": {"inputs": {"seed": 1}},
-                            "6": {"inputs": {"text": "p"}},
-                            "7": {"inputs": {"text": "n"}},
+                            "3": {"class_type": "KSampler",
+                                 "inputs": {"seed": 1, "positive": ["6", 0],
+                                           "negative": ["7", 0]}},
+                            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+                            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
                             "12": {"class_type": "LayeredDiffusionApply",
-                                  "inputs": {}}}
+                                  "inputs": {}},
+                            **_DECODE_SAVE}
+
+# A real yukari-sketch masked_redraw base: its KSampler is "19" (not "3"),
+# its prompts are "15"/"16" (not "6"/"7"), it has no EmptyLatentImage, and
+# its SaveImage is reached through an InpaintStitchImproved -- the shape
+# that broke finalize() before base_roles resolved these structurally.
+MASKED_REDRAW_GRAPH = {
+    "4": {"class_type": "DiffusersLoader", "inputs": {"model_path": "hassaku-il-v22"}},
+    "9": {"class_type": "SaveImage", "inputs": {"images": ["21", 0], "filename_prefix": "mrd-src-s3141592653"}},
+    "10": {"class_type": "LoraLoader", "inputs": {"model": ["4", 0], "clip": ["4", 1], "lora_name": "sketch-style-xl-linaqruf.safetensors", "strength_model": 0.8, "strength_clip": 0.8}},
+    "11": {"class_type": "LoadImage", "inputs": {"image": "mrd-source.png"}},
+    "12": {"class_type": "LoadImage", "inputs": {"image": "mrd-mask.png"}},
+    "13": {"class_type": "ImageToMask", "inputs": {"image": ["12", 0], "channel": "red"}},
+    "14": {"class_type": "InpaintCropImproved", "inputs": {"image": ["11", 0], "mask": ["13", 0], "output_target_width": 2048, "output_target_height": 2048}},
+    "15": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["10", 1], "text": "positive"}},
+    "16": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["10", 1], "text": "negative"}},
+    "17": {"class_type": "VAEEncode", "inputs": {"pixels": ["14", 1], "vae": ["4", 2]}},
+    "18": {"class_type": "SetLatentNoiseMask", "inputs": {"samples": ["17", 0], "mask": ["14", 2]}},
+    "19": {"class_type": "KSampler", "inputs": {"model": ["10", 0], "positive": ["15", 0], "negative": ["16", 0], "latent_image": ["18", 0], "seed": 3141592653, "steps": 30, "cfg": 5, "sampler_name": "dpmpp_2m", "scheduler": "karras", "denoise": 0.55}},
+    "20": {"class_type": "VAEDecode", "inputs": {"samples": ["19", 0], "vae": ["4", 2]}},
+    "21": {"class_type": "InpaintStitchImproved", "inputs": {"stitcher": ["14", 0], "inpainted_image": ["20", 0]}},
+}
 
 
 class ManagementFake:
@@ -113,6 +151,7 @@ def base_services(directory, **overrides):
         notifier=RecordingNotifier(),
         output_root=Path(directory),
         emit=lambda message: None,
+        image_size=lambda data: (832, 1664),
     )
     kwargs.update(overrides)
     return FinalizeServices(**kwargs)
@@ -976,6 +1015,56 @@ class FinalizeLayerDiffuseTest(unittest.TestCase):
             kwargs = calls[-1]
             self.assertIs(kwargs["compose"], True)
             self.assertIs(kwargs["latent_route"], True)
+
+
+class MaskedRedrawBaseTest(unittest.TestCase):
+    """finalize() on a base whose own base graph came from a masked_redraw:
+    the reported bug (KeyError '3') and the structural roles that fix it.
+    """
+
+    def test_finalize_succeeds_over_a_masked_redraw_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, chain_pass=chain_pass,
+                graph_from_png=lambda data: copy.deepcopy(MASKED_REDRAW_GRAPH))
+            result = finalize("gen-id", services)
+            self.assertEqual(result["generation_ids"], ["generation", "generation"])
+
+    def test_masked_redraw_sketch_base_takes_the_pixel_route(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: copy.deepcopy(MASKED_REDRAW_GRAPH))
+            finalize("gen-id", services)
+            self.assertIs(sketch_delivery_style.FINALIZE_LATENT_ROUTE, True)
+            self.assertIs(calls[-1]["latent_route"], False)
+
+    def test_chain_pass_over_a_masked_redraw_base_reads_seed_and_prompts(self):
+        graph = chain_pass(
+            copy.deepcopy(MASKED_REDRAW_GRAPH), 2560, 0.55, "fin",
+            matte_model=delivery_style.MATTE_MODEL, deliver=True,
+            canvas=(1024, 1024))
+        redraw_ids = [key for key in graph if key.isdecimal() and int(key) > 21
+                     and graph[key].get("class_type") == "KSampler"]
+        self.assertEqual(len(redraw_ids), 1)
+        sampler = graph[redraw_ids[0]]
+        self.assertEqual(sampler["inputs"]["seed"], 3141592653)
+        self.assertEqual(sampler["inputs"]["positive"], ["15", 0])
+        self.assertEqual(sampler["inputs"]["negative"], ["16", 0])
+        save = graph["9"]
+        self.assertNotEqual(save["inputs"]["images"][0], "21")
+        self.assertEqual(save["inputs"]["filename_prefix"], "fin")
+
+    def test_chain_pass_rejects_latent_route_on_a_stitched_base(self):
+        with self.assertRaisesRegex(ValueError, "stitched"):
+            chain_pass(copy.deepcopy(MASKED_REDRAW_GRAPH), 2560, 0.55, "fin",
+                      latent_route=True, canvas=(1024, 1024))
 
 
 if __name__ == "__main__":

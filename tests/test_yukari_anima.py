@@ -278,7 +278,8 @@ class GraphTest(unittest.TestCase):
             base, 2560, 0.20, "fin-prefix",
             prompt=(spec.prompts.positive, spec.prompts.negative),
             matte_model="birefnet.safetensors", latent_route=False,
-            sampler=("euler", "normal"))
+            sampler=("euler", "normal"),
+            canvas=(spec.width, spec.height))
         self.assertIsInstance(out, dict)
 
 

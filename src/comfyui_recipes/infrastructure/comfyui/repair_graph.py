@@ -11,6 +11,14 @@ import itertools
 import json
 from collections.abc import Callable, Mapping
 
+from .base_graph import (
+    consumers as _consumers,
+    find_decode as _find_decode,
+    find_sampler as _find_sampler,
+    is_ref as _is_ref,
+    source_prompts,
+)
+
 # Reused from refinement_graph's own delivery tail, so a source graph that
 # already carries a matte/delivered pair keeps the same suffix convention.
 MATTE_SUFFIX = "-matte"
@@ -42,69 +50,6 @@ _INPAINT_CROP_DEFAULTS = {
 }
 
 
-def _is_ref(value: object) -> bool:
-    return isinstance(value, list) and len(value) == 2
-
-
-def _consumers(graph: Mapping) -> dict[str, list[str]]:
-    consumers: dict[str, list[str]] = {key: [] for key in graph}
-    for key, node in graph.items():
-        for value in node.get("inputs", {}).values():
-            if _is_ref(value) and value[0] in graph:
-                consumers[value[0]].append(key)
-    return consumers
-
-
-def _reaches(graph: Mapping, consumers: Mapping[str, list[str]], start: str,
-            class_type: str) -> bool:
-    stack = list(consumers.get(start, []))
-    seen: set[str] = set()
-    while stack:
-        node_id = stack.pop()
-        if node_id in seen:
-            continue
-        seen.add(node_id)
-        if graph[node_id].get("class_type") == class_type:
-            return True
-        stack.extend(consumers.get(node_id, []))
-    return False
-
-
-def _find_decode(graph: Mapping) -> str:
-    """The one VAEDecode that is the source's finished picture.
-
-    A base graph can carry a dangling first-pass VAEDecode (no consumer) and
-    a redraw VAEDecode that a later pass re-encodes -- neither is it.
-    """
-    consumers = _consumers(graph)
-    candidates = [
-        key for key, node in graph.items()
-        if node.get("class_type") == "VAEDecode" and consumers.get(key)
-        and not _reaches(graph, consumers, key, "VAEEncode")]
-    if len(candidates) != 1:
-        raise ValueError(
-            "expected exactly one final VAEDecode reachable without a "
-            f"re-sample, found {len(candidates)}: {sorted(candidates)}")
-    return candidates[0]
-
-
-def _find_sampler(graph: Mapping, decode_id: str) -> str:
-    """The KSampler feeding `decode_id`, through any Latent*/SetLatentNoiseMask hop."""
-    node_id = graph[decode_id]["inputs"]["samples"][0]
-    seen: set[str] = set()
-    while graph[node_id].get("class_type") != "KSampler":
-        if node_id in seen:
-            raise ValueError(
-                f"could not trace a KSampler upstream of VAEDecode {decode_id!r}")
-        seen.add(node_id)
-        inputs = graph[node_id].get("inputs", {})
-        if "samples" not in inputs:
-            raise ValueError(
-                f"could not trace a KSampler upstream of VAEDecode {decode_id!r}")
-        node_id = inputs["samples"][0]
-    return node_id
-
-
 def _upstream(graph: Mapping, refs: list[list | None]) -> set[str]:
     """Every node reachable by following input refs from `refs`' target nodes."""
     keep: set[str] = set()
@@ -118,16 +63,6 @@ def _upstream(graph: Mapping, refs: list[list | None]) -> set[str]:
             if _is_ref(value) and value[0] in graph:
                 stack.append(value[0])
     return keep
-
-
-def source_prompts(graph: Mapping) -> tuple[str, str]:
-    """The source's own final positive/negative CLIPTextEncode text."""
-    decode_id = _find_decode(graph)
-    sampler_id = _find_sampler(graph, decode_id)
-    inputs = graph[sampler_id]["inputs"]
-    positive = graph[inputs["positive"][0]]["inputs"]["text"]
-    negative = graph[inputs["negative"][0]]["inputs"]["text"]
-    return positive, negative
 
 
 def redraw_canvas(graph: Mapping) -> tuple[int, int]:

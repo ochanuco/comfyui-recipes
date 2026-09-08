@@ -17,6 +17,7 @@ from ..domain.yukari_anima.recipe import refinement_prompt as anima_refinement_p
 from ..domain.yukari_sketch import delivery_style as sketch_delivery_style
 from ..domain.yukari_sketch.prompt_style import LORA as SKETCH_LORA
 from ..domain.yukari_sketch.recipe import refinement_prompt as sketch_refinement_prompt
+from ..infrastructure.comfyui.base_graph import base_roles
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
 from ..infrastructure.comfyui.refinement_graph import DELIVERED_SUFFIX, MATTE_SUFFIX
 from ..infrastructure.comfyui.repair_graph import redraw_canvas, splice_repair
@@ -68,6 +69,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
     base = services.graph_from_png(picked)
+    roles = base_roles(base)
     # A LoraLoader in the base graph marks a sketch render; a UNETLoader
     # (checked only once sketch is ruled out) marks an anima render -- a
     # base graph carries at most one of the two.
@@ -114,11 +116,16 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         latent_route = (caller_latent_route if caller_latent_route is not None
                         else False)
         transparent = False
-    seed = base["3"]["inputs"]["seed"]
+    if roles.stitched:
+        # A stitched base's sampler latent is the inpaint crop, not the whole
+        # picture -- the pixel route is the only correct one, so a caller's
+        # explicit opt-in does not survive here.
+        latent_route = False
+    seed = base[roles.sampler_id]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"
     base_prompt = PromptPair(
-        base["6"]["inputs"]["text"],
-        base["7"]["inputs"]["text"],
+        base[roles.positive_id]["inputs"]["text"],
+        base[roles.negative_id]["inputs"]["text"],
     )
     if is_sketch:
         prompt = sketch_refinement_prompt(base_prompt)
@@ -173,7 +180,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             upscale=upscale or "bicubic",
             redraw_lora=redraw_lora,
             deliver_size=deliver_size,
-            stroke_light=stroke_light)
+            stroke_light=stroke_light,
+            canvas=services.image_size(picked))
     else:
         graph = services.chain_pass(
             base, size, denoise, prefix,
@@ -195,7 +203,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             upscale=upscale or "bicubic",
             redraw_lora=redraw_lora,
             deliver_size=deliver_size,
-            stroke_light=stroke_light)
+            stroke_light=stroke_light,
+            canvas=services.image_size(picked))
 
     repair_mask_png = None
     repair_mask_bbox = None

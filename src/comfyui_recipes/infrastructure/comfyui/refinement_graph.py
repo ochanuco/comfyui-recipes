@@ -6,6 +6,7 @@ import json
 
 from ...domain.yukari.delivery_style import STROKE_LIGHTS
 from ..imaging import backdrops
+from .base_graph import base_roles
 
 # Both images come out of one submission, so the matte is the redraw's own
 # alpha rather than a second pass's guess at it.
@@ -14,9 +15,7 @@ MATTE_SUFFIX = "-matte"
 DELIVERED_SUFFIX = "-delivered"
 
 
-def sizes(graph: dict, longest_side: int) -> tuple[int, int]:
-    width = graph["5"]["inputs"]["width"]
-    height = graph["5"]["inputs"]["height"]
+def sizes(width: int, height: int, longest_side: int) -> tuple[int, int]:
     longest = max(width, height)
     return (round(longest_side * width / longest / 8) * 8,
             round(longest_side * height / longest / 8) * 8)
@@ -37,7 +36,8 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                redraw_lora: tuple[str, float, float] | None = None,
                upscale: str = "bicubic",
                deliver_size: int | None = None,
-               stroke_light: str | None = None) -> dict:
+               stroke_light: str | None = None,
+               canvas: tuple[int, int]) -> dict:
     if upscale not in ("bicubic", "nearest-exact", "bilinear", "lanczos"):
         raise ValueError(f"unsupported upscale method: {upscale!r}")
     if stroke_light is not None and stroke_light not in STROKE_LIGHTS:
@@ -47,11 +47,6 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         valid = ", ".join(repr(key) for key in sorted(backdrops.PATTERNS))
         raise ValueError(
             f"backdrop must be null, a #RRGGBB colour or one of {valid}, got {backdrop!r}")
-    required = {"3", "4", "5", "6", "7", "9"}
-    missing = sorted(required - base.keys(), key=int)
-    if missing:
-        raise ValueError(
-            f"base graph is missing required node IDs: {', '.join(missing)}")
     unsupported = [key for key in base
                    if not isinstance(key, str) or not key.isdecimal()]
     if unsupported:
@@ -59,34 +54,31 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             "base graph has unsupported non-numeric node IDs: "
             + ", ".join(map(repr, unsupported)))
     graph = json.loads(json.dumps(base))
+    roles = base_roles(graph)
+    if latent_route and roles.stitched:
+        raise ValueError(
+            "latent_route is not supported on a stitched base: its sampler's "
+            "latent is the inpaint crop, not the whole picture")
     next_id = max(int(key) for key in graph) + 1
     scale, encode, sample, decode = (
         str(next_id + offset) for offset in range(4))
     # Where the model, CLIP and VAE come from is read off the base pass rather
     # than assumed: a single DiffusersLoader answers all three from node 4, a
     # split-file model answers them from three separate loaders.
-    model_ref = graph["3"]["inputs"].get("model", ["4", 0])
+    model_ref = graph[roles.sampler_id]["inputs"].get("model", ["4", 0])
     # A layerdiffuse base samples through its own LayeredDiffusionApply node,
     # so the redraw's model is what that node itself sampled, not the node.
     apply_node = graph.get(model_ref[0], {})
     if apply_node.get("class_type") == "LayeredDiffusionApply":
         model_ref = apply_node["inputs"]["model"]
-    clip_ref = graph["6"]["inputs"].get("clip", ["4", 1])
-    tail = graph[graph["9"]["inputs"]["images"][0]]
-    while tail.get("class_type") in ("JoinImageWithAlpha", "LayeredDiffusionDecode"):
-        image_key = "image" if "image" in tail["inputs"] else "images"
-        tail = graph[tail["inputs"][image_key][0]]
-    if tail.get("class_type") != "VAEDecode":
-        raise ValueError(
-            "base graph's SaveImage must be fed by a VAEDecode, got "
-            f"{tail.get('class_type')!r}")
-    vae_ref = tail["inputs"].get("vae", ["4", 2])
+    clip_ref = graph[roles.positive_id]["inputs"].get("clip", ["4", 1])
+    vae_ref = graph[roles.decode_id]["inputs"].get("vae", ["4", 2])
     compose_id = None
     if compose:
         if matte_model or deliver:
             raise ValueError(
                 "compose cannot be combined with matte_model or deliver")
-        join_ref = graph["9"]["inputs"]["images"]
+        join_ref = graph[roles.save_id]["inputs"]["images"]
         join_node = graph.get(join_ref[0], {})
         if join_node.get("class_type") != "JoinImageWithAlpha":
             raise ValueError(
@@ -106,7 +98,8 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         model_ref, clip_ref, vae_ref = (
             [loader_id, 0], [loader_id, 1], [loader_id, 2])
         if prompt is None:
-            prompt = (graph["6"]["inputs"]["text"], graph["7"]["inputs"]["text"])
+            prompt = (graph[roles.positive_id]["inputs"]["text"],
+                      graph[roles.negative_id]["inputs"]["text"])
     if redraw_lora:
         while graph.get(model_ref[0], {}).get("class_type") == "LoraLoader":
             model_ref = graph[model_ref[0]]["inputs"]["model"]
@@ -118,7 +111,8 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             "model": model_ref, "clip": clip_ref, "lora_name": lora_name,
             "strength_model": strength_model, "strength_clip": strength_clip}}
         model_ref, clip_ref = [lora_id, 0], [lora_id, 1]
-    positive, negative = ["6", 0], ["7", 0]
+    positive, negative = (graph[roles.sampler_id]["inputs"]["positive"],
+                         graph[roles.sampler_id]["inputs"]["negative"])
     if prompt:
         positive_id, negative_id = str(next_id + 4), str(next_id + 5)
         graph[positive_id] = {"class_type": "CLIPTextEncode", "inputs": {
@@ -126,7 +120,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         graph[negative_id] = {"class_type": "CLIPTextEncode", "inputs": {
             "clip": clip_ref, "text": prompt[1]}}
         positive, negative = [positive_id, 0], [negative_id, 0]
-    width, height = sizes(graph, size)
+    width, height = sizes(*canvas, size)
     longest = max(width, height)
     deliver_target = None
     if deliver_size is not None and deliver_size < longest:
@@ -138,7 +132,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     # the line this delivery is judged on.
     if latent_route and not compose:
         graph[scale] = {"class_type": "LatentUpscale", "inputs": {
-            "samples": ["3", 0], "upscale_method": "bicubic",
+            "samples": [roles.sampler_id, 0], "upscale_method": "bicubic",
             "width": width, "height": height, "crop": "disabled"}}
         latent_in = [scale, 0]
     elif compose and latent_route:
@@ -151,7 +145,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     else:
         # The composited backdrop only exists as pixels, so a plain compose
         # redraw has to start from it, not from the RGBA.
-        image_ref = [compose_id, 0] if compose else graph["9"]["inputs"]["images"]
+        image_ref = [compose_id, 0] if compose else graph[roles.save_id]["inputs"]["images"]
         graph[scale] = {"class_type": "ImageScale", "inputs": {
             "image": image_ref, "upscale_method": upscale,
             "width": width, "height": height, "crop": "disabled"}}
@@ -161,7 +155,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     # Steps, cfg and seed are the base pass's own: a checkpoint that was tuned
     # at a different cfg must be redrawn the way it was drawn. The sampler is
     # the base pass's own too, unless the caller overrides it.
-    base_sampler = graph["3"]["inputs"]
+    base_sampler = graph[roles.sampler_id]["inputs"]
     sampler_name, scheduler = (
         sampler if sampler is not None
         else (base_sampler.get("sampler_name", "dpmpp_2m"),
@@ -179,8 +173,8 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         "denoise": denoise}}
     graph[decode] = {"class_type": "VAEDecode", "inputs": {
         "samples": [sample, 0], "vae": vae_ref}}
-    graph["9"]["inputs"]["images"] = [decode, 0]
-    graph["9"]["inputs"]["filename_prefix"] = prefix
+    graph[roles.save_id]["inputs"]["images"] = [decode, 0]
+    graph[roles.save_id]["inputs"]["filename_prefix"] = prefix
     if compose and deliver_target is not None:
         # compose is the whole delivered picture here -- no separate
         # YukariDeliver node downstream to scale instead.
@@ -189,7 +183,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             "image": [decode, 0], "upscale_method": "lanczos",
             "width": deliver_target[0], "height": deliver_target[1],
             "crop": "disabled"}}
-        graph["9"]["inputs"]["images"] = [deliver_scale, 0]
+        graph[roles.save_id]["inputs"]["images"] = [deliver_scale, 0]
     if deliver and not matte_model:
         raise ValueError("deliver requires matte_model")
     if matte_model:

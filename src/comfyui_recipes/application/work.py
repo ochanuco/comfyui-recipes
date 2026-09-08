@@ -602,7 +602,7 @@ def work(services: WorkServices, *, interval: float = 30, once: bool = False,
     listener: HubListener | None = None
     relay: ProgressRelay | None = None
     wake = threading.Event()
-    if publish_catalog:
+    if publish_catalog and not dry_run:
         try:
             publish_catalog_document(services.management, services.git_metadata())
         except (SystemExit, Exception) as error:

@@ -877,6 +877,16 @@ class PublishCatalogAtStartupTest(unittest.TestCase):
             work(services, once=False, publish_catalog=False)
             self.assertEqual(calls, [])
 
+    def test_dry_run_skips_publish(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(claim_responses=[None])
+            calls = []
+            management.put_catalog = lambda recipe_ref, catalog: calls.append(
+                (recipe_ref, catalog)) or {}
+            services = make_services(directory, management)
+            work(services, once=True, dry_run=True)
+            self.assertEqual(calls, [])
+
 
 class HeartbeatTest(unittest.TestCase):
     def test_sends_running_with_the_worker_id_until_stopped(self):

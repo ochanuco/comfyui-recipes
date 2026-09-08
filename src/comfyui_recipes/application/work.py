@@ -16,6 +16,7 @@ from typing import Protocol
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.recipe import TOE_GUARD
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
+from .catalog import publish_catalog as publish_catalog_document
 from .finalize import FinalizeServices, finalize
 from .generate import GenerateServices, generate, request_file_path
 from .repair import RepairServices, repair
@@ -597,10 +598,15 @@ def work_once(services: WorkServices, *, dry_run: bool = False,
 
 
 def work(services: WorkServices, *, interval: float = 30, once: bool = False,
-         dry_run: bool = False) -> None:
+         dry_run: bool = False, publish_catalog: bool = True) -> None:
     listener: HubListener | None = None
     relay: ProgressRelay | None = None
     wake = threading.Event()
+    if publish_catalog and not dry_run:
+        try:
+            publish_catalog_document(services.management, services.git_metadata())
+        except (SystemExit, Exception) as error:
+            services.emit(f"! catalog publish failed: {error}")
     try:
         if services.hub is not None:
             listener = HubListener(services, wake).start()

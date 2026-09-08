@@ -1,0 +1,163 @@
+"""The recipe catalog: every pose, costume and patch target this checkout
+serves, published to chimera under the worker's branch.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Protocol
+
+from ..domain.generation.patches import (
+    LAYERDIFFUSE_CONFIGS,
+    NUMBER_CONSTRAINTS,
+    NUMBER_TARGETS,
+    STRING_TARGETS,
+    TEXT_OPS,
+    TEXT_TARGETS,
+)
+from ..domain.yukari.costumes import COSTUMES as YUKARI_COSTUMES
+from ..domain.yukari.poses import POSE_RECORDS
+from ..domain.yukari.recipe import render_spec as yukari_render_spec
+from ..domain.yukari_anima.costumes import COSTUMES as ANIMA_COSTUMES
+from ..domain.yukari_anima.expressions import EXPRESSIONS as ANIMA_EXPRESSIONS
+from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
+from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
+from ..domain.yukari_sketch.costumes import COSTUMES as SKETCH_COSTUMES
+from ..domain.yukari_sketch.poses import POSES as SKETCH_POSES
+from ..domain.yukari_sketch.recipe import render_spec as sketch_render_spec
+from .generate import KNOWN_PARAMETERS, RECIPE_REJECTED_PARAMETERS
+
+SCHEMA_VERSION = 1
+_SEED, _PREFIX = 0, "catalog"
+
+
+class Management(Protocol):
+    def put_catalog(self, recipe_ref: str, catalog: dict) -> dict: ...
+
+
+def _parameters(recipe: str) -> dict:
+    rejected = RECIPE_REJECTED_PARAMETERS.get(recipe, frozenset())
+    return {
+        "allowed": sorted(KNOWN_PARAMETERS - rejected),
+        "rejected": sorted(rejected),
+    }
+
+
+def _yukari_recipe() -> dict:
+    poses = []
+    model = None
+    for name in sorted(POSE_RECORDS):
+        spec = yukari_render_spec(name, _SEED, _PREFIX)
+        model = spec.model_path
+        poses.append({
+            "name": name,
+            "costume": "default",
+            "face": None,
+            "canvas": [spec.width, spec.height],
+            "positive": spec.prompts.positive,
+            "negative": spec.prompts.negative,
+        })
+    return {
+        "name": "yukari",
+        "model": model,
+        "parameters": _parameters("yukari"),
+        "costumes": sorted(YUKARI_COSTUMES),
+        "poses": poses,
+    }
+
+
+def _sketch_recipe() -> dict:
+    poses = []
+    model = None
+    for name in sorted(SKETCH_POSES):
+        pose = SKETCH_POSES[name]
+        spec = sketch_render_spec(name, _SEED, _PREFIX)
+        model = spec.model_path
+        poses.append({
+            "name": name,
+            "costume": pose.costume,
+            "face": pose.face,
+            "canvas": [spec.width, spec.height],
+            "positive": spec.prompts.positive,
+            "negative": spec.prompts.negative,
+        })
+    return {
+        "name": "yukari-sketch",
+        "model": model,
+        "parameters": _parameters("yukari-sketch"),
+        "costumes": sorted(SKETCH_COSTUMES),
+        "poses": poses,
+    }
+
+
+def _anima_recipe() -> dict:
+    poses = []
+    model = None
+    for name in sorted(ANIMA_POSES):
+        pose = ANIMA_POSES[name]
+        spec = anima_render_spec(name, _SEED, _PREFIX)
+        model = spec.model_path
+        poses.append({
+            "name": name,
+            "costume": pose.costume,
+            "face": None,
+            "expression": pose.expression,
+            "canvas": [spec.width, spec.height],
+            "positive": spec.prompts.positive,
+            "negative": spec.prompts.negative,
+        })
+    return {
+        "name": "yukari-anima",
+        "model": model,
+        "parameters": _parameters("yukari-anima"),
+        "costumes": sorted(ANIMA_COSTUMES),
+        "expressions": sorted(ANIMA_EXPRESSIONS),
+        "poses": poses,
+    }
+
+
+_TEXT_OP_KEYS = {
+    "append": ["value"], "prepend": ["value"],
+    "replace": ["old", "value"], "remove": ["old"],
+}
+
+
+def _patches_block() -> dict:
+    return {
+        "keys": ["target", "op", "value", "old", "reason"],
+        "text": {
+            "targets": list(TEXT_TARGETS),
+            "ops": {op: _TEXT_OP_KEYS[op] for op in TEXT_OPS},
+        },
+        "number": {
+            target: {"op": "set", "constraints": NUMBER_CONSTRAINTS[target]}
+            for target in NUMBER_TARGETS
+        },
+        "string": {
+            target: {
+                "op": "set",
+                "values": (list(LAYERDIFFUSE_CONFIGS)
+                          if target == "render.layerdiffuse_config" else None),
+            }
+            for target in STRING_TARGETS
+        },
+    }
+
+
+def build_catalog(git: dict) -> dict:
+    """The catalog document for this worker checkout. Pure -- no I/O."""
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "git_commit": git.get("commit"),
+        "git_branch": git.get("branch"),
+        "git_dirty": bool(git.get("dirty")),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "recipes": [_yukari_recipe(), _anima_recipe(), _sketch_recipe()],
+        "patches": _patches_block(),
+    }
+
+
+def publish_catalog(client: Management, git: dict, catalog: dict | None = None) -> dict:
+    """PUT the catalog document to chimera, upserting on the worker's branch."""
+    document = catalog if catalog is not None else build_catalog(git)
+    return client.put_catalog(git.get("branch"), document)

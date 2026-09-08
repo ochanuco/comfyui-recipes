@@ -17,6 +17,17 @@ LAYERDIFFUSE_CONFIGS = ("SDXL, Attention Injection", "SDXL, Conv Injection")
 TEXT_OPS = ("append", "prepend", "replace", "remove")
 _KNOWN_KEYS = frozenset({"target", "op", "value", "old", "reason"})
 
+# Read by _parse_number_patch's messages and by the published catalog.
+NUMBER_CONSTRAINTS = {
+    "render.steps": "an int >= 1",
+    "render.width": "an int >= 64, a multiple of 8",
+    "render.height": "an int >= 64, a multiple of 8",
+    "render.cfg": "> 0",
+    "render.layerdiffuse_weight": "-1 <= value <= 3",
+    "render.lora_strength": "0 <= value <= 2",
+    "hires.denoise": "0 < value <= 1",
+}
+
 
 @dataclass(frozen=True)
 class Patch:
@@ -66,26 +77,24 @@ def _parse_number_patch(patch: dict, target: str) -> Patch:
     value = patch.get("value")
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         _fail(target, f"value must be a number, got {value!r}")
+    constraint = NUMBER_CONSTRAINTS[target]
     if target == "render.steps":
         if not isinstance(value, int) or value < 1:
-            _fail(target, "render.steps value must be an int >= 1")
+            _fail(target, f"{target} value must be {constraint}")
     elif target in ("render.width", "render.height"):
         if not isinstance(value, int) or value < 64 or value % 8:
-            _fail(target, f"{target} value must be an int >= 64, a multiple of 8")
+            _fail(target, f"{target} value must be {constraint}")
     elif target == "render.cfg":
         if value <= 0:
-            _fail(target, "render.cfg value must be > 0")
+            _fail(target, f"{target} value must be {constraint}")
     elif target == "render.layerdiffuse_weight":
         if value < -1 or value > 3:
-            _fail(target,
-                  "render.layerdiffuse_weight value must satisfy "
-                  "-1 <= value <= 3")
+            _fail(target, f"{target} value must satisfy {constraint}")
     elif target == "render.lora_strength":
         if value < 0 or value > 2:
-            _fail(target,
-                  "render.lora_strength value must satisfy 0 <= value <= 2")
+            _fail(target, f"{target} value must satisfy {constraint}")
     elif value <= 0 or value > 1:
-        _fail(target, "hires.denoise value must satisfy 0 < value <= 1")
+        _fail(target, f"{target} value must satisfy {constraint}")
     return Patch(target, op, value, None, reason)
 
 

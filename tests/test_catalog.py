@@ -1,0 +1,157 @@
+"""Tests for the published recipe catalog.
+
+All collaborators are fakes or pure functions: this suite never opens a
+network socket.
+"""
+
+from __future__ import annotations
+
+import unittest
+
+from comfyui_recipes.application.catalog import build_catalog, publish_catalog
+from comfyui_recipes.application.generate import validate_request
+from comfyui_recipes.domain.generation.patches import (
+    NUMBER_TARGETS,
+    STRING_TARGETS,
+    TEXT_TARGETS,
+)
+
+GIT = {"commit": "abc123", "branch": "dev/catalog-publish", "dirty": False}
+
+
+def _request(recipe: str, parameters: dict) -> dict:
+    return {
+        "schema_version": 1,
+        "request": {"count": 1, "instruction": "test"},
+        "generation": {"recipe": recipe, "parameters": parameters},
+        "semantic": {"summary": "test arm"},
+    }
+
+
+# One legal dummy value per KNOWN_PARAMETERS key, used to probe whether
+# validate_request accepts or rejects it for a given recipe.
+_DUMMY_VALUES = {
+    "hires": 1024, "denoise": 0.5, "costume": "default", "character": "yukari",
+    "character_id": "char-1", "arm": "a", "expression": "doya",
+    "layerdiffuse": True,
+}
+
+
+class BuildCatalogTest(unittest.TestCase):
+    def test_schema_version_and_git_metadata(self):
+        catalog = build_catalog(GIT)
+        self.assertEqual(catalog["schema_version"], 1)
+        self.assertEqual(catalog["git_commit"], "abc123")
+        self.assertEqual(catalog["git_branch"], "dev/catalog-publish")
+        self.assertIs(catalog["git_dirty"], False)
+        self.assertIn("generated_at", catalog)
+
+    def test_is_pure_and_takes_no_io(self):
+        # Calling twice must not raise and must agree on everything but the
+        # timestamp -- build_catalog does no I/O of its own.
+        first = build_catalog(GIT)
+        second = build_catalog(GIT)
+        first.pop("generated_at")
+        second.pop("generated_at")
+        self.assertEqual(first, second)
+
+    def test_every_recipe_has_every_pose_with_non_empty_prompts_and_canvas(self):
+        catalog = build_catalog(GIT)
+        names = {recipe["name"] for recipe in catalog["recipes"]}
+        self.assertEqual(names, {"yukari", "yukari-anima", "yukari-sketch"})
+        for recipe in catalog["recipes"]:
+            self.assertTrue(recipe["poses"], recipe["name"])
+            for pose in recipe["poses"]:
+                with self.subTest(recipe=recipe["name"], pose=pose["name"]):
+                    self.assertTrue(pose["positive"])
+                    self.assertTrue(pose["negative"])
+                    canvas = pose["canvas"]
+                    self.assertEqual(len(canvas), 2)
+                    for side in canvas:
+                        self.assertIsInstance(side, int)
+                        self.assertGreater(side, 0)
+
+    def test_anima_poses_carry_an_expression_others_do_not(self):
+        catalog = build_catalog(GIT)
+        by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
+        for pose in by_name["yukari-anima"]["poses"]:
+            self.assertIn("expression", pose)
+            self.assertIsInstance(pose["expression"], str)
+        for recipe_name in ("yukari", "yukari-sketch"):
+            for pose in by_name[recipe_name]["poses"]:
+                self.assertNotIn("expression", pose)
+
+    def test_anima_recipe_lists_its_expressions(self):
+        catalog = build_catalog(GIT)
+        by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
+        self.assertIn("expressions", by_name["yukari-anima"])
+        self.assertNotIn("expressions", by_name["yukari"])
+        self.assertNotIn("expressions", by_name["yukari-sketch"])
+
+    def test_recipe_parameters_agree_with_validate_request(self):
+        catalog = build_catalog(GIT)
+        for recipe in catalog["recipes"]:
+            name = recipe["name"]
+            pose = recipe["poses"][0]["name"]
+            for key in recipe["parameters"]["rejected"]:
+                with self.subTest(recipe=name, key=key, expect="rejected"):
+                    request = _request(
+                        name, {"pose": pose, key: _DUMMY_VALUES[key]})
+                    with self.assertRaises(SystemExit):
+                        validate_request(request)
+            for key in recipe["parameters"]["allowed"]:
+                if key == "pose":
+                    continue
+                with self.subTest(recipe=name, key=key, expect="allowed"):
+                    request = _request(
+                        name, {"pose": pose, key: _DUMMY_VALUES[key]})
+                    validate_request(request)  # must not raise
+
+    def test_patches_block_lists_every_target(self):
+        catalog = build_catalog(GIT)
+        patches = catalog["patches"]
+        self.assertEqual(set(patches["text"]["targets"]), set(TEXT_TARGETS))
+        self.assertEqual(set(patches["number"]), set(NUMBER_TARGETS))
+        self.assertEqual(set(patches["string"]), set(STRING_TARGETS))
+        for target in NUMBER_TARGETS:
+            self.assertEqual(patches["number"][target]["op"], "set")
+            self.assertIsInstance(patches["number"][target]["constraints"], str)
+        for target in STRING_TARGETS:
+            self.assertEqual(patches["string"][target]["op"], "set")
+        self.assertEqual(
+            patches["string"]["render.layerdiffuse_config"]["values"],
+            ["SDXL, Attention Injection", "SDXL, Conv Injection"])
+        self.assertIsNone(patches["string"]["render.model"]["values"])
+
+
+class PublishCatalogTest(unittest.TestCase):
+    def test_puts_the_given_document_to_the_branchs_catalog_path(self):
+        calls = []
+
+        class ManagementFake:
+            def put_catalog(self, recipe_ref, catalog):
+                calls.append((recipe_ref, catalog))
+                return {"ok": True}
+
+        document = {"schema_version": 1}
+        response = publish_catalog(ManagementFake(), GIT, catalog=document)
+        self.assertEqual(response, {"ok": True})
+        self.assertEqual(calls, [("dev/catalog-publish", document)])
+
+    def test_builds_the_document_itself_when_none_is_given(self):
+        calls = []
+
+        class ManagementFake:
+            def put_catalog(self, recipe_ref, catalog):
+                calls.append((recipe_ref, catalog))
+                return {}
+
+        publish_catalog(ManagementFake(), GIT)
+        self.assertEqual(len(calls), 1)
+        recipe_ref, catalog = calls[0]
+        self.assertEqual(recipe_ref, "dev/catalog-publish")
+        self.assertEqual(catalog["git_branch"], "dev/catalog-publish")
+
+
+if __name__ == "__main__":
+    unittest.main()

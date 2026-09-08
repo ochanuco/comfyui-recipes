@@ -16,6 +16,7 @@ from pathlib import Path
 from comfyui_recipes.infrastructure.comfyui.repair_graph import (
     DELIVERED_SUFFIX,
     MATTE_SUFFIX,
+    masked_redraw_graph,
     redraw_canvas,
     repair_graph,
     source_prompts,
@@ -217,6 +218,51 @@ class RepairGraphFinalizeTest(unittest.TestCase):
         encode = next(node for node in self.graph.values()
                      if node["class_type"] == "VAEEncode")
         self.assertEqual(encode["inputs"]["vae"], FINALIZE["14"]["inputs"]["vae"])
+
+
+class MaskedRedrawGraphTest(unittest.TestCase):
+    def test_repair_graph_keeps_the_inpaint_crop_defaults(self):
+        graph = repair_graph(
+            RAW, image_name="src.png", mask_name="mask.png",
+            positive="p", negative="n", seed=99, denoise=0.6, size=1024,
+            prefix="rep-abc-s99")
+        crop = next(node for node in graph.values()
+                   if node["class_type"] == "InpaintCropImproved")
+        self.assertEqual(crop["inputs"]["mask_expand_pixels"], 0)
+        self.assertEqual(crop["inputs"]["mask_blend_pixels"], 32)
+
+    def test_mask_padding_and_feather_reach_the_inpaint_crop(self):
+        graph = masked_redraw_graph(
+            RAW, image_name="src.png", mask_name="mask.png",
+            positive="p", negative="n", seed=99, denoise=0.48,
+            mask_padding=24, mask_feather=8, size=768, prefix="mrd-abc-s99")
+        crop = next(node for node in graph.values()
+                   if node["class_type"] == "InpaintCropImproved")
+        self.assertEqual(crop["inputs"]["mask_expand_pixels"], 24)
+        self.assertEqual(crop["inputs"]["mask_blend_pixels"], 8)
+        self.assertEqual(crop["inputs"]["output_target_width"], 768)
+        self.assertEqual(crop["inputs"]["output_target_height"], 768)
+
+    def test_otherwise_shaped_like_repair_graph(self):
+        graph = masked_redraw_graph(
+            RAW, image_name="src.png", mask_name="mask.png",
+            positive="p", negative="n", seed=99, denoise=0.6,
+            mask_padding=0, mask_feather=32, size=1024, prefix="mrd-abc-s99")
+        save = graph["9"]
+        self.assertEqual(save["class_type"], "SaveImage")
+        self.assertEqual(save["inputs"]["filename_prefix"], "mrd-abc-s99")
+        sample = next(node for node in graph.values()
+                     if node["class_type"] == "KSampler")
+        self.assertEqual(sample["inputs"]["seed"], 99)
+        self.assertEqual(sample["inputs"]["denoise"], 0.6)
+
+    def test_does_not_mutate_the_source_graph(self):
+        before = json.dumps(RAW, sort_keys=True)
+        masked_redraw_graph(
+            RAW, image_name="x.png", mask_name="m.png", positive="p",
+            negative="n", seed=1, denoise=0.5, mask_padding=10,
+            mask_feather=20, size=512, prefix="mrd")
+        self.assertEqual(json.dumps(RAW, sort_keys=True), before)
 
 
 class RepairGraphErrorsTest(unittest.TestCase):

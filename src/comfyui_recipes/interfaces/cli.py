@@ -9,6 +9,8 @@ import socket
 from pathlib import Path
 
 from ..application import metadata
+from ..application.catalog import build_catalog
+from ..application.catalog import publish_catalog as publish_catalog_document
 from ..application.finalize import FinalizeServices, finalize
 from ..domain.yukari.recipe import TOE_GUARD
 from ..application.generate import GenerateServices, generate, request_graph
@@ -141,6 +143,9 @@ def parser() -> argparse.ArgumentParser:
     work_parser.add_argument(
         "--no-hub", action="store_true",
         help="poll only; do not open the WorkerHub websocket")
+    work_parser.add_argument(
+        "--no-catalog", action="store_true",
+        help="skip publishing the recipe catalog to chimera at startup")
 
     finalize_parser = commands.add_parser("finalize", help="deliver one picked render")
     finalize_parser.add_argument("generation_id")
@@ -251,6 +256,12 @@ def parser() -> argparse.ArgumentParser:
     repair_parser.add_argument(
         "--pad", type=float, default=1.0,
         help="multiplier on the auto region radius")
+
+    catalog_parser = commands.add_parser(
+        "catalog", help="print the recipe catalog chimera composes requests from")
+    catalog_parser.add_argument(
+        "--publish", action="store_true",
+        help="also PUT the catalog to chimera and print its response")
 
     metadata_parser = commands.add_parser("metadata", help="manage generation metadata")
     metadata_commands = metadata_parser.add_subparsers(
@@ -375,7 +386,7 @@ def main(argv: list[str] | None = None) -> None:
             progress_feed=progress_factory,
         )
         work(work_services, interval=args.interval, once=args.once,
-             dry_run=args.dry_run)
+             dry_run=args.dry_run, publish_catalog=not args.no_catalog)
         return
     if args.command == "finalize":
         services = _finalize_services(
@@ -405,6 +416,14 @@ def main(argv: list[str] | None = None) -> None:
                  repair_denoise=args.repair_denoise,
                  repair_pad=args.repair_pad,
                  repair_size=args.repair_size)
+        return
+    if args.command == "catalog":
+        git = repository_metadata()
+        document = build_catalog(git)
+        print(json.dumps(document, indent=2, ensure_ascii=False))
+        if args.publish:
+            response = publish_catalog_document(chimera, git, catalog=document)
+            print(json.dumps(response, indent=2, ensure_ascii=False))
         return
     if args.command == "repair":
         services = _repair_services(

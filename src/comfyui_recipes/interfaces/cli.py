@@ -14,6 +14,7 @@ from ..application.catalog import publish_catalog as publish_catalog_document
 from ..application.finalize import FinalizeServices, finalize
 from ..domain.yukari.recipe import TOE_GUARD
 from ..application.generate import GenerateServices, generate, request_graph
+from ..application.masked_redraw import MaskedRedrawServices, masked_redraw
 from ..application.repair import RepairServices, repair
 from ..application.watch import WatchServices, watch
 from ..application.work import WorkServices, work
@@ -102,6 +103,19 @@ def _repair_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: o
     )
 
 
+def _masked_redraw_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
+                            repository: Path, repository_metadata) -> MaskedRedrawServices:
+    return MaskedRedrawServices(
+        management=chimera,
+        comfyui=comfyui,
+        graph_from_png=graph_from_png,
+        image_size=image_size,
+        git_metadata=repository_metadata,
+        notifier=notifier,
+        output_root=repository / ".local/_nogit/masked-redraw",
+    )
+
+
 def _positive_finite_seconds(raw: str) -> float:
     """argparse type= for --interval: rejects 0, negatives, nan and inf."""
     try:
@@ -138,7 +152,7 @@ def parser() -> argparse.ArgumentParser:
     work_parser.add_argument("--dry-run", action="store_true")
     work_parser.add_argument("--worker-id", default=socket.gethostname())
     work_parser.add_argument(
-        "--kinds", default="generate,finalize,repair",
+        "--kinds", default="generate,finalize,repair,masked_redraw",
         help="comma-separated request kinds to claim")
     work_parser.add_argument(
         "--no-hub", action="store_true",
@@ -256,6 +270,32 @@ def parser() -> argparse.ArgumentParser:
     repair_parser.add_argument(
         "--pad", type=float, default=1.0,
         help="multiplier on the auto region radius")
+
+    masked_redraw_parser = commands.add_parser(
+        "masked_redraw", help="masked local redraw of a caller-given region")
+    masked_redraw_parser.add_argument("generation_id")
+    masked_redraw_parser.add_argument(
+        "--region", dest="regions", action="append", required=True,
+        metavar="X0,Y0,X1,Y1",
+        help="fractional rectangle [0..1] added to the mask; repeatable, at "
+             "least one required")
+    masked_redraw_parser.add_argument(
+        "--prompt-patch", required=True,
+        help="text appended to the source's own positive prompt after the "
+             "face/hair/framing drop")
+    masked_redraw_parser.add_argument("--denoise", type=float, default=0.45)
+    masked_redraw_parser.add_argument(
+        "--mask-padding", type=int, default=0, metavar="PIXELS",
+        help="InpaintCropImproved mask_expand_pixels")
+    masked_redraw_parser.add_argument(
+        "--mask-feather", type=int, default=32, metavar="PIXELS",
+        help="InpaintCropImproved mask_blend_pixels")
+    masked_redraw_parser.add_argument(
+        "--size", type=int, default=1024, metavar="LONGEST",
+        help="crop target's longest side")
+    masked_redraw_parser.add_argument(
+        "--seeds", default="1,2,3,4",
+        help="comma-separated seeds; one job per seed")
 
     catalog_parser = commands.add_parser(
         "catalog", help="print the recipe catalog chimera composes requests from")
@@ -379,6 +419,8 @@ def main(argv: list[str] | None = None) -> None:
                 chimera, comfyui, notifier, repository, repository_metadata),
             repair_services=_repair_services(
                 chimera, comfyui, notifier, repository, repository_metadata),
+            masked_redraw_services=_masked_redraw_services(
+                chimera, comfyui, notifier, repository, repository_metadata),
             git_metadata=repository_metadata,
             worker_id=args.worker_id,
             kinds=tuple(kind.strip() for kind in args.kinds.split(",") if kind.strip()),
@@ -434,6 +476,17 @@ def main(argv: list[str] | None = None) -> None:
         seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
         repair(args.generation_id, services, parts=parts, regions=regions,
               denoise=args.denoise, seeds=seeds, size=args.size, pad=args.pad)
+        return
+    if args.command == "masked_redraw":
+        services = _masked_redraw_services(
+            chimera, comfyui, notifier, repository, repository_metadata)
+        regions = [[float(value) for value in region.split(",")]
+                  for region in args.regions]
+        seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
+        masked_redraw(args.generation_id, services, regions=regions,
+                      prompt_patch=args.prompt_patch, denoise=args.denoise,
+                      mask_padding=args.mask_padding, mask_feather=args.mask_feather,
+                      size=args.size, seeds=seeds)
         return
 
     if args.metadata_command == "semantic":

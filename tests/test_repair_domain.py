@@ -10,6 +10,7 @@ from pathlib import Path
 from comfyui_recipes.domain.repair.prompt import (
     PART_TAGS,
     REPAIR_DROP_WORDS,
+    masked_redraw_prompt,
     repair_prompt,
 )
 from comfyui_recipes.domain.repair.regions import (
@@ -203,6 +204,31 @@ class RepairPromptTest(unittest.TestCase):
         # REPAIR_DROP_WORDS is noticed here even if no single test above
         # happens to exercise the new/changed word.
         self.assertEqual(len(REPAIR_DROP_WORDS), 28)
+
+
+class MaskedRedrawPromptTest(unittest.TestCase):
+    def test_drop_words_remove_face_hair_and_framing_tags(self):
+        result = masked_redraw_prompt(POSITIVE, "replace the dress")
+        for dropped in ("light purple hair", "tareme", "jitome",
+                        "half-closed eyes", "unamused", "sigh", "annoyed",
+                        "closed mouth", "looking at viewer", "head tilt",
+                        "rabbit hood", "hood down", "full body", "from front"):
+            self.assertNotIn(dropped, result)
+
+    def test_unrelated_tags_survive(self):
+        result = masked_redraw_prompt(POSITIVE, "replace the dress")
+        self.assertIn("masterpiece", result)
+        self.assertIn("wide hips", result)
+
+    def test_prompt_patch_is_appended_verbatim(self):
+        result = masked_redraw_prompt(POSITIVE, "replace the dress")
+        self.assertTrue(result.endswith("replace the dress"))
+
+    def test_no_part_tags_are_added(self):
+        result = masked_redraw_prompt(POSITIVE, "replace the dress")
+        self.assertNotIn(PART_TAGS["hands"], result)
+        self.assertNotIn(PART_TAGS["feet"], result)
+        self.assertNotIn("(pantyhose feet:1.3)", result)
 
 
 if __name__ == "__main__":

@@ -42,3 +42,17 @@ def repair_prompt(positive: str, parts: Sequence[str]) -> str:
     if "feet" in parts and any("pantyhose" in bare for bare in bare_tags):
         additions.append("(pantyhose feet:1.3)")
     return ", ".join(kept + additions)
+
+
+def masked_redraw_prompt(positive: str, prompt_patch: str) -> str:
+    """`positive` with face/hair/framing tags dropped and `prompt_patch` appended.
+
+    An arbitrary region can land anywhere, so a tag with nothing left to
+    describe inside the mask (e.g. a hair ornament) is still fair game for
+    the sampler to draw there uninvited -- same drop as `repair_prompt`.
+    """
+    tags = [tag.strip() for tag in positive.split(",")]
+    bare_tags = [_bare_tag(tag) for tag in tags]
+    kept = [tag for tag, bare in zip(tags, bare_tags)
+            if not any(word in bare for word in REPAIR_DROP_WORDS)]
+    return ", ".join(kept + [prompt_patch])

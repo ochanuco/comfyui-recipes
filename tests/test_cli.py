@@ -103,12 +103,16 @@ class CliTest(unittest.TestCase):
 
     @patch.object(cli, "work")
     @patch.object(cli, "ChimeraClient")
-    def test_work_default_kinds_include_repair(self, chimera_class, run_work):
+    def test_work_default_kinds_include_repair_and_masked_redraw(
+            self, chimera_class, run_work):
         cli.main(["work", "--once"])
         work_services = run_work.call_args.args[0]
-        self.assertEqual(work_services.kinds, ("generate", "finalize", "repair"))
+        self.assertEqual(
+            work_services.kinds, ("generate", "finalize", "repair", "masked_redraw"))
         self.assertIs(
             work_services.repair_services.management, chimera_class.return_value)
+        self.assertIs(
+            work_services.masked_redraw_services.management, chimera_class.return_value)
 
     @patch.object(cli, "work")
     @patch.object(cli, "ChimeraClient")

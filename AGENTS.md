@@ -5,11 +5,14 @@ and costs a session an hour to rediscover.
 
 ## What you are working on
 
-A command-line front end for ComfyUI. There is no web UI here and no custom
-node of its own. `comfy-recipes` is the single public application entry point:
-it builds and records a graph, submits it to `/prompt`, and pulls the result
-back. **The defaults are the recipe** — every preset was arrived at by
-rendering, and the exact prompt can be inspected with `yukari prompt`.
+The recipe and the worker behind chimera. `comfy-recipes` is the executor
+that runs on the GPU box: `work` claims request rows from chimera, builds and
+records a graph, submits it to ComfyUI, and ingests the result. Nothing renders
+from this Mac. A session here drives rounds through chimera's MCP (see
+"Renders reach the user through chimera") and edits the recipe in this repo.
+**The defaults are the recipe** — every preset was arrived at by rendering, and
+the exact prompt can be inspected with `get_catalog_pose` on the MCP or
+`comfy-recipes <recipe> prompt` locally.
 
 Three recipes are live, all under `src/comfyui_recipes/domain/`:
 
@@ -95,29 +98,36 @@ Two files dominate this repository: `docs/render-notes.md` (~68k tokens) and
 one-line question tempts you to open whole.
 Opening any of them without a line range is a mistake, not a thorough approach.
 
+For what a recipe sends and what chimera holds, ask the chimera MCP first — it
+is registered in this session as `chimera` and answers without touching the
+repo:
+
+```text
+list_catalog                          every recipe's pose / costume names + patch vocabulary  (~2k)
+get_catalog_pose recipe pose          one pose: canvas, default costume, assembled prompts    (~1k)
+get_generation <short_id>             rating, semantic, batch prompt + parameters, seed
+list_batch <short_id>                 every arm of a batch with rating and semantic summary
+get_generation_lineage <short_id>     what it was derived or finalized from, and what came after
+```
+
+The catalog is what the worker published from its own checkout; it is the
+production recipe, not this branch. For an uncommitted change, ask the code:
+
 ```bash
 uv run scripts/atlas.py                    # every script: role, size, one line  (~1.5k)
 uv run scripts/atlas.py notes              # the notes' headings + line numbers   (~2.8k)
 uv run scripts/atlas.py notes <pattern>    # just the sections that match
 uv run scripts/atlas.py find <regex>       # matching lines, each under its heading
+uv run comfy-recipes sketch prompt --pose date                   # ~0.6k, not 30k
+uv run comfy-recipes catalog                                     # what `work` would publish
+uv run scripts/costume_check.py                                  # the blocks, verified
 ```
 
 `atlas.py` reads the tree every time it runs, so unlike a committed index it
 cannot be stale. Use it first; then `Read` with `offset`/`limit` on the lines it
-gave you.
-
-For what a recipe actually sends, ask the recipe instead of reading it:
-
-```bash
-uv run comfy-recipes yukari prompt --pose prone                  # ~0.6k, not 30k
-uv run scripts/costume_check.py                                  # the blocks, verified
-```
-
-Rough shape of what that saves: the notes' table of contents plus one section is
-about 3.5k tokens against 68k for the file, and a printed prompt is about 900
-against 21k. If you find yourself about to read a file over ~5k tokens to answer
-something narrow, there is probably a command for it — and if there is not,
-adding one to `atlas.py` is cheaper than the read you were about to do.
+gave you. If you find yourself about to read a file over ~5k tokens to answer
+something narrow, there is probably a command or a tool for it — and if there
+is not, adding one to `atlas.py` is cheaper than the read you were about to do.
 
 `scripts/archive/` contains scripts that ran once and are kept as a record.
 Nothing imports them and nothing maintains them; do not read them looking for
@@ -125,106 +135,97 @@ how something works today.
 
 ## Where the GPU is
 
-**ComfyUI does not run on this Mac.** It runs on another machine. The public
-CLI and low-level tools read `COMFYUI_HOST` / `COMFYUI_PORT`; legacy tools
-centralize those defaults in `scripts/comfy_host.py`. `COMFYUI_HOST` therefore
-has to be exported or nothing will connect:
+**ComfyUI does not run on this Mac, and this Mac no longer talks to it.** The
+GPU box runs ComfyUI and `comfy-recipes work`; chimera is the only thing a
+session here submits to. `COMFYUI_HOST` / `COMFYUI_PORT` matter on the box and
+for the low-level tools under `scripts/`, not for a round.
 
-```bash
-export COMFYUI_HOST=...                # port 8188 is the default
-```
-
-The address, the ssh alias for a shell on that box, and the checkpoint in use
+The box's address, the ssh alias for a shell on it, and the checkpoint in use
 are in `CLAUDE.local.md`, which is not tracked. Read it; do not copy what it
-says into anything this repo commits.
-
-`comfy_host.py` is also the filesystem seam: the worker's disk is not this one,
-so outputs come back over `/view` and inputs go up through `/upload/image`. A
-script that opens a local path for a render the worker just made is a bug.
-
-HTTP surface: `/prompt`, `/history/<prompt_id>`, `/queue`, `/view`,
-`/object_info`, `/upload/image`, `/system_stats`.
-
-ComfyUI writes the graph into each output PNG's metadata (`im.info['prompt']`)
-but **not** the prompt_id. When the user names a render by prompt_id, get the
-prompt from `/history/<id>` while the worker still has it.
+says into anything this repo commits. `docs/remote.md` covers the box itself
+(deploy, the logon tasks, restarting the worker); `scripts/comfy_host.py` is
+the filesystem seam for the legacy tools — the worker's disk is not this one,
+so outputs come back over `/view` and inputs go up through `/upload/image`.
 
 ## Renders reach the user through chimera; Discord is a side channel
 
 The user reviews renders on chimera (https://chimera.chanu.co), not Discord.
 A render that reached Discord but not chimera **is not delivered** — never
 close out a prompt on the strength of a Discord post alone. Every render,
-including one-off probes and chained passes, gets a chimera record — and the
-way to get one is to run through `comfy-recipes generate`, never by POSTing `/prompt`
-directly: a probe whose graph the recipe cannot build goes in the request as
-`generation.graph`. (`.local/_hige_ingest.py` remains only as the template
-for backfilling legacy renders that predate this rule.)
+including one-off probes and chained passes, is a chimera request row that the
+worker executes; that is the only execution path. POSTing to ComfyUI `/prompt`
+directly is forbidden. A probe whose graph the recipe cannot build goes in a
+`create_request` payload as `generation.graph`.
 
-One round has two stages, both through the same CLI. `comfy-recipes generate
---request` ingests the raw renders; the human rates them on chimera;
-`comfy-recipes finalize <short_id>` delivers the pick — one ComfyUI graph
-that redraws at 2048, cuts a matte and composites the flattened backdrop and
-purple stroke, recorded as a refinement batch. The redraw, matte and delivery
-nodes (`comfy_nodes/yukari_finalize/`) all run server-side in that one
-submission; `comfy-recipes finalize` only fetches the three SaveImage
-outputs and records them. A raw render never has the purple frame: generation
-0 is the pre-delivery SaveImage output, and the delivery identity is what
-`comfy-recipes finalize` adds on top of it, so a round is not closed until
-the pick has been finalized. The birefnet matte that cut the figure out is
-still stored on chimera as a `mask` GenerationAsset of the raw redraw, so a
-cutout can be redone from the record without another 2048 pass.
+One round is three MCP calls and a human in between:
 
-`comfy-recipes repair <generation>` is a third, optional stage: a masked
-local redraw of just the hands/feet on an already-finalized (or raw)
-generation, for fixing a hand/foot defect without a full re-finalize. See
-`docs/queueing.md`'s Repair section.
+```text
+derive_request        from a rated generation: same recipe, parameters and
+                      patches, plus your diff (parameters override, patches
+                      appended or replaced). A finalized pick resolves to the
+                      raw render it came from. Semantic summary is required.
+                      → human rates on chimera →
+finalize_generation   the pick, delivered: one ComfyUI graph that redraws at
+                      2048, cuts a matte and composites the backdrop and purple
+                      stroke; recorded as a refinement batch of the source.
+repair_generation     optional: a masked local redraw of hands / feet.
+get_request           status of any of the above; list_requests for the queue.
+```
 
-Discord notification is built into `comfy-recipes` — every ingest and every
-finalize posts to the webhook itself. There is no separate watcher daemon
-(`post_renders.py` is archived), and `deliver.py`, the old manual path that
-bypassed chimera, is archived with it.
+`create_request` is the raw form of all three (kind + payload) for anything
+the dedicated tools do not cover. A round is not closed until the pick has
+been finalized: generation 0 is the pre-delivery SaveImage output, and the
+delivery identity is what finalize adds on top of it. The birefnet matte is
+stored as a `mask` GenerationAsset of the raw redraw, so a cutout can be
+redone from the record without another 2048 pass.
 
-The webhook is a credential and lives in `.local/discord-webhook` or
-`$DISCORD_WEBHOOK`. Never put it in a tracked file.
+Discord notification is the worker's job — every ingest and every finalize
+posts to the webhook. There is no separate watcher daemon. The webhook is a
+credential and lives in `.local/discord-webhook` on the box; never put it in a
+tracked file.
 
 ## chimera 連携の不変条件
 
-- 生成の記録は chimera Management API（https://chimera.chanu.co）。CLI は
-  `comfy-recipes generate` で、実行と記録のみを担う — semantic 判断（prompt
-  組み立て、reference の意味付け、検品）は呼び出し元エージェントの仕事。
-- 実行経路は `comfy-recipes generate` の一本のみ。ComfyUI `/prompt` への直 POST は禁止
-  — レシピが組めない graph は request の `generation.graph` に入れて渡す
-  （seed と SaveImage prefix は job ごとに CLI が差し替える）。投稿した
-  graph JSON は job に保存され、chimera のレコード単体で再投稿・再現できる
-  ことがこの規則の目的。コードの置き場（`.local/` 含む）は provenance に
-  関与しない。
+- 生成の記録は chimera（https://chimera.chanu.co）。実行経路は chimera の
+  requests 行を worker（GPU 機の `comfy-recipes work`）が実行する一本のみ。
+  Mac 側の入口は MCP（`derive_request` / `finalize_generation` /
+  `repair_generation` / `create_request`）か `POST /api/v1/requests`。
+  semantic 判断（prompt 組み立て、reference の意味付け、検品）は呼び出し元
+  エージェントの仕事で、chimera と worker は実行と記録だけを担う。
+- ComfyUI `/prompt` への直 POST は禁止。レシピが組めない graph は
+  `create_request` の payload に `generation.graph` として入れて渡す（seed と
+  SaveImage prefix は job ごとに worker が差し替える）。投稿した graph JSON は
+  job に保存され、chimera のレコード単体で再投稿・再現できることがこの規則の
+  目的。コードの置き場（`.local/` 含む）は provenance に関与しない。
 - graph モードは生 `.replace` の抜け道ではない。`build()` の返り値の prompt に
   `.replace` を当ててから `generation.graph` に載せるのは、Edit レコードが
   終わらせたはずの黙って外れる splice の再導入 — departure は pose 側の Edit
-  レコードにする。
+  レコードか request の `patches` にする。
 - `generation.graph` 使用時、`generation.parameters` はビルドに使われず記録
   専用になる。graph に実在しない値を書くと chimera の記録だけが嘘になるので、
   graph に実際に入れた値だけを書く。
+- 派生は `derive_request` で作る。親の recipe / parameters / patches を
+  引き継ぎ、差分だけを渡す（派生は派生元の prompt + α、失敗の上に重ねず good へ戻る）。finalize 済みを親に
+  渡すと raw まで自動で遡る。`.local/` に request 組み立てスクリプトを書く
+  のは、この tool で表せない場合だけ。
 - chimera への記録は生成の完了条件。画像だけでなく semantics（各 arm の狙い、
-  base からの差分、何を検証する render か）も ingest 直後に書く — 選抜が済んで
-  から書くのでは遅い。作業途中の評価はユーザーが chimera の semantics を見て
-  行う。semantics/tag は AI が書いてよい（rating だけが人間専用）。
-- semantics の実装: request JSON の `semantic` ブロック（`summary` 必須）が
-  ingest 直後に各 generation へ自動 PUT される（CLI が強制）。
-  事後の追記・上書きは `comfy-recipes metadata semantic <generation_id> <file.json>`、
-  tag は `comfy-recipes metadata tag <generation_id> <name>`。API は
-  `PUT /api/v1/generations/{id}/semantic`（schema_version:1、部分ペイロード可、
-  再 PUT で全置換）。`generated_by` は CLI が補完する。generation_id には
-  short_id も使える。記録CLIを通らなかった render の一括 backfill は
-  `.local/_semantic_backfill.py` が雛形（batch GET が generations を内包）。
-- idempotency key は CLI が uuid4 で生成し `<request>.state.json` に保持。
-  再送は必ず同じ key で行う。失敗後の再実行は同一 batch/job を再利用して
-  ingest から再開する — state ファイルを消すと重複レコードができる。
+  base からの差分、何を検証する render か）も起票時に書く — `derive_request`
+  の `semantic.summary` は必須で、ingest 直後に各 generation へ自動 PUT
+  される。作業途中の評価はユーザーが chimera の semantics を見て行う。
+  semantics/tag は AI が書いてよい（rating だけが人間専用）。
+- 事後の追記・上書きは `comfy-recipes metadata semantic <generation_id>
+  <file.json>`、tag は `comfy-recipes metadata tag <generation_id> <name>`。
+  API は `PUT /api/v1/generations/{id}/semantic`（schema_version:1、部分
+  ペイロード可、再 PUT で全置換）。generation_id には short_id も使える。
+- idempotency_key は呼び出し元が作る。同じ key の再送は同じ行を返す
+  （`created: false`）。失敗した request を「もう一度」なら新しい key を使う。
+  worker 側の `<request>.state.json` は worker の再開用で、Mac には無い。
 - chimera への全リクエストに User-Agent の明示が必須（urllib のデフォルトは
-  Cloudflare が 403/1010 で弾く）。
+  Cloudflare が 403/1010 で弾く）。MCP 経由は気にしなくてよい。
 - rating（bad/neutral/good）を書くのは人間だけ。エージェントは人間の rating と
-  semantic を API で読んで改善を進める。AI が画像を開く検品は、rating と
-  semantic だけでは判断できない場合の最終手段（トークン消費が理由）。
+  semantic を `get_generation` / `list_batch` で読んで改善を進める。AI が
+  画像を開く検品は、rating と semantic だけでは判断できない場合の最終手段
+  （トークン消費が理由）。
 - Service Token は 1Password `chimera-claude-agent`。取得後は untracked の
   `.local/chimera-token`（0600）にキャッシュされ、以後 Touch ID なしで動く。
   値をトラックされるファイルに書かない。
@@ -234,10 +235,10 @@ The webhook is a credential and lives in `.local/discord-webhook` or
   `validate_request` の検証を通り、`generation.patches` /
   `generation.graph` / `generation.prompt`（`negative_prompt` も同様）とは
   併用できない — 二つの入口で適用順序が曖昧になるため。上書きの正本は
-  chimera 側の ExperimentRun であり、CLI は取り込んで既存の patch 機構に流す
-  だけ。バッチ作成後、CLI は `PATCH /api/v1/experiment-runs/{run_id}` に
-  `batch_id` のみを送る。generation_id は代表選定が人間/エージェントの仕事
-  なので CLI は推測しない。
+  chimera 側の ExperimentRun であり、worker は取り込んで既存の patch 機構に
+  流すだけ。バッチ作成後、worker は `PATCH /api/v1/experiment-runs/{run_id}`
+  に `batch_id` のみを送る。generation_id は代表選定が人間/エージェントの
+  仕事なので worker は推測しない。
 
 ## The costume is a contract, not a preference
 
@@ -279,9 +280,11 @@ Two rules that follow from this, both learned the expensive way:
 
 ## Working files
 
-`.local/` is untracked (`.gitignore`) and is where one-off probe scripts,
-sweeps and logs go — `uv run .local/foo.py`. It is not the repo: anything worth
-keeping moves into `scripts/` or `docs/render-notes.md`.
+`.local/` is untracked (`.gitignore`) and is where analysis scripts, sweeps and
+logs go — `uv run .local/foo.py`. It is not the repo: anything worth keeping
+moves into `scripts/` or `docs/render-notes.md`. Request JSON no longer lives
+here: a round is queued with `derive_request`, and the record on chimera is the
+reproducible artefact.
 
 `docs/render-notes.md` is the record of what was measured, including what was
 measured and came back *null*. Append to it; do not tidy it. Findings that
@@ -306,7 +309,8 @@ any perturbation. Removing part of the picture is not that.
 ## Reading images
 
 Rendered images are expensive in context. **Do not open renders to browse them.**
-Queue, let Discord post, and let the user pick — they name the prompt_id or the
-filename of the one they want, and that is when you look. Measure with numpy
-instead where a number will do, and keep in mind that four of this repo's
+Queue, let the worker ingest, and let the user rate on chimera — they name the
+short_id of the one they want, and that is when you look (`get_generation_image`
+returns a reduced JPEG; the full PNG is `/g/<short_id>/image`). Measure with
+numpy instead where a number will do, and keep in mind that four of this repo's
 image statistics have already disagreed with the user's eye and lost.

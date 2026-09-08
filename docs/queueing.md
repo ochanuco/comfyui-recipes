@@ -3,9 +3,11 @@
 > Yuzuki Yukari belongs to her original creators and rights holders — see
 > [Derivative work](../README.md#derivative-work) in the README.
 
-Yuzuki Yukari generation requests are recorded through `comfy-recipes generate`,
-which validates the request, submits the graph to ComfyUI, and ingests the
-result into Chimera. Use the same command for dry runs and real batches:
+A generation request is queued on chimera (MCP `derive_request` /
+`create_request`, or `POST /api/v1/requests`) and executed by the worker's
+`comfy-recipes generate`, which validates the request, submits the graph to
+ComfyUI, and ingests the result into Chimera. The same command runs a request
+file by hand, for dry runs and real batches:
 
 ```bash
 uv run comfy-recipes generate --request request.json --dry-run

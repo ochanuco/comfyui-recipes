@@ -66,10 +66,13 @@ model these recipes were tuned against.
 
 ## Recording runs in chimera
 
-`comfy-recipes generate` runs a batch from a request and records it
-in the [chimera](https://chimera.chanu.co) Management API on the way through:
-Batch and Job registration, image ingest into R2, and a Discord notification
-that carries the generation's canonical URL.
+A round is queued on [chimera](https://chimera.chanu.co) — through its MCP
+tools (`derive_request`, `finalize_generation`, `repair_generation`) or
+`POST /api/v1/requests` — and executed by `comfy-recipes work` on the GPU
+box. `comfy-recipes generate` is the executor behind a `generate` row: it
+runs a batch from a request and records it in the Management API on the way
+through: Batch and Job registration, image ingest into R2, and a Discord
+notification that carries the generation's canonical URL.
 
 ```bash
 uv run comfy-recipes generate --request request.json            # run and record

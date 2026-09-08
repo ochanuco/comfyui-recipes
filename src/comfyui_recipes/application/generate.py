@@ -54,6 +54,13 @@ KNOWN_PARAMETERS = frozenset(
     {"pose", "costume", "hires", "denoise", "character", "character_id",
      "arm", "expression", "layerdiffuse"})
 
+# Read by validate_request and by the published catalog.
+RECIPE_REJECTED_PARAMETERS: dict[str, frozenset[str]] = {
+    "yukari": frozenset({"expression"}),
+    "yukari-anima": frozenset({"hires", "denoise", "layerdiffuse"}),
+    "yukari-sketch": frozenset({"hires", "denoise", "expression"}),
+}
+
 
 @dataclass(frozen=True)
 class GenerateServices:
@@ -117,28 +124,13 @@ def validate_request(req: object) -> None:
     elif ("layerdiffuse" in parameters
           and not isinstance(parameters["layerdiffuse"], bool)):
         raise SystemExit("generation.parameters.layerdiffuse must be a bool")
-    elif generation["recipe"] == "yukari" and "expression" in parameters:
+    elif set(parameters) & RECIPE_REJECTED_PARAMETERS.get(
+            generation["recipe"], frozenset()):
+        rejected = sorted(set(parameters)
+                          & RECIPE_REJECTED_PARAMETERS[generation["recipe"]])
         raise SystemExit(
-            "generation.parameters.expression is not supported for yukari")
-    elif generation["recipe"] == "yukari-anima" and (
-            "hires" in parameters or "denoise" in parameters):
-        raise SystemExit(
-            "generation.parameters.hires and denoise are not supported for "
-            "yukari-anima -- it has no second pass"
-        )
-    elif generation["recipe"] == "yukari-anima" and "layerdiffuse" in parameters:
-        raise SystemExit(
-            "generation.parameters.layerdiffuse is not supported for "
-            "yukari-anima -- its render_spec does not accept it"
-        )
-    elif generation["recipe"] == "yukari-sketch" and (
-            "hires" in parameters or "denoise" in parameters
-            or "expression" in parameters):
-        raise SystemExit(
-            "generation.parameters.hires, denoise and expression are not "
-            "supported for yukari-sketch -- it has no second pass and no "
-            "expression records"
-        )
+            f"generation.parameters {rejected} not supported for "
+            f"{generation['recipe']}")
     if generation.get("patches") is not None:
         if generation.get("graph"):
             raise SystemExit(

@@ -831,6 +831,63 @@ class WorkLoopTest(unittest.TestCase):
             self.assertTrue(any("stopped" in message for message in messages))
 
 
+class PublishCatalogAtStartupTest(unittest.TestCase):
+    def test_failing_catalog_publish_does_not_prevent_work_from_starting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(claim_responses=[None])
+            messages = []
+
+            def interrupt(seconds):
+                raise KeyboardInterrupt
+
+            services = make_services(
+                directory, management, sleep=interrupt, emit=messages.append)
+            work(services, once=False)  # must not raise
+            self.assertTrue(
+                any("catalog publish failed" in message for message in messages))
+
+    def test_successful_publish_puts_to_the_branchs_catalog_before_the_loop(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(claim_responses=[None])
+            calls = []
+            management.put_catalog = lambda recipe_ref, catalog: calls.append(
+                (recipe_ref, catalog)) or {}
+
+            def interrupt(seconds):
+                raise KeyboardInterrupt
+
+            services = make_services(directory, management, sleep=interrupt)
+            work(services, once=False)
+            self.assertEqual(len(calls), 1)
+            recipe_ref, catalog = calls[0]
+            self.assertEqual(recipe_ref, "dev/requests-worker")
+            self.assertEqual(catalog["git_branch"], "dev/requests-worker")
+
+    def test_no_catalog_flag_skips_publish_entirely(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(claim_responses=[None])
+            calls = []
+            management.put_catalog = lambda recipe_ref, catalog: calls.append(
+                (recipe_ref, catalog)) or {}
+
+            def interrupt(seconds):
+                raise KeyboardInterrupt
+
+            services = make_services(directory, management, sleep=interrupt)
+            work(services, once=False, publish_catalog=False)
+            self.assertEqual(calls, [])
+
+    def test_dry_run_skips_publish(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(claim_responses=[None])
+            calls = []
+            management.put_catalog = lambda recipe_ref, catalog: calls.append(
+                (recipe_ref, catalog)) or {}
+            services = make_services(directory, management)
+            work(services, once=True, dry_run=True)
+            self.assertEqual(calls, [])
+
+
 class HeartbeatTest(unittest.TestCase):
     def test_sends_running_with_the_worker_id_until_stopped(self):
         import threading

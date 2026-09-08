@@ -76,6 +76,34 @@ means the next poll or the next reconnect picks the claim back up --
 `--interval` polling is the fallback, not a fallback that needs enabling.
 Pass `--no-hub` to disable the socket and poll only.
 
+## Catalog
+
+`comfy-recipes catalog` prints this worker's recipe vocabulary as one JSON
+document -- schema version 1, with `git_commit`/`git_branch`/`git_dirty`,
+`generated_at` (ISO 8601 UTC) and a `recipes` array (`yukari`,
+`yukari-anima`, `yukari-sketch`). Each recipe entry has the checkpoint its
+`render_spec` uses, a `parameters` block (`allowed`/`rejected` keys, agreeing
+with `generate.py`'s own per-recipe validation), its `costumes`
+(`yukari-anima` also lists `expressions`), and one `poses` entry per pose:
+name, default costume, face override (`null` where the recipe has none),
+`expression` (anima poses only), the canvas `render_spec` would use, and the
+fully assembled positive/negative prompt for that pose's own default
+costume. A `patches` block mirrors `domain/generation/patches.py`'s
+`TEXT_TARGETS`/`NUMBER_TARGETS`/`STRING_TARGETS` -- ops, one-line numeric
+constraints, and the closed string enums -- so an agent with no shell can
+compose `generation.patches` from the catalog alone.
+
+```bash
+uv run comfy-recipes catalog                # print the document
+uv run comfy-recipes catalog --publish       # print it, then PUT and print the response
+```
+
+`--publish` PUTs the document to `PUT /api/v1/catalogs/{recipe_ref}`
+(upsert), where `recipe_ref` is this worker's git branch -- the same value
+`work`'s rows compare `recipe_ref` against. `comfy-recipes work` publishes
+the catalog once at startup, best-effort: a publish failure is logged and
+does not stop the worker from serving. Pass `--no-catalog` to skip it.
+
 ## Repair
 
 `comfy-recipes repair <generation>` masks and redraws just the hands and/or

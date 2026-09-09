@@ -126,17 +126,23 @@ def refine_matte(pixels: np.ndarray, figure: np.ndarray, band: int,
     return np.isin(labels, 1 + np.nonzero(sizes >= band * band)[0])
 
 
-def stroke_alpha(mask: np.ndarray, gap: float, width: float) -> np.ndarray:
+def stroke_alpha(mask: np.ndarray, gap: float, width: float,
+                 edge_smooth: float) -> np.ndarray:
     """Coverage of the band, gap..gap+width pixels out into the backdrop.
 
     `distance_transform_edt` on the backdrop gives each backdrop pixel its
-    distance to the nearest figure pixel, so the first ring out is 1. Both
-    edges are ramped over one pixel; the inner ramp does nothing at gap 0 and
-    keeps the stroke from stepping when it is pushed away from the figure.
+    distance to the nearest figure pixel, so the first ring out is 1. The
+    ramps read that distance blurred by `edge_smooth`, not the raw one: a
+    ramp follows the shape of the boundary it measures from, so a jagged
+    `mask` needs the field rounded before it is ramped, not just softened.
+    Both edges are ramped over one pixel; the inner ramp does nothing at gap
+    0 and keeps the stroke from stepping when it is pushed away from the
+    figure.
     """
     distance = ndimage.distance_transform_edt(mask)
-    outer = np.clip(gap + width + 0.5 - distance, 0.0, 1.0)
-    inner = np.clip(distance - gap + 0.5, 0.0, 1.0)
+    smoothed = ndimage.gaussian_filter(distance, edge_smooth)
+    outer = np.clip(gap + width + 0.5 - smoothed, 0.0, 1.0)
+    inner = np.clip(smoothed - gap + 0.5, 0.0, 1.0)
     alpha = outer * inner
     alpha[~mask] = 0.0
     return alpha
@@ -144,13 +150,15 @@ def stroke_alpha(mask: np.ndarray, gap: float, width: float) -> np.ndarray:
 
 def directional_stroke_alpha(mask: np.ndarray, gap: float, w_min: float,
                              w_max: float, light: tuple[float, float],
-                             smooth: float) -> np.ndarray:
+                             smooth: float, edge_smooth: float) -> np.ndarray:
     """Coverage of a purple band whose width follows the outline's own normal.
 
     Thin where the outward normal faces `light` (image coordinates, x right,
     y down), thick on the opposite side. The normal is read from the
     gradient of a Gaussian-blurred distance field rather than the raw one, so
-    a hair strand or a notch does not flip the width pixel to pixel.
+    a hair strand or a notch does not flip the width pixel to pixel. The edge
+    ramps take a separate, much smaller `edge_smooth` blur: `smooth` is sized
+    to ignore real shape, which is exactly what an edge must follow.
     """
     distance = ndimage.distance_transform_edt(mask)
     field = ndimage.gaussian_filter(distance, smooth)
@@ -162,8 +170,9 @@ def directional_stroke_alpha(mask: np.ndarray, gap: float, w_min: float,
     k = k * k * (3 - 2 * k)
     width = w_min + (w_max - w_min) * k
     width = ndimage.gaussian_filter(width, smooth / 2)
-    outer = np.clip(gap + width + 0.5 - distance, 0.0, 1.0)
-    inner = np.clip(distance - gap + 0.5, 0.0, 1.0)
+    smoothed = ndimage.gaussian_filter(distance, edge_smooth)
+    outer = np.clip(gap + width + 0.5 - smoothed, 0.0, 1.0)
+    inner = np.clip(smoothed - gap + 0.5, 0.0, 1.0)
     alpha = outer * inner
     alpha[~mask] = 0.0
     return alpha
@@ -184,19 +193,23 @@ def band_alphas(figure: np.ndarray,
                 light: str | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Coverage of the white band and the purple band outside `figure`.
 
-    Drawn from a hard boundary at 2x and averaged down, so the edge of each
-    band is a half-pixel gradient rather than a staircase. `light`, one of
-    `delivery_style.STROKE_LIGHTS`' keys, shades the purple band's width by
-    direction instead of drawing it at the uniform width; the white band is
-    never shaded.
+    The 2x upscale is `Image.NEAREST`, which adds no information -- the
+    boundary is the source pixel grid's staircase, just bigger -- so the
+    bands are ramped from a distance field blurred by
+    `delivery_style.STROKE_EDGE_SMOOTH` and averaged back down, which rounds
+    that staircase off instead of merely softening it. `light`, one of `delivery_style.STROKE_LIGHTS`' keys, shades
+    the purple band's width by direction instead of drawing it at the
+    uniform width; the white band is never shaded.
     """
     height, width = figure.shape
     bg2 = ~(np.array(Image.fromarray(figure)
                      .resize((width * 2, height * 2), Image.NEAREST)))
     white_w, purple_w = _band_widths(height, width)
-    white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2))
+    white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2,
+                                 delivery_style.STROKE_EDGE_SMOOTH))
     if light is None:
-        purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2))
+        purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2,
+                                      delivery_style.STROKE_EDGE_SMOOTH))
     else:
         if light not in delivery_style.STROKE_LIGHTS:
             valid = ", ".join(repr(key) for key in sorted(delivery_style.STROKE_LIGHTS))
@@ -206,7 +219,8 @@ def band_alphas(figure: np.ndarray,
             purple_w * 2 * delivery_style.STROKE_LIGHT_THIN,
             purple_w * 2 * delivery_style.STROKE_LIGHT_THICK,
             delivery_style.STROKE_LIGHTS[light],
-            delivery_style.STROKE_LIGHT_SMOOTH * purple_w * 2))
+            delivery_style.STROKE_LIGHT_SMOOTH * purple_w * 2,
+            delivery_style.STROKE_EDGE_SMOOTH))
     return white_a, purple_a
 
 

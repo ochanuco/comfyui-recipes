@@ -217,7 +217,9 @@ class DeliveryTest(unittest.TestCase):
     def test_stroke_alpha_ramps_over_one_pixel_at_the_outer_edge(self):
         mask = np.ones((1, 12), dtype=bool)
         mask[0, 0] = False
-        alpha = stroke_alpha(mask, 0.0, 5.0)
+        # edge_smooth=0.0: gaussian_filter is a no-op, isolating the raw ramp
+        # math this test checks from the boundary-rounding blur.
+        alpha = stroke_alpha(mask, 0.0, 5.0, 0.0)
         self.assertEqual(alpha[0, 1], 1.0)
         self.assertEqual(alpha[0, 5], 0.5)
         self.assertEqual(alpha[0, 6], 0.0)
@@ -247,6 +249,23 @@ class DeliveryTest(unittest.TestCase):
         thin_side = band_width(r, -r)    # toward the ne light
         thick_side = band_width(-r, r)   # away from it, sw
         self.assertGreater(thick_side, thin_side * 2)
+
+    def test_band_alphas_antialiases_the_purple_edge_on_a_diagonal(self):
+        # The rows around a disc's own 45-degree point are the worst case for
+        # staircasing. Ramping off the raw distance transform inherits the
+        # boundary's steps and collapses the band edge onto a handful of
+        # repeated coverage levels there; rounding the field off first spreads
+        # it over many. At STROKE_EDGE_SMOOTH = 0 this band yields 9 distinct
+        # levels, at 1.0 it yields 26.
+        figure, cy, _, radius = self._disc_figure()
+        r = 2 ** -0.5
+        row_center = int(cy - radius * r)
+        rows = np.arange(row_center - 15, row_center + 15)
+        _, purple = band_alphas(figure)
+        values = purple[rows].ravel()
+        intermediate = values[(values > 0.05) & (values < 0.95)]
+        self.assertGreater(intermediate.size, 0)
+        self.assertGreater(len(np.unique(np.round(intermediate, 3))), 15)
 
     def test_band_alphas_without_light_matches_omitting_the_argument(self):
         figure, *_ = self._disc_figure()

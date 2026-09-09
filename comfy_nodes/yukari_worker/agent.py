@@ -9,7 +9,12 @@ from __future__ import annotations
 
 import os
 import threading
+import time
+import urllib.error
+import urllib.request
 from collections.abc import Callable
+
+_STARTUP_TIMEOUT = 600.0
 
 _lock = threading.Lock()
 _thread: threading.Thread | None = None
@@ -24,14 +29,45 @@ def _worker_id() -> str | None:
     return os.environ.get("COMFYUI_RECIPES_WORKER_ID") or None
 
 
-def _run_guarded(run: Callable[..., None], worker_id: str | None) -> None:
+def _await_server(base_url: str, deadline: float, sleep: Callable[[float], None],
+                  clock: Callable[[], float]) -> bool:
+    """Block until ComfyUI answers, because the loop starts before it listens.
+
+    Custom nodes are imported while the server is still coming up, so a claim
+    made now would be submitted to a port with nothing behind it and the
+    request would be failed for a reason that has nothing to do with it.
+    """
+    while clock() < deadline:
+        try:
+            with urllib.request.urlopen(base_url + "/system_stats", timeout=3):
+                return True
+        except (urllib.error.URLError, OSError):
+            sleep(2)
+    return False
+
+
+def _server_ready() -> bool:
+    from comfyui_recipes.infrastructure.comfyui.client import ComfyUIClient
+
+    # The same URL the worker will submit to, resolved the same way.
+    return _await_server(ComfyUIClient().base_url,
+                         time.monotonic() + _STARTUP_TIMEOUT,
+                         time.sleep, time.monotonic)
+
+
+def _run_guarded(run: Callable[..., None], ready: Callable[[], bool],
+                 worker_id: str | None) -> None:
     try:
+        if not ready():
+            print("[yukari_worker] ComfyUI never answered; not claiming")
+            return
         run(worker_id=worker_id)
     except Exception as error:
         print(f"[yukari_worker] worker thread failed: {error!r}")
 
 
-def start(run: Callable[..., None] | None = None) -> None:
+def start(run: Callable[..., None] | None = None,
+          ready: Callable[[], bool] | None = None) -> None:
     """Start the claim-loop thread once, if enabled. Never raises."""
     try:
         if not _enabled():
@@ -41,12 +77,14 @@ def start(run: Callable[..., None] | None = None) -> None:
             # ComfyUI nothing but this file, and an import that fails would
             # otherwise report on every start of an install not using it.
             from comfyui_recipes.interfaces.agent import run as run
+        if ready is None:
+            ready = _server_ready
         global _thread
         with _lock:
             if _thread is not None:
                 return
             thread = threading.Thread(
-                target=_run_guarded, args=(run, _worker_id()),
+                target=_run_guarded, args=(run, ready, _worker_id()),
                 name="yukari-worker", daemon=True)
             thread.start()
             _thread = thread

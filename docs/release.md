@@ -33,7 +33,9 @@ are joined by a promotion PR, the same shape as ochanuco/webull-trading.
   detached checkout, `requirements.txt` into the portable Python when an
   entry moved), and restarts ComfyUI (`scripts/worker/restart-comfyui.ps1`)
   only when the deploy changed our node pack, the imaging code under it, or
-  a pinned node -- ComfyUI reads `custom_nodes` once, at startup.
+  a pinned node, or anything under `src/` -- ComfyUI imports both the node
+  packs and the claim loop once, at startup. Nothing else is started: the
+  worker runs inside that ComfyUI process.
 - `restart worker comfyui` is a manual `workflow_dispatch` that runs the same
   restart on the box, for changes made outside a deploy.
 
@@ -58,6 +60,23 @@ that survives the deploy, and a re-claimed request rejoins the running job
 through the `comfy_prompt_id` in its state file. What it lost was the wait.
 Draining matters for its own sake once the worker runs inside ComfyUI, because
 then the restart takes the render with it.
+
+## Where the worker runs
+
+The claim loop is a thread inside ComfyUI's own process, started by
+`comfy_nodes/yukari_worker/` when `COMFYUI_RECIPES_WORKER` is set. The
+variable is a user environment variable on the box, written by
+`register-comfyui.ps1`, because a scheduled task inherits the user
+environment and not a shell's. The thread waits for ComfyUI's own HTTP to
+answer before it claims anything -- custom nodes are imported while the
+server is still coming up, and a request claimed then would be submitted to
+a port with nothing behind it.
+
+`register-watch.ps1` and `watch.ps1` still register the standalone worker as
+its own logon task. The deploy does not call them, and running both at once
+means two workers claiming under one `worker_id`. They are there for running
+the loop by hand, the way `register-comfyui.ps1` and `register-runner.ps1`
+are.
 
 ## The box
 

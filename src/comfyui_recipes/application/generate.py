@@ -523,6 +523,12 @@ def generate(request_path: Path, services: GenerateServices, *,
                 fingerprint = services.pose_fingerprint(generation["recipe"], pose)
             except Exception as error:
                 services.emit(f"  ! pose fingerprint failed: {error}")
+    # A Batch carrying patches is promotion material, and a promoted version
+    # without a fingerprint can never be checked against base drift.
+    if request_patches and not fingerprint:
+        raise SystemExit(
+            "a Batch with patches must carry pose_fingerprint, and this "
+            "request's pose could not be fingerprinted")
     if dry_run:
         seeds = _seeds(req)
         graph = services.graph_builder(generation, seeds[0], "chimera-dryrun-0")

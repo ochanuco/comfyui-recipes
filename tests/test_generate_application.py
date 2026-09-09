@@ -697,7 +697,8 @@ class GenerateApplicationTest(unittest.TestCase):
                 lambda generation, seed, prefix: {
                     "6": {"inputs": {"text": "x"}}, "7": {"inputs": {"text": "y"}}},
                 lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
-                Path(directory), lambda message: None)
+                Path(directory), lambda message: None,
+                pose_fingerprint=lambda *_: "sha256:test")
             generate(path, services)
             semantic_call = next(
                 call for call in management.calls if call[0] == "semantic")
@@ -875,6 +876,32 @@ class GenerateApplicationTest(unittest.TestCase):
             generate(path, services)
             self.assertTrue(
                 any("deliberate for this arm" in message for message in emits))
+
+    def test_generate_refuses_patches_without_a_fingerprint(self):
+        request = base_request(patches=[
+            {"target": "render.cfg", "op": "set", "value": 4.5,
+             "reason": "test"}])
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "request.json"
+            path.write_text(json.dumps(request), encoding="utf-8")
+            management = ManagementFake()
+            services = GenerateServices(
+                management=management,
+                comfyui=ComfyFake(),
+                state=StateFake({}),
+                notifier=NullNotifier(),
+                graph_builder=lambda *_: {"3": {"inputs": {"seed": 0}}},
+                git_metadata=lambda: {"commit": "c", "dirty": False},
+                conflicts=lambda *_: [],
+                output_root=Path(root) / "out",
+                emit=lambda _: None,
+                pose_fingerprint=lambda *_: None,
+            )
+            with self.assertRaises(SystemExit):
+                generate(path, services)
+        self.assertEqual(
+            [call for call in management.calls if call[1] == "/api/v1/batches"],
+            [])
 
     def test_generate_returns_batch_id_and_generation_ids(self):
         with tempfile.TemporaryDirectory() as directory:

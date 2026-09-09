@@ -76,7 +76,7 @@ class WorkerAgentStartTest(unittest.TestCase):
     def test_start_with_env_var_unset_starts_no_thread(self):
         started = threading.Event()
 
-        def run(**kwargs):
+        def run(repository=None, **kwargs):
             started.set()
 
         worker_agent.start(run=run, ready=lambda: True)
@@ -88,7 +88,7 @@ class WorkerAgentStartTest(unittest.TestCase):
         calls = []
         release = threading.Event()
 
-        def run(**kwargs):
+        def run(repository=None, **kwargs):
             calls.append(kwargs)
             release.wait(timeout=2)
 
@@ -105,7 +105,7 @@ class WorkerAgentStartTest(unittest.TestCase):
         seen = []
         done = threading.Event()
 
-        def run(*, worker_id=None):
+        def run(repository=None, *, worker_id=None, emit=None):
             seen.append(worker_id)
             done.set()
 
@@ -117,7 +117,7 @@ class WorkerAgentStartTest(unittest.TestCase):
         os.environ["COMFYUI_RECIPES_WORKER"] = "true"
         done = threading.Event()
 
-        def run(**kwargs):
+        def run(repository=None, **kwargs):
             done.set()
             raise RuntimeError("boom")
 
@@ -139,7 +139,7 @@ class WorkerAgentStartTest(unittest.TestCase):
         original_lock = worker_agent._lock
         worker_agent._lock = BrokenLock()
         try:
-            worker_agent.start(run=lambda **kwargs: None, ready=lambda: True)
+            worker_agent.start(run=lambda *a, **kw: None, ready=lambda: True)
         except Exception as error:  # pragma: no cover
             self.fail(f"start() propagated an exception: {error!r}")
         finally:
@@ -183,12 +183,30 @@ class AwaitServerTest(unittest.TestCase):
             worker_agent.urllib.request.urlopen = original
         self.assertFalse(ready)
 
+    def test_the_checkout_comes_from_the_pack_not_the_working_directory(self):
+        os.environ["COMFYUI_RECIPES_WORKER"] = "1"
+        worker_agent._thread = None
+        seen = []
+        done = threading.Event()
+
+        def run(repository=None, **kwargs):
+            seen.append(repository)
+            done.set()
+
+        try:
+            worker_agent.start(run=run, ready=lambda: True)
+            self.assertTrue(done.wait(timeout=2))
+        finally:
+            os.environ.pop("COMFYUI_RECIPES_WORKER", None)
+            worker_agent._thread = None
+        self.assertEqual(seen, [ROOT])
+
     def test_a_worker_that_never_sees_comfyui_does_not_claim(self):
         os.environ["COMFYUI_RECIPES_WORKER"] = "1"
         worker_agent._thread = None
         ran = threading.Event()
         try:
-            worker_agent.start(run=lambda **kwargs: ran.set(),
+            worker_agent.start(run=lambda *a, **kw: ran.set(),
                                ready=lambda: False)
             worker_agent._thread.join(2)
         finally:

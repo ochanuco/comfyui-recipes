@@ -35,6 +35,12 @@ STROKE_LIGHT_THIN = 0.5
 STROKE_LIGHT_THICK = 2.8
 # Sigma of the distance-field blur the outline normal is read from, in purple widths.
 STROKE_LIGHT_SMOOTH = 1.0
+# Sigma of the distance-field blur each band's own edge is ramped from, in 2x
+# supersample pixels -- a fixed pixel count, not a share of band width. The
+# staircase it is rounding off is always one source pixel high regardless of
+# how wide the band is drawn, so scaling this with band width would over-blur
+# a large render's edge and under-blur a small one.
+STROKE_EDGE_SMOOTH = 1.0
 # Unit vectors toward the light, image coordinates (x right, y down).
 _R = 2 ** -0.5
 STROKE_LIGHTS = {

@@ -60,6 +60,11 @@ experiments/  one observation per JSONL record (seed, render_id, parameter,
               value, outcome accepted|rejected|inconclusive, reason).
               Append-only: a refuted hypothesis gets a NEW record, the old
               one is never rewritten. Schema in experiments/README.md.
+              An A/B round with arms and a chimera Batch is recorded as a
+              chimera Experiment/Run instead of a JSONL record; plain
+              observations still append here. The JSONL stays the source
+              of truth; chimera holds a derived index kept in sync by
+              `scripts/observation_sync.py`.
 docs/         conclusions. Cross-pose lessons in docs/render-notes.md,
               per-pose reasoning in docs/poses/<character>/<pose>.md.
 tests/        invariants that must hold across models and seeds (prompt

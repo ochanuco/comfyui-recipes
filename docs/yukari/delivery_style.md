@@ -51,6 +51,22 @@ notch in the outline does not flip the width from one pixel to the next.
 Only the purple band is shaded; the white band stays the uniform width
 regardless of `stroke_light`.
 
+## STROKE_EDGE_SMOOTH
+
+The silhouette a band is drawn around is a binary matte, upscaled 2x with
+`Image.NEAREST` before the band ring is drawn; NEAREST adds no information,
+so a diagonal edge stays the staircase of the source pixel grid, just
+bigger. Ramping a band's coverage straight off that staircase's own distance
+transform softens the edge without rounding its shape -- it still reads as
+jagged, just blurrily so. `STROKE_EDGE_SMOOTH` is the sigma of a Gaussian
+blur applied to the distance field before the ramp reads it, rounding the
+staircase off first. It is a fixed count of 2x-supersample pixels rather
+than a share of band width, deliberately: the staircase being rounded is
+always one source pixel high regardless of how wide a band is drawn, so
+scaling it with band width would over-blur a large render's edge and
+under-blur a small one. Both the white band and the purple band read
+`STROKE_EDGE_SMOOTH`, so their edges stay visually consistent.
+
 ## STRIPES_BASE / STRIPES_PITCH / STRIPES_CONTRAST / STRIPES_BURST_RAYS / STRIPES_BURST / STRIPES_BURST_CENTER / STRIPES_BURST_REACH
 
 The `stripes` named backdrop (`infrastructure/imaging/backdrops.py`), an

@@ -9,6 +9,7 @@ sentinel -- is written once.
 from __future__ import annotations
 
 import socket
+from collections.abc import Callable
 from pathlib import Path
 
 from ..application.finalize import FinalizeServices
@@ -126,7 +127,8 @@ def build_masked_redraw_services(chimera: ChimeraClient, comfyui: ComfyUIClient,
 
 def wire_work_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
                         repository: Path, repository_metadata, *, worker_id: str,
-                        kinds: tuple[str, ...], hub: bool = True) -> WorkServices:
+                        kinds: tuple[str, ...], hub: bool = True,
+                        emit: Callable[[str], None] = print) -> WorkServices:
     """Assemble a `WorkServices` from already-built adapters.
 
     Shared by `build_work_services` (which builds the adapters fresh) and
@@ -164,11 +166,13 @@ def wire_work_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
         progress_feed=progress_factory,
         draining=drain_file.exists,
         drained=lambda: drain_file.unlink(missing_ok=True),
+        emit=emit,
     )
 
 
 def build_work_services(repository: Path, *, worker_id: str,
-                        kinds: tuple[str, ...], hub: bool = True) -> WorkServices:
+                        kinds: tuple[str, ...], hub: bool = True,
+                        emit: Callable[[str], None] = print) -> WorkServices:
     """Build a complete `WorkServices` from just a repository checkout.
 
     This is the entry point a host with no adapters of its own -- such as
@@ -184,13 +188,13 @@ def build_work_services(repository: Path, *, worker_id: str,
 
     return wire_work_services(
         chimera, comfyui, notifier, repository, repository_metadata,
-        worker_id=worker_id, kinds=kinds, hub=hub)
+        worker_id=worker_id, kinds=kinds, hub=hub, emit=emit)
 
 
 def run(repository: Path | None = None, *, worker_id: str | None = None,
         kinds: tuple[str, ...] | None = None, interval: float = 30,
         hub: bool = True, publish_catalog: bool = True,
-        once: bool = False) -> None:
+        once: bool = False, emit: Callable[[str], None] = print) -> None:
     """Build a `WorkServices` and run the claim loop until stopped."""
     repository = repository or discover_repository()
     services = build_work_services(
@@ -198,5 +202,6 @@ def run(repository: Path | None = None, *, worker_id: str | None = None,
         worker_id=worker_id or socket.gethostname(),
         kinds=kinds or DEFAULT_KINDS,
         hub=hub,
+        emit=emit,
     )
     work(services, interval=interval, once=once, publish_catalog=publish_catalog)

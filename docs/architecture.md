@@ -26,7 +26,8 @@ src/comfyui_recipes/
     ├── notifications/   # Discord side channel
     └── persistence/     # crash-resume state
 comfy_nodes/
-└── yukari_finalize/      # ComfyUI custom node pack wrapping imaging/ for the finalize graph
+├── yukari_finalize/      # ComfyUI custom node pack wrapping imaging/ for the finalize graph
+└── yukari_worker/        # ComfyUI custom node pack hosting the worker's claim loop
 ```
 
 `infrastructure/imaging/` is shared: `comfy_nodes/yukari_finalize/` wraps its
@@ -59,6 +60,16 @@ stay here.
 
 `src/comfyui_recipes/interfaces/` owns the single public `comfy-recipes` CLI.
 Argument parsing stops at this boundary; commands call application use cases.
+
+The worker's composition root -- wiring the generate/finalize/repair/
+masked_redraw services, the hub and progress sockets and the drain sentinel
+into a `WorkServices` -- lives in `interfaces/agent.py`, not in the CLI
+itself. `comfy_nodes/yukari_worker/` calls the same `agent.run()` to host the
+identical claim loop as a thread inside ComfyUI's own process, so a restart
+becomes one process instead of two -- at the cost that stopping ComfyUI now
+also stops the render in flight, which is why the drain sentinel
+(`docs/release.md`) exists. This hosting is off unless
+`COMFYUI_RECIPES_WORKER` is set; a plain ComfyUI install is unaffected.
 
 ## Migration rule
 

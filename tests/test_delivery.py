@@ -257,7 +257,7 @@ class DeliveryTest(unittest.TestCase):
         # repeated coverage levels there; rounding the field off first spreads
         # it over many. At STROKE_EDGE_SMOOTH = 0 this band yields 9 distinct
         # levels, at 1.0 it yields 26.
-        figure, cy, cx, radius = self._disc_figure()
+        figure, cy, _, radius = self._disc_figure()
         r = 2 ** -0.5
         row_center = int(cy - radius * r)
         rows = np.arange(row_center - 15, row_center + 15)

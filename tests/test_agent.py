@@ -1,0 +1,153 @@
+"""Tests for the worker's composition root and its ComfyUI node host.
+
+comfy_nodes/yukari_worker cannot be imported through ComfyUI's own
+custom_nodes layout in a test, so it is reached the same way
+test_yukari_finalize_nodes.py reaches comfy_nodes/yukari_finalize: by
+resolving this file's own path onto sys.path rather than relying on the
+working directory.
+"""
+
+from __future__ import annotations
+
+import sys
+import threading
+import time
+import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from comfyui_recipes.interfaces.agent import build_work_services  # noqa: E402
+from comfy_nodes.yukari_worker import agent as worker_agent  # noqa: E402
+
+
+class BuildWorkServicesTest(unittest.TestCase):
+    def test_draining_and_drained_operate_on_the_sentinel_file(self):
+        with TemporaryDirectory() as tmp:
+            repository = Path(tmp)
+            services = build_work_services(
+                repository, worker_id="worker-1", kinds=("generate",))
+            drain_file = repository / ".local/_nogit/worker/drain"
+
+            self.assertFalse(services.draining())
+            drain_file.parent.mkdir(parents=True, exist_ok=True)
+            drain_file.write_text("")
+            self.assertTrue(services.draining())
+
+            services.drained()
+            self.assertFalse(drain_file.exists())
+            self.assertFalse(services.draining())
+
+    def test_hub_false_leaves_hub_and_progress_feed_unset(self):
+        with TemporaryDirectory() as tmp:
+            services = build_work_services(
+                Path(tmp), worker_id="worker-1", kinds=("generate",), hub=False)
+            self.assertIsNone(services.hub)
+            self.assertIsNone(services.progress_feed)
+
+    def test_hub_true_sets_hub_and_progress_feed(self):
+        with TemporaryDirectory() as tmp:
+            services = build_work_services(
+                Path(tmp), worker_id="worker-1", kinds=("generate",), hub=True)
+            self.assertIsNotNone(services.hub)
+            self.assertIsNotNone(services.progress_feed)
+
+
+class WorkerAgentStartTest(unittest.TestCase):
+    def setUp(self):
+        worker_agent._thread = None
+        self._env_patch = {}
+        for key in ("COMFYUI_RECIPES_WORKER", "COMFYUI_RECIPES_WORKER_ID"):
+            self._env_patch[key] = __import__("os").environ.pop(key, None)
+
+    def tearDown(self):
+        import os
+        worker_agent._thread = None
+        for key, value in self._env_patch.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    def test_start_with_env_var_unset_starts_no_thread(self):
+        started = threading.Event()
+
+        def run(**kwargs):
+            started.set()
+
+        worker_agent.start(run=run)
+        self.assertFalse(started.wait(timeout=0.2))
+        self.assertIsNone(worker_agent._thread)
+
+    def test_start_with_env_var_set_starts_exactly_one_thread(self):
+        import os
+        os.environ["COMFYUI_RECIPES_WORKER"] = "1"
+        calls = []
+        release = threading.Event()
+
+        def run(**kwargs):
+            calls.append(kwargs)
+            release.wait(timeout=2)
+
+        worker_agent.start(run=run)
+        worker_agent.start(run=run)
+        time.sleep(0.1)
+        release.set()
+
+        self.assertEqual(len(calls), 1)
+
+    def test_worker_id_env_var_is_threaded_through(self):
+        import os
+        os.environ["COMFYUI_RECIPES_WORKER"] = "yes"
+        os.environ["COMFYUI_RECIPES_WORKER_ID"] = "box-7"
+        seen = []
+        done = threading.Event()
+
+        def run(*, worker_id=None):
+            seen.append(worker_id)
+            done.set()
+
+        worker_agent.start(run=run)
+        self.assertTrue(done.wait(timeout=2))
+        self.assertEqual(seen, ["box-7"])
+
+    def test_a_run_that_raises_does_not_propagate_or_kill_the_process(self):
+        import os
+        os.environ["COMFYUI_RECIPES_WORKER"] = "true"
+        done = threading.Event()
+
+        def run(**kwargs):
+            done.set()
+            raise RuntimeError("boom")
+
+        try:
+            worker_agent.start(run=run)
+        except Exception as error:  # pragma: no cover - the assertion below
+            self.fail(f"start() propagated an exception: {error!r}")
+        self.assertTrue(done.wait(timeout=2))
+
+    def test_start_failure_does_not_raise(self):
+        class BrokenLock:
+            def __enter__(self):
+                raise RuntimeError("lock is broken")
+
+            def __exit__(self, *exc_info):
+                return False
+
+        import os
+        os.environ["COMFYUI_RECIPES_WORKER"] = "1"
+        original_lock = worker_agent._lock
+        worker_agent._lock = BrokenLock()
+        try:
+            worker_agent.start(run=lambda **kwargs: None)
+        except Exception as error:  # pragma: no cover
+            self.fail(f"start() propagated an exception: {error!r}")
+        finally:
+            worker_agent._lock = original_lock
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -9,6 +9,8 @@ working directory.
 
 from __future__ import annotations
 
+import contextlib
+import os
 import sys
 import threading
 import time
@@ -61,10 +63,9 @@ class WorkerAgentStartTest(unittest.TestCase):
         worker_agent._thread = None
         self._env_patch = {}
         for key in ("COMFYUI_RECIPES_WORKER", "COMFYUI_RECIPES_WORKER_ID"):
-            self._env_patch[key] = __import__("os").environ.pop(key, None)
+            self._env_patch[key] = os.environ.pop(key, None)
 
     def tearDown(self):
-        import os
         worker_agent._thread = None
         for key, value in self._env_patch.items():
             if value is None:
@@ -78,12 +79,11 @@ class WorkerAgentStartTest(unittest.TestCase):
         def run(**kwargs):
             started.set()
 
-        worker_agent.start(run=run)
+        worker_agent.start(run=run, ready=lambda: True)
         self.assertFalse(started.wait(timeout=0.2))
         self.assertIsNone(worker_agent._thread)
 
     def test_start_with_env_var_set_starts_exactly_one_thread(self):
-        import os
         os.environ["COMFYUI_RECIPES_WORKER"] = "1"
         calls = []
         release = threading.Event()
@@ -92,15 +92,14 @@ class WorkerAgentStartTest(unittest.TestCase):
             calls.append(kwargs)
             release.wait(timeout=2)
 
-        worker_agent.start(run=run)
-        worker_agent.start(run=run)
+        worker_agent.start(run=run, ready=lambda: True)
+        worker_agent.start(run=run, ready=lambda: True)
         time.sleep(0.1)
         release.set()
 
         self.assertEqual(len(calls), 1)
 
     def test_worker_id_env_var_is_threaded_through(self):
-        import os
         os.environ["COMFYUI_RECIPES_WORKER"] = "yes"
         os.environ["COMFYUI_RECIPES_WORKER_ID"] = "box-7"
         seen = []
@@ -110,12 +109,11 @@ class WorkerAgentStartTest(unittest.TestCase):
             seen.append(worker_id)
             done.set()
 
-        worker_agent.start(run=run)
+        worker_agent.start(run=run, ready=lambda: True)
         self.assertTrue(done.wait(timeout=2))
         self.assertEqual(seen, ["box-7"])
 
     def test_a_run_that_raises_does_not_propagate_or_kill_the_process(self):
-        import os
         os.environ["COMFYUI_RECIPES_WORKER"] = "true"
         done = threading.Event()
 
@@ -124,7 +122,7 @@ class WorkerAgentStartTest(unittest.TestCase):
             raise RuntimeError("boom")
 
         try:
-            worker_agent.start(run=run)
+            worker_agent.start(run=run, ready=lambda: True)
         except Exception as error:  # pragma: no cover - the assertion below
             self.fail(f"start() propagated an exception: {error!r}")
         self.assertTrue(done.wait(timeout=2))
@@ -137,16 +135,66 @@ class WorkerAgentStartTest(unittest.TestCase):
             def __exit__(self, *exc_info):
                 return False
 
-        import os
         os.environ["COMFYUI_RECIPES_WORKER"] = "1"
         original_lock = worker_agent._lock
         worker_agent._lock = BrokenLock()
         try:
-            worker_agent.start(run=lambda **kwargs: None)
+            worker_agent.start(run=lambda **kwargs: None, ready=lambda: True)
         except Exception as error:  # pragma: no cover
             self.fail(f"start() propagated an exception: {error!r}")
         finally:
             worker_agent._lock = original_lock
+
+
+class AwaitServerTest(unittest.TestCase):
+    def _urlopen(self, failures):
+        attempts = []
+
+        def urlopen(url, timeout=None):
+            attempts.append(url)
+            if len(attempts) <= failures:
+                raise OSError("connection refused")
+            return contextlib.nullcontext()
+
+        return urlopen, attempts
+
+    def test_it_stops_asking_once_the_server_answers(self):
+        urlopen, attempts = self._urlopen(failures=2)
+        original = worker_agent.urllib.request.urlopen
+        worker_agent.urllib.request.urlopen = urlopen
+        try:
+            ready = worker_agent._await_server(
+                "http://box:8188", 100, lambda _: None, lambda: 0)
+        finally:
+            worker_agent.urllib.request.urlopen = original
+        self.assertTrue(ready)
+        self.assertEqual(len(attempts), 3)
+        self.assertTrue(all(url.endswith("/system_stats") for url in attempts))
+
+    def test_it_gives_up_at_the_deadline_rather_than_claiming(self):
+        urlopen, _ = self._urlopen(failures=99)
+        ticks = iter([0, 1, 2, 3, 4])
+        original = worker_agent.urllib.request.urlopen
+        worker_agent.urllib.request.urlopen = urlopen
+        try:
+            ready = worker_agent._await_server(
+                "http://box:8188", 3, lambda _: None, lambda: next(ticks))
+        finally:
+            worker_agent.urllib.request.urlopen = original
+        self.assertFalse(ready)
+
+    def test_a_worker_that_never_sees_comfyui_does_not_claim(self):
+        os.environ["COMFYUI_RECIPES_WORKER"] = "1"
+        worker_agent._thread = None
+        ran = threading.Event()
+        try:
+            worker_agent.start(run=lambda **kwargs: ran.set(),
+                               ready=lambda: False)
+            worker_agent._thread.join(2)
+        finally:
+            os.environ.pop("COMFYUI_RECIPES_WORKER", None)
+            worker_agent._thread = None
+        self.assertFalse(ran.is_set())
 
 
 if __name__ == "__main__":

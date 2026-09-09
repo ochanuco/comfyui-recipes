@@ -23,6 +23,7 @@ from comfyui_recipes.application.work import (
     execute,
     finalize_arguments,
     masked_redraw_arguments,
+    release_claims,
     repair_arguments,
     work,
     work_once,
@@ -36,6 +37,7 @@ class ManagementFake:
         self.claim_responses = list(claim_responses or [])
         self.claim_error = None
         self.dry_run_items = dry_run_items or []
+        self.running_items = []
 
     def request(self, method, path, payload=None, multipart=None):
         self.calls.append((method, path, payload, multipart))
@@ -50,6 +52,8 @@ class ManagementFake:
             return None
         if method == "GET" and path.startswith("/api/v1/requests?status=queued"):
             return {"items": self.dry_run_items}
+        if method == "GET" and path.startswith("/api/v1/requests?status=running"):
+            return {"items": self.running_items}
         if method == "PATCH" and path.startswith("/api/v1/requests/"):
             return {}
         raise AssertionError(f"unexpected management call: {method} {path}")
@@ -1046,6 +1050,66 @@ class PublishCatalogAtStartupTest(unittest.TestCase):
             services = make_services(directory, management)
             work(services, once=True, dry_run=True)
             self.assertEqual(calls, [])
+
+
+class ReleaseClaimsTest(unittest.TestCase):
+    def _services(self, management, emit=None):
+        with tempfile.TemporaryDirectory() as directory:
+            return make_services(Path(directory), management, emit=emit)
+
+    def test_release_hands_each_running_row_back_to_the_queue(self):
+        management = ManagementFake()
+        management.running_items = [{"id": "req-1"}, {"id": "req-2"}]
+        release_claims(self._services(management))
+        patched = [(path, payload) for method, path, payload, _ in management.calls
+                   if method == "PATCH"]
+        self.assertEqual(patched, [
+            ("/api/v1/requests/req-1",
+             {"status": "queued", "worker_id": "test-worker"}),
+            ("/api/v1/requests/req-2",
+             {"status": "queued", "worker_id": "test-worker"}),
+        ])
+
+    def test_release_asks_only_for_its_own_running_rows(self):
+        management = ManagementFake()
+        release_claims(self._services(management))
+        queried = [path for method, path, _, _ in management.calls if method == "GET"]
+        self.assertEqual(
+            queried, ["/api/v1/requests?status=running&worker_id=test-worker"])
+
+    def test_release_reports_the_status_the_row_landed_in(self):
+        management = ManagementFake()
+        management.running_items = [{"id": "req-1"}]
+
+        def request(method, path, payload=None, multipart=None):
+            management.calls.append((method, path, payload, multipart))
+            if method == "GET":
+                return {"items": management.running_items}
+            return {"status": "failed", "error": "released after max attempts"}
+
+        management.request = request
+        emitted = []
+        release_claims(self._services(management, emit=emitted.append))
+        self.assertIn("released req-1: failed", emitted)
+
+    def test_release_survives_an_unreachable_server(self):
+        management = ManagementFake()
+
+        def request(method, path, payload=None, multipart=None):
+            raise SystemExit("connection refused")
+
+        management.request = request
+        emitted = []
+        release_claims(self._services(management, emit=emitted.append))
+        self.assertTrue(any("release query failed" in line for line in emitted))
+
+    def test_dry_run_releases_nothing(self):
+        management = ManagementFake()
+        management.running_items = [{"id": "req-1"}]
+        with tempfile.TemporaryDirectory() as directory:
+            services = make_services(Path(directory), management)
+            work(services, once=True, dry_run=True)
+        self.assertFalse(any(method == "PATCH" for method, _, _, _ in management.calls))
 
 
 class HeartbeatTest(unittest.TestCase):

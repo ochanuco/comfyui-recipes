@@ -12,6 +12,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
+from urllib.parse import quote
 
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.recipe import TOE_GUARD
@@ -681,11 +682,40 @@ def work_once(services: WorkServices, *, dry_run: bool = False,
     return True
 
 
+def release_claims(services: WorkServices) -> None:
+    """Hand back the rows this worker still holds from a killed process.
+
+    Otherwise they sit running until the heartbeat goes stale, and a worker
+    that came back in seconds waits minutes for its own queue.
+    """
+    worker = quote(services.worker_id, safe="")
+    try:
+        response = services.management.request(
+            "GET", f"/api/v1/requests?status=running&worker_id={worker}")
+    except (SystemExit, Exception) as error:
+        services.emit(f"! release query failed: {error}")
+        return
+    for row in (response or {}).get("items", []):
+        if not row.get("id"):
+            continue
+        try:
+            released = services.management.request(
+                "PATCH", f"/api/v1/requests/{row['id']}",
+                {"status": "queued", "worker_id": services.worker_id})
+        except (SystemExit, Exception) as error:
+            services.emit(f"! release failed for {row['id']}: {error}")
+            continue
+        status = (released or {}).get("status", "queued")
+        services.emit(f"released {row['id']}: {status}")
+
+
 def work(services: WorkServices, *, interval: float = 30, once: bool = False,
          dry_run: bool = False, publish_catalog: bool = True) -> None:
     listener: HubListener | None = None
     relay: ProgressRelay | None = None
     wake = threading.Event()
+    if not dry_run:
+        release_claims(services)
     if publish_catalog and not dry_run:
         try:
             publish_catalog_document(services.management, services.git_metadata())

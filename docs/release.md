@@ -23,19 +23,18 @@ are joined by a promotion PR, the same shape as ochanuco/webull-trading.
 - `deploy worker` runs on `push` to `production` only, on the self-hosted
   runner labelled `gpu-box`. It calls `scripts/worker/deploy.ps1` in the
   standing checkout named by the repository variable `WORKER_CHECKOUT`,
-  which moves it to `origin/production`, refreshes the venv and re-registers
-  the `work` task. The repository is public; limiting the runner to
-  `production` pushes is what keeps fork PRs off the box.
-  `deploy.ps1` also re-junctions `comfy_nodes/yukari_finalize/` into the
-  ComfyUI install named by the repository variable `COMFYUI_ROOT`, brings
-  the third-party node packs under its `custom_nodes/` to the commits pinned
-  in `manifests/worker-nodes.toml` (`scripts/worker/sync-nodes.ps1`: clone,
-  detached checkout, `requirements.txt` into the portable Python when an
-  entry moved), and restarts ComfyUI (`scripts/worker/restart-comfyui.ps1`)
-  only when the deploy changed our node pack, the imaging code under it, or
-  a pinned node, or anything under `src/` -- ComfyUI imports both the node
-  packs and the claim loop once, at startup. Nothing else is started: the
-  worker runs inside that ComfyUI process.
+  which moves it to `origin/production` and refreshes the venv. The
+  repository is public; limiting the runner to `production` pushes is what
+  keeps fork PRs off the box. `deploy.ps1` also re-junctions our node packs
+  into the ComfyUI install named by the repository variable `COMFYUI_ROOT`,
+  brings the third-party node packs under its `custom_nodes/` to the commits
+  pinned in `manifests/worker-nodes.toml` (`scripts/worker/sync-nodes.ps1`:
+  clone, detached checkout, `requirements.txt` into the portable Python when
+  an entry moved), and restarts ComfyUI
+  (`scripts/worker/restart-comfyui.ps1`) every time. That restart is not an
+  optimisation to skip: the drain below ends the claim loop, and the loop is
+  a thread in that process, so nothing else brings the worker back. A deploy
+  that skipped it would leave the box with no worker at all.
 - `restart worker comfyui` is a manual `workflow_dispatch` that runs the same
   restart on the box, for changes made outside a deploy.
 

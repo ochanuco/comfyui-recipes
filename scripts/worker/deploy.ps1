@@ -30,7 +30,6 @@ Get-CimInstance Win32_Process |
         $_.CommandLine -match "comfy-recipes\.exe.* work|[\\/]watch\.ps1" } |
     ForEach-Object { cmd /c "taskkill /PID $($_.ProcessId) /T /F >nul 2>&1" }
 
-$oldHead = git rev-parse HEAD
 git fetch --quiet origin
 git checkout --quiet -B $Ref "origin/$Ref"
 git log --oneline -1
@@ -53,15 +52,10 @@ if ($ComfyRoot) {
     $embedded = Join-Path (Split-Path $ComfyRoot -Parent) "python_embeded\python.exe"
     $pip = & $embedded -m pip install "websockets>=12"
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
-    $pipInstalled = [bool]($pip -match "^Successfully installed")
-    "embedded python: $(if ($pipInstalled) { 'installed' } else { 'ok' })"
-    # ComfyUI imports both the node packs and the claim loop once, at startup,
-    # so any change to the code it loads needs it back, as does a package that
-    # was not in its interpreter before. Docs and tests do not.
-    git diff --quiet $oldHead HEAD -- comfy_nodes src
-    if ($LASTEXITCODE -ne 0 -or $pipInstalled -or ($sync -match "^changed: True")) {
-        & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\restart-comfyui.ps1
-    }
+    "embedded python: $(if ($pip -match '^Successfully installed') { 'installed' } else { 'ok' })"
+    # Unconditional: the drain above ended the claim loop, and the loop is a
+    # thread in this process, so nothing brings the worker back but this.
+    & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\restart-comfyui.ps1
 }
 
 # Nothing to start: the claim loop lives in the ComfyUI process the restart

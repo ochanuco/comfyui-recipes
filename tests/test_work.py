@@ -1112,6 +1112,79 @@ class ReleaseClaimsTest(unittest.TestCase):
         self.assertFalse(any(method == "PATCH" for method, _, _, _ in management.calls))
 
 
+class DrainTest(unittest.TestCase):
+    def test_a_drained_worker_claims_nothing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake()
+            messages = []
+            services = dataclasses.replace(
+                make_services(Path(directory), management,
+                              emit=messages.append),
+                draining=lambda: True)
+            work(services, publish_catalog=False)
+            self.assertFalse(any(call[1] == "/api/v1/requests/claim"
+                                 for call in management.calls))
+            self.assertIn("draining: no new work claimed", messages)
+
+    def test_the_request_in_flight_finishes_before_the_worker_leaves(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(claim_responses=[generate_row()])
+            finished = []
+            asked = []
+
+            def fake_generate(path, generate_services, **kwargs):
+                asked.append(True)
+                return {"batch_id": "b", "generation_ids": ["g"]}
+
+            services = dataclasses.replace(
+                make_services(Path(directory), management,
+                              generate=fake_generate),
+                draining=lambda: bool(asked),
+                drained=lambda: finished.append(True))
+            work(services, publish_catalog=False)
+            self.assertEqual(len(asked), 1)
+            self.assertEqual(finished, [True])
+            self.assertTrue(any(
+                call[1].startswith("/api/v1/requests/") and call[2]
+                and call[2].get("status") == "done"
+                for call in management.calls))
+
+    def test_leaving_without_a_drain_does_not_acknowledge_one(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(claim_responses=[None])
+            finished = []
+
+            def interrupt(seconds):
+                raise KeyboardInterrupt
+
+            services = dataclasses.replace(
+                make_services(Path(directory), management, sleep=interrupt),
+                draining=lambda: False,
+                drained=lambda: finished.append(True))
+            work(services, publish_catalog=False)
+            self.assertEqual(finished, [])
+
+    def test_an_unreadable_drain_signal_does_not_stop_the_worker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(claim_responses=[None])
+            messages = []
+
+            def explode():
+                raise OSError("permission denied")
+
+            def interrupt(seconds):
+                raise KeyboardInterrupt
+
+            services = dataclasses.replace(
+                make_services(Path(directory), management, sleep=interrupt,
+                              emit=messages.append),
+                draining=explode)
+            work(services, publish_catalog=False)
+            self.assertTrue(any("drain check failed" in m for m in messages))
+            self.assertTrue(any(call[1] == "/api/v1/requests/claim"
+                                for call in management.calls))
+
+
 class HeartbeatTest(unittest.TestCase):
     def test_sends_running_with_the_worker_id_until_stopped(self):
         import threading

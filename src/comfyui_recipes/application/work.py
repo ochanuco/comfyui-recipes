@@ -180,6 +180,8 @@ class WorkServices:
     kinds: tuple[str, ...] = ("generate", "finalize", "repair", "masked_redraw")
     heartbeat: Callable[..., Heartbeat] = Heartbeat
     hub: Callable[[], Connection] | None = None
+    draining: Callable[[], bool] | None = None
+    drained: Callable[[], None] | None = None
     progress_feed: Callable[[], Connection] | None = None
     backoff_max: float = 60
     ping_interval: float = 30
@@ -709,6 +711,44 @@ def release_claims(services: WorkServices) -> None:
         services.emit(f"released {row['id']}: {status}")
 
 
+def _draining(services: WorkServices) -> bool:
+    """Never let a stop signal that cannot be read stop the worker."""
+    if services.draining is None:
+        return False
+    try:
+        return bool(services.draining())
+    except (SystemExit, Exception) as error:
+        services.emit(f"! drain check failed: {error}")
+        return False
+
+
+def _idle(services: WorkServices, wake: threading.Event | None,
+          interval: float) -> None:
+    """Sleep out the idle interval, cut short once a drain is asked for.
+
+    Sliced rather than waited whole: deploy waits on this worker leaving, so
+    an idle worker must not hold the deploy for the length of a poll. With no
+    drain wired there is nothing to notice, so the wait stays whole.
+    """
+    if services.draining is None:
+        if wake is not None:
+            wake.wait(interval)
+        else:
+            services.sleep(interval)
+        return
+    remaining = interval
+    while remaining > 0:
+        slice_ = min(1.0, remaining)
+        if wake is not None:
+            if wake.wait(slice_):
+                return
+        else:
+            services.sleep(slice_)
+        if _draining(services):
+            return
+        remaining -= slice_
+
+
 def work(services: WorkServices, *, interval: float = 30, once: bool = False,
          dry_run: bool = False, publish_catalog: bool = True) -> None:
     listener: HubListener | None = None
@@ -727,6 +767,9 @@ def work(services: WorkServices, *, interval: float = 30, once: bool = False,
             if services.progress_feed is not None:
                 relay = ProgressRelay(services, listener).start()
         while True:
+            if _draining(services):
+                services.emit("draining: no new work claimed")
+                break
             if listener is not None:
                 wake.clear()
             did_something = work_once(services, dry_run=dry_run,
@@ -734,10 +777,7 @@ def work(services: WorkServices, *, interval: float = 30, once: bool = False,
             if once:
                 return
             if not did_something:
-                if listener is not None:
-                    wake.wait(interval)
-                else:
-                    services.sleep(interval)
+                _idle(services, wake if listener is not None else None, interval)
     except KeyboardInterrupt:
         services.emit("work stopped")
     finally:
@@ -745,3 +785,9 @@ def work(services: WorkServices, *, interval: float = 30, once: bool = False,
             relay.stop()
         if listener is not None:
             listener.stop()
+        if services.drained is not None and _draining(services):
+            # The deploy waits on this acknowledgement rather than on a clock.
+            try:
+                services.drained()
+            except (SystemExit, Exception) as error:
+                services.emit(f"! drain acknowledgement failed: {error}")

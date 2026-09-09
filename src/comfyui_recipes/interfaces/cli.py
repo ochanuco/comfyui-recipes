@@ -11,122 +11,37 @@ from pathlib import Path
 from ..application import metadata
 from ..application.catalog import build_catalog
 from ..application.catalog import publish_catalog as publish_catalog_document
-from ..application.finalize import FinalizeServices, finalize
+from ..application.finalize import finalize
 from ..domain.yukari.recipe import TOE_GUARD
-from ..application.generate import GenerateServices, generate, request_graph
-from ..application.masked_redraw import MaskedRedrawServices, masked_redraw
-from ..application.repair import RepairServices, repair
+from ..application.generate import generate
+from ..application.masked_redraw import masked_redraw
+from ..application.repair import repair
 from ..application.watch import WatchServices, watch
-from ..application.work import WorkServices, work
-from ..domain.generation.fingerprint import prompt_fingerprint
-from ..domain.generation.prompt_lint import conflicts
+from ..application.work import work
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.poses import POSES
 from ..domain.yukari.recipe import negative, positive
-from ..domain.yukari.recipe import render_spec as yukari_render_spec
 from ..domain.yukari_anima.costumes import COSTUMES as ANIMA_COSTUMES
 from ..domain.yukari_anima.expressions import EXPRESSIONS as ANIMA_EXPRESSIONS
 from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
 from ..domain.yukari_anima.recipe import negative as anima_negative
 from ..domain.yukari_anima.recipe import positive as anima_positive
-from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
 from ..domain.yukari_sketch.costumes import COSTUMES as SKETCH_COSTUMES
 from ..domain.yukari_sketch.poses import POSES as SKETCH_POSES
 from ..domain.yukari_sketch.recipe import negative as sketch_negative
 from ..domain.yukari_sketch.recipe import positive as sketch_positive
-from ..domain.yukari_sketch.recipe import render_spec as sketch_render_spec
-from ..infrastructure.chimera.client import USER_AGENT, ChimeraClient
-from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_graph
+from ..infrastructure.chimera.client import ChimeraClient
 from ..infrastructure.comfyui.client import ComfyUIClient
-from ..infrastructure.comfyui.refinement_graph import chain_pass
-from ..infrastructure.comfyui.yukari_graph import build_graph as yukari_build_graph
-from ..infrastructure.imaging.delivery import graph_from_png, image_size
-from ..infrastructure.imaging.palette import summarize
 from ..infrastructure.notifications.discord import DiscordNotifier
-from ..infrastructure.persistence.run_state import JsonRunState
 from ..infrastructure.repository import discover_repository, git_metadata
-
-# `generation.recipe` -> (RenderSpec builder, ComfyUI graph builder).
-RECIPES = {
-    "yukari": (yukari_render_spec, yukari_build_graph),
-    "yukari-anima": (anima_render_spec, anima_build_graph),
-    "yukari-sketch": (sketch_render_spec, yukari_build_graph),
-}
-
-
-def _build_generation_graph(generation: dict, seed: int, prefix: str) -> dict:
-    if generation.get("graph"):
-        return request_graph(generation, seed, prefix, None, None)
-    spec_builder, encode = RECIPES[generation["recipe"]]
-    return request_graph(generation, seed, prefix, spec_builder, encode)
-
-
-def _pose_fingerprint(recipe: str, pose: str) -> str | None:
-    if recipe not in RECIPES:
-        return None
-    spec_builder, _ = RECIPES[recipe]
-    # Fixed at the default costume: an override is a legitimate request-time
-    # choice, so folding it in would make it indistinguishable from drift.
-    spec = spec_builder(pose, 0, "fingerprint")
-    return prompt_fingerprint(recipe, pose, spec.prompts.positive, spec.prompts.negative)
-
-
-def _generate_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
-                       repository: Path, repository_metadata) -> GenerateServices:
-    return GenerateServices(
-        management=chimera,
-        comfyui=comfyui,
-        state=JsonRunState(),
-        notifier=notifier,
-        graph_builder=_build_generation_graph,
-        git_metadata=repository_metadata,
-        conflicts=conflicts,
-        output_root=repository / ".local/_nogit/chimera",
-        measure=summarize,
-        presets=chimera.get_preset,
-        pose_fingerprint=_pose_fingerprint,
-    )
-
-
-def _finalize_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
-                       repository: Path, repository_metadata) -> FinalizeServices:
-    return FinalizeServices(
-        management=chimera,
-        comfyui=comfyui,
-        graph_from_png=graph_from_png,
-        chain_pass=chain_pass,
-        git_metadata=repository_metadata,
-        notifier=notifier,
-        output_root=repository / ".local/_nogit/finalize",
-        measure=summarize,
-    )
-
-
-def _repair_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
-                     repository: Path, repository_metadata) -> RepairServices:
-    return RepairServices(
-        management=chimera,
-        comfyui=comfyui,
-        graph_from_png=graph_from_png,
-        image_size=image_size,
-        git_metadata=repository_metadata,
-        notifier=notifier,
-        output_root=repository / ".local/_nogit/repair",
-    )
-
-
-def _masked_redraw_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
-                            repository: Path, repository_metadata) -> MaskedRedrawServices:
-    return MaskedRedrawServices(
-        management=chimera,
-        comfyui=comfyui,
-        graph_from_png=graph_from_png,
-        image_size=image_size,
-        git_metadata=repository_metadata,
-        notifier=notifier,
-        output_root=repository / ".local/_nogit/masked-redraw",
-    )
+from .agent import (
+    build_finalize_services,
+    build_generate_services,
+    build_masked_redraw_services,
+    build_repair_services,
+    wire_work_services,
+)
 
 
 def _positive_finite_seconds(raw: str) -> float:
@@ -399,52 +314,29 @@ def main(argv: list[str] | None = None) -> None:
         return git_metadata(repository)
 
     if args.command == "generate":
-        services = _generate_services(
+        services = build_generate_services(
             chimera, comfyui, notifier, repository, repository_metadata)
         generate(args.request, services, dry_run=args.dry_run, force=args.force)
         return
     if args.command == "watch":
-        services = _generate_services(
+        services = build_generate_services(
             chimera, comfyui, notifier, repository, repository_metadata)
         watch_services = WatchServices(management=chimera, generate_services=services)
         watch(watch_services, interval=args.interval, once=args.once,
               dry_run=args.dry_run)
         return
     if args.command == "work":
-        generate_services = _generate_services(
-            chimera, comfyui, notifier, repository, repository_metadata)
-        hub_factory = None
-        progress_factory = None
-        if not args.no_hub:
-            from ..infrastructure.chimera.hub import HubConnection, hub_url
-            from ..infrastructure.comfyui.progress import ProgressFeed
-
-            def hub_factory() -> HubConnection:
-                headers = {**chimera.credentials(), "User-Agent": USER_AGENT}
-                return HubConnection(hub_url(chimera.base_url), headers).open()
-
-            def progress_factory() -> ProgressFeed:
-                return ProgressFeed(comfyui.base_url).open()
-        work_services = WorkServices(
-            management=chimera,
-            generate_services=generate_services,
-            finalize_services=_finalize_services(
-                chimera, comfyui, notifier, repository, repository_metadata),
-            repair_services=_repair_services(
-                chimera, comfyui, notifier, repository, repository_metadata),
-            masked_redraw_services=_masked_redraw_services(
-                chimera, comfyui, notifier, repository, repository_metadata),
-            git_metadata=repository_metadata,
+        work_services = wire_work_services(
+            chimera, comfyui, notifier, repository, repository_metadata,
             worker_id=args.worker_id,
             kinds=tuple(kind.strip() for kind in args.kinds.split(",") if kind.strip()),
-            hub=hub_factory,
-            progress_feed=progress_factory,
+            hub=not args.no_hub,
         )
         work(work_services, interval=args.interval, once=args.once,
              dry_run=args.dry_run, publish_catalog=not args.no_catalog)
         return
     if args.command == "finalize":
-        services = _finalize_services(
+        services = build_finalize_services(
             chimera, comfyui, notifier, repository, repository_metadata)
         repair_parts = ([part.strip() for part in args.repair.split(",") if part.strip()]
                         if args.repair else None)
@@ -481,7 +373,7 @@ def main(argv: list[str] | None = None) -> None:
             print(json.dumps(response, indent=2, ensure_ascii=False))
         return
     if args.command == "repair":
-        services = _repair_services(
+        services = build_repair_services(
             chimera, comfyui, notifier, repository, repository_metadata)
         parts = [part.strip() for part in args.parts.split(",") if part.strip()]
         regions = [[float(value) for value in region.split(",")]
@@ -491,7 +383,7 @@ def main(argv: list[str] | None = None) -> None:
               denoise=args.denoise, seeds=seeds, size=args.size, pad=args.pad)
         return
     if args.command == "masked_redraw":
-        services = _masked_redraw_services(
+        services = build_masked_redraw_services(
             chimera, comfyui, notifier, repository, repository_metadata)
         regions = [[float(value) for value in region.split(",")]
                   for region in args.regions]

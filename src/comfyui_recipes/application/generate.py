@@ -17,6 +17,8 @@ from typing import Protocol
 from ..domain.generation.models import PromptPair, RenderSpec
 from ..domain.generation.patches import apply_patches, parse_patches
 
+PresetFetcher = Callable[[str, str, str, int], dict]
+
 
 class Management(Protocol):
     def request(self, method: str, path: str, payload: dict | None = None,
@@ -74,6 +76,16 @@ class GenerateServices:
     output_root: Path
     emit: Callable[[str], None] = print
     measure: Callable[[bytes], dict] | None = None
+    presets: PresetFetcher | None = None
+    pose_fingerprint: Callable[[str, str], str | None] | None = None
+
+
+def _pins_pose(generation: Mapping) -> bool:
+    presets = generation.get("presets")
+    if not isinstance(presets, list):
+        return False
+    return any(isinstance(entry, Mapping) and entry.get("kind") == "pose"
+               for entry in presets)
 
 
 def validate_request(req: object) -> None:
@@ -111,9 +123,10 @@ def validate_request(req: object) -> None:
             raise SystemExit("generation.recipe must name what this graph is")
     elif generation.get("recipe") not in ("yukari", "yukari-anima", "yukari-sketch"):
         raise SystemExit(f"recipe {generation.get('recipe')!r} not supported yet")
-    elif not parameters.get("pose"):
+    elif not parameters.get("pose") and not _pins_pose(generation):
         raise SystemExit(
-            f"generation.parameters.pose is required for {generation['recipe']}")
+            f"generation.parameters.pose is required for {generation['recipe']} "
+            "unless generation.presets pins one")
     elif set(parameters) - KNOWN_PARAMETERS:
         unknown = sorted(set(parameters) - KNOWN_PARAMETERS)
         raise SystemExit(
@@ -147,6 +160,45 @@ def validate_request(req: object) -> None:
             parse_patches(generation["patches"])
         except ValueError as error:
             raise SystemExit(str(error))
+    presets = generation.get("presets")
+    if presets is not None:
+        if not isinstance(presets, list):
+            raise SystemExit("generation.presets must be an array")
+        for entry in presets:
+            if (not isinstance(entry, Mapping)
+                    or set(entry) != {"kind", "name", "version"}):
+                raise SystemExit(
+                    f"generation.presets entry must have exactly kind, name "
+                    f"and version: {entry!r}")
+            if not isinstance(entry["kind"], str) or not entry["kind"]:
+                raise SystemExit(
+                    f"generation.presets kind must be a non-empty string: "
+                    f"{entry!r}")
+            if not isinstance(entry["name"], str) or not entry["name"]:
+                raise SystemExit(
+                    f"generation.presets name must be a non-empty string: "
+                    f"{entry!r}")
+            version = entry["version"]
+            if (not isinstance(version, int) or isinstance(version, bool)
+                    or version < 1):
+                raise SystemExit(
+                    f"generation.presets version must be an integer >= 1: "
+                    f"{entry!r}")
+        if generation.get("graph"):
+            raise SystemExit(
+                "generation.presets cannot combine with generation.graph -- "
+                "the explicit graph is already the whole spec"
+            )
+        if generation.get("prompt") or generation.get("negative_prompt"):
+            raise SystemExit(
+                "generation.presets cannot combine with generation.prompt or "
+                "generation.negative_prompt -- ordering between a full "
+                "override and a preset would be ambiguous"
+            )
+    lint_waiver = generation.get("lint_waiver")
+    if lint_waiver is not None and (
+            not isinstance(lint_waiver, str) or not lint_waiver):
+        raise SystemExit("generation.lint_waiver must be a non-empty string")
     experiment = req.get("experiment")
     if experiment is not None:
         if not isinstance(experiment, Mapping):
@@ -244,6 +296,40 @@ def request_generation(req: Mapping) -> dict:
     return generation
 
 
+def apply_presets(generation: dict, fetch: PresetFetcher) -> dict:
+    """Resolve generation.presets into parameters.pose and leading patches.
+
+    A preset is the base a request builds on, so its patches apply before
+    the request's own generation.patches -- the alpha layered on top.
+    """
+    presets = generation.get("presets")
+    if not presets:
+        return dict(generation)
+    resolved = dict(generation)
+    parameters = dict(resolved.get("parameters", {}))
+    preset_patches: list = []
+    for entry in presets:
+        label = f"{generation['recipe']}/{entry['kind']}/{entry['name']}/{entry['version']}"
+        if entry["kind"] != "pose":
+            raise SystemExit(
+                f"preset {label}: kind {entry['kind']!r} not supported by this worker")
+        body = fetch(generation["recipe"], entry["kind"], entry["name"], entry["version"])
+        pose = (body.get("record") or {}).get("recipe_pose")
+        if not isinstance(pose, str) or not pose:
+            raise SystemExit(f"preset {label}: record.recipe_pose missing or empty")
+        parameters["pose"] = pose
+        patches = body.get("patches") or []
+        if not isinstance(patches, list):
+            raise SystemExit(f"preset {label}: patches must be an array")
+        preset_patches.extend(patches)
+    resolved["parameters"] = parameters
+    combined = preset_patches + list(resolved.get("patches") or [])
+    resolved.pop("patches", None)
+    if combined:
+        resolved["patches"] = combined
+    return resolved
+
+
 def graph_prompts(graph: dict) -> tuple[str | None, str | None]:
     """Read the prompt pair a graph actually carries, following the sampler.
 
@@ -269,8 +355,12 @@ def graph_prompts(graph: dict) -> tuple[str | None, str | None]:
 
 
 def batch_payload(req: dict, git: dict, idempotency_key: str,
-                  prompts: tuple[str | None, str | None] = (None, None)) -> dict:
-    generation = req["generation"]
+                  prompts: tuple[str | None, str | None] = (None, None),
+                  *, generation: dict | None = None,
+                  pose_fingerprint: str | None = None) -> dict:
+    # A preset resolves recipe_pose after validation, so a Batch built from
+    # req's raw generation would misreport what actually rendered.
+    generation = req["generation"] if generation is None else generation
     payload = {
         "idempotency_key": idempotency_key,
         "raw_instruction": req["request"]["instruction"],
@@ -283,6 +373,10 @@ def batch_payload(req: dict, git: dict, idempotency_key: str,
         value = generation.get(key) or rendered
         if value:
             payload[key] = value
+    if generation.get("patches"):
+        payload["patches"] = generation["patches"]
+    if pose_fingerprint is not None:
+        payload["pose_fingerprint"] = pose_fingerprint
     if req.get("references"):
         payload["references"] = [
             {**{key: value for key, value in reference.items()
@@ -386,31 +480,50 @@ def generate(request_path: Path, services: GenerateServices, *,
     req = json.loads(request_path.read_text(encoding="utf-8"))
     validate_request(req)
     generation = request_generation(req)
+    if generation.get("presets") and services.presets is None:
+        raise SystemExit(
+            "generation.presets pins a preset but this worker has no preset "
+            "source wired")
+    if services.presets is not None:
+        generation = apply_presets(generation, services.presets)
     if generation.get("prompt") and generation.get("negative_prompt"):
         hits = services.conflicts(
             generation["prompt"], generation["negative_prompt"])
+        waiver = generation.get("lint_waiver")
         if hits and not force:
             for positive, negative, why in hits:
                 services.emit(
                     f"positive asks ({positive}) while negative bans "
                     f"({negative})  [{why}]"
                 )
-            raise SystemExit(
-                "prompt contradicts its negative -- fix one side, or --force "
-                "if the pair is deliberate"
-            )
+            if waiver:
+                services.emit(f"  lint waived: {waiver}")
+            else:
+                raise SystemExit(
+                    "prompt contradicts its negative -- fix one side, or "
+                    "--force if the pair is deliberate"
+                )
     if generation.get("patches"):
         try:
             services.graph_builder(generation, 0, "chimera-probe")
         except ValueError as error:
             raise SystemExit(f"patch compile failed: {error}")
     git = services.git_metadata()
+    fingerprint = None
+    if services.pose_fingerprint is not None and not generation.get("graph"):
+        pose = generation.get("parameters", {}).get("pose")
+        if pose:
+            try:
+                fingerprint = services.pose_fingerprint(generation["recipe"], pose)
+            except Exception as error:
+                services.emit(f"  ! pose fingerprint failed: {error}")
     if dry_run:
         seeds = _seeds(req)
         graph = services.graph_builder(generation, seeds[0], "chimera-dryrun-0")
         services.emit("batch payload:")
         services.emit(json.dumps(
-            batch_payload(req, git, "<uuid4>", graph_prompts(graph)),
+            batch_payload(req, git, "<uuid4>", graph_prompts(graph),
+                          generation=generation, pose_fingerprint=fingerprint),
             indent=2, ensure_ascii=False))
         services.emit(f"seeds: {seeds}")
         # A hires graph has suffixed node ids (6b, 7b); a plain int key dies.
@@ -435,7 +548,8 @@ def generate(request_path: Path, services: GenerateServices, *,
         "POST", "/api/v1/batches",
         batch_payload(req, git, state["idempotency_key"],
                       graph_prompts(services.graph_builder(
-                          generation, 0, "chimera-probe"))),
+                          generation, 0, "chimera-probe")),
+                      generation=generation, pose_fingerprint=fingerprint),
     )
     state["batch_id"] = batch["id"]
     _adopt_resend_jobs(state, batch.get("jobs"), key_prefix)

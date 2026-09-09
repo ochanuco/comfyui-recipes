@@ -14,6 +14,7 @@ from comfyui_recipes.application.generate import (
     GenerateServices,
     _image_output_path,
     _output_directory,
+    apply_presets,
     batch_payload,
     generate,
     request_generation,
@@ -131,6 +132,17 @@ class GenerateApplicationTest(unittest.TestCase):
             with self.subTest(request=request), self.assertRaises(SystemExit):
                 validate_request(request)
 
+    def test_validate_request_accepts_a_pose_pinned_only_by_a_preset(self):
+        validate_request(base_request(
+            parameters={},
+            presets=[{"kind": "pose", "name": "date", "version": 1}]))
+
+    def test_validate_request_still_requires_a_pose_without_a_pose_preset(self):
+        with self.assertRaises(SystemExit):
+            validate_request(base_request(
+                parameters={},
+                presets=[{"kind": "costume", "name": "outing", "version": 1}]))
+
     def test_validate_request_rejects_unknown_parameters(self):
         request = base_request()
         request["generation"]["parameters"]["expression"] = "smile"
@@ -170,6 +182,56 @@ class GenerateApplicationTest(unittest.TestCase):
             {"target": "render.cfg", "op": "set", "value": 4.5,
              "reason": "test"}])
         validate_request(request)
+
+    def test_validate_request_accepts_well_formed_presets(self):
+        request = base_request(presets=[
+            {"kind": "pose", "name": "lounge", "version": 1}])
+        validate_request(request)
+
+    def test_validate_request_accepts_presets_with_patches(self):
+        request = base_request(
+            presets=[{"kind": "pose", "name": "lounge", "version": 1}],
+            patches=[{"target": "render.cfg", "op": "set", "value": 4.5,
+                     "reason": "test"}])
+        validate_request(request)
+
+    def test_validate_request_rejects_malformed_presets_entry(self):
+        invalid = [
+            [{"kind": "pose", "name": "lounge"}],
+            [{"kind": "pose", "name": "lounge", "version": 0}],
+            [{"kind": "pose", "name": "lounge", "version": 1, "extra": "x"}],
+            [{"kind": "", "name": "lounge", "version": 1}],
+            [{"kind": "pose", "name": "", "version": 1}],
+            [{"kind": "pose", "name": "lounge", "version": True}],
+            [{"kind": "pose", "name": "lounge", "version": "1"}],
+            "not-a-list",
+        ]
+        for presets in invalid:
+            with self.subTest(presets=presets), self.assertRaises(SystemExit):
+                validate_request(base_request(presets=presets))
+
+    def test_validate_request_rejects_presets_with_graph(self):
+        request = base_request(
+            graph={"a": {"class_type": "KSampler", "inputs": {}}},
+            presets=[{"kind": "pose", "name": "lounge", "version": 1}])
+        with self.assertRaises(SystemExit):
+            validate_request(request)
+
+    def test_validate_request_rejects_presets_with_prompt_override(self):
+        request = base_request(
+            prompt="override",
+            presets=[{"kind": "pose", "name": "lounge", "version": 1}])
+        with self.assertRaises(SystemExit):
+            validate_request(request)
+
+    def test_validate_request_rejects_empty_lint_waiver(self):
+        with self.assertRaises(SystemExit):
+            validate_request(base_request(lint_waiver=""))
+        with self.assertRaises(SystemExit):
+            validate_request(base_request(lint_waiver=123))
+
+    def test_validate_request_accepts_lint_waiver(self):
+        validate_request(base_request(lint_waiver="deliberate for this arm"))
 
     def test_validate_request_accepts_experiment_block(self):
         request = base_request()
@@ -299,6 +361,74 @@ class GenerateApplicationTest(unittest.TestCase):
                  "reason": "test"}]}}
         payload = batch_payload(request, {"commit": "c", "dirty": False}, "key")
         self.assertEqual(payload["experiment"], request["experiment"])
+
+    def test_batch_payload_carries_patches_and_pose_fingerprint(self):
+        request = base_request()
+        resolved = dict(request["generation"])
+        resolved["patches"] = [{"target": "render.cfg", "op": "set",
+                                "value": 4.5, "reason": "test"}]
+        resolved["parameters"] = {**resolved["parameters"], "pose": "resolved-pose"}
+        payload = batch_payload(
+            request, {"commit": "c", "dirty": False}, "key",
+            generation=resolved, pose_fingerprint="sha256:abc")
+        self.assertEqual(payload["patches"], resolved["patches"])
+        self.assertEqual(payload["pose_fingerprint"], "sha256:abc")
+        self.assertEqual(payload["parameters"]["pose"], "resolved-pose")
+
+    def test_batch_payload_omits_patches_and_fingerprint_when_absent(self):
+        request = base_request()
+        payload = batch_payload(request, {"commit": "c", "dirty": False}, "key")
+        self.assertNotIn("patches", payload)
+        self.assertNotIn("pose_fingerprint", payload)
+
+    def test_apply_presets_leaves_generation_without_presets_untouched(self):
+        generation = {"recipe": "yukari", "parameters": {"pose": "lounge"}}
+        frozen = json.loads(json.dumps(generation))
+        result = apply_presets(generation, lambda *_: {})
+        self.assertEqual(result, generation)
+        self.assertEqual(generation, frozen)
+
+    def test_apply_presets_sets_pose_and_orders_patches_before_own(self):
+        generation = {
+            "recipe": "yukari",
+            "parameters": {"pose": "placeholder"},
+            "patches": [{"target": "render.cfg", "op": "set", "value": 4.5,
+                        "reason": "own"}],
+            "presets": [{"kind": "pose", "name": "lounge", "version": 3}],
+        }
+        frozen = json.loads(json.dumps(generation))
+
+        def fetch(recipe, kind, name, version):
+            self.assertEqual((recipe, kind, name, version), ("yukari", "pose", "lounge", 3))
+            return {
+                "record": {"recipe_pose": "lounge-v3"},
+                "patches": [{"target": "render.steps", "op": "set", "value": 20,
+                            "reason": "preset"}],
+            }
+
+        result = apply_presets(generation, fetch)
+        self.assertEqual(result["parameters"]["pose"], "lounge-v3")
+        self.assertEqual(
+            result["patches"],
+            [{"target": "render.steps", "op": "set", "value": 20, "reason": "preset"},
+             {"target": "render.cfg", "op": "set", "value": 4.5, "reason": "own"}])
+        self.assertEqual(generation, frozen)
+
+    def test_apply_presets_raises_on_unsupported_kind(self):
+        generation = {
+            "recipe": "yukari", "parameters": {},
+            "presets": [{"kind": "costume", "name": "school", "version": 1}],
+        }
+        with self.assertRaises(SystemExit):
+            apply_presets(generation, lambda *_: {"record": {}})
+
+    def test_apply_presets_raises_on_missing_recipe_pose(self):
+        generation = {
+            "recipe": "yukari", "parameters": {},
+            "presets": [{"kind": "pose", "name": "lounge", "version": 1}],
+        }
+        with self.assertRaises(SystemExit):
+            apply_presets(generation, lambda *_: {"record": {}})
 
     def test_output_paths_must_remain_inside_configured_directories(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -671,6 +801,58 @@ class GenerateApplicationTest(unittest.TestCase):
                 generate(path, services)
             self.assertFalse(
                 any(call[1] == "/api/v1/batches" for call in management.calls))
+
+    def test_generate_preset_probe_stops_before_batch_creation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            request = base_request(
+                presets=[{"kind": "pose", "name": "lounge", "version": 1}])
+            path.write_text(json.dumps(request), encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            state = StateFake(
+                {"idempotency_key": "fixed-key", "seeds": [42], "jobs": []})
+
+            def failing_builder(generation, seed, prefix):
+                raise ValueError("needle absent")
+
+            def fetch_preset(recipe, kind, name, version):
+                return {"record": {"recipe_pose": "lounge-v1"},
+                        "patches": [{"target": "render.cfg", "op": "set",
+                                    "value": 4.5, "reason": "preset"}]}
+
+            services = GenerateServices(
+                management, comfy, state, NullNotifier(), failing_builder,
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None,
+                presets=fetch_preset)
+            with self.assertRaises(SystemExit):
+                generate(path, services)
+            self.assertFalse(
+                any(call[1] == "/api/v1/batches" for call in management.calls))
+
+    def test_generate_lint_waiver_suppresses_conflict_raise(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            request = base_request(
+                prompt="solid legwear", negative_prompt="sheer legwear",
+                lint_waiver="deliberate for this arm")
+            path.write_text(json.dumps(request), encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            state = StateFake(
+                {"idempotency_key": "fixed-key", "seeds": [42], "jobs": []})
+            emits = []
+            services = GenerateServices(
+                management, comfy, state, NullNotifier(),
+                lambda generation, seed, prefix: {
+                    "6": {"inputs": {"text": "x"}}, "7": {"inputs": {"text": "y"}}},
+                lambda: {"commit": "commit", "dirty": False},
+                lambda positive, negative: [("solid", "sheer", "color")],
+                Path(directory), emits.append)
+            generate(path, services)
+            self.assertTrue(
+                any("deliberate for this arm" in message for message in emits))
 
     def test_generate_returns_batch_id_and_generation_ids(self):
         with tempfile.TemporaryDirectory() as directory:

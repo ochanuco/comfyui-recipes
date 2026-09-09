@@ -13,6 +13,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
+from pathlib import Path
 
 _STARTUP_TIMEOUT = 600.0
 
@@ -27,6 +28,16 @@ def _enabled() -> bool:
 
 def _worker_id() -> str | None:
     return os.environ.get("COMFYUI_RECIPES_WORKER_ID") or None
+
+
+def _repository() -> Path:
+    """The checkout this pack is junctioned out of.
+
+    ComfyUI runs from its own directory, so asking git about the working
+    directory finds nothing; the pack's own path is what knows the checkout.
+    """
+    override = os.environ.get("COMFYUI_RECIPES_REPOSITORY")
+    return Path(override) if override else Path(__file__).resolve().parents[2]
 
 
 def _await_server(base_url: str, deadline: float, sleep: Callable[[float], None],
@@ -55,15 +66,41 @@ def _server_ready() -> bool:
                          time.sleep, time.monotonic)
 
 
+def _log(repository: Path) -> Callable[[str], None]:
+    """Append to a file as well as ComfyUI's console.
+
+    Standing inside ComfyUI, the loop has no console of its own to be read
+    later; the standalone worker had watch.log and this replaces it.
+    """
+    path = repository / ".local/_nogit/worker/comfy-worker.log"
+
+    def emit(message: str) -> None:
+        print(f"[yukari_worker] {message}")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            stamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(f"{stamp} {message}\n")
+        except OSError:
+            pass
+
+    return emit
+
+
 def _run_guarded(run: Callable[..., None], ready: Callable[[], bool],
                  worker_id: str | None) -> None:
     try:
         if not ready():
             print("[yukari_worker] ComfyUI never answered; not claiming")
             return
-        run(worker_id=worker_id)
+        repository = _repository()
+        run(repository, worker_id=worker_id, emit=_log(repository))
     except Exception as error:
         print(f"[yukari_worker] worker thread failed: {error!r}")
+        try:
+            _log(_repository())(f"worker thread failed: {error!r}")
+        except Exception:
+            pass
 
 
 def start(run: Callable[..., None] | None = None,

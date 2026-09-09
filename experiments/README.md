@@ -59,6 +59,16 @@ parameter). Code comments, by contrast, are current-state-only: they
 describe the prompt as it stands today, not its history. This directory is
 the history; the source files are the present tense.
 
+## chimera sync
+
+An A/B round with arms and a chimera Batch is recorded as a chimera
+Experiment/Run rather than a JSONL record here; a plain observation still
+appends to the JSONL as above. This directory stays the source of truth --
+chimera holds a derived, queryable index kept in sync by
+`scripts/observation_sync.py`. The chimera-side contract is
+`docs/domain-model.md` "Observation" and `docs/api.md` "Observation" in the
+chimera repository.
+
 ## Module-level records
 
 Not every history is a pose's history. `costumes.py`, `prompt_style.py`,

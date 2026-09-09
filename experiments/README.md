@@ -69,6 +69,14 @@ chimera holds a derived, queryable index kept in sync by
 `docs/domain-model.md` "Observation" and `docs/api.md` "Observation" in the
 chimera repository.
 
+`choza.jsonl` predates that split and holds arms rather than observations.
+Its 13 arms with a Batch are now chimera Experiment `7q1hnr`'s Runs, and its
+4 cross-render analyses are Observations under `repin` and `delivery`. The
+file stays as written -- the append-only policy applies to it as much as to
+any other, and the round's reasoning only reads in order. The sync skips it,
+so those 17 records reach chimera through the Experiment, not through
+`observation_sync.py`.
+
 ## Module-level records
 
 Not every history is a pose's history. `costumes.py`, `prompt_style.py`,

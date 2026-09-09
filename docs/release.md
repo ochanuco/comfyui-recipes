@@ -37,6 +37,28 @@ are joined by a promotion PR, the same shape as ochanuco/webull-trading.
 - `restart worker comfyui` is a manual `workflow_dispatch` that runs the same
   restart on the box, for changes made outside a deploy.
 
+## Draining before a deploy
+
+`deploy.ps1` asks the worker to stop before it moves the checkout: it writes
+`.local/_nogit/worker/drain` in the checkout and waits. The worker stops
+claiming, finishes the request it is running, and deletes the file on its way
+out, so the wait ends on the worker's own word rather than on a clock. Only
+then does the checkout move; the `taskkill` that follows is for a worker
+already gone or wedged. A drain that times out deletes the file itself -- one
+left behind would drain the next worker the moment it started.
+
+The bound is `-DrainSeconds`, 300 by default. What it has to cover is one
+request, not the queue: the worker claims nothing new once the file appears.
+A sketch seed takes about 45 seconds, a finalize about 90, a four-seed batch a
+few minutes. The ceiling above it is the deploy job's own `timeout-minutes:
+15`, which also has to hold `git fetch` and the `uv pip install`.
+
+Today a killed worker was not losing renders -- ComfyUI is a separate process
+that survives the deploy, and a re-claimed request rejoins the running job
+through the `comfy_prompt_id` in its state file. What it lost was the wait.
+Draining matters for its own sake once the worker runs inside ComfyUI, because
+then the restart takes the render with it.
+
 ## The box
 
 `scripts/worker/register-runner.ps1 -Token <registration token> -Version <x.y.z>`

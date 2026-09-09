@@ -47,6 +47,8 @@ from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
 from ..infrastructure.repository import discover_repository, git_metadata
 
+DRAIN_FILE = ".local/_nogit/worker/drain"
+
 # `generation.recipe` -> (RenderSpec builder, ComfyUI graph builder).
 RECIPES = {
     "yukari": (yukari_render_spec, yukari_build_graph),
@@ -425,6 +427,10 @@ def main(argv: list[str] | None = None) -> None:
 
             def progress_factory() -> ProgressFeed:
                 return ProgressFeed(comfyui.base_url).open()
+        # deploy writes this file to ask for a drain and waits for it to go;
+        # the worker removes it as its last act, so the wait ends on the
+        # worker's own acknowledgement rather than on a clock.
+        drain_file = repository / DRAIN_FILE
         work_services = WorkServices(
             management=chimera,
             generate_services=generate_services,
@@ -439,6 +445,8 @@ def main(argv: list[str] | None = None) -> None:
             kinds=tuple(kind.strip() for kind in args.kinds.split(",") if kind.strip()),
             hub=hub_factory,
             progress_feed=progress_factory,
+            draining=drain_file.exists,
+            drained=lambda: drain_file.unlink(missing_ok=True),
         )
         work(work_services, interval=args.interval, once=args.once,
              dry_run=args.dry_run, publish_catalog=not args.no_catalog)

@@ -51,13 +51,15 @@ if ($ComfyRoot) {
     # installed: numpy, PIL, cv2 and scipy already come with the box, and
     # reinstalling them is how a working ComfyUI gets broken.
     $embedded = Join-Path (Split-Path $ComfyRoot -Parent) "python_embeded\python.exe"
-    & $embedded -m pip install --quiet "websockets>=12"
+    $pip = & $embedded -m pip install "websockets>=12"
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    $pipInstalled = [bool]($pip -match "^Successfully installed")
+    "embedded python: $(if ($pipInstalled) { 'installed' } else { 'ok' })"
     # ComfyUI imports both the node packs and the claim loop once, at startup,
-    # so any change to the code it loads needs it back. Docs, tests and the
-    # deploy scripts themselves do not.
+    # so any change to the code it loads needs it back, as does a package that
+    # was not in its interpreter before. Docs and tests do not.
     git diff --quiet $oldHead HEAD -- comfy_nodes src
-    if ($LASTEXITCODE -ne 0 -or ($sync -match "^changed: True")) {
+    if ($LASTEXITCODE -ne 0 -or $pipInstalled -or ($sync -match "^changed: True")) {
         & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\restart-comfyui.ps1
     }
 }

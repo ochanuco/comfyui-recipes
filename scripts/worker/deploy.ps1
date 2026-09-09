@@ -46,13 +46,16 @@ if ($ComfyRoot) {
         -Checkout $Checkout -ComfyRoot $ComfyRoot
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
     $sync
-    # ComfyUI reads custom_nodes once, at startup: restart only when the deploy
-    # changed a node pack or the imaging it wraps.
-    git diff --quiet $oldHead HEAD -- comfy_nodes src/comfyui_recipes/infrastructure/imaging src/comfyui_recipes/domain/yukari/delivery_style.py
+    # ComfyUI imports both the node packs and the claim loop once, at startup,
+    # so any change to the code it loads needs it back. Docs, tests and the
+    # deploy scripts themselves do not.
+    git diff --quiet $oldHead HEAD -- comfy_nodes src
     if ($LASTEXITCODE -ne 0 -or ($sync -match "^changed: True")) {
         & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\restart-comfyui.ps1
     }
 }
 
-& powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\register-watch.ps1
-if ($LASTEXITCODE) { exit $LASTEXITCODE }
+# Nothing to start: the claim loop lives in the ComfyUI process the restart
+# above brought back. register-watch.ps1 stays for running it standalone.
+Get-ScheduledTask -TaskName "comfyui" -ErrorAction SilentlyContinue |
+    Select-Object TaskName, State

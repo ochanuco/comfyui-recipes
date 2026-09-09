@@ -15,16 +15,21 @@ from pathlib import Path
 from comfyui_recipes.infrastructure.chimera.client import ChimeraClient
 from comfyui_recipes.infrastructure.repository import discover_repository
 
-# Five records carry neither pose nor component but should be indexed: the
-# A/B-round records shaped {date, model, axis, arms, ...}. Line 48 is not
-# "delivery_style" -- its axis is a prompt-BODY-block round, and that file's
-# own records carry four different component values of their own.
-COMPONENT_OVERRIDES: dict[tuple[str, int], str] = {
-    ("experiments/yukari/prompt_style.jsonl", 33): "prompt_style",
-    ("experiments/yukari/prompt_style.jsonl", 34): "prompt_style",
-    ("experiments/yukari/prompt_style.jsonl", 35): "prompt_style",
-    ("experiments/yukari/prompt_style.jsonl", 36): "prompt_style",
-    ("experiments/yukari/delivery_style.jsonl", 48): "prompt_style",
+# Five records carry neither the character nor the component they belong to:
+# the A/B-round records shaped {date, model, axis, arms, ...}. Neither field
+# is derived from the path -- delivery_style.jsonl alone carries four
+# components of its own, and line 48 is a prompt-BODY-block round.
+ENVELOPE: dict[tuple[str, int], dict[str, str]] = {
+    ("experiments/yukari/prompt_style.jsonl", 33):
+        {"character": "yukari", "component": "prompt_style"},
+    ("experiments/yukari/prompt_style.jsonl", 34):
+        {"character": "yukari", "component": "prompt_style"},
+    ("experiments/yukari/prompt_style.jsonl", 35):
+        {"character": "yukari", "component": "prompt_style"},
+    ("experiments/yukari/prompt_style.jsonl", 36):
+        {"character": "yukari", "component": "prompt_style"},
+    ("experiments/yukari/delivery_style.jsonl", 48):
+        {"character": "yukari", "component": "prompt_style"},
 }
 
 
@@ -45,17 +50,16 @@ def build_files(root: Path) -> list[dict]:
             except json.JSONDecodeError as error:
                 raise SystemExit(f"{rel}:{line_no}: invalid JSON: {error}")
             entry: dict = {"line": line_no, "record": record}
-            if "pose" not in record and "component" not in record:
-                override = COMPONENT_OVERRIDES.get((rel, line_no))
-                if override is not None:
-                    entry["component"] = override
+            for key, value in ENVELOPE.get((rel, line_no), {}).items():
+                if key not in record:
+                    entry[key] = value
             records.append(entry)
         files.append({"path": rel, "records": records})
     return files
 
 
 def unlabelled(files: list[dict]) -> list[tuple[str, int]]:
-    """(path, line) for records carrying no pose, component or override."""
+    """(path, line) for records carrying no pose, component or envelope."""
     result = []
     for file in files:
         for entry in file["records"]:

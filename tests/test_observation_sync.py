@@ -57,6 +57,7 @@ class ObservationSyncTest(unittest.TestCase):
                 if "component" in entry:
                     added_components.add((file["path"], entry["line"]))
                     self.assertEqual(entry["component"], "prompt_style")
+                    self.assertEqual(entry["character"], "yukari")
 
         self.assertEqual(added_components, overridden)
 
@@ -65,6 +66,7 @@ class ObservationSyncTest(unittest.TestCase):
                 [entry["line"] for entry in by_path[path]["records"]].index(line)]
             self.assertNotIn("pose", record["record"])
             self.assertNotIn("component", record["record"])
+            self.assertNotIn("character", record["record"])
 
     def test_unlabelled_matches_an_independent_corpus_scan(self):
         files = observation_sync.build_files(REPO_ROOT)
@@ -80,7 +82,7 @@ class ObservationSyncTest(unittest.TestCase):
                 record = json.loads(raw)
                 if "pose" in record or "component" in record:
                     continue
-                if (rel, line_no) in observation_sync.COMPONENT_OVERRIDES:
+                if (rel, line_no) in observation_sync.ENVELOPE:
                     continue
                 expected.append((rel, line_no))
         self.assertEqual(missing, expected)

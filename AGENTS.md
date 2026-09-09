@@ -103,6 +103,8 @@ is registered in this session as `chimera` and answers without touching the
 repo:
 
 ```text
+list_generations                      find a starting ID: tag=publish is every delivered
+                                      look, each carrying its look:<pose> tag
 list_catalog                          every recipe's pose / costume names + patch vocabulary  (~2k)
 get_catalog_pose recipe pose          one pose: canvas, default costume, assembled prompts    (~1k)
 get_generation <short_id>             rating, semantic, batch prompt + parameters, seed
@@ -157,9 +159,13 @@ worker executes; that is the only execution path. POSTing to ComfyUI `/prompt`
 directly is forbidden. A probe whose graph the recipe cannot build goes in a
 `create_request` payload as `generation.graph`.
 
-One round is three MCP calls and a human in between:
+A round starts from a delivered look and is three MCP calls with a human in
+between:
 
 ```text
+list_generations      the base: `tag=publish` lists every delivered look with
+                      its `look:<pose>` tag. This is where a starting ID comes
+                      from -- never from a session's memory.
 derive_request        from a rated generation: same recipe, parameters and
                       patches, plus your diff (parameters override, patches
                       appended or replaced). A finalized pick resolves to the
@@ -213,6 +219,9 @@ tracked file.
   の `semantic.summary` は必須で、ingest 直後に各 generation へ自動 PUT
   される。作業途中の評価はユーザーが chimera の semantics を見て行う。
   semantics/tag は AI が書いてよい（rating だけが人間専用）。
+- 納品した generation には `publish` と `look:<pose>` を付ける。次のセッションが
+  起点 ID を引く索引はこの二つのタグだけで、prose とメモリは索引にならない。
+  `look:` の値はレシピの pose 名（焼き込み前なら焼き込む予定の名前）。
 - 事後の追記・上書きは `comfy-recipes metadata semantic <generation_id>
   <file.json>`、tag は `comfy-recipes metadata tag <generation_id> <name>`。
   API は `PUT /api/v1/generations/{id}/semantic`（schema_version:1、部分

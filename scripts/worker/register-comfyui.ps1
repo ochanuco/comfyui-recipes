@@ -1,6 +1,9 @@
 # Register the portable ComfyUI as a per-user logon task on the GPU worker.
 #   register-comfyui.ps1 -PortableRoot C:\path\to\ComfyUI_windows_portable
 param([Parameter(Mandatory = $true)][string]$PortableRoot)
+# The claim loop runs inside this process (comfy_nodes/yukari_worker), and a
+# scheduled task inherits the user environment rather than a shell's.
+[Environment]::SetEnvironmentVariable("COMFYUI_RECIPES_WORKER", "1", "User")
 $bat = Join-Path $PortableRoot "run_nvidia_gpu.bat"
 if (-not (Test-Path $bat)) { throw "not found: $bat" }
 $action = New-ScheduledTaskAction -Execute "cmd.exe" `

@@ -357,10 +357,15 @@ def graph_prompts(graph: dict) -> tuple[str | None, str | None]:
 def batch_payload(req: dict, git: dict, idempotency_key: str,
                   prompts: tuple[str | None, str | None] = (None, None),
                   *, generation: dict | None = None,
+                  patches: list | None = None,
                   pose_fingerprint: str | None = None) -> dict:
     # A preset resolves recipe_pose after validation, so a Batch built from
     # req's raw generation would misreport what actually rendered.
     generation = req["generation"] if generation is None else generation
+    # Only what this request itself contributed: the pinned preset's own
+    # patches are recorded as the pin, and counting them here would apply
+    # them twice on anything promoted or derived from this Batch.
+    patches = generation.get("patches") if patches is None else patches
     payload = {
         "idempotency_key": idempotency_key,
         "raw_instruction": req["request"]["instruction"],
@@ -373,8 +378,8 @@ def batch_payload(req: dict, git: dict, idempotency_key: str,
         value = generation.get(key) or rendered
         if value:
             payload[key] = value
-    if generation.get("patches"):
-        payload["patches"] = generation["patches"]
+    if patches:
+        payload["patches"] = patches
     if pose_fingerprint is not None:
         payload["pose_fingerprint"] = pose_fingerprint
     if req.get("references"):
@@ -484,6 +489,7 @@ def generate(request_path: Path, services: GenerateServices, *,
         raise SystemExit(
             "generation.presets pins a preset but this worker has no preset "
             "source wired")
+    request_patches = list(generation.get("patches") or [])
     if services.presets is not None:
         generation = apply_presets(generation, services.presets)
     if generation.get("prompt") and generation.get("negative_prompt"):
@@ -523,7 +529,8 @@ def generate(request_path: Path, services: GenerateServices, *,
         services.emit("batch payload:")
         services.emit(json.dumps(
             batch_payload(req, git, "<uuid4>", graph_prompts(graph),
-                          generation=generation, pose_fingerprint=fingerprint),
+                          generation=generation, patches=request_patches,
+                          pose_fingerprint=fingerprint),
             indent=2, ensure_ascii=False))
         services.emit(f"seeds: {seeds}")
         # A hires graph has suffixed node ids (6b, 7b); a plain int key dies.
@@ -549,7 +556,8 @@ def generate(request_path: Path, services: GenerateServices, *,
         batch_payload(req, git, state["idempotency_key"],
                       graph_prompts(services.graph_builder(
                           generation, 0, "chimera-probe")),
-                      generation=generation, pose_fingerprint=fingerprint),
+                      generation=generation, patches=request_patches,
+                      pose_fingerprint=fingerprint),
     )
     state["batch_id"] = batch["id"]
     _adopt_resend_jobs(state, batch.get("jobs"), key_prefix)

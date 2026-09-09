@@ -375,6 +375,28 @@ class GenerateApplicationTest(unittest.TestCase):
         self.assertEqual(payload["pose_fingerprint"], "sha256:abc")
         self.assertEqual(payload["parameters"]["pose"], "resolved-pose")
 
+    def test_batch_payload_records_only_the_requests_own_patches(self):
+        request = base_request()
+        own = [{"target": "render.cfg", "op": "set", "value": 4.5,
+                "reason": "the alpha"}]
+        resolved = dict(request["generation"])
+        resolved["patches"] = [{"target": "render.steps", "op": "set",
+                                "value": 30, "reason": "from the preset"}] + own
+        payload = batch_payload(
+            request, {"commit": "c", "dirty": False}, "key",
+            generation=resolved, patches=own)
+        self.assertEqual(payload["patches"], own)
+
+    def test_batch_payload_omits_patches_when_the_request_added_none(self):
+        request = base_request()
+        resolved = dict(request["generation"])
+        resolved["patches"] = [{"target": "render.steps", "op": "set",
+                                "value": 30, "reason": "from the preset"}]
+        payload = batch_payload(
+            request, {"commit": "c", "dirty": False}, "key",
+            generation=resolved, patches=[])
+        self.assertNotIn("patches", payload)
+
     def test_batch_payload_omits_patches_and_fingerprint_when_absent(self):
         request = base_request()
         payload = batch_payload(request, {"commit": "c", "dirty": False}, "key")

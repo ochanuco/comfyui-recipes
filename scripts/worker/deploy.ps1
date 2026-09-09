@@ -46,6 +46,13 @@ if ($ComfyRoot) {
         -Checkout $Checkout -ComfyRoot $ComfyRoot
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
     $sync
+    # The claim loop runs in ComfyUI's Python now, not the checkout's venv, so
+    # what it imports beyond ComfyUI's own set has to be there. Only the gap is
+    # installed: numpy, PIL, cv2 and scipy already come with the box, and
+    # reinstalling them is how a working ComfyUI gets broken.
+    $embedded = Join-Path (Split-Path $ComfyRoot -Parent) "python_embeded\python.exe"
+    & $embedded -m pip install --quiet "websockets>=12"
+    if ($LASTEXITCODE) { exit $LASTEXITCODE }
     # ComfyUI imports both the node packs and the claim loop once, at startup,
     # so any change to the code it loads needs it back. Docs, tests and the
     # deploy scripts themselves do not.

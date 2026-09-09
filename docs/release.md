@@ -63,6 +63,12 @@ then the restart takes the render with it.
 
 ## Where the worker runs
 
+The claim loop runs in ComfyUI's embedded Python, not the checkout's
+`.venv`, so what it imports has to be installed there. The deploy adds only
+the gap -- `websockets` -- because numpy, Pillow, OpenCV and SciPy already
+come with the box and reinstalling them into a working ComfyUI is how it
+stops working.
+
 The claim loop is a thread inside ComfyUI's own process, started by
 `comfy_nodes/yukari_worker/` when `COMFYUI_RECIPES_WORKER` is set. The
 variable is a user environment variable on the box, written by

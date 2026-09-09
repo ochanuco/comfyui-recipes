@@ -23,6 +23,7 @@ class ChimeraClient:
             "CHIMERA_BASE_URL", "https://chimera.chanu.co")).rstrip("/")
         self.token_cache = repository / ".local/chimera-token"
         self._credentials: dict[str, str] | None = None
+        self._preset_cache: dict[tuple[str, str, str, int], dict] = {}
 
     def credentials(self) -> dict[str, str]:
         if self._credentials is not None:
@@ -143,6 +144,17 @@ class ChimeraClient:
     def list_assets(self, generation_id: str) -> list[dict]:
         return self.request(
             "GET", f"/api/v1/generations/{generation_id}/assets").get("assets", [])
+
+    def get_preset(self, recipe: str, kind: str, name: str, version: int) -> dict:
+        # Preset versions are immutable, so the cache never needs invalidating.
+        key = (recipe, kind, name, version)
+        if key not in self._preset_cache:
+            segments = "/".join(
+                urllib.parse.quote(str(part), safe="")
+                for part in (recipe, kind, name, version))
+            self._preset_cache[key] = self.request(
+                "GET", f"/api/v1/presets/{segments}")
+        return self._preset_cache[key]
 
     def resolve_character(self, name: str) -> str:
         listing = self.request("GET", "/api/v1/characters")

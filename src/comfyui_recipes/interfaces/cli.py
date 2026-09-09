@@ -18,6 +18,7 @@ from ..application.masked_redraw import MaskedRedrawServices, masked_redraw
 from ..application.repair import RepairServices, repair
 from ..application.watch import WatchServices, watch
 from ..application.work import WorkServices, work
+from ..domain.generation.fingerprint import prompt_fingerprint
 from ..domain.generation.prompt_lint import conflicts
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
@@ -61,6 +62,16 @@ def _build_generation_graph(generation: dict, seed: int, prefix: str) -> dict:
     return request_graph(generation, seed, prefix, spec_builder, encode)
 
 
+def _pose_fingerprint(recipe: str, pose: str) -> str | None:
+    if recipe not in RECIPES:
+        return None
+    spec_builder, _ = RECIPES[recipe]
+    # Fixed at the default costume: an override is a legitimate request-time
+    # choice, so folding it in would make it indistinguishable from drift.
+    spec = spec_builder(pose, 0, "fingerprint")
+    return prompt_fingerprint(recipe, pose, spec.prompts.positive, spec.prompts.negative)
+
+
 def _generate_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
                        repository: Path, repository_metadata) -> GenerateServices:
     return GenerateServices(
@@ -73,6 +84,8 @@ def _generate_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
         conflicts=conflicts,
         output_root=repository / ".local/_nogit/chimera",
         measure=summarize,
+        presets=chimera.get_preset,
+        pose_fingerprint=_pose_fingerprint,
     )
 
 

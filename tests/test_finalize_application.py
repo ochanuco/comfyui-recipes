@@ -1069,6 +1069,24 @@ class FinalizeLayerDiffuseTest(unittest.TestCase):
             self.assertIs(kwargs["deliver"], False)
             self.assertIsNone(kwargs["matte_model"])
 
+    def test_layerdiffuse_backdrop_wins_over_an_explicit_transparent_true(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services, backdrop="#112233", transparent=True)
+            kwargs = calls[-1]
+            self.assertIs(kwargs["transparent"], False)
+            self.assertIs(kwargs["deliver"], False)
+            self.assertIsNone(kwargs["matte_model"])
+            self.assertEqual(kwargs["backdrop"], "#112233")
+
     def test_layerdiffuse_transparent_records_a_matte_asset_and_two_generations(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(

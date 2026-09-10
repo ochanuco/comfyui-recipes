@@ -281,6 +281,23 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 
+# Below this alpha, the band-less compose drops a pixel outright: a
+# layerdiffuse raw's own low-alpha haze skirt reads near-white for tens of
+# pixels past the figure, and composited at its raw alpha/255 it bakes in as
+# a pale glow the redraw then treats as picture. Above HAZE_ALPHA_CEIL a
+# pixel keeps its own coverage unchanged; between the two it ramps linearly,
+# so a real antialiased edge is thinned rather than cut.
+HAZE_ALPHA_FLOOR = 32
+HAZE_ALPHA_CEIL = 64
+
+
+def _dehaze_coverage(alpha: np.ndarray) -> np.ndarray:
+    raw = alpha.astype(float) / 255.0
+    ramp = np.clip((alpha.astype(float) - HAZE_ALPHA_FLOOR)
+                   / (HAZE_ALPHA_CEIL - HAZE_ALPHA_FLOOR), 0.0, 1.0)
+    return raw * ramp
+
+
 def compose(data: bytes, backdrop: str | None = None,
            light: str | None = None, bands: bool = True) -> tuple[bytes, str]:
     """Composite an RGBA figure onto a flat backdrop, unrefined.
@@ -308,7 +325,8 @@ def compose(data: bytes, backdrop: str | None = None,
         white_w, purple_w = _band_widths(height, width)
         tag = f"compose-w{white_w:.0f}-p{purple_w:.0f}" + _backdrop_tag_suffix(backdrop)
     else:
-        composite = coverage[..., None] * px + (1.0 - coverage[..., None]) * backdrop_rgb
+        dehazed = _dehaze_coverage(alpha)
+        composite = dehazed[..., None] * px + (1.0 - dehazed[..., None]) * backdrop_rgb
         tag = "compose-flat" + _backdrop_tag_suffix(backdrop)
 
     output = io.BytesIO()

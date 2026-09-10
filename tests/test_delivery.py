@@ -416,6 +416,29 @@ class ComposeTest(unittest.TestCase):
         arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB"))
         np.testing.assert_array_equal(arr[16, 16], pixels[16, 16])
 
+    def test_compose_band_less_drops_the_haze_skirt_and_keeps_the_edge(self):
+        width, height = 60, 4
+        pixels = np.zeros((height, width, 3), dtype=np.uint8)
+        alpha = np.zeros((height, width), dtype=np.uint8)
+        figure_rgb = (20, 20, 20)
+        haze_rgb = (250, 245, 255)
+        pixels[:, :10] = figure_rgb
+        alpha[:, :10] = 255
+        # A 2px antialiased edge at this repo's own measured real-edge alpha.
+        pixels[:, 10:12] = figure_rgb
+        alpha[:, 10:12] = 55
+        # A 40px near-white skirt across this repo's own measured haze range.
+        pixels[:, 12:52] = haze_rgb
+        alpha[:, 12:52] = np.tile(
+            np.linspace(24, 6, 40).astype(np.uint8), (height, 1))
+        composed, _ = compose(rgba_png(pixels, alpha), bands=False)
+        arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB")).astype(int)
+        backdrop = np.array(parse_color(delivery_style.BACKDROP))
+
+        skirt = arr[:, 12:52]
+        np.testing.assert_array_equal(skirt, np.broadcast_to(backdrop, skirt.shape))
+        self.assertGreater(np.abs(arr[0, 10] - backdrop).max(), 20)
+
     def test_compose_band_less_honors_an_explicit_backdrop(self):
         pixels = np.full((32, 32, 3), (40, 40, 40), dtype=np.uint8)
         alpha = np.zeros((32, 32), dtype=np.uint8)

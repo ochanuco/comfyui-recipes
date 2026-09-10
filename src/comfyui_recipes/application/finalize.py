@@ -116,6 +116,11 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         # the bands straight onto the backdrop before the redraw and stops
         # there. Either way latent_route stays an explicit opt-in: the pixel
         # route is faithful to what the redraw actually draws.
+        if backdrop:
+            # transparent's own YukariDeliver ignores backdrop, so an
+            # explicit one always wins over a caller's own transparent=True
+            # -- otherwise the backdrop request silently does nothing.
+            transparent = False
         latent_route = (caller_latent_route if caller_latent_route is not None
                         else False)
     if roles.stitched:

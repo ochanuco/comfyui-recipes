@@ -985,6 +985,24 @@ class FinalizeLayerDiffuseTest(unittest.TestCase):
             parameters = batch_call(services)[2]["parameters"]
             self.assertNotIn("backdrop", parameters)
 
+    def test_batch_parameters_record_cut_on_the_transparent_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, chain_pass=lambda *a, **k: {},
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["cut"], "backdrop")
+
+    def test_batch_parameters_omit_cut_on_the_legacy_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, chain_pass=lambda *a, **k: {},
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services, backdrop="#112233")
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertNotIn("cut", parameters)
+
     def test_lora_strength_overrides_redraw_lora_strength(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []
@@ -1032,7 +1050,7 @@ class FinalizeLayerDiffuseTest(unittest.TestCase):
             self.assertIs(kwargs["compose"], True)
             self.assertIs(kwargs["transparent"], sketch_delivery_style.FINALIZE_TRANSPARENT)
             self.assertIs(kwargs["deliver"], sketch_delivery_style.FINALIZE_TRANSPARENT)
-            self.assertEqual(kwargs["matte_model"], delivery_style.MATTE_MODEL)
+            self.assertIsNone(kwargs["matte_model"])
 
     def test_layerdiffuse_keep_scene_selects_the_legacy_compose_path(self):
         with tempfile.TemporaryDirectory() as directory:

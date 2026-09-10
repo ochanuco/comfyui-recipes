@@ -50,9 +50,16 @@ def _corner_seed(pixels: np.ndarray) -> np.ndarray:
     return np.median(pixels[:8, :8].reshape(-1, 3), axis=0)
 
 
-def background_mask(pixels: np.ndarray, tolerance: int) -> np.ndarray:
-    """Every backdrop region that reaches the frame edge."""
-    seed = _corner_seed(pixels)
+def background_mask(pixels: np.ndarray, tolerance: int, *,
+                    seed: np.ndarray | None = None) -> np.ndarray:
+    """Every backdrop region that reaches the frame edge.
+
+    `seed` defaults to the corner patch's own median; `cut_backdrop` passes
+    the delivery's own nominal backdrop colour instead, since it is
+    tolerancing against a known constant, not discovering an unknown one.
+    """
+    if seed is None:
+        seed = _corner_seed(pixels)
     candidates = np.abs(pixels - seed).max(axis=2) <= tolerance
     structure = ndimage.generate_binary_structure(2, 1)
     labels, _ = ndimage.label(candidates, structure=structure)
@@ -63,14 +70,16 @@ def background_mask(pixels: np.ndarray, tolerance: int) -> np.ndarray:
 
 
 def enclosed_mask(pixels: np.ndarray, found: np.ndarray, tolerance: int, *,
-                  minimum_area: int = 16) -> np.ndarray:
+                  minimum_area: int = 16,
+                  seed: np.ndarray | None = None) -> np.ndarray:
     """Backdrop the figure encloses, as regions rather than as pixels.
 
     Interior linework holds pixels within the tolerance of the backdrop, so
     the colour test alone claims specks along every stroke. Only components
-    of at least `minimum_area` survive.
+    of at least `minimum_area` survive. `seed` is `background_mask`'s own.
     """
-    seed = _corner_seed(pixels)
+    if seed is None:
+        seed = _corner_seed(pixels)
     candidates = (np.abs(pixels - seed).max(axis=2) <= tolerance) & ~found
     labels, count = ndimage.label(
         candidates, ndimage.generate_binary_structure(2, 2))
@@ -468,3 +477,40 @@ def transparent(data: bytes, matte: bytes,
     Image.fromarray(rgba, "RGBA").save(output, "PNG")
     tag = f"transparent-w{white_w:.0f}-p{purple_w:.0f}" + _cut_tag_suffix()
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
+
+
+def cut_backdrop(data: bytes,
+                 backdrop: str | None = None) -> tuple[bytes, bytes, str]:
+    """Turn a redrawn picture's flat backdrop into transparency.
+
+    A compose-then-redraw bakes the white band and purple rim into the
+    picture before the redraw runs, so nothing downstream cuts a silhouette
+    from a matte model -- the backdrop itself is the only thing left to cut,
+    by colour, against `backdrops.render`'s own flat fill. The redraw
+    retints and textures that flat fill, so the tolerance is generous
+    (`delivery_style.CUT_BACKDROP_TOLERANCE`), not exact; a pattern backdrop
+    has no single colour to tolerance against. `background_mask` claims the
+    backdrop reaching the frame edge, `enclosed_mask` the backdrop the
+    figure encloses (an arm against the body); the kept edge is softened by
+    one pixel so the rim's outer boundary is not aliased.
+    """
+    if backdrop in backdrops.PATTERNS:
+        raise ValueError(
+            f"cut_backdrop needs a flat colour, got pattern {backdrop!r}")
+    px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
+    height, width = px.shape[:2]
+    seed = backdrops.render(backdrop, height, width)[0, 0]
+    tolerance = delivery_style.CUT_BACKDROP_TOLERANCE
+    cut = background_mask(px, tolerance, seed=seed)
+    cut |= enclosed_mask(px, cut, tolerance, seed=seed)
+    coverage = np.clip(
+        ndimage.gaussian_filter((~cut).astype(float), 0.6), 0.0, 1.0)
+
+    rgb = np.clip(px, 0, 255).astype(np.uint8)
+    alpha = np.clip(coverage * 255, 0, 255).astype(np.uint8)
+    rgba = np.dstack([rgb, alpha])
+    output = io.BytesIO()
+    Image.fromarray(rgba, "RGBA").save(output, "PNG")
+    matte_output = io.BytesIO()
+    Image.fromarray(alpha, "L").save(matte_output, "PNG")
+    return output.getvalue(), matte_output.getvalue(), f"cutbg-t{tolerance}"

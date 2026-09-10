@@ -11398,3 +11398,34 @@ delivery band, not just that one render.
   the simplified outline can cut inside the band it is supposed to outline.
 - `delivery_fingerprint` moved: `costume_check.delivery_fingerprint()`'s
   canonical payload gained `stroke_cut_eps_pct`, schema 3 -> 4.
+
+## The redrawn rim replaces the birefnet matte on the transparent finalize (2026-09-10)
+
+`3d1prb`'s rim -- drawn on the compose before the redraw, so the redraw
+paints it into the picture (`redrawn-d055-3d1prb.png`) -- was the approved
+delivery look; the only thing it lacked against the sketch recipe's own
+default was transparency outside the rim. The transparent layerdiffuse
+finalize (`FINALIZE_TRANSPARENT`, no `backdrop`/`keep_scene`/explicit
+`transparent: false`) now composes with the bands on every time, not just
+the legacy path, and cuts the backdrop out after the redraw instead of
+running birefnet on it:
+
+- `YukariCompose(bands=True)` runs on both the transparent and the legacy
+  path now -- there is no more band-less compose in `chain_pass`.
+- The birefnet `RemoveBackground` / `YukariDeliver(transparent=True)` tail
+  is gone from this path. `infrastructure/imaging/delivery.cut_backdrop`
+  turns the redrawn RGB into RGBA by colour-tolerancing every pixel against
+  `backdrops.render`'s own flat fill (`delivery_style.CUT_BACKDROP_TOLERANCE`,
+  measured against `redrawn-d055-3d1prb.png` -- see
+  `experiments/yukari/delivery_style.jsonl`), border-connected regions and
+  enclosed ones (an arm against the body) both, with the kept edge softened
+  by one pixel. A pattern backdrop (`stripes`) has no flat colour to
+  tolerance against and is rejected.
+- The new `YukariCutBackdrop` node wraps it, returning RGBA plus a MASK fed
+  through `MaskToImage` the same way `RemoveBackground`'s own mask was --
+  `finalize.py`'s three-output (`raw`/`-matte`/`-delivered`) classification,
+  uploads and matte-asset handling did not need to change shape.
+- `chain_pass(compose=True, matte_model=...)` now always raises: there is no
+  birefnet matte on the compose path any more, transparent or not.
+  `compose=True, deliver=True` without `transparent=True` raises too -- the
+  cut tail is the only tail a compose delivers through.

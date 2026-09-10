@@ -162,6 +162,14 @@ ACCENT_VALUE_RAMP = (FIGURE_MIDTONE_V, 40.0)  # start, width
 # the matte and does not care what the backdrop does.
 BACKDROP_SPREAD_MAX = 25.0
 
+# The redraw retints and textures the flat backdrop a compose laid the bands
+# on, so cut_backdrop's colour test cannot be exact. Measured on
+# redrawn-d055-3d1prb.png (a hand-cut-band compose redrawn at 0.55): every
+# corner-connected backdrop pixel sits within 33 of BACKDROP on the worst
+# channel (p99.9), and the nearest other delivery colour (the white band) is
+# 56 away -- this stays comfortably under that with margin to spare.
+CUT_BACKDROP_TOLERANCE = 40
+
 # The worker-side model that cuts the figure out. The silhouette has to come
 # from something other than colour, because repin moves the figure's colours
 # into the backdrop's tolerance before the delivery ever sees them.

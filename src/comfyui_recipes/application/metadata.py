@@ -14,6 +14,10 @@ def add_tag(client, generation_id: str, name: str) -> None:
     client.add_tag(generation_id, name)
 
 
+def record_publication(client, generation_id: str, url: str | None = None) -> dict:
+    return client.record_publication(generation_id, url=url)
+
+
 def upload_asset(client, generation_id: str, role: str, path: Path,
                  region: str = "") -> dict:
     return client.upload_asset(generation_id, role, path, region)

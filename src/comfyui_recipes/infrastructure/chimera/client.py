@@ -126,6 +126,19 @@ class ChimeraClient:
             "POST", f"/api/v1/generations/{generation_id}/tags",
             {"name": name, "created_by": "claude"})
 
+    def record_publication(self, generation_id: str, url: str | None = None,
+                           published_at: str | None = None,
+                           idempotency_key: str | None = None) -> dict:
+        payload = {}
+        if url is not None:
+            payload["url"] = url
+        if published_at is not None:
+            payload["published_at"] = published_at
+        if idempotency_key is not None:
+            payload["idempotency_key"] = idempotency_key
+        return self.request(
+            "POST", f"/api/v1/generations/{generation_id}/publications", payload)
+
     def upload_asset(self, generation_id: str, role: str, path: Path,
                      region: str = "") -> dict:
         content_types = {

@@ -240,6 +240,9 @@ def parser() -> argparse.ArgumentParser:
     tag = metadata_commands.add_parser("tag")
     tag.add_argument("generation_id")
     tag.add_argument("name")
+    publish = metadata_commands.add_parser("publish")
+    publish.add_argument("generation_id")
+    publish.add_argument("--url")
     asset = metadata_commands.add_parser("asset")
     asset.add_argument("generation_id")
     asset.add_argument("role")
@@ -400,6 +403,10 @@ def main(argv: list[str] | None = None) -> None:
     elif args.metadata_command == "tag":
         metadata.add_tag(chimera, args.generation_id, args.name)
         print(f"tag {args.name!r} -> {args.generation_id}")
+    elif args.metadata_command == "publish":
+        metadata.record_publication(chimera, args.generation_id, url=args.url)
+        where = f" ({args.url})" if args.url else ""
+        print(f"publish -> {args.generation_id}{where}")
     elif args.metadata_command == "asset":
         row = metadata.upload_asset(
             chimera, args.generation_id, args.role, args.file, args.region)

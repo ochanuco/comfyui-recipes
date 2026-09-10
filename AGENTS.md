@@ -108,7 +108,7 @@ is registered in this session as `chimera` and answers without touching the
 repo:
 
 ```text
-list_generations                      find a starting ID: tag=publish is every delivered
+list_generations                      find a starting ID: published=true is every delivered
                                       look, each carrying its look:<pose> tag
 list_catalog                          every recipe's pose / costume names + patch vocabulary  (~2k)
 get_catalog_pose recipe pose          one pose: canvas, default costume, assembled prompts    (~1k)
@@ -168,9 +168,9 @@ A round starts from a delivered look and is three MCP calls with a human in
 between:
 
 ```text
-list_generations      the base: `tag=publish` lists every delivered look with
-                      its `look:<pose>` tag. This is where a starting ID comes
-                      from -- never from a session's memory.
+list_generations      the base: `published=true` lists every delivered look
+                      with its `look:<pose>` tag. This is where a starting ID
+                      comes from -- never from a session's memory.
 derive_request        from a rated generation: same recipe, parameters and
                       patches, plus your diff (parameters override, patches
                       appended or replaced). A finalized pick resolves to the
@@ -224,13 +224,16 @@ tracked file.
   の `semantic.summary` は必須で、ingest 直後に各 generation へ自動 PUT
   される。作業途中の評価はユーザーが chimera の semantics を見て行う。
   semantics/tag は AI が書いてよい（rating だけが人間専用）。
-- 納品した generation には `publish` と `look:<pose>` を付ける。次のセッションが
-  起点 ID を引く索引はこの二つのタグだけで、prose とメモリは索引にならない。
-  `look:` の値はレシピの pose 名（焼き込み前なら焼き込む予定の名前）。
+- 納品した generation は `comfy-recipes metadata publish <generation_id>`
+  （MCP なら `record_publication`）で記録し、`look:<pose>` タグを付ける。次の
+  セッションが起点 ID を引く索引は `list_generations published=true` と
+  この `look:<pose>` タグで、prose とメモリは索引にならない。`look:` の値は
+  レシピの pose 名（焼き込み前なら焼き込む予定の名前）。
 - 事後の追記・上書きは `comfy-recipes metadata semantic <generation_id>
-  <file.json>`、tag は `comfy-recipes metadata tag <generation_id> <name>`。
-  API は `PUT /api/v1/generations/{id}/semantic`（schema_version:1、部分
-  ペイロード可、再 PUT で全置換）。generation_id には short_id も使える。
+  <file.json>`、tag は `comfy-recipes metadata tag <generation_id> <name>`、
+  納品記録は `comfy-recipes metadata publish <generation_id> [--url URL]`。
+  semantic の API は `PUT /api/v1/generations/{id}/semantic`（schema_version:1、
+  部分ペイロード可、再 PUT で全置換）。generation_id には short_id も使える。
 - idempotency_key は呼び出し元が作る。同じ key の再送は同じ行を返す
   （`created: false`）。失敗した request を「もう一度」なら新しい key を使う。
   worker 側の `<request>.state.json` は worker の再開用で、Mac には無い。

@@ -152,6 +152,27 @@ class CliTest(unittest.TestCase):
         add_tag.assert_called_once_with(
             chimera_class.return_value, "generation", "approved")
 
+    @patch.object(cli.metadata, "record_publication")
+    @patch.object(cli, "ChimeraClient")
+    def test_metadata_publish_dispatches_without_network(
+            self, chimera_class, record_publication):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            cli.main(["metadata", "publish", "generation",
+                      "--url", "https://x.com/post/1"])
+        record_publication.assert_called_once_with(
+            chimera_class.return_value, "generation", url="https://x.com/post/1")
+        self.assertIn("publish -> generation (https://x.com/post/1)", output.getvalue())
+
+    @patch.object(cli.metadata, "record_publication")
+    @patch.object(cli, "ChimeraClient")
+    def test_metadata_publish_without_url_needs_no_flag(
+            self, chimera_class, record_publication):
+        with redirect_stdout(io.StringIO()):
+            cli.main(["metadata", "publish", "generation"])
+        record_publication.assert_called_once_with(
+            chimera_class.return_value, "generation", url=None)
+
     def test_yukari_prompt_json_needs_no_clients(self):
         output = io.StringIO()
         with patch.object(cli, "ChimeraClient") as chimera_class, \

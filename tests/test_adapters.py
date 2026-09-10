@@ -103,6 +103,37 @@ class AdapterTest(unittest.TestCase):
             urlopen.call_args[0][0].full_url,
             "https://example.invalid/api/v1/catalogs/dev/catalog%23v1")
 
+    def test_chimera_record_publication_posts_only_the_given_fields(self):
+        client = ChimeraClient(Path("."), base_url="https://example.invalid")
+        client._credentials = {}
+        response = MagicMock()
+        response.read.return_value = json.dumps({"id": "pub-1"}).encode()
+        response.status = 201
+        response.headers = {"Content-Type": "application/json"}
+        response.__enter__.return_value = response
+        with patch("urllib.request.urlopen", return_value=response) as urlopen:
+            result = client.record_publication("gen-1", url="https://x.com/post/1")
+        self.assertEqual(result, {"id": "pub-1"})
+        request = urlopen.call_args[0][0]
+        self.assertEqual(
+            request.full_url,
+            "https://example.invalid/api/v1/generations/gen-1/publications")
+        self.assertEqual(request.get_method(), "POST")
+        self.assertEqual(json.loads(request.data), {"url": "https://x.com/post/1"})
+
+    def test_chimera_record_publication_omits_unset_fields(self):
+        client = ChimeraClient(Path("."), base_url="https://example.invalid")
+        client._credentials = {}
+        response = MagicMock()
+        response.read.return_value = json.dumps({"id": "pub-2"}).encode()
+        response.status = 201
+        response.headers = {"Content-Type": "application/json"}
+        response.__enter__.return_value = response
+        with patch("urllib.request.urlopen", return_value=response) as urlopen:
+            client.record_publication("gen-1")
+        request = urlopen.call_args[0][0]
+        self.assertEqual(json.loads(request.data), {})
+
     def test_comfyui_wait_retries_transport_error_and_returns_empty_success(self):
         client = ComfyUIClient(
             "http://example.invalid", poll_interval=0, poll_timeout=1)

@@ -78,8 +78,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     is_anima = (not is_sketch) and any(
         node.get("class_type") == "UNETLoader" for node in base.values())
     # A base with its own layerdiffuse alpha finalizes as compose-then-redraw:
-    # the RGBA composites onto the sticker backdrop before the redraw ever
-    # sees it, so there is no birefnet matte and no separate delivery node.
+    # the RGBA composites onto a flat backdrop before the redraw ever sees
+    # it, since the redraw itself moves the silhouette.
     is_layerdiffuse = any(node.get("class_type") == "LayeredDiffusionApply"
                           for node in base.values())
     if lora_strength is not None and not is_sketch:

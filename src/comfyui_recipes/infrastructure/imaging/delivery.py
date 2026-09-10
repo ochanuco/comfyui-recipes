@@ -291,7 +291,10 @@ def compose(data: bytes, backdrop: str | None = None,
     put back. `bands=False` skips the white/purple ring and plain
     alpha-composites the figure onto the backdrop instead: the redraw that
     follows moves the silhouette, so the transparent finalize path draws its
-    own band afterward, from the redrawn pixels' own matte.
+    own band afterward, from the redrawn pixels' own matte. That path leaves
+    `backdrop` unset -- `delivery_style.BACKDROP` is the only flat colour this
+    module already owns, so the band-less compose reads it too rather than
+    adding a second one.
     """
     rgba = Image.open(io.BytesIO(data)).convert("RGBA")
     px = np.array(rgba)[..., :3].astype(float)

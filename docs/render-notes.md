@@ -11355,3 +11355,27 @@ DWPose regions for `parts` hands/feet plus optional fraction rectangles,
 source's own loader, LoRA and sampler, the deliver tail rewired onto the
 stitched image so a repair of a finalize redraw comes out delivered. The
 per-render record for the rounds that follow is on chimera.
+
+## The sketch finalize redraws at 0.8, not 0.55 (2026-09-10)
+
+`ctwwn5` (yukari-sketch, cafe preset, seed 815307264) was finalized three
+times from the same source and seed, varying only the redraw denoise:
+
+```text
+denoise   redraw     delivered
+0.55      vp0fx2     ii3yid
+0.5       wkopf3     h8mg4d
+0.8       gv750b     0yp7dj
+```
+
+0.5 and 0.55 both keep the base pass's own rough line through the 2560
+latent-route redraw, and the delivery reads as too hand-drawn -- scribble
+rather than sketch. At 0.8 the sketch LoRA re-draws the line instead of
+enlarging it, and that is the look. `FINALIZE_DENOISE` for `yukari_sketch`
+is now 0.8.
+
+This crosses the ladder above ("structure changes live around 0.70,
+style-only polish below 0.55", measured on the Illustrious recipe). On the
+sketch recipe the structure change is the point: the latent route is what
+puts the staircase on the contour, and only a redraw strong enough to
+re-decide the line converts it into stroke.

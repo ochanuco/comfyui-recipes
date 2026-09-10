@@ -38,3 +38,8 @@ class RenderSpec:
     layerdiffuse: bool = False
     layerdiffuse_weight: float = 1.0
     layerdiffuse_config: str = "SDXL, Conv Injection"
+    # The ordered (name, text) breakdown of `prompts.positive` -- joining the
+    # texts in order reproduces it byte for byte. Empty for a recipe (yukari)
+    # that has no named parts; `patches.py` reads this to resolve
+    # `prompt.positive.<part>` targets.
+    positive_parts: tuple[tuple[str, str], ...] = ()

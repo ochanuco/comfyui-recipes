@@ -11,7 +11,9 @@ from comfyui_recipes.domain.yukari.prompt_style import (
     SURFACE,
     THIN,
 )
-from comfyui_recipes.domain.yukari.recipe import refinement_prompt, render_spec
+from comfyui_recipes.domain.yukari.recipe import (
+    identity_tags, refinement_prompt, render_spec,
+)
 
 
 class YukariRecipeDomainTest(unittest.TestCase):
@@ -49,6 +51,23 @@ class YukariRecipeDomainTest(unittest.TestCase):
         # The die-cut edge is drawn by the delivery now; a tag creeping back
         # in here would draw it twice without either side noticing.
         self.assertNotIn("outline", SURFACE)
+
+
+class IdentityTagsTest(unittest.TestCase):
+    HOODED = frozenset({
+        "light purple hair", "short hair with long locks",
+        "very long sidelocks", "purple eyes", "hair ornament", "tareme",
+        "black hooded cardigan", "rabbit hood",
+    })
+    UNHOODED = HOODED - {"black hooded cardigan", "rabbit hood"}
+
+    def test_default_and_roomwear_carry_the_hood(self):
+        self.assertEqual(identity_tags("lounge"), self.HOODED)
+        self.assertEqual(identity_tags("lounge", "roomwear"), self.HOODED)
+
+    def test_sporty_and_fitness_have_no_hood_to_lose(self):
+        self.assertEqual(identity_tags("lounge", "sporty"), self.UNHOODED)
+        self.assertEqual(identity_tags("lounge", "fitness"), self.UNHOODED)
 
 
 if __name__ == "__main__":

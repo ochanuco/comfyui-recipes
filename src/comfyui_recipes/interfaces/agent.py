@@ -19,8 +19,11 @@ from ..application.repair import RepairServices
 from ..application.work import WorkServices, work
 from ..domain.generation.fingerprint import prompt_fingerprint
 from ..domain.generation.prompt_lint import conflicts
+from ..domain.yukari.recipe import identity_tags as yukari_identity_tags
 from ..domain.yukari.recipe import render_spec as yukari_render_spec
+from ..domain.yukari_anima.recipe import identity_tags as anima_identity_tags
 from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
+from ..domain.yukari_sketch.recipe import identity_tags as sketch_identity_tags
 from ..domain.yukari_sketch.recipe import render_spec as sketch_render_spec
 from ..infrastructure.chimera.client import USER_AGENT, ChimeraClient
 from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_graph
@@ -50,12 +53,26 @@ RECIPES = {
     "yukari-sketch": (sketch_render_spec, yukari_build_graph),
 }
 
+# `generation.recipe` -> its identity_tags(pose, costume) function.
+IDENTITY_TAGS = {
+    "yukari": yukari_identity_tags,
+    "yukari-anima": anima_identity_tags,
+    "yukari-sketch": sketch_identity_tags,
+}
+
 
 def _build_generation_graph(generation: dict, seed: int, prefix: str) -> dict:
     if generation.get("graph"):
         return request_graph(generation, seed, prefix, None, None)
     spec_builder, encode = RECIPES[generation["recipe"]]
     return request_graph(generation, seed, prefix, spec_builder, encode)
+
+
+def _identity_tags(recipe: str, pose: str, costume: str | None) -> frozenset[str] | None:
+    fn = IDENTITY_TAGS.get(recipe)
+    if fn is None:
+        return None
+    return fn(pose) if costume is None else fn(pose, costume)
 
 
 def _pose_fingerprint(recipe: str, pose: str) -> str | None:
@@ -82,6 +99,7 @@ def build_generate_services(chimera: ChimeraClient, comfyui: ComfyUIClient, noti
         measure=summarize,
         presets=chimera.get_preset,
         pose_fingerprint=_pose_fingerprint,
+        identity_tags=_identity_tags,
     )
 
 

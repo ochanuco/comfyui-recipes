@@ -11,6 +11,7 @@ record and no changes to this file.
 from __future__ import annotations
 
 from ..generation.models import HiresSpec, PromptPair, RenderSpec
+from ..generation.prompt_lint import tags as prompt_tags
 from .costumes import COSTUME_NEGATIVE_EDITS, COSTUMES, LEGWEAR_BAN, SHOD
 from .models import S_MIDRIFF, Edit
 from .poses import POSE_RECORDS, POSES
@@ -137,6 +138,24 @@ def positive(pose: str, costume: str = "default") -> str:
         # were rejected.
         parts.append(THIN)
     return _apply(", ".join(parts), rec.tail_edits, costume)
+
+
+# The identity vocabulary this recipe can carry, at bare-tag level: hair
+# colour/length, sidelocks, eye colour, hair ornament, eye-shape identity and
+# the costume's cardigan/hood. `identity_tags()` intersects this with what a
+# given pose/costume actually renders, so `sporty`/`fitness` (no hood) simply
+# contribute nothing for that slot, and a pose without an own-eyes override
+# still carries `tareme` (FACE keeps it even when `RESTING_EYES` is stripped).
+IDENTITY_TAG_NAMES = frozenset({
+    "light purple hair", "short hair with long locks", "very long sidelocks",
+    "purple eyes", "hair ornament", "tareme", "jitome",
+    "black hooded cardigan", "rabbit hood",
+})
+
+
+def identity_tags(pose: str, costume: str = "default") -> frozenset[str]:
+    bare = set(prompt_tags(positive(pose, costume)))
+    return frozenset(IDENTITY_TAG_NAMES & bare)
 
 
 def negative(pose: str, costume: str = "default") -> str:

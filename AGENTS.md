@@ -231,7 +231,8 @@ tracked file.
   レシピの pose 名（焼き込み前なら焼き込む予定の名前）。
 - 事後の追記・上書きは `comfy-recipes metadata semantic <generation_id>
   <file.json>`、tag は `comfy-recipes metadata tag <generation_id> <name>`、
-  納品記録は `comfy-recipes metadata publish <generation_id> [--url URL]`。
+  納品記録は `comfy-recipes metadata publish <generation_id> [--url URL]
+  [--idempotency-key KEY]`（key 省略時は呼び出しごとに新しい key）。
   semantic の API は `PUT /api/v1/generations/{id}/semantic`（schema_version:1、
   部分ペイロード可、再 PUT で全置換）。generation_id には short_id も使える。
 - idempotency_key は呼び出し元が作る。同じ key の再送は同じ行を返す

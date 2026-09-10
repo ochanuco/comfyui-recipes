@@ -159,9 +159,10 @@ class CliTest(unittest.TestCase):
         output = io.StringIO()
         with redirect_stdout(output):
             cli.main(["metadata", "publish", "generation",
-                      "--url", "https://x.com/post/1"])
+                      "--url", "https://x.com/post/1", "--idempotency-key", "pub-key"])
         record_publication.assert_called_once_with(
-            chimera_class.return_value, "generation", url="https://x.com/post/1")
+            chimera_class.return_value, "generation", url="https://x.com/post/1",
+            idempotency_key="pub-key")
         self.assertIn("publish -> generation (https://x.com/post/1)", output.getvalue())
 
     @patch.object(cli.metadata, "record_publication")
@@ -171,7 +172,7 @@ class CliTest(unittest.TestCase):
         with redirect_stdout(io.StringIO()):
             cli.main(["metadata", "publish", "generation"])
         record_publication.assert_called_once_with(
-            chimera_class.return_value, "generation", url=None)
+            chimera_class.return_value, "generation", url=None, idempotency_key=None)
 
     def test_yukari_prompt_json_needs_no_clients(self):
         output = io.StringIO()

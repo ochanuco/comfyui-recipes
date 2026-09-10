@@ -119,7 +119,9 @@ class AdapterTest(unittest.TestCase):
             request.full_url,
             "https://example.invalid/api/v1/generations/gen-1/publications")
         self.assertEqual(request.get_method(), "POST")
-        self.assertEqual(json.loads(request.data), {"url": "https://x.com/post/1"})
+        body = json.loads(request.data)
+        self.assertEqual(body.pop("url"), "https://x.com/post/1")
+        self.assertEqual(set(body), {"idempotency_key"})
 
     def test_chimera_record_publication_omits_unset_fields(self):
         client = ChimeraClient(Path("."), base_url="https://example.invalid")
@@ -130,9 +132,26 @@ class AdapterTest(unittest.TestCase):
         response.headers = {"Content-Type": "application/json"}
         response.__enter__.return_value = response
         with patch("urllib.request.urlopen", return_value=response) as urlopen:
-            client.record_publication("gen-1")
+            client.record_publication("gen-1", idempotency_key="pub-key")
         request = urlopen.call_args[0][0]
-        self.assertEqual(json.loads(request.data), {})
+        self.assertEqual(json.loads(request.data), {"idempotency_key": "pub-key"})
+
+    def test_chimera_record_publication_resends_one_generated_key(self):
+        client = ChimeraClient(Path("."), base_url="https://example.invalid")
+        client._credentials = {}
+        response = MagicMock()
+        response.read.return_value = json.dumps({"id": "pub-3"}).encode()
+        response.status = 200
+        response.headers = {"Content-Type": "application/json"}
+        response.__enter__.return_value = response
+        lost = urllib.error.URLError("connection reset")
+        with patch("urllib.request.urlopen", side_effect=[lost, response]) as urlopen, \
+                patch("time.sleep"):
+            client.record_publication("gen-1")
+        keys = [json.loads(sent[0][0].data)["idempotency_key"]
+                for sent in urlopen.call_args_list]
+        self.assertEqual(len(keys), 2)
+        self.assertEqual(keys[0], keys[1])
 
     def test_comfyui_wait_retries_transport_error_and_returns_empty_success(self):
         client = ComfyUIClient(

@@ -341,6 +341,84 @@ class MaskedRedrawGraphTest(unittest.TestCase):
         self.assertEqual(json.dumps(RAW, sort_keys=True), before)
 
 
+class RepairGraphLorasTest(unittest.TestCase):
+    def test_no_loraloader_is_added_when_loras_is_empty(self):
+        graph = repair_graph(
+            RAW, image_name="src.png", mask_name="mask.png",
+            positive="p", negative="n", seed=99, denoise=0.6, size=1024,
+            prefix="rep-abc-s99", loras=())
+        added = [node for key, node in graph.items() if key not in RAW]
+        self.assertFalse(
+            any(node["class_type"] == "LoraLoader" for node in added))
+
+    def test_one_lora_feeds_the_ksampler_model_and_both_clip_text_encodes(self):
+        graph = repair_graph(
+            RAW, image_name="src.png", mask_name="mask.png",
+            positive="p", negative="n", seed=99, denoise=0.6, size=1024,
+            prefix="rep-abc-s99", loras=[("feet-xl-ill.safetensors", 0.8)])
+        added_loaders = [(key, node) for key, node in graph.items()
+                         if key not in RAW and node["class_type"] == "LoraLoader"]
+        self.assertEqual(len(added_loaders), 1)
+        loader_id, loader = added_loaders[0]
+        self.assertEqual(loader["inputs"]["model"], ["10", 0])
+        self.assertEqual(loader["inputs"]["clip"], ["10", 1])
+        self.assertEqual(loader["inputs"]["lora_name"], "feet-xl-ill.safetensors")
+        self.assertEqual(loader["inputs"]["strength_model"], 0.8)
+        self.assertEqual(loader["inputs"]["strength_clip"], 0.8)
+
+        sample = next(node for node in graph.values()
+                     if node["class_type"] == "KSampler")
+        self.assertEqual(sample["inputs"]["model"], [loader_id, 0])
+        positive_node = graph[sample["inputs"]["positive"][0]]
+        negative_node = graph[sample["inputs"]["negative"][0]]
+        self.assertEqual(positive_node["inputs"]["clip"], [loader_id, 1])
+        self.assertEqual(negative_node["inputs"]["clip"], [loader_id, 1])
+
+    def test_two_loras_chain_in_order(self):
+        graph = repair_graph(
+            RAW, image_name="src.png", mask_name="mask.png",
+            positive="p", negative="n", seed=99, denoise=0.6, size=1024,
+            prefix="rep-abc-s99",
+            loras=[("feet-xl-ill.safetensors", 0.8),
+                  ("hands-xl-ill.safetensors", 0.5)])
+        added_loaders = [(key, node) for key, node in graph.items()
+                         if key not in RAW and node["class_type"] == "LoraLoader"]
+        self.assertEqual(len(added_loaders), 2)
+        first_id, first = next(
+            (key, node) for key, node in added_loaders
+            if node["inputs"]["lora_name"] == "feet-xl-ill.safetensors")
+        second_id, second = next(
+            (key, node) for key, node in added_loaders
+            if node["inputs"]["lora_name"] == "hands-xl-ill.safetensors")
+        self.assertEqual(first["inputs"]["model"], ["10", 0])
+        self.assertEqual(first["inputs"]["clip"], ["10", 1])
+        self.assertEqual(second["inputs"]["model"], [first_id, 0])
+        self.assertEqual(second["inputs"]["clip"], [first_id, 1])
+
+        sample = next(node for node in graph.values()
+                     if node["class_type"] == "KSampler")
+        self.assertEqual(sample["inputs"]["model"], [second_id, 0])
+        positive_node = graph[sample["inputs"]["positive"][0]]
+        self.assertEqual(positive_node["inputs"]["clip"], [second_id, 1])
+
+
+class SpliceRepairLorasTest(unittest.TestCase):
+    def test_lora_chains_ahead_of_the_reroll_sampler(self):
+        graph = splice_repair(
+            FINALIZE, mask_name="mask.png", positive="p", negative="n",
+            denoise=0.6, size=1024, loras=[("feet-xl-ill.safetensors", 0.8)])
+        loader_id, loader = next(
+            (key, node) for key, node in graph.items()
+            if key not in FINALIZE and node["class_type"] == "LoraLoader")
+        self.assertEqual(loader["inputs"]["lora_name"], "feet-xl-ill.safetensors")
+        self.assertEqual(loader["inputs"]["strength_model"], 0.8)
+        self.assertEqual(loader["inputs"]["strength_clip"], 0.8)
+        sample = next(node for node in graph.values()
+                     if node["class_type"] == "KSampler"
+                     and node["inputs"]["denoise"] == 0.6)
+        self.assertEqual(sample["inputs"]["model"], [loader_id, 0])
+
+
 class RepairGraphErrorsTest(unittest.TestCase):
     def test_a_graph_with_no_final_decode_raises(self):
         broken = {"3": {"class_type": "KSampler", "inputs": {

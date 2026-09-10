@@ -52,8 +52,8 @@ case `comfy-recipes generate` does. A `finalize` row's payload is
 flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
 `size`, `deliver_size`, `handdrawn`, `skin`, `toe_guard`, `keep_scene`,
 `stroke_light`, `repair`, `repair_regions`, `repair_denoise`, `repair_pad`,
-`repair_size`) with the same defaults `comfy-recipes finalize` has when a
-flag is omitted. A `repair` row's payload is `{"generation_id", "options":
+`repair_size`, `repair_lora`) with the same defaults `comfy-recipes finalize`
+has when a flag is omitted. A `repair` row's payload is `{"generation_id", "options":
 {...}}` too; see [Repair](#repair) below for its options. A `masked_redraw`
 row's payload is the same shape again; see
 [Masked redraw](#masked-redraw) below for its options.
@@ -121,17 +121,18 @@ blends the crop back into the full frame. It is a queue kind
 and a CLI subcommand with the same options:
 
 The same reroll is available inside finalize: `--repair`/`--repair-region`/
-`--repair-denoise`/`--repair-pad`/`--repair-size` on `comfy-recipes finalize`
-(or `repair`/`repair_regions`/`repair_denoise`/`repair_pad`/`repair_size` in a
-queued finalize row's `options`) splice the same masked reroll into the
-delivery redraw's own ComfyUI submission, instead of queueing a second
-`repair` request against the finalized result. Pose detection runs on the
-raw pick, and the resulting regions are scaled into the redraw's own (larger)
-canvas before the mask is rendered.
+`--repair-denoise`/`--repair-pad`/`--repair-size`/`--repair-lora` on
+`comfy-recipes finalize` (or `repair`/`repair_regions`/`repair_denoise`/
+`repair_pad`/`repair_size`/`repair_lora` in a queued finalize row's
+`options`) splice the same masked reroll into the delivery redraw's own
+ComfyUI submission, instead of queueing a second `repair` request against
+the finalized result. Pose detection runs on the raw pick, and the
+resulting regions are scaled into the redraw's own (larger) canvas before
+the mask is rendered.
 
 ```bash
 uv run comfy-recipes repair <generation_id> \
-  --parts hands,feet --denoise 0.6 --seeds 1,2,3,4 --size 1024 --pad 1.0
+  --parts hands,feet --denoise 0.6 --seeds 1,2,3,4 --size 1024 --pad 1.0 --lora
 ```
 
 | option | CLI flag | default | meaning |
@@ -142,6 +143,10 @@ uv run comfy-recipes repair <generation_id> \
 | `seeds` | `--seeds` | `[1, 2, 3, 4]` | one job per seed |
 | `size` | `--size` | `1024` | the crop's target long side, a multiple of 8, at least 256 |
 | `pad` | `--pad` | `1.0` | multiplier on the auto-detected region radius, `0.5..3` |
+| `lora` | `--lora [WEIGHT]` | off | load each redrawn part's own LoRA (Feet XL for `feet`, Hands XL for `hands`) inside the crop; bare flag/`true` is weight `0.8`, or give a number in `0..2` |
+
+`repair_lora` on a finalize-carried repair works the same way; `--repair-lora
+[WEIGHT]` / `repair_lora` in a queued finalize row's `options`.
 
 At least one of `parts` or `regions` must be non-empty; a request with both
 empty is rejected before anything is submitted.

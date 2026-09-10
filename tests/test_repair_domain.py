@@ -7,6 +7,7 @@ import math
 import unittest
 from pathlib import Path
 
+from comfyui_recipes.domain.repair.loras import PART_LORAS, part_loras
 from comfyui_recipes.domain.repair.prompt import (
     PART_TAGS,
     REPAIR_DROP_WORDS,
@@ -229,6 +230,30 @@ class MaskedRedrawPromptTest(unittest.TestCase):
         self.assertNotIn(PART_TAGS["hands"], result)
         self.assertNotIn(PART_TAGS["feet"], result)
         self.assertNotIn("(pantyhose feet:1.3)", result)
+
+
+class PartLorasTest(unittest.TestCase):
+    def test_none_weight_yields_no_loras(self):
+        self.assertEqual(part_loras(["hands", "feet"], None), ())
+
+    def test_feet_only(self):
+        self.assertEqual(
+            part_loras(["feet"], 0.8), ((PART_LORAS["feet"], 0.8),))
+
+    def test_hands_and_feet_preserve_the_given_order(self):
+        self.assertEqual(
+            part_loras(["hands", "feet"], 0.8),
+            ((PART_LORAS["hands"], 0.8), (PART_LORAS["feet"], 0.8)))
+        self.assertEqual(
+            part_loras(["feet", "hands"], 0.8),
+            ((PART_LORAS["feet"], 0.8), (PART_LORAS["hands"], 0.8)))
+
+    def test_unknown_part_is_skipped(self):
+        self.assertEqual(
+            part_loras(["face", "feet"], 0.8), ((PART_LORAS["feet"], 0.8),))
+
+    def test_empty_parts_yields_no_loras(self):
+        self.assertEqual(part_loras([], 0.8), ())
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Protocol
 from urllib.parse import quote
 
+from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.recipe import TOE_GUARD
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
@@ -31,10 +32,11 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
     "backdrop", "upscale", "lora_strength", "deliver_size", "stroke_light",
     "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
+    "repair_lora",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
-    "parts", "regions", "denoise", "seeds", "size", "pad",
+    "parts", "regions", "denoise", "seeds", "size", "pad", "lora",
 })
 
 _KNOWN_MASKED_REDRAW_OPTIONS = frozenset({
@@ -107,6 +109,22 @@ def _crop_size_argument(value: object, *, key: str = "size") -> int:
     if value < 256 or value % 8 != 0:
         raise ValueError(f"{key} must be a multiple of 8, at least 256, got {value!r}")
     return value
+
+
+# Shared by `finalize_arguments`'s `repair_lora` and `repair_arguments`'s own
+# `lora` -- both select the part-LoRA weight the reroll's `LoraLoader` chain
+# runs at.
+def _part_lora_argument(value: object, *, key: str = "lora") -> float | None:
+    if value is True:
+        return DEFAULT_PART_LORA_WEIGHT
+    if value is None:
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if not (0 < value <= 2):
+            raise ValueError(f"{key} must be > 0 and <= 2, got {value!r}")
+        return float(value)
+    raise ValueError(
+        f"{key} must be null, true or a number, got {type(value).__name__}")
 
 
 class Management(Protocol):
@@ -446,6 +464,8 @@ def finalize_arguments(options: Mapping) -> dict:
     repair_pad = _pad_argument(options.get("repair_pad", 1.0), key="repair_pad")
     repair_size = _crop_size_argument(
         options.get("repair_size", 1024), key="repair_size")
+    repair_lora = _part_lora_argument(
+        options.get("repair_lora"), key="repair_lora")
 
     return {
         "denoise": float(denoise) if denoise is not None else None,
@@ -470,6 +490,7 @@ def finalize_arguments(options: Mapping) -> dict:
         "repair_denoise": repair_denoise,
         "repair_pad": repair_pad,
         "repair_size": repair_size,
+        "repair_lora": repair_lora,
     }
 
 
@@ -502,10 +523,11 @@ def repair_arguments(options: Mapping) -> dict:
 
     size = _crop_size_argument(options.get("size", 1024))
     pad = _pad_argument(options.get("pad", 1.0))
+    lora = _part_lora_argument(options.get("lora"))
 
     return {
         "parts": parts, "regions": parsed_regions, "denoise": denoise,
-        "seeds": seeds, "size": size, "pad": pad,
+        "seeds": seeds, "size": size, "pad": pad, "lora": lora,
     }
 
 

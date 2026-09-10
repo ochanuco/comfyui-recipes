@@ -18,6 +18,7 @@ from ..application.masked_redraw import masked_redraw
 from ..application.repair import repair
 from ..application.watch import WatchServices, watch
 from ..application.work import work
+from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.poses import POSES
@@ -178,6 +179,11 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument(
         "--repair-size", type=int, default=1024, metavar="LONGEST",
         help="the repair crop's target long side")
+    finalize_parser.add_argument(
+        "--repair-lora", type=float, nargs="?", const=DEFAULT_PART_LORA_WEIGHT,
+        metavar="WEIGHT",
+        help="load each repaired part's own LoRA (Feet XL / Hands XL) inside "
+             "the repair crop, at this strength; off by default")
 
     repair_parser = commands.add_parser(
         "repair", help="masked local redraw of hands/feet on an existing generation")
@@ -198,6 +204,11 @@ def parser() -> argparse.ArgumentParser:
     repair_parser.add_argument(
         "--pad", type=float, default=1.0,
         help="multiplier on the auto region radius")
+    repair_parser.add_argument(
+        "--lora", type=float, nargs="?", const=DEFAULT_PART_LORA_WEIGHT,
+        metavar="WEIGHT",
+        help="load each repaired part's own LoRA (Feet XL / Hands XL) inside "
+             "the crop, at this strength; off by default")
 
     masked_redraw_parser = commands.add_parser(
         "masked_redraw", help="masked local redraw of a caller-given region")
@@ -362,7 +373,8 @@ def main(argv: list[str] | None = None) -> None:
                  repair_regions=repair_regions,
                  repair_denoise=args.repair_denoise,
                  repair_pad=args.repair_pad,
-                 repair_size=args.repair_size)
+                 repair_size=args.repair_size,
+                 repair_lora=args.repair_lora)
         return
     if args.command == "catalog":
         git = repository_metadata()
@@ -380,7 +392,8 @@ def main(argv: list[str] | None = None) -> None:
                   for region in (args.regions or [])]
         seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
         repair(args.generation_id, services, parts=parts, regions=regions,
-              denoise=args.denoise, seeds=seeds, size=args.size, pad=args.pad)
+              denoise=args.denoise, seeds=seeds, size=args.size, pad=args.pad,
+              lora=args.lora)
         return
     if args.command == "masked_redraw":
         services = build_masked_redraw_services(

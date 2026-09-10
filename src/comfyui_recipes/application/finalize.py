@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..domain.generation.models import PromptPair
+from ..domain.repair.loras import part_loras
 from ..domain.repair.prompt import repair_prompt
 from ..domain.repair.regions import rects_from_fractions, regions_from_pose, scale_circles
 from ..domain.yukari import delivery_style
@@ -64,7 +65,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              repair_regions: Sequence[Sequence[float]] = (),
              repair_denoise: float = 0.6,
              repair_pad: float = 1.0,
-             repair_size: int = 1024) -> dict:
+             repair_size: int = 1024,
+             repair_lora: float | None = None) -> dict:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
@@ -234,7 +236,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         repaired_positive = repair_prompt(prompt.positive, repair_parts)
         graph = services.splice_repair(
             graph, mask_name=mask_name, positive=repaired_positive,
-            negative=prompt.negative, denoise=repair_denoise, size=repair_size)
+            negative=prompt.negative, denoise=repair_denoise, size=repair_size,
+            loras=part_loras(repair_parts, repair_lora))
 
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
@@ -310,7 +313,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                        **({"repair": {
                               "parts": repair_parts, "regions": repair_region_list,
                               "denoise": repair_denoise, "pad": repair_pad,
-                              "size": repair_size,
+                              "size": repair_size, "lora": repair_lora,
                               "mask_bbox": list(repair_mask_bbox)}}
                           if repair_requested else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},

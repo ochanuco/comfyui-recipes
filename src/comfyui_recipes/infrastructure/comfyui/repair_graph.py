@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import itertools
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 
 from .base_graph import (
     PASSTHROUGH as _PASSTHROUGH,
@@ -95,14 +95,33 @@ def _splice_reroll(graph: dict, allocate: Callable[[], str], *, image_ref: list,
                    negative_clip_ref: list, vae_ref: list, steps: int, cfg: float,
                    sampler_name: str, scheduler: str, seed: int, denoise: float,
                    size: int, mask_expand_pixels: int = 0,
-                   mask_blend_pixels: int = 32) -> tuple[str, list]:
+                   mask_blend_pixels: int = 32,
+                   loras: Sequence[tuple[str, float]] = ()) -> tuple[str, list]:
     """Adds the crop/resample/stitch reroll subgraph to `graph` (mutated).
 
     Returns `(crop_id, repaired_ref)`: `crop_id` so a caller that spliced
     `image_ref` from its own graph's output can exclude the crop's own input
     when rewiring every other consumer of that output; `repaired_ref` is the
     stitch node's `[id, 0]` output.
+
+    `loras` chains `LoraLoader` nodes onto `model_ref`/`positive_clip_ref`
+    ahead of the reroll's own KSampler/CLIPTextEncode. `negative_clip_ref`
+    rides the same chain only when it started out equal to
+    `positive_clip_ref` -- otherwise it keeps its own ref untouched.
     """
+    if loras:
+        share_negative = negative_clip_ref == positive_clip_ref
+        clip_ref = positive_clip_ref
+        for lora_name, weight in loras:
+            lora_id = allocate()
+            graph[lora_id] = {"class_type": "LoraLoader", "inputs": {
+                "model": model_ref, "clip": clip_ref, "lora_name": lora_name,
+                "strength_model": weight, "strength_clip": weight}}
+            model_ref, clip_ref = [lora_id, 0], [lora_id, 1]
+        positive_clip_ref = clip_ref
+        if share_negative:
+            negative_clip_ref = clip_ref
+
     load_mask = allocate()
     graph[load_mask] = {"class_type": "LoadImage", "inputs": {"image": mask_name}}
     to_mask = allocate()
@@ -218,7 +237,8 @@ def _reachable_save(result: Mapping, consumers_map: Mapping[str, list[str]],
 def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
                       positive: str, negative: str, seed: int, denoise: float,
                       size: int, prefix: str, mask_expand_pixels: int,
-                      mask_blend_pixels: int) -> dict:
+                      mask_blend_pixels: int,
+                      loras: Sequence[tuple[str, float]] = ()) -> dict:
     """Shared body of `repair_graph`/`masked_redraw_graph`: prune to the
     redraw pass's own loaders, keep the tail downstream of its decode, and
     splice a fresh crop/resample/stitch reroll off a staged source image.
@@ -282,7 +302,8 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
         negative_clip_ref=pass_["negative_clip_ref"], vae_ref=pass_["vae_ref"],
         steps=pass_["steps"], cfg=pass_["cfg"], sampler_name=pass_["sampler_name"],
         scheduler=pass_["scheduler"], seed=seed, denoise=denoise, size=size,
-        mask_expand_pixels=mask_expand_pixels, mask_blend_pixels=mask_blend_pixels)
+        mask_expand_pixels=mask_expand_pixels, mask_blend_pixels=mask_blend_pixels,
+        loras=loras)
     stitch = repaired_ref[0]
 
     if ld_tail is not None:
@@ -323,12 +344,14 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
 
 def repair_graph(source: Mapping, *, image_name: str, mask_name: str,
                  positive: str, negative: str, seed: int, denoise: float,
-                 size: int, prefix: str) -> dict:
+                 size: int, prefix: str,
+                 loras: Sequence[tuple[str, float]] = ()) -> dict:
     return _prune_and_splice(
         source, image_name=image_name, mask_name=mask_name, positive=positive,
         negative=negative, seed=seed, denoise=denoise, size=size, prefix=prefix,
         mask_expand_pixels=_INPAINT_CROP_DEFAULTS["mask_expand_pixels"],
-        mask_blend_pixels=_INPAINT_CROP_DEFAULTS["mask_blend_pixels"])
+        mask_blend_pixels=_INPAINT_CROP_DEFAULTS["mask_blend_pixels"],
+        loras=loras)
 
 
 def masked_redraw_graph(source: Mapping, *, image_name: str, mask_name: str,
@@ -347,7 +370,8 @@ def masked_redraw_graph(source: Mapping, *, image_name: str, mask_name: str,
 
 
 def splice_repair(graph: Mapping, *, mask_name: str, positive: str, negative: str,
-                  denoise: float, size: int, seed: int | None = None) -> dict:
+                  denoise: float, size: int, seed: int | None = None,
+                  loras: Sequence[tuple[str, float]] = ()) -> dict:
     """Splice a masked reroll into an already-built graph (e.g. `chain_pass`'s).
 
     Unlike `repair_graph`, nothing is pruned or renamed: the reroll's image
@@ -372,7 +396,7 @@ def splice_repair(graph: Mapping, *, mask_name: str, positive: str, negative: st
         steps=pass_["steps"], cfg=pass_["cfg"], sampler_name=pass_["sampler_name"],
         scheduler=pass_["scheduler"],
         seed=pass_["seed"] if seed is None else seed,
-        denoise=denoise, size=size)
+        denoise=denoise, size=size, loras=loras)
 
     for node_id, node in result.items():
         if node_id == crop_id:

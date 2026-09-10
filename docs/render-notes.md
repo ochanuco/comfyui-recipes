@@ -11379,3 +11379,22 @@ style-only polish below 0.55", measured on the Illustrious recipe). On the
 sketch recipe the structure change is the point: the latent route is what
 puts the staircase on the contour, and only a redraw strong enough to
 re-decide the line converts it into stroke.
+
+## Hand-cut sticker rim, colour and geometry both (2026-09-10)
+
+`2mrq5w`'s rim -- drawn before a strong redraw rather than after -- came out
+mauve and angular instead of the usual smooth purple die-cut, and read as the
+better look: a hand-cut sticker rather than a machine one. Adopted for every
+delivery band, not just that one render.
+
+- Colour: `STROKE` `#6a3494` -> `#885b80`, `2mrq5w`'s own measured rim
+  (RGB 136, 91, 128).
+- Geometry: each band's outer outline is now polygon-simplified
+  (Douglas-Peucker via `cv2.approxPolyDP` on a 2x-supersampled fill, straight
+  segments and angular corners) instead of ramped off a smoothed distance
+  field. `STROKE_CUT_EPS_PCT = 0.5` (percent of the longest side); `0`
+  reproduces the old smooth ramp exactly, which is what `band_alphas`
+  branches on. The epsilon has to stay well under `WHITE_WIDTH_PCT` (1.3) or
+  the simplified outline can cut inside the band it is supposed to outline.
+- `delivery_fingerprint` moved: `costume_check.delivery_fingerprint()`'s
+  canonical payload gained `stroke_cut_eps_pct`, schema 3 -> 4.

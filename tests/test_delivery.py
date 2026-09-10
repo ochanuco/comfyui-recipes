@@ -4,7 +4,9 @@ import io
 import json
 import re
 import unittest
+from unittest import mock
 
+import cv2
 import numpy as np
 from PIL import Image
 from PIL.PngImagePlugin import PngInfo
@@ -131,14 +133,14 @@ class DeliveryTest(unittest.TestCase):
         cleaned, tag = clean_background(png(pixels), matte(pixels.shape[:2],
                                                            (8, 24, 10, 22)))
         self.assertEqual(Image.open(io.BytesIO(cleaned)).size, (32, 32))
-        self.assertRegex(tag, r"^clean-w\d+-p\d+$")
+        self.assertRegex(tag, r"^clean-w\d+-p\d+-cut0\.5$")
 
     def test_clean_background_band_widths_derive_from_longest_side_and_each_other(self):
         pixels = np.full((30, 50, 3), (210, 230, 235), dtype=np.uint8)
         pixels[8:24, 15:35] = (20, 20, 20)
         _, tag = clean_background(png(pixels), matte(pixels.shape[:2],
                                                      (8, 24, 15, 35)))
-        match = re.match(r"^clean-w(\d+)-p(\d+)$", tag)
+        match = re.match(r"^clean-w(\d+)-p(\d+)-cut0\.5$", tag)
         self.assertIsNotNone(match)
         white_w = max(30, 50) * delivery_style.WHITE_WIDTH_PCT / 100
         purple_w = white_w * delivery_style.STROKE_WIDTH_BAND
@@ -148,12 +150,15 @@ class DeliveryTest(unittest.TestCase):
     def test_clean_background_composites_purple_under_white_under_figure(self):
         # Walking outward from the figure's edge should cross the white band
         # first, the purple band second, and only then the flat backdrop --
-        # the layer order the delivery is supposed to draw them in.
+        # the layer order the delivery is supposed to draw them in. Pinned at
+        # eps 0 (the smooth ramp): the bands are only a few px wide on this
+        # canvas, too thin for the polygon cut to resolve a pure colour.
         height = width = 240
         pixels = np.full((height, width, 3), (233, 229, 199), dtype=np.uint8)
         pixels[80:160, 80:160] = (10, 10, 10)
-        cleaned, _ = clean_background(png(pixels), matte(pixels.shape[:2],
-                                                         (80, 160, 80, 160)))
+        with mock.patch.object(delivery_style, "STROKE_CUT_EPS_PCT", 0):
+            cleaned, _ = clean_background(png(pixels), matte(pixels.shape[:2],
+                                                             (80, 160, 80, 160)))
         arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB")).astype(int)
 
         backdrop = np.array(parse_color(delivery_style.BACKDROP))
@@ -177,9 +182,12 @@ class DeliveryTest(unittest.TestCase):
         self.assertLess(purple_at, backdrop_at)
 
     def test_transparent_frames_the_cutout_with_the_sticker_bands(self):
+        # Pinned at eps 0 (the smooth ramp), same reason as the clean
+        # background layer-order test above.
         pixels = np.full((256, 256, 3), (210, 230, 235), dtype=np.uint8)
         pixels[64:192, 64:160] = (40, 40, 40)
-        cut, tag = transparent(png(pixels), matte(pixels.shape[:2], (64, 192, 64, 160)))
+        with mock.patch.object(delivery_style, "STROKE_CUT_EPS_PCT", 0):
+            cut, tag = transparent(png(pixels), matte(pixels.shape[:2], (64, 192, 64, 160)))
         image = Image.open(io.BytesIO(cut))
         self.assertEqual(image.mode, "RGBA")
         self.assertEqual(image.size, (256, 256))
@@ -261,7 +269,7 @@ class DeliveryTest(unittest.TestCase):
         r = 2 ** -0.5
         row_center = int(cy - radius * r)
         rows = np.arange(row_center - 15, row_center + 15)
-        _, purple = band_alphas(figure)
+        _, purple = band_alphas(figure, eps_pct=0)
         values = purple[rows].ravel()
         intermediate = values[(values > 0.05) & (values < 0.95)]
         self.assertGreater(intermediate.size, 0)
@@ -282,19 +290,61 @@ class DeliveryTest(unittest.TestCase):
         for key in ("n", "ne", "e", "se", "s", "sw", "w", "nw"):
             self.assertIn(repr(key), message)
 
+    def test_stroke_colour_is_the_hand_cut_mauve(self):
+        self.assertEqual(delivery_style.STROKE, "#885b80")
+        self.assertEqual(parse_color(delivery_style.STROKE), (136, 91, 128))
+
+    def _noisy_circle_figure(self, size=1000, radius=300, hole_radius=90,
+                             noise_amp=4.0, freq=50):
+        """A jagged ring: a noisy circular figure enclosing a hole. `freq`
+        cycles fit comfortably inside `radius`'s own white/purple band
+        width, so a Douglas-Peucker eps under that width can straighten
+        every cycle without cutting into the figure itself."""
+        yy, xx = np.mgrid[0:size, 0:size]
+        cy = cx = size / 2
+        theta = np.arctan2(yy - cy, xx - cx)
+        r = np.hypot(yy - cy, xx - cx)
+        boundary = radius + noise_amp * np.sin(theta * freq)
+        return (r <= boundary) & (r > hole_radius)
+
+    def _contour_vertex_count(self, mask: np.ndarray, resimplify_eps=4.0) -> int:
+        """Vertices of `mask`'s own outline, re-simplified at a small,
+        fixed tolerance so the raster staircase from rasterizing a polygon
+        back to pixels doesn't itself get counted as complexity."""
+        contours, _ = cv2.findContours(
+            (mask.astype(np.uint8) * 255), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        return sum(len(cv2.approxPolyDP(contour, resimplify_eps, True))
+                  for contour in contours)
+
+    def test_band_alphas_cut_eps_straightens_a_noisy_outline(self):
+        figure = self._noisy_circle_figure()
+        smooth_white, _ = band_alphas(figure, eps_pct=0)
+        cut_white, _ = band_alphas(figure, eps_pct=1.0)
+        smooth_vertices = self._contour_vertex_count(smooth_white >= 0.5)
+        cut_vertices = self._contour_vertex_count(cut_white >= 0.5)
+        self.assertLess(cut_vertices, smooth_vertices / 3)
+
+    def test_band_alphas_cut_eps_keeps_the_enclosed_hole(self):
+        figure = self._noisy_circle_figure()
+        white_a, purple_a = band_alphas(figure, eps_pct=1.0)
+        cy = cx = 500
+        # Well inside the hole radius (90), away from either band's reach.
+        self.assertLess(white_a[cy, cx], 0.5)
+        self.assertLess(purple_a[cy, cx], 0.5)
+
     def test_transparent_light_appends_a_tag_suffix(self):
         pixels = np.full((256, 256, 3), (210, 230, 235), dtype=np.uint8)
         pixels[64:192, 64:160] = (40, 40, 40)
         _, tag = transparent(png(pixels), matte(pixels.shape[:2], (64, 192, 64, 160)),
                              light="ne")
-        self.assertEqual(tag, "transparent-w3-p3-light-ne")
+        self.assertEqual(tag, "transparent-w3-p3-cut0.5-light-ne")
 
     def test_clean_background_light_appends_a_tag_suffix(self):
         pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
         pixels[8:24, 10:22] = (40, 40, 40)
         _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)),
                                   light="sw")
-        self.assertRegex(tag, r"^clean-w\d+-p\d+-light-sw$")
+        self.assertRegex(tag, r"^clean-w\d+-p\d+-cut0\.5-light-sw$")
 
     def test_clean_background_backdrop_stripes_tag_and_pattern(self):
         pixels = np.full((64, 64, 3), (210, 230, 235), dtype=np.uint8)
@@ -302,7 +352,7 @@ class DeliveryTest(unittest.TestCase):
         cleaned, tag = clean_background(
             png(pixels), matte(pixels.shape[:2], (16, 48, 16, 48)),
             backdrop="stripes")
-        self.assertRegex(tag, r"^clean-w\d+-p\d+-bg-stripes$")
+        self.assertRegex(tag, r"^clean-w\d+-p\d+-bg-stripes-cut0\.5$")
         arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB"))
         corners = [tuple(arr[0, 0]), tuple(arr[0, -1]),
                   tuple(arr[-1, 0]), tuple(arr[-1, -1])]
@@ -313,13 +363,21 @@ class DeliveryTest(unittest.TestCase):
         pixels[8:24, 10:22] = (40, 40, 40)
         _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)),
                                   backdrop="#c7e5e9")
-        self.assertRegex(tag, r"^clean-w\d+-p\d+-bg-c7e5e9$")
+        self.assertRegex(tag, r"^clean-w\d+-p\d+-bg-c7e5e9-cut0\.5$")
 
     def test_clean_background_backdrop_none_tag_unchanged(self):
         pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
         pixels[8:24, 10:22] = (40, 40, 40)
         _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)))
+        self.assertRegex(tag, r"^clean-w\d+-p\d+-cut0\.5$")
+
+    def test_clean_background_cut_tag_suffix_absent_at_eps_zero(self):
+        pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
+        pixels[8:24, 10:22] = (40, 40, 40)
+        with mock.patch.object(delivery_style, "STROKE_CUT_EPS_PCT", 0):
+            _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)))
         self.assertRegex(tag, r"^clean-w\d+-p\d+$")
+        self.assertNotIn("-cut", tag)
 
 
 def rgba_png(pixels: np.ndarray, alpha: np.ndarray) -> bytes:
@@ -390,7 +448,7 @@ class ComposeTest(unittest.TestCase):
         alpha = np.zeros((64, 64), dtype=np.uint8)
         alpha[16:48, 16:48] = 255
         composed, tag = compose(rgba_png(pixels, alpha), backdrop="stripes")
-        self.assertRegex(tag, r"^compose-w\d+-p\d+-bg-stripes$")
+        self.assertRegex(tag, r"^compose-w\d+-p\d+-bg-stripes-cut0\.5$")
         arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB"))
         corners = [tuple(arr[0, 0]), tuple(arr[0, -1]),
                   tuple(arr[-1, 0]), tuple(arr[-1, -1])]

@@ -92,12 +92,13 @@ is exactly the pre-existing `yukari` shape.
 ## Finalize defaults
 
 `delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.8`,
-`FINALIZE_SAMPLER = ("euler", "normal")`, `FINALIZE_LATENT_ROUTE = True`,
-`FINALIZE_TRANSPARENT = True`.
+`FINALIZE_DENOISE_LAYERDIFFUSE = 0.55`, `FINALIZE_SAMPLER = ("euler", "normal")`,
+`FINALIZE_LATENT_ROUTE = True`, `FINALIZE_TRANSPARENT = True`.
 `application/finalize.py` detects a sketch base by a `LoraLoader` node in
 the base graph (checked before the anima check -- a base graph carries at
 most one of the two) and picks these constants over yukari's and anima's
-own. `--denoise`/`--size` still override either way.
+own. A layerdiffuse base picks `FINALIZE_DENOISE_LAYERDIFFUSE` instead of
+`FINALIZE_DENOISE`. `--denoise`/`--size` still override either way.
 
 The redraw runs at `FINALIZE_SIZE` (2560), but the delivered file is then
 downscaled (lanczos) to `delivery_style.DELIVER_SIZE` (1536), the recipe's
@@ -141,7 +142,10 @@ that, and the normal deliver tail then runs on the redrawn pixels -- birefnet
 `RemoveBackground`, `YukariDeliver(transparent=True)`, the `deliver_size`
 scale, `-delivered` and `-matte` `SaveImage`s -- so the band is drawn once,
 from the redrawn matte, not from the raw layerdiffuse alpha the redraw has
-already moved. An explicit `backdrop`, `keep_scene`, or `transparent: false`
+already moved. The redraw itself runs at `FINALIZE_DENOISE_LAYERDIFFUSE`
+(0.55), not the recipe's usual 0.8: the layerdiffuse raw already holds its
+own scene at full opacity, and 0.8 lets the redraw invent background objects
+the raw never drew. An explicit `backdrop`, `keep_scene`, or `transparent: false`
 selects the legacy path instead: `YukariCompose` draws the white/purple bands
 onto the backdrop before the redraw runs, and that redraw is the whole
 delivered picture -- no birefnet matte, no `YukariDeliver`. The `backdrop`

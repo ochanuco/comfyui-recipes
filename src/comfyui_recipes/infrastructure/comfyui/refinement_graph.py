@@ -75,14 +75,10 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     vae_ref = graph[roles.decode_id]["inputs"].get("vae", ["4", 2])
     compose_id = None
     if compose:
-        # transparent is the band-less compose: the redraw moves the
-        # silhouette, so the band is drawn once afterward, from the redrawn
-        # pixels' own matte, instead of here from the raw layerdiffuse alpha.
-        bands = not transparent
-        if bands and (matte_model or deliver):
-            raise ValueError(
-                "compose cannot be combined with matte_model or deliver "
-                "unless transparent")
+        if matte_model:
+            raise ValueError("compose cannot be combined with matte_model")
+        if deliver and not transparent:
+            raise ValueError("compose deliver requires transparent")
         join_ref = graph[roles.save_id]["inputs"]["images"]
         join_node = graph.get(join_ref[0], {})
         if join_node.get("class_type") != "JoinImageWithAlpha":
@@ -91,9 +87,13 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                 f"directly by a JoinImageWithAlpha node, got "
                 f"{join_node.get('class_type')!r}")
         compose_id = str(next_id + 11)
+        # The hand-cut bands are always drawn here, on the flat backdrop,
+        # before the redraw -- the redraw is what paints them into the
+        # picture. Whatever runs after (nothing, or `cut_backdrop` below)
+        # never draws a band of its own.
         graph[compose_id] = {"class_type": "YukariCompose", "inputs": {
             "image": join_ref, "backdrop": backdrop or "",
-            "stroke_light": stroke_light or "", "bands": bands}}
+            "stroke_light": stroke_light or "", "bands": True}}
     if loader:
         # A different checkpoint redraws: its own model, CLIP and VAE, with the
         # base prompts re-encoded through its CLIP.
@@ -181,17 +181,17 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     graph[roles.save_id]["inputs"]["images"] = [decode, 0]
     graph[roles.save_id]["inputs"]["filename_prefix"] = prefix
     if compose and not deliver and deliver_target is not None:
-        # compose-with-bands is the whole delivered picture here -- no
-        # separate YukariDeliver node downstream to scale instead. A
-        # band-less compose that goes on to deliver is scaled by that tail,
-        # below, same as any other deliver route.
+        # The composed-and-redrawn picture is the whole delivered picture
+        # here -- no separate tail downstream to scale instead. A compose
+        # that goes on to deliver (cut_backdrop, below) is scaled by that
+        # tail instead, same as any other deliver route.
         deliver_scale = str(max(int(key) for key in graph) + 1)
         graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {
             "image": [decode, 0], "upscale_method": "lanczos",
             "width": deliver_target[0], "height": deliver_target[1],
             "crop": "disabled"}}
         graph[roles.save_id]["inputs"]["images"] = [deliver_scale, 0]
-    if deliver and not matte_model:
+    if deliver and not matte_model and not compose:
         raise ValueError("deliver requires matte_model")
     if matte_model:
         bg_loader, remove, to_image, save = (
@@ -257,4 +257,37 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
                 "images": delivered_ref,
                 "filename_prefix": prefix + DELIVERED_SUFFIX}}
+    elif compose and deliver:
+        # No birefnet matte here: the bands are already redrawn into the
+        # picture, so the only thing left to cut is the backdrop's own
+        # colour -- `YukariCutBackdrop`, not `RemoveBackground`.
+        cursor = max(int(key) for key in graph) + 1
+
+        def allocate() -> str:
+            nonlocal cursor
+            node_id = str(cursor)
+            cursor += 1
+            return node_id
+
+        cut_id = allocate()
+        graph[cut_id] = {"class_type": "YukariCutBackdrop", "inputs": {
+            "image": [decode, 0], "backdrop": backdrop or ""}}
+        to_image = allocate()
+        graph[to_image] = {"class_type": "MaskToImage", "inputs": {
+            "mask": [cut_id, 1]}}
+        save = allocate()
+        graph[save] = {"class_type": "SaveImage", "inputs": {
+            "images": [to_image, 0], "filename_prefix": prefix + MATTE_SUFFIX}}
+        delivered_ref = [cut_id, 0]
+        if deliver_target is not None:
+            deliver_scale = allocate()
+            graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {
+                "image": delivered_ref, "upscale_method": "lanczos",
+                "width": deliver_target[0], "height": deliver_target[1],
+                "crop": "disabled"}}
+            delivered_ref = [deliver_scale, 0]
+        save_delivered = allocate()
+        graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
+            "images": delivered_ref,
+            "filename_prefix": prefix + DELIVERED_SUFFIX}}
     return graph

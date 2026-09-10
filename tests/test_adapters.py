@@ -692,21 +692,21 @@ class AdapterTest(unittest.TestCase):
 
     def test_chain_pass_compose_deliver_without_transparent_raises(self):
         base = self._layerdiffuse_sketch_base()
-        with self.assertRaisesRegex(ValueError, "compose cannot be combined"):
+        with self.assertRaisesRegex(ValueError, "compose deliver requires transparent"):
             chain_pass(base, 2048, 0.55, "fin", canvas=(832, 1664),
-                      compose=True, matte_model="birefnet", deliver=True)
+                      compose=True, deliver=True)
 
     def test_chain_pass_compose_on_a_non_rgba_base_raises(self):
         with self.assertRaisesRegex(ValueError, "JoinImageWithAlpha"):
             chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664), compose=True)
 
-    def test_chain_pass_compose_transparent_wires_bands_false_onto_the_compose_node(self):
+    def test_chain_pass_compose_transparent_wires_bands_true_onto_the_compose_node(self):
         base = self._layerdiffuse_sketch_base()
         graph = chain_pass(base, 2048, 0.55, "fin", prompt=("p", "n"),
                            canvas=(832, 1664), latent_route=False, compose=True,
-                           transparent=True, matte_model="birefnet", deliver=True)
+                           transparent=True, deliver=True)
         compose_node = self._single(graph, "YukariCompose")
-        self.assertIs(compose_node["inputs"]["bands"], False)
+        self.assertIs(compose_node["inputs"]["bands"], True)
 
     def test_chain_pass_compose_without_transparent_wires_bands_true(self):
         base = self._layerdiffuse_sketch_base()
@@ -715,18 +715,21 @@ class AdapterTest(unittest.TestCase):
         compose_node = self._single(graph, "YukariCompose")
         self.assertIs(compose_node["inputs"]["bands"], True)
 
-    def test_chain_pass_compose_transparent_appends_the_deliver_tail(self):
+    def test_chain_pass_compose_transparent_appends_the_cut_backdrop_tail(self):
         base = self._layerdiffuse_sketch_base()
         graph = chain_pass(base, 2048, 0.55, "fin", prompt=("p", "n"),
                            canvas=(832, 1664), latent_route=False, compose=True,
-                           transparent=True, matte_model="birefnet", deliver=True)
+                           transparent=True, deliver=True, backdrop="#112233")
         decode_id = self._redraw_decode_id(graph)
-        remove = self._single(graph, "RemoveBackground")
-        self.assertEqual(remove["inputs"]["image"], [decode_id, 0])
-        deliver_node = self._single(graph, "YukariDeliver")
-        self.assertEqual(deliver_node["inputs"]["image"], [decode_id, 0])
-        self.assertIs(deliver_node["inputs"]["transparent"], True)
+        self.assertFalse(any(node.get("class_type") in
+                             ("RemoveBackground", "LoadBackgroundRemovalModel", "YukariDeliver")
+                             for node in graph.values()))
+        cut_node = self._single(graph, "YukariCutBackdrop")
+        self.assertEqual(cut_node["inputs"]["image"], [decode_id, 0])
+        self.assertEqual(cut_node["inputs"]["backdrop"], "#112233")
+        cut_id = self._id_of(graph, cut_node)
         to_image = self._single(graph, "MaskToImage")
+        self.assertEqual(to_image["inputs"]["mask"], [cut_id, 1])
         to_image_id = self._id_of(graph, to_image)
         matte_save = next(node for node in graph.values()
                           if node.get("class_type") == "SaveImage"
@@ -735,10 +738,9 @@ class AdapterTest(unittest.TestCase):
         delivered_save = next(node for node in graph.values()
                               if node.get("class_type") == "SaveImage"
                               and node["inputs"]["filename_prefix"] == "fin" + DELIVERED_SUFFIX)
-        deliver_id = self._id_of(graph, deliver_node)
-        self.assertEqual(delivered_save["inputs"]["images"], [deliver_id, 0])
-        # The raw redraw itself is untouched -- no deliver_target scaling and
-        # no bands, since those are the deliver tail's and the matte's own job.
+        self.assertEqual(delivered_save["inputs"]["images"], [cut_id, 0])
+        # The raw redraw itself is untouched -- no deliver_target scaling,
+        # since that is the cut tail's own job.
         self.assertEqual(graph["9"]["inputs"]["images"], [decode_id, 0])
 
     def test_chain_pass_compose_transparent_deliver_size_scales_only_the_delivered_save(self):
@@ -747,14 +749,14 @@ class AdapterTest(unittest.TestCase):
         base["5"]["inputs"]["height"] = 1280
         graph = chain_pass(base, 2560, 0.55, "fin", prompt=("p", "n"),
                            canvas=(1024, 1280), latent_route=False, compose=True,
-                           transparent=True, matte_model="birefnet", deliver=True,
+                           transparent=True, deliver=True,
                            deliver_size=1536)
         decode_id = self._redraw_decode_id(graph)
-        deliver_node = self._single(graph, "YukariDeliver")
-        deliver_id = self._id_of(graph, deliver_node)
+        cut_node = self._single(graph, "YukariCutBackdrop")
+        cut_id = self._id_of(graph, cut_node)
         scale = next(node for node in graph.values()
                     if node.get("class_type") == "ImageScale"
-                    and node["inputs"]["image"] == [deliver_id, 0])
+                    and node["inputs"]["image"] == [cut_id, 0])
         self.assertEqual(scale["inputs"]["upscale_method"], "lanczos")
         scale_id = self._id_of(graph, scale)
         delivered_save = next(node for node in graph.values()

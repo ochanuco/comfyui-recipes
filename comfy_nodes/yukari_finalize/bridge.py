@@ -45,3 +45,10 @@ def mask_to_png(tensor) -> bytes:
     """First batch item of a MASK tensor ([B, H, W] float32 0..1) as L."""
     array = np.clip(tensor[0].cpu().numpy() * 255.0, 0, 255).astype(np.uint8)
     return array_to_png(array, "L")
+
+
+def png_to_mask(data: bytes):
+    """An L-mode PNG as a [1, H, W] float32 0..1 MASK tensor."""
+    import torch
+    array = png_to_array(data, "L").astype(np.float32) / 255.0
+    return torch.from_numpy(array)[None, ...]

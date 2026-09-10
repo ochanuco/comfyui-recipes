@@ -134,24 +134,32 @@ The latent route is this recipe's own default (`FINALIZE_LATENT_ROUTE`):
 route instead.
 
 A base rendered with `layerdiffuse` carries its own RGBA, so its finalize
-composes before it redraws. By default (`FINALIZE_TRANSPARENT`) the compose
-is band-less: `YukariCompose` places the RGBA onto the delivery's own flat
-backdrop with no white/purple ring, the pixel-route upscale and redraw (the
-recipe's own LoRA riding into the redraw's model and CLIP as usual) run on
-that, and the normal deliver tail then runs on the redrawn pixels -- birefnet
-`RemoveBackground`, `YukariDeliver(transparent=True)`, the `deliver_size`
-scale, `-delivered` and `-matte` `SaveImage`s -- so the band is drawn once,
-from the redrawn matte, not from the raw layerdiffuse alpha the redraw has
-already moved. The redraw itself runs at `FINALIZE_DENOISE_LAYERDIFFUSE`
-(0.55), not the recipe's usual 0.8: the layerdiffuse raw already holds its
-own scene at full opacity, and 0.8 lets the redraw invent background objects
-the raw never drew. An explicit `backdrop`, `keep_scene`, or `transparent: false`
-selects the legacy path instead: `YukariCompose` draws the white/purple bands
-onto the backdrop before the redraw runs, and that redraw is the whole
-delivered picture -- no birefnet matte, no `YukariDeliver`. The `backdrop`
+composes before it redraws: `YukariCompose` places the RGBA onto the
+delivery's own flat backdrop with the white band and purple stroke drawn
+around it -- the same hand-cut rim every other delivery gets -- and the
+pixel-route upscale and redraw (the recipe's own LoRA riding into the
+redraw's model and CLIP as usual) run on that composite, so the rim is
+redrawn into the picture along with everything else. The redraw itself
+runs at `FINALIZE_DENOISE_LAYERDIFFUSE` (0.55), not the recipe's usual 0.8:
+the layerdiffuse raw already holds its own scene at full opacity, and 0.8
+lets the redraw invent background objects the raw never drew.
+
+By default (`FINALIZE_TRANSPARENT`) the redrawn picture then goes through
+`YukariCutBackdrop`: no birefnet matte, since there is no silhouette left
+to find by segmentation -- the only thing outside the rim is the flat
+backdrop, redrawn, so it is cut by colour tolerance
+(`delivery_style.CUT_BACKDROP_TOLERANCE`) instead, keeping the redrawn white
+band and purple rim as part of the picture. The cut's own matte (the
+`MaskToImage` of `YukariCutBackdrop`'s mask output) and the delivered RGBA
+follow the usual `-matte`/`-delivered` `SaveImage` shape, with the
+`deliver_size` scale applied to the delivered output only. An explicit
+`backdrop`, `keep_scene`, or `transparent: false` selects the legacy path
+instead: the composed-and-redrawn picture (bands and backdrop both baked
+in) is the whole delivered picture, and nothing cuts it. The `backdrop`
 request option (`--backdrop` on the CLI, a `#RRGGBB` hex colour or the named
-pattern `stripes`) overrides the legacy composite's backdrop; unset, it is
-the delivery's own flat default.
+pattern `stripes`) overrides the composite's backdrop on either path; unset,
+it is the delivery's own flat default, and giving one forces the legacy
+path since `YukariCutBackdrop` only means something against a flat colour.
 The `upscale` request option (`--upscale` on the CLI: `bicubic`,
 `nearest-exact`, `bilinear` or `lanczos`) selects the pixel-route
 `ImageScale` node's `upscale_method` feeding that redraw; unset, it stays

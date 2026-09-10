@@ -90,14 +90,21 @@ document -- schema version 1, with `git_commit`/`git_branch`/`git_dirty`,
 `yukari-anima`, `yukari-sketch`). Each recipe entry has the checkpoint its
 `render_spec` uses, a `parameters` block (`allowed`/`rejected` keys, agreeing
 with `generate.py`'s own per-recipe validation), its `costumes`
-(`yukari-anima` also lists `expressions`), and one `poses` entry per pose:
-name, default costume, face override (`null` where the recipe has none),
-`expression` (anima poses only), the canvas `render_spec` would use, and the
-fully assembled positive/negative prompt for that pose's own default
-costume. A `patches` block mirrors `domain/generation/patches.py`'s
+(`yukari-anima` also lists `expressions`), a `parts` list (the recipe's named
+positive-prompt parts in join order -- `[]` for `yukari`, which has none),
+an `identity_tags` list (bare identity tags for the recipe's default
+costume), and one `poses` entry per pose: name, default costume, face
+override (`null` where the recipe has none), `expression` (anima poses
+only), the canvas `render_spec` would use, the fully assembled
+positive/negative prompt for that pose's own default costume, and -- for
+`yukari-sketch`/`yukari-anima` only -- a `parts` list of `{"name", "text"}`
+whose texts concatenate to `positive` byte for byte. A `patches` block
+mirrors `domain/generation/patches.py`'s
 `TEXT_TARGETS`/`NUMBER_TARGETS`/`STRING_TARGETS` -- ops, one-line numeric
-constraints, and the closed string enums -- so an agent with no shell can
-compose `generation.patches` from the catalog alone.
+constraints, and the closed string enums -- plus `text.part_target`
+(`"prompt.positive.<part>"`) and an `overrides` block documenting
+`identity_override`, so an agent with no shell can compose
+`generation.patches` from the catalog alone.
 
 ```bash
 uv run comfy-recipes catalog                # print the document
@@ -201,7 +208,11 @@ Text targets are `prompt.positive`, `prompt.negative`,
 `prompt.hires.positive`, and `prompt.hires.negative`, with ops `append`,
 `prepend`, `replace`, and `remove`; `replace` and `remove` require an `old`
 needle, and a needle absent from the text is an immediate error rather than
-a silent no-op. Number targets are `render.cfg`, `render.steps`,
+a silent no-op. `prompt.positive.<part>` targets one named part of the
+recipe's positive prompt instead of the whole string -- same ops and fields
+as `prompt.positive` -- then the parts are rejoined; targeting a part on a
+recipe with none (`yukari`) or an unrecognised part name is a clear
+`ValueError` naming the valid parts. Number targets are `render.cfg`, `render.steps`,
 `render.width`, `render.height`, `hires.denoise`, `render.layerdiffuse_weight`,
 and `render.lora_strength`, with op `set`; `render.cfg` and `render.steps`
 govern both sampling passes, since the spec holds one value for each.
@@ -244,6 +255,17 @@ diffs in `generation.patches`.
 the resolved positive prompt, the graph nodes, and the applied patch count,
 and a patch that cannot compile (an absent needle, a bad type) fails there
 -- and on a real run it fails before the batch is created.
+
+After presets, a `generation.prompt` override and every patch are applied,
+the worker checks that every identity tag in the recipe's unpatched prompt
+(hair colour/length, sidelocks, eye colour, hair ornament, eye-shape
+identity, and the costume's cardigan/hood, compared bare -- weight syntax
+and parentheses stripped) is still present in the final positive. If one is
+missing and `generation.identity_override` is absent, the request fails
+before rendering with a message listing the removed tags. A non-empty
+`identity_override` (validated like `lint_waiver`) lets it render anyway,
+and the removed tags plus the override reason are recorded on the
+generation's `semantic.attributes` and on the Batch.
 
 Every render is measured against the palette bands at ingest, and the
 numbers -- plus a pass/FAIL verdict -- land in its semantic attributes.

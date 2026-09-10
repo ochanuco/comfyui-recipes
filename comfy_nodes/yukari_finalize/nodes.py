@@ -114,11 +114,13 @@ class YukariCompose:
         }, "optional": {
             "backdrop": ("STRING", {"default": ""}),
             "stroke_light": ("STRING", {"default": ""}),
+            "bands": ("BOOLEAN", {"default": True}),
         }}
 
-    def run(self, image, backdrop="", stroke_light=""):
+    def run(self, image, backdrop="", stroke_light="", bands=True):
         data, tag = delivery.compose(
-            bridge.image_to_png(image), backdrop or None, light=stroke_light or None)
+            bridge.image_to_png(image), backdrop or None, light=stroke_light or None,
+            bands=bands)
         return (bridge.png_to_image(data, "RGB"), tag)
 
 

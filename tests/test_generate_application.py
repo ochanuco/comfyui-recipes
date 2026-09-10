@@ -233,6 +233,15 @@ class GenerateApplicationTest(unittest.TestCase):
     def test_validate_request_accepts_lint_waiver(self):
         validate_request(base_request(lint_waiver="deliberate for this arm"))
 
+    def test_validate_request_rejects_empty_identity_override(self):
+        with self.assertRaises(SystemExit):
+            validate_request(base_request(identity_override=""))
+        with self.assertRaises(SystemExit):
+            validate_request(base_request(identity_override=123))
+
+    def test_validate_request_accepts_identity_override(self):
+        validate_request(base_request(identity_override="deliberate crop"))
+
     def test_validate_request_accepts_experiment_block(self):
         request = base_request()
         request["experiment"] = {"experiment_id": "exp-1", "run_id": "run-1"}
@@ -902,6 +911,224 @@ class GenerateApplicationTest(unittest.TestCase):
         self.assertEqual(
             [call for call in management.calls if call[1] == "/api/v1/batches"],
             [])
+
+    def test_generate_fails_before_rendering_when_identity_tags_are_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
+            management = ManagementFake()
+            services = GenerateServices(
+                management=management,
+                comfyui=ComfyFake(),
+                state=StateFake({}),
+                notifier=NullNotifier(),
+                graph_builder=lambda *_: {
+                    "3": {"class_type": "KSampler",
+                          "inputs": {"positive": ["6", 0], "negative": ["7", 0]}},
+                    "6": {"inputs": {"text": "1girl, no identity here"}},
+                    "7": {"inputs": {"text": "n"}}},
+                git_metadata=lambda: {"commit": "c", "dirty": False},
+                conflicts=lambda *_: [],
+                output_root=Path(directory),
+                emit=lambda _: None,
+                identity_tags=lambda *_: frozenset({"purple eyes", "tareme"}),
+            )
+            with self.assertRaises(SystemExit) as ctx:
+                generate(path, services)
+            self.assertIn("purple eyes", str(ctx.exception))
+            self.assertIn("identity_override", str(ctx.exception))
+            self.assertFalse(
+                any(call[1] == "/api/v1/batches" for call in management.calls))
+
+    def test_generate_renders_and_records_identity_override(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(
+                json.dumps(base_request(identity_override="deliberate crop")),
+                encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
+            state = StateFake({
+                "idempotency_key": "fixed-key", "seeds": [42],
+                "jobs": [{"idempotency_key": "job-key", "job_id": "job-id",
+                          "comfy_prompt_id": "old-prompt", "status": "failed"}],
+            })
+            emits = []
+            services = GenerateServices(
+                management, comfy, state, RecordingNotifier(),
+                lambda generation, seed, prefix: {
+                    "3": {"class_type": "KSampler",
+                          "inputs": {"positive": ["6", 0], "negative": ["7", 0]}},
+                    "6": {"inputs": {"text": "1girl, no identity here"}},
+                    "7": {"inputs": {"text": "y"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), emits.append,
+                identity_tags=lambda *_: frozenset({"purple eyes", "tareme"}))
+            generate(path, services)
+            self.assertTrue(any("purple eyes" in message for message in emits))
+            batch_call = next(
+                call for call in management.calls
+                if call[0] == "POST" and call[1] == "/api/v1/batches")
+            payload = batch_call[2]
+            self.assertEqual(payload["identity_override"], "deliberate crop")
+            self.assertEqual(sorted(payload["identity_removed"]),
+                             ["purple eyes", "tareme"])
+            semantic_call = next(
+                call for call in management.calls if call[0] == "semantic")
+            self.assertEqual(
+                semantic_call[2]["attributes"]["identity_override"],
+                "deliberate crop")
+            self.assertEqual(
+                sorted(semantic_call[2]["attributes"]["identity_removed"]),
+                ["purple eyes", "tareme"])
+
+    def test_generate_does_not_record_an_unused_identity_override(self):
+        # identity_override set defensively, but nothing was actually
+        # removed -- it must not be stamped onto the Batch or the semantic
+        # attributes as if it had excused a real drop.
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(
+                json.dumps(base_request(identity_override="just in case")),
+                encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
+            state = StateFake({
+                "idempotency_key": "fixed-key", "seeds": [42],
+                "jobs": [{"idempotency_key": "job-key", "job_id": "job-id",
+                          "comfy_prompt_id": "old-prompt", "status": "failed"}],
+            })
+            services = GenerateServices(
+                management, comfy, state, RecordingNotifier(),
+                lambda generation, seed, prefix: {
+                    "3": {"class_type": "KSampler",
+                          "inputs": {"positive": ["6", 0], "negative": ["7", 0]}},
+                    "6": {"inputs": {"text": "1girl, purple eyes, tareme"}},
+                    "7": {"inputs": {"text": "y"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None,
+                identity_tags=lambda *_: frozenset({"purple eyes", "tareme"}))
+            generate(path, services)
+            batch_call = next(
+                call for call in management.calls
+                if call[0] == "POST" and call[1] == "/api/v1/batches")
+            self.assertNotIn("identity_override", batch_call[2])
+            self.assertNotIn("identity_removed", batch_call[2])
+            semantic_call = next(
+                call for call in management.calls if call[0] == "semantic")
+            self.assertNotIn(
+                "identity_override", semantic_call[2]["attributes"])
+            self.assertNotIn(
+                "identity_removed", semantic_call[2]["attributes"])
+
+    def test_generate_skips_the_identity_guard_in_graph_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            request = {
+                "schema_version": 1,
+                "request": {"count": 1, "instruction": "test", "seeds": [42]},
+                "generation": {"recipe": "yukari",
+                              "graph": {"6": {"inputs": {"text": "x"}}}},
+                "semantic": {"summary": "test arm"},
+            }
+            path.write_text(json.dumps(request), encoding="utf-8")
+
+            def unexpected_identity_tags(*args):
+                raise AssertionError("identity_tags must not be called in graph mode")
+
+            management = ManagementFake()
+            comfy = ComfyFake()
+            state = StateFake({"idempotency_key": "fixed-key", "seeds": [42], "jobs": []})
+            services = GenerateServices(
+                management, comfy, state, NullNotifier(),
+                lambda generation, seed, prefix: dict(generation["graph"]),
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None,
+                identity_tags=unexpected_identity_tags)
+            generate(path, services)
+
+    def test_generate_reproduces_the_repair_crop_incident(self):
+        """A patch that overwrites the identity block with a repair-crop
+        prompt (the ChatGPT-via-MCP incident this guard exists for) must fail
+        before rendering, and must render -- with the loss recorded -- once
+        `identity_override` states why.
+        """
+        from comfyui_recipes.interfaces.agent import (
+            _build_generation_graph, _identity_tags,
+        )
+
+        strip_patch = [
+            {"target": "prompt.positive", "op": "remove",
+             "old": ("(light purple hair:1.15), (short hair with long "
+                     "locks:1.25), (very long sidelocks:1.2), (purple "
+                     "eyes:1.15), (hair ornament:1.2), "),
+             "reason": "repair crop"},
+            {"target": "prompt.positive", "op": "remove",
+             "old": "(tareme:1.2), (jitome:1.25), ", "reason": "repair crop"},
+        ]
+
+        def _request(**extra):
+            return {
+                "schema_version": 1,
+                "request": {"count": 1, "instruction": "test", "seeds": [7]},
+                "generation": {"recipe": "yukari-sketch",
+                              "parameters": {"pose": "date"},
+                              "patches": strip_patch, **extra},
+                "semantic": {"summary": "test arm"},
+            }
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(json.dumps(_request()), encoding="utf-8")
+            services = GenerateServices(
+                management=ManagementFake(), comfyui=ComfyFake(),
+                state=StateFake({}), notifier=NullNotifier(),
+                graph_builder=_build_generation_graph,
+                git_metadata=lambda: {"commit": "c", "dirty": False},
+                conflicts=lambda *_: [], output_root=Path(directory),
+                emit=lambda _: None,
+                pose_fingerprint=lambda *_: "sha256:test",
+                identity_tags=_identity_tags)
+            with self.assertRaises(SystemExit) as ctx:
+                generate(path, services)
+            message = str(ctx.exception)
+            for tag in ("purple eyes", "light purple hair",
+                       "very long sidelocks", "hair ornament", "tareme",
+                       "jitome"):
+                self.assertIn(tag, message)
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(
+                json.dumps(_request(identity_override="deliberate repair crop")),
+                encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
+            state = StateFake({
+                "idempotency_key": "fixed-key", "seeds": [7],
+                "jobs": [{"idempotency_key": "job-key", "job_id": "job-id",
+                          "comfy_prompt_id": "old-prompt", "status": "failed"}],
+            })
+            services = GenerateServices(
+                management=management, comfyui=comfy, state=state,
+                notifier=RecordingNotifier(),
+                graph_builder=_build_generation_graph,
+                git_metadata=lambda: {"commit": "c", "dirty": False},
+                conflicts=lambda *_: [], output_root=Path(directory),
+                emit=lambda _: None,
+                pose_fingerprint=lambda *_: "sha256:test",
+                identity_tags=_identity_tags)
+            generate(path, services)
+            batch_call = next(
+                call for call in management.calls
+                if call[0] == "POST" and call[1] == "/api/v1/batches")
+            removed = set(batch_call[2]["identity_removed"])
+            self.assertTrue({"purple eyes", "tareme", "jitome"} <= removed)
+            self.assertEqual(
+                batch_call[2]["identity_override"], "deliberate repair crop")
 
     def test_generate_returns_batch_id_and_generation_ids(self):
         with tempfile.TemporaryDirectory() as directory:

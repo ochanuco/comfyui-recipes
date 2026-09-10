@@ -186,7 +186,7 @@ class NodeRunTest(unittest.TestCase):
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, transparent=True)
         self.assertEqual(image.array.shape, (1, 64, 64, 4))
-        self.assertEqual(tag, "transparent-w1-p1")
+        self.assertEqual(tag, "transparent-w1-p1-cut0.5")
 
     def test_deliver_keep_scene_wins_over_transparent(self):
         node = nodes.YukariDeliver()
@@ -217,7 +217,7 @@ class NodeRunTest(unittest.TestCase):
         image, tag = node.run(
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, transparent=True)
-        self.assertEqual(tag, "transparent-w1-p1")
+        self.assertEqual(tag, "transparent-w1-p1-cut0.5")
 
     def test_deliver_backdrop_stripes_returns_rgb_and_a_bg_tag(self):
         node = nodes.YukariDeliver()
@@ -225,7 +225,7 @@ class NodeRunTest(unittest.TestCase):
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, backdrop="stripes")
         self.assertEqual(image.array.shape[-1], 3)
-        self.assertTrue(tag.endswith("-bg-stripes"))
+        self.assertTrue(tag.endswith("-bg-stripes-cut0.5"))
 
     def test_deliver_default_backdrop_yields_the_old_tag(self):
         node = nodes.YukariDeliver()

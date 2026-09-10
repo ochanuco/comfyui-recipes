@@ -6,6 +6,7 @@ import io
 import json
 import string
 
+import cv2
 import numpy as np
 from PIL import Image
 from scipy import ndimage
@@ -178,6 +179,59 @@ def directional_stroke_alpha(mask: np.ndarray, gap: float, w_min: float,
     return alpha
 
 
+def _polygon_coverage(region: np.ndarray, eps_pct: float,
+                      supersample: int = 2) -> np.ndarray:
+    """Coverage of `region`'s outer shape, polygon-simplified.
+
+    Supersamples `supersample`x, straightens each contour with
+    `cv2.approxPolyDP` at `eps_pct` percent of the longest side, fills the
+    outer contours and clears the holes, then area-downsamples back to 1x --
+    the shape-simplifying counterpart to `STROKE_EDGE_SMOOTH`'s ramp blur.
+    Holes (background the shape encloses, e.g. between an arm and the body)
+    survive because only contours with a parent in the hierarchy are cleared.
+    """
+    height, width = region.shape
+    scaled = cv2.resize(region.astype(np.uint8) * 255,
+                        (width * supersample, height * supersample),
+                        interpolation=cv2.INTER_LINEAR)
+    contours, hierarchy = cv2.findContours(
+        (scaled > 127).astype(np.uint8), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    canvas = np.zeros_like(scaled)
+    if contours:
+        eps = max(height, width) * supersample * eps_pct / 100
+        polygons = [cv2.approxPolyDP(contour, eps, True) for contour in contours]
+        for index, polygon in enumerate(polygons):
+            if hierarchy[0][index][3] == -1:
+                cv2.fillPoly(canvas, [polygon], 255, lineType=cv2.LINE_AA)
+        for index, polygon in enumerate(polygons):
+            if hierarchy[0][index][3] != -1:
+                cv2.fillPoly(canvas, [polygon], 0, lineType=cv2.LINE_AA)
+    return cv2.resize(canvas, (width, height),
+                      interpolation=cv2.INTER_AREA).astype(float) / 255
+
+
+def _directional_region(mask: np.ndarray, w_min: float, w_max: float,
+                        light: tuple[float, float], smooth: float) -> np.ndarray:
+    """The region grown out from `mask`, its width shaded by `light`.
+
+    Same width field as `directional_stroke_alpha` -- thin where the
+    outline's own outward normal faces `light`, thick opposite -- but
+    thresholded to a hard region instead of ramped: `_polygon_coverage` is
+    the edge treatment for this region, not a gaussian ramp.
+    """
+    distance = ndimage.distance_transform_edt(~mask)
+    field = ndimage.gaussian_filter(distance, smooth)
+    ny, nx = np.gradient(field)
+    norm = np.hypot(nx, ny)
+    norm[norm == 0] = 1.0
+    facing = (nx / norm) * light[0] + (ny / norm) * light[1]
+    k = (1.0 - facing) / 2.0
+    k = k * k * (3 - 2 * k)
+    width = w_min + (w_max - w_min) * k
+    width = ndimage.gaussian_filter(width, smooth / 2)
+    return distance <= width
+
+
 def keep_scene(data: bytes, matte: bytes) -> tuple[bytes, str]:
     """Deliver the redraw as drawn, background included."""
     return data, "scene"
@@ -189,38 +243,63 @@ def _band_widths(height: int, width: int) -> tuple[float, float]:
     return white_w, purple_w
 
 
-def band_alphas(figure: np.ndarray,
-                light: str | None = None) -> tuple[np.ndarray, np.ndarray]:
+def band_alphas(figure: np.ndarray, light: str | None = None,
+                eps_pct: float | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Coverage of the white band and the purple band outside `figure`.
 
-    The 2x upscale is `Image.NEAREST`, which adds no information -- the
-    boundary is the source pixel grid's staircase, just bigger -- so the
-    bands are ramped from a distance field blurred by
-    `delivery_style.STROKE_EDGE_SMOOTH` and averaged back down, which rounds
-    that staircase off instead of merely softening it. `light`, one of `delivery_style.STROKE_LIGHTS`' keys, shades
-    the purple band's width by direction instead of drawing it at the
+    `eps_pct` (default `delivery_style.STROKE_CUT_EPS_PCT`) is the
+    Douglas-Peucker epsilon, as a percent of the longest side, each band's
+    outer outline is simplified to -- straight, angular segments instead of
+    the smooth ramp, for a hand-cut rather than die-cut edge. At
+    `eps_pct <= 0` this is exactly the old smooth geometry: the 2x
+    `Image.NEAREST` upscale adds no information -- the boundary is the
+    source pixel grid's staircase, just bigger -- so the bands are ramped
+    from a distance field blurred by `delivery_style.STROKE_EDGE_SMOOTH` and
+    averaged back down, rounding that staircase off instead of merely
+    softening it. `light`, one of `delivery_style.STROKE_LIGHTS`' keys,
+    shades the purple band's width by direction instead of drawing it at the
     uniform width; the white band is never shaded.
     """
     height, width = figure.shape
-    bg2 = ~(np.array(Image.fromarray(figure)
-                     .resize((width * 2, height * 2), Image.NEAREST)))
     white_w, purple_w = _band_widths(height, width)
-    white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2,
-                                 delivery_style.STROKE_EDGE_SMOOTH))
-    if light is None:
-        purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2,
-                                      delivery_style.STROKE_EDGE_SMOOTH))
-    else:
+    light_vec = None
+    if light is not None:
         if light not in delivery_style.STROKE_LIGHTS:
             valid = ", ".join(repr(key) for key in sorted(delivery_style.STROKE_LIGHTS))
             raise ValueError(f"light must be null or one of {valid}, got {light!r}")
-        purple_a = down2(directional_stroke_alpha(
-            bg2, white_w * 2,
-            purple_w * 2 * delivery_style.STROKE_LIGHT_THIN,
-            purple_w * 2 * delivery_style.STROKE_LIGHT_THICK,
-            delivery_style.STROKE_LIGHTS[light],
-            delivery_style.STROKE_LIGHT_SMOOTH * purple_w * 2,
-            delivery_style.STROKE_EDGE_SMOOTH))
+        light_vec = delivery_style.STROKE_LIGHTS[light]
+
+    eps = delivery_style.STROKE_CUT_EPS_PCT if eps_pct is None else eps_pct
+    if eps <= 0:
+        bg2 = ~(np.array(Image.fromarray(figure)
+                         .resize((width * 2, height * 2), Image.NEAREST)))
+        white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2,
+                                     delivery_style.STROKE_EDGE_SMOOTH))
+        if light_vec is None:
+            purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2,
+                                          delivery_style.STROKE_EDGE_SMOOTH))
+        else:
+            purple_a = down2(directional_stroke_alpha(
+                bg2, white_w * 2,
+                purple_w * 2 * delivery_style.STROKE_LIGHT_THIN,
+                purple_w * 2 * delivery_style.STROKE_LIGHT_THICK,
+                light_vec, delivery_style.STROKE_LIGHT_SMOOTH * purple_w * 2,
+                delivery_style.STROKE_EDGE_SMOOTH))
+        return white_a, purple_a
+
+    distance = ndimage.distance_transform_edt(~figure)
+    white_a = _polygon_coverage(distance <= white_w, eps)
+    white_mask = white_a >= 0.5
+    if light_vec is None:
+        purple_region = ndimage.distance_transform_edt(~white_mask) <= purple_w
+    else:
+        purple_region = _directional_region(
+            white_mask, purple_w * delivery_style.STROKE_LIGHT_THIN,
+            purple_w * delivery_style.STROKE_LIGHT_THICK, light_vec,
+            delivery_style.STROKE_LIGHT_SMOOTH * purple_w)
+    purple_a = _polygon_coverage(purple_region, eps)
+    white_a = np.where(figure, 0.0, white_a)
+    purple_a = np.where(figure, 0.0, purple_a)
     return white_a, purple_a
 
 
@@ -256,6 +335,12 @@ def _backdrop_tag_suffix(backdrop: str | None) -> str:
     return f"-bg-{name}"
 
 
+def _cut_tag_suffix() -> str:
+    """Marks a delivery's tag with the rim eps it was cut at, if any."""
+    eps = delivery_style.STROKE_CUT_EPS_PCT
+    return f"-cut{eps:g}" if eps > 0 else ""
+
+
 def clean_background(data: bytes, matte: bytes, light: str | None = None,
                      backdrop: str | None = None) -> tuple[bytes, str]:
     """Frame the figure the matte cuts out, in the delivery's own colours.
@@ -277,7 +362,8 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
 
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
-    tag = f"clean-w{white_w:.0f}-p{purple_w:.0f}" + _backdrop_tag_suffix(backdrop)
+    tag = (f"clean-w{white_w:.0f}-p{purple_w:.0f}"
+          + _backdrop_tag_suffix(backdrop) + _cut_tag_suffix())
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 
@@ -323,7 +409,8 @@ def compose(data: bytes, backdrop: str | None = None,
         figure = alpha > 127
         composite = sticker(px, figure, coverage, backdrop_rgb, light)
         white_w, purple_w = _band_widths(height, width)
-        tag = f"compose-w{white_w:.0f}-p{purple_w:.0f}" + _backdrop_tag_suffix(backdrop)
+        tag = (f"compose-w{white_w:.0f}-p{purple_w:.0f}"
+              + _backdrop_tag_suffix(backdrop) + _cut_tag_suffix())
     else:
         dehazed = _dehaze_coverage(alpha)
         composite = dehazed[..., None] * px + (1.0 - dehazed[..., None]) * backdrop_rgb
@@ -379,5 +466,5 @@ def transparent(data: bytes, matte: bytes,
     white_w, purple_w = _band_widths(height, width)
     output = io.BytesIO()
     Image.fromarray(rgba, "RGBA").save(output, "PNG")
-    tag = f"transparent-w{white_w:.0f}-p{purple_w:.0f}"
+    tag = f"transparent-w{white_w:.0f}-p{purple_w:.0f}" + _cut_tag_suffix()
     return output.getvalue(), tag + (f"-light-{light}" if light else "")

@@ -103,8 +103,8 @@ class YukariDeliver:
 
 class YukariCompose:
     CATEGORY = "yukari"
-    RETURN_TYPES = ("IMAGE", "STRING")
-    RETURN_NAMES = ("image", "tag")
+    RETURN_TYPES = ("IMAGE", "STRING", "MASK")
+    RETURN_NAMES = ("image", "tag", "mask")
     FUNCTION = "run"
 
     @classmethod
@@ -118,10 +118,11 @@ class YukariCompose:
         }}
 
     def run(self, image, backdrop="", stroke_light="", bands=True):
+        image_png = bridge.image_to_png(image)
         data, tag = delivery.compose(
-            bridge.image_to_png(image), backdrop or None, light=stroke_light or None,
-            bands=bands)
-        return (bridge.png_to_image(data, "RGB"), tag)
+            image_png, backdrop or None, light=stroke_light or None, bands=bands)
+        mask_png = delivery.compose_outside_mask(image_png, light=stroke_light or None)
+        return (bridge.png_to_image(data, "RGB"), tag, bridge.png_to_mask(mask_png))
 
 
 class YukariCutBackdrop:
@@ -134,13 +135,14 @@ class YukariCutBackdrop:
     def INPUT_TYPES(cls):
         return {"required": {
             "image": ("IMAGE",),
+            "outside": ("MASK",),
         }, "optional": {
             "backdrop": ("STRING", {"default": ""}),
         }}
 
-    def run(self, image, backdrop=""):
+    def run(self, image, outside, backdrop=""):
         data, matte_png, tag = delivery.cut_backdrop(
-            bridge.image_to_png(image), backdrop or None)
+            bridge.image_to_png(image), bridge.mask_to_png(outside), backdrop or None)
         return (bridge.png_to_image(data, "RGBA"), bridge.png_to_mask(matte_png), tag)
 
 

@@ -16,6 +16,7 @@ from typing import Protocol
 
 from ..domain.generation.models import PromptPair, RenderSpec
 from ..domain.generation.patches import apply_patches, parse_patches
+from ..domain.generation.prompt_lint import tags as prompt_tags
 
 PresetFetcher = Callable[[str, str, str, int], dict]
 
@@ -78,6 +79,10 @@ class GenerateServices:
     measure: Callable[[bytes], dict] | None = None
     presets: PresetFetcher | None = None
     pose_fingerprint: Callable[[str, str], str | None] | None = None
+    # (recipe, pose, costume) -> the recipe's identity tags for that pose,
+    # bare (weight/parens stripped). None from this callable, or the field
+    # itself left unset, skips the identity guard -- see `_identity_removed`.
+    identity_tags: Callable[[str, str, str | None], frozenset[str] | None] | None = None
 
 
 def _pins_pose(generation: Mapping) -> bool:
@@ -199,6 +204,11 @@ def validate_request(req: object) -> None:
     if lint_waiver is not None and (
             not isinstance(lint_waiver, str) or not lint_waiver):
         raise SystemExit("generation.lint_waiver must be a non-empty string")
+    identity_override = generation.get("identity_override")
+    if identity_override is not None and (
+            not isinstance(identity_override, str) or not identity_override):
+        raise SystemExit(
+            "generation.identity_override must be a non-empty string")
     experiment = req.get("experiment")
     if experiment is not None:
         if not isinstance(experiment, Mapping):
@@ -358,7 +368,8 @@ def batch_payload(req: dict, git: dict, idempotency_key: str,
                   prompts: tuple[str | None, str | None] = (None, None),
                   *, generation: dict | None = None,
                   patches: list | None = None,
-                  pose_fingerprint: str | None = None) -> dict:
+                  pose_fingerprint: str | None = None,
+                  identity_removed: list | None = None) -> dict:
     # A preset resolves recipe_pose after validation, so a Batch built from
     # req's raw generation would misreport what actually rendered.
     generation = req["generation"] if generation is None else generation
@@ -382,6 +393,13 @@ def batch_payload(req: dict, git: dict, idempotency_key: str,
         payload["patches"] = patches
     if pose_fingerprint is not None:
         payload["pose_fingerprint"] = pose_fingerprint
+    # Only when the override actually excused a removal -- a caller that sets
+    # identity_override defensively on a request that dropped nothing did not
+    # invoke it, and stamping it here without a paired identity_removed would
+    # misreport why the Batch carries it.
+    if identity_removed:
+        payload["identity_override"] = generation["identity_override"]
+        payload["identity_removed"] = identity_removed
     if req.get("references"):
         payload["references"] = [
             {**{key: value for key, value in reference.items()
@@ -479,6 +497,43 @@ def _image_output_path(output_dir: Path, filename: object) -> Path:
     return output_path
 
 
+def _check_identity(generation: dict, services: GenerateServices) -> list[str]:
+    """Fail before rendering if a patch or a prompt override dropped an
+    identity tag and `generation.identity_override` does not excuse it.
+
+    Compares bare tags (weight syntax and parentheses stripped) of the
+    recipe's own identity_tags() for the request's pose/costume -- the
+    unpatched recipe prompt -- against the final positive, after presets,
+    `generation.prompt` and every patch have been applied.
+    """
+    if services.identity_tags is None or generation.get("graph"):
+        return []
+    params = generation.get("parameters", {})
+    pose = params.get("pose")
+    if not pose:
+        return []
+    required = services.identity_tags(
+        generation["recipe"], pose, params.get("costume"))
+    if not required:
+        return []
+    probe = services.graph_builder(generation, 0, "chimera-identity-probe")
+    positive_text, _ = graph_prompts(probe)
+    present = set(prompt_tags(positive_text or ""))
+    missing = sorted(required - present)
+    if not missing:
+        return []
+    override = generation.get("identity_override")
+    if not override:
+        raise SystemExit(
+            f"identity tags removed from prompt.positive: {missing} -- set "
+            "generation.identity_override (a non-empty reason) to render "
+            "anyway"
+        )
+    services.emit(
+        f"  ! identity tags removed: {missing} (identity_override: {override})")
+    return missing
+
+
 def generate(request_path: Path, services: GenerateServices, *,
              dry_run: bool = False, force: bool = False,
              key_prefix: str | None = None) -> dict | None:
@@ -514,6 +569,7 @@ def generate(request_path: Path, services: GenerateServices, *,
             services.graph_builder(generation, 0, "chimera-probe")
         except ValueError as error:
             raise SystemExit(f"patch compile failed: {error}")
+    identity_removed = _check_identity(generation, services)
     git = services.git_metadata()
     fingerprint = None
     if services.pose_fingerprint is not None and not generation.get("graph"):
@@ -536,7 +592,8 @@ def generate(request_path: Path, services: GenerateServices, *,
         services.emit(json.dumps(
             batch_payload(req, git, "<uuid4>", graph_prompts(graph),
                           generation=generation, patches=request_patches,
-                          pose_fingerprint=fingerprint),
+                          pose_fingerprint=fingerprint,
+                          identity_removed=identity_removed),
             indent=2, ensure_ascii=False))
         services.emit(f"seeds: {seeds}")
         # A hires graph has suffixed node ids (6b, 7b); a plain int key dies.
@@ -563,7 +620,8 @@ def generate(request_path: Path, services: GenerateServices, *,
                       graph_prompts(services.graph_builder(
                           generation, 0, "chimera-probe")),
                       generation=generation, patches=request_patches,
-                      pose_fingerprint=fingerprint),
+                      pose_fingerprint=fingerprint,
+                      identity_removed=identity_removed),
     )
     state["batch_id"] = batch["id"]
     _adopt_resend_jobs(state, batch.get("jobs"), key_prefix)
@@ -694,6 +752,9 @@ def generate(request_path: Path, services: GenerateServices, *,
                                                 "layerdiffuse")}})
                 if generation.get("patches"):
                     semantic["attributes"]["patches"] = generation["patches"]
+                if identity_removed:
+                    semantic["attributes"]["identity_override"] = generation["identity_override"]
+                    semantic["attributes"]["identity_removed"] = identity_removed
                 if palette:
                     semantic["attributes"]["palette"] = palette
                 try:

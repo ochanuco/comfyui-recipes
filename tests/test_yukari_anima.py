@@ -14,7 +14,8 @@ from comfyui_recipes.domain.yukari_anima import prompt_style as ps
 from comfyui_recipes.domain.yukari_anima.costumes import COSTUMES
 from comfyui_recipes.domain.yukari_anima.poses import POSES
 from comfyui_recipes.domain.yukari_anima.recipe import (
-    negative, positive, refinement_prompt, render_spec,
+    PART_NAMES, identity_tags, negative, positive, positive_parts,
+    refinement_prompt, render_spec,
 )
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
@@ -192,6 +193,41 @@ class PromptTest(unittest.TestCase):
         self.assertIn("(tareme:1.3), (half-closed eyes:1.3), (unamused:1.15), ",
                       overridden)
         self.assertNotIn("(unamused:1.3), (half-closed eyes:1.3), ", overridden)
+
+
+class PartsTest(unittest.TestCase):
+    def test_parts_concatenate_to_the_confirmed_render_byte_for_byte(self):
+        for fixture, pose in ((COFFEE_POSITIVE, "coffee"), (AMAE_POSITIVE, "amae"),
+                              (STAND_POSITIVE, "stand")):
+            with self.subTest(pose=pose):
+                joined = "".join(text for _, text in positive_parts(pose))
+                self.assertEqual(joined, fixture)
+
+    def test_part_names_match_the_declared_order(self):
+        self.assertEqual(
+            [name for name, _ in positive_parts("coffee")], list(PART_NAMES))
+        self.assertEqual(PART_NAMES, (
+            "quality", "identity", "pose", "mouth", "mood", "eyes",
+            "gesture", "costume", "scene", "body", "background", "face",
+            "style"))
+
+
+class IdentityTagsTest(unittest.TestCase):
+    EXPECTED = frozenset({
+        "light purple hair", "short hair with long locks",
+        "very long sidelocks", "purple eyes", "hair ornament", "tareme",
+    })
+
+    def test_identity_tags_are_pose_and_costume_independent(self):
+        # `tareme` rides in FACE, not in any expression's `e.eyes` -- present
+        # for every pose regardless of expression. No anima costume carries a
+        # cardigan/hood, so those two names never enter the set.
+        for pose in ("coffee", "brush", "amae", "stand"):
+            with self.subTest(pose=pose):
+                self.assertEqual(identity_tags(pose), self.EXPECTED)
+
+    def test_costume_override_does_not_change_the_identity_set(self):
+        self.assertEqual(identity_tags("coffee", "roomwear"), self.EXPECTED)
 
 
 class RefinementPromptTest(unittest.TestCase):

@@ -28,6 +28,7 @@ from comfyui_recipes.application.work import (
     work,
     work_once,
 )
+from comfyui_recipes.domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from comfyui_recipes.domain.yukari.recipe import TOE_GUARD
 
 
@@ -287,7 +288,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "backdrop": None, "upscale": None, "lora_strength": None,
             "stroke_light": None,
             "repair": None, "repair_regions": [], "repair_denoise": 0.6,
-            "repair_pad": 1.0, "repair_size": 1024,
+            "repair_pad": 1.0, "repair_size": 1024, "repair_lora": None,
         })
 
     def test_backdrop_null_passes_through(self):
@@ -464,6 +465,28 @@ class FinalizeArgumentsTest(unittest.TestCase):
         self.assertIsNone(arguments["repair"])
         self.assertEqual(arguments["repair_regions"], [[0.0, 0.0, 0.1, 0.1]])
 
+    def test_repair_lora_default_null(self):
+        self.assertIsNone(finalize_arguments({})["repair_lora"])
+
+    def test_repair_lora_true_becomes_the_default_weight(self):
+        self.assertEqual(
+            finalize_arguments({"repair_lora": True})["repair_lora"],
+            DEFAULT_PART_LORA_WEIGHT)
+
+    def test_repair_lora_number_passes_through(self):
+        self.assertEqual(
+            finalize_arguments({"repair_lora": 0.5})["repair_lora"], 0.5)
+
+    def test_repair_lora_out_of_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "repair_lora"):
+            finalize_arguments({"repair_lora": 0})
+        with self.assertRaisesRegex(ValueError, "repair_lora"):
+            finalize_arguments({"repair_lora": 2.5})
+
+    def test_repair_lora_a_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "repair_lora"):
+            finalize_arguments({"repair_lora": "on"})
+
     def test_unknown_key_is_rejected(self):
         with self.assertRaises(ValueError) as ctx:
             finalize_arguments({"nope": True})
@@ -496,7 +519,7 @@ class RepairArgumentsTest(unittest.TestCase):
         arguments = repair_arguments({})
         self.assertEqual(arguments, {
             "parts": ["hands", "feet"], "regions": [], "denoise": 0.6,
-            "seeds": [1, 2, 3, 4], "size": 1024, "pad": 1.0,
+            "seeds": [1, 2, 3, 4], "size": 1024, "pad": 1.0, "lora": None,
         })
 
     def test_not_a_mapping_is_rejected(self):
@@ -568,6 +591,26 @@ class RepairArgumentsTest(unittest.TestCase):
     def test_pad_bounds_are_inclusive(self):
         self.assertEqual(repair_arguments({"pad": 0.5})["pad"], 0.5)
         self.assertEqual(repair_arguments({"pad": 3})["pad"], 3.0)
+
+    def test_lora_default_null(self):
+        self.assertIsNone(repair_arguments({})["lora"])
+
+    def test_lora_true_becomes_the_default_weight(self):
+        self.assertEqual(
+            repair_arguments({"lora": True})["lora"], DEFAULT_PART_LORA_WEIGHT)
+
+    def test_lora_number_passes_through(self):
+        self.assertEqual(repair_arguments({"lora": 0.5})["lora"], 0.5)
+
+    def test_lora_out_of_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "lora"):
+            repair_arguments({"lora": 0})
+        with self.assertRaisesRegex(ValueError, "lora"):
+            repair_arguments({"lora": 2.5})
+
+    def test_lora_a_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "lora"):
+            repair_arguments({"lora": "on"})
 
 
 class MaskedRedrawArgumentsTest(unittest.TestCase):

@@ -100,6 +100,22 @@ $LoraFiles = @(
         CivitaiUrl = 'https://civitai.com/api/download/models/1506333'
         Title      = 'Detailed Perfection style - Detailed Illu v0.9'
     }
+    @{
+        Name       = 'feet-xl-ill.safetensors'
+        VersionId  = 1464471
+        Size       = 456489516
+        Sha256     = '8b034f87b3acb348e94f0f1e5900eb8d89b6cce1e14d43966a8af872d216c328'
+        CivitaiUrl = 'https://civitai.com/api/download/models/1464471'
+        Title      = 'Feet XL - Feet Illu v0.1'
+    }
+    @{
+        Name       = 'hands-xl-ill.safetensors'
+        VersionId  = 2212079
+        Size       = 456485084
+        Sha256     = '66e5a79120e47a9625dca3fb9db0607e1a267a0de9bb5aa0b0633637c5098730'
+        CivitaiUrl = 'https://civitai.com/api/download/models/2212079'
+        Title      = 'Hands XL - Hands Illu v1.1'
+    }
 )
 
 # ---------------------------------------------------------------------------

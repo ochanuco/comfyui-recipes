@@ -18,6 +18,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     band_alphas,
     clean_background,
     compose,
+    compose_outside_mask,
     cut_backdrop,
     down2,
     graph_from_png,
@@ -507,13 +508,34 @@ class ComposeTest(unittest.TestCase):
         np.testing.assert_array_equal(arr[0, 0], np.array(parse_color("#112233")))
         self.assertEqual(tag, "compose-flat-bg-112233")
 
+    def test_compose_outside_mask_excludes_the_figure_and_its_bands(self):
+        pixels = np.full((240, 240, 3), (40, 40, 40), dtype=np.uint8)
+        alpha = np.zeros((240, 240), dtype=np.uint8)
+        alpha[80:160, 80:160] = 255
+        mask = compose_outside_mask(rgba_png(pixels, alpha))
+        arr = np.array(Image.open(io.BytesIO(mask)).convert("L"))
+        self.assertEqual(arr.shape, (240, 240))
+        self.assertEqual(arr[120, 120], 0)     # inside the figure
+        self.assertEqual(arr[120, 161], 0)     # inside the bands
+        self.assertEqual(arr[120, 239], 255)   # past the bands
+
+
+def outside_png(shape: tuple[int, int], figure_box=None) -> bytes:
+    """An `outside` mask PNG: True everywhere except `figure_box`, if given."""
+    mask = np.full(shape, 255, dtype=np.uint8)
+    if figure_box is not None:
+        top, bottom, left, right = figure_box
+        mask[top:bottom, left:right] = 0
+    return png(mask)
+
 
 class CutBackdropTest(unittest.TestCase):
     def test_cut_backdrop_cuts_the_border_connected_backdrop(self):
         pixels = np.full((64, 64, 3), parse_color(delivery_style.BACKDROP),
                          dtype=np.uint8)
         pixels[16:48, 16:48] = (40, 40, 40)
-        cut, matte, tag = cut_backdrop(png(pixels))
+        cut, matte, tag = cut_backdrop(
+            png(pixels), outside_png((64, 64), (16, 48, 16, 48)))
         image = Image.open(io.BytesIO(cut))
         self.assertEqual(image.mode, "RGBA")
         self.assertEqual(image.size, (64, 64))
@@ -526,15 +548,28 @@ class CutBackdropTest(unittest.TestCase):
         self.assertEqual(matte_arr[0, 0], 0)
         self.assertEqual(matte_arr[32, 32], 255)
 
-    def test_cut_backdrop_cuts_an_enclosed_hole(self):
-        # No figure pixel is backdrop-coloured here, so the frame-edge flood
-        # finds nothing -- only `enclosed_mask`'s own region test reaches
-        # the hole between where an arm would meet the body.
+    def test_cut_backdrop_cuts_a_hole_inside_the_outside_mask(self):
+        # A hole between two figure blobs -- backdrop-coloured, and the
+        # outside mask reaches it (unlike the interior-passage case below).
         pixels = np.full((64, 64, 3), (40, 40, 40), dtype=np.uint8)
         pixels[24:32, 24:32] = parse_color(delivery_style.BACKDROP)
-        cut, _, _ = cut_backdrop(png(pixels))
+        hole_marked_outside = np.zeros((64, 64), dtype=np.uint8)
+        hole_marked_outside[24:32, 24:32] = 255
+        cut, _, _ = cut_backdrop(png(pixels), png(hole_marked_outside))
         arr = np.array(Image.open(io.BytesIO(cut)).convert("RGBA"))
         self.assertEqual(arr[28, 28, 3], 0)
+        self.assertEqual(arr[0, 0, 3], 255)
+
+    def test_cut_backdrop_keeps_a_figure_interior_backdrop_coloured_region_opaque(self):
+        # Pale hair or a pale table: exactly the backdrop colour, but inside
+        # the figure and outside the outside mask -- colour alone must not
+        # cut it. This is the bug the outside mask exists to fix.
+        pixels = np.full((64, 64, 3), (40, 40, 40), dtype=np.uint8)
+        pixels[24:32, 24:32] = parse_color(delivery_style.BACKDROP)
+        nothing_outside = png(np.zeros((64, 64), dtype=np.uint8))
+        cut, _, _ = cut_backdrop(png(pixels), nothing_outside)
+        arr = np.array(Image.open(io.BytesIO(cut)).convert("RGBA"))
+        self.assertEqual(arr[28, 28, 3], 255)
         self.assertEqual(arr[0, 0, 3], 255)
 
     def test_cut_backdrop_keeps_the_white_band_and_purple_rim(self):
@@ -547,8 +582,10 @@ class CutBackdropTest(unittest.TestCase):
         pixels = np.full((size, size, 3), (40, 40, 40), dtype=np.uint8)
         alpha = np.zeros((size, size), dtype=np.uint8)
         alpha[200:600, 200:600] = 255
-        composed, _ = compose(rgba_png(pixels, alpha))
-        cut, _, _ = cut_backdrop(composed)
+        data = rgba_png(pixels, alpha)
+        composed, _ = compose(data)
+        outside = compose_outside_mask(data)
+        cut, _, _ = cut_backdrop(composed, outside)
         arr = np.array(Image.open(io.BytesIO(cut)).convert("RGBA"))
         white = np.array([255, 255, 255])
         purple = np.array(parse_color(delivery_style.STROKE))
@@ -573,13 +610,35 @@ class CutBackdropTest(unittest.TestCase):
         # Well past the rim, the flat backdrop is cut.
         self.assertEqual(arr[row, size - 1, 3], 0)
 
+    def test_cut_backdrop_margin_absorbs_drift_but_bounds_the_cut(self):
+        size = 3200
+        edge = 1000
+        pixels = np.full((size, size, 3), (40, 40, 40), dtype=np.uint8)
+        backdrop = parse_color(delivery_style.BACKDROP)
+        white_w = size * delivery_style.WHITE_WIDTH_PCT / 100
+        margin = round(white_w * delivery_style.CUT_BACKDROP_MARGIN)
+        self.assertGreaterEqual(margin, 15, "margin too small for this test's buffers")
+        # The redraw's own backdrop starts drifting well before the outside
+        # mask's own edge -- colour alone would cut from here on, but the
+        # dilated mask is what actually bounds it.
+        pixels[:, edge - margin - 10:] = backdrop
+        outside = np.zeros((size, size), dtype=np.uint8)
+        outside[:, edge:] = 255
+        cut, _, _ = cut_backdrop(png(pixels), png(outside))
+        arr = np.array(Image.open(io.BytesIO(cut)).convert("RGBA"))
+        # Colour-matched, and inside the margin's own reach even though
+        # short of the outside mask's own raw edge: cut.
+        self.assertEqual(arr[size // 2, edge - margin + 5, 3], 0)
+        # Colour-matched too, but past even the dilated mask: kept.
+        self.assertEqual(arr[size // 2, edge - margin - 5, 3], 255)
+
     def test_cut_backdrop_tolerance_is_inclusive_and_bounded(self):
         backdrop = np.array(parse_color(delivery_style.BACKDROP))
         tolerance = delivery_style.CUT_BACKDROP_TOLERANCE
         pixels = np.zeros((32, 32, 3), dtype=np.uint8)
         pixels[:, :16] = np.clip(backdrop + tolerance, 0, 255)
         pixels[:, 16:] = np.clip(backdrop + tolerance + 1, 0, 255)
-        cut, _, _ = cut_backdrop(png(pixels))
+        cut, _, _ = cut_backdrop(png(pixels), outside_png((32, 32)))
         arr = np.array(Image.open(io.BytesIO(cut)).convert("RGBA"))
         self.assertEqual(arr[16, 4, 3], 0)
         self.assertEqual(arr[16, 28, 3], 255)
@@ -587,7 +646,7 @@ class CutBackdropTest(unittest.TestCase):
     def test_cut_backdrop_pattern_backdrop_raises(self):
         pixels = np.full((32, 32, 3), (40, 40, 40), dtype=np.uint8)
         with self.assertRaisesRegex(ValueError, "flat colour"):
-            cut_backdrop(png(pixels), backdrop="stripes")
+            cut_backdrop(png(pixels), outside_png((32, 32)), backdrop="stripes")
 
 
 if __name__ == "__main__":

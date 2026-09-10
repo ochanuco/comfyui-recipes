@@ -11361,10 +11361,12 @@ per-render record for the rounds that follow is on chimera.
 `ctwwn5` (yukari-sketch, cafe preset, seed 815307264) was finalized three
 times from the same source and seed, varying only the redraw denoise:
 
-    denoise   redraw     delivered
-    0.55      vp0fx2     ii3yid
-    0.5       wkopf3     h8mg4d
-    0.8       gv750b     0yp7dj
+```text
+denoise   redraw     delivered
+0.55      vp0fx2     ii3yid
+0.5       wkopf3     h8mg4d
+0.8       gv750b     0yp7dj
+```
 
 0.5 and 0.55 both keep the base pass's own rough line through the 2560
 latent-route redraw, and the delivery reads as too hand-drawn -- scribble

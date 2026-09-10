@@ -31,7 +31,7 @@ Three recipes are live, all under `src/comfyui_recipes/domain/`:
 - `yukari_sketch/` — the current delivery path. hassaku-il-v22 with the
   linaqruf sketch LoRA on a minimal prompt (no style block, no texture bans,
   a moderate proportion block, simple grey background) and a latent-route
-  2560 redraw at denoise 0.55. `docs/yukari/sketch.md` is the description;
+  2560 redraw at denoise 0.8. `docs/yukari/sketch.md` is the description;
   `poses.py` holds `cinema`, `stand` and `date`. A pose is one `Pose` record
   (action string, costume, optional face override).
 

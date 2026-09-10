@@ -393,9 +393,12 @@ def batch_payload(req: dict, git: dict, idempotency_key: str,
         payload["patches"] = patches
     if pose_fingerprint is not None:
         payload["pose_fingerprint"] = pose_fingerprint
-    if generation.get("identity_override"):
-        payload["identity_override"] = generation["identity_override"]
+    # Only when the override actually excused a removal -- a caller that sets
+    # identity_override defensively on a request that dropped nothing did not
+    # invoke it, and stamping it here without a paired identity_removed would
+    # misreport why the Batch carries it.
     if identity_removed:
+        payload["identity_override"] = generation["identity_override"]
         payload["identity_removed"] = identity_removed
     if req.get("references"):
         payload["references"] = [
@@ -749,9 +752,8 @@ def generate(request_path: Path, services: GenerateServices, *,
                                                 "layerdiffuse")}})
                 if generation.get("patches"):
                     semantic["attributes"]["patches"] = generation["patches"]
-                if generation.get("identity_override"):
-                    semantic["attributes"]["identity_override"] = generation["identity_override"]
                 if identity_removed:
+                    semantic["attributes"]["identity_override"] = generation["identity_override"]
                     semantic["attributes"]["identity_removed"] = identity_removed
                 if palette:
                     semantic["attributes"]["palette"] = palette

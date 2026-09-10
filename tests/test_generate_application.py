@@ -923,7 +923,10 @@ class GenerateApplicationTest(unittest.TestCase):
                 state=StateFake({}),
                 notifier=NullNotifier(),
                 graph_builder=lambda *_: {
-                    "6": {"inputs": {"text": "1girl, no identity here"}}},
+                    "3": {"class_type": "KSampler",
+                          "inputs": {"positive": ["6", 0], "negative": ["7", 0]}},
+                    "6": {"inputs": {"text": "1girl, no identity here"}},
+                    "7": {"inputs": {"text": "n"}}},
                 git_metadata=lambda: {"commit": "c", "dirty": False},
                 conflicts=lambda *_: [],
                 output_root=Path(directory),
@@ -955,6 +958,8 @@ class GenerateApplicationTest(unittest.TestCase):
             services = GenerateServices(
                 management, comfy, state, RecordingNotifier(),
                 lambda generation, seed, prefix: {
+                    "3": {"class_type": "KSampler",
+                          "inputs": {"positive": ["6", 0], "negative": ["7", 0]}},
                     "6": {"inputs": {"text": "1girl, no identity here"}},
                     "7": {"inputs": {"text": "y"}}},
                 lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
@@ -977,6 +982,46 @@ class GenerateApplicationTest(unittest.TestCase):
             self.assertEqual(
                 sorted(semantic_call[2]["attributes"]["identity_removed"]),
                 ["purple eyes", "tareme"])
+
+    def test_generate_does_not_record_an_unused_identity_override(self):
+        # identity_override set defensively, but nothing was actually
+        # removed -- it must not be stamped onto the Batch or the semantic
+        # attributes as if it had excused a real drop.
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(
+                json.dumps(base_request(identity_override="just in case")),
+                encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
+            state = StateFake({
+                "idempotency_key": "fixed-key", "seeds": [42],
+                "jobs": [{"idempotency_key": "job-key", "job_id": "job-id",
+                          "comfy_prompt_id": "old-prompt", "status": "failed"}],
+            })
+            services = GenerateServices(
+                management, comfy, state, RecordingNotifier(),
+                lambda generation, seed, prefix: {
+                    "3": {"class_type": "KSampler",
+                          "inputs": {"positive": ["6", 0], "negative": ["7", 0]}},
+                    "6": {"inputs": {"text": "1girl, purple eyes, tareme"}},
+                    "7": {"inputs": {"text": "y"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None,
+                identity_tags=lambda *_: frozenset({"purple eyes", "tareme"}))
+            generate(path, services)
+            batch_call = next(
+                call for call in management.calls
+                if call[0] == "POST" and call[1] == "/api/v1/batches")
+            self.assertNotIn("identity_override", batch_call[2])
+            self.assertNotIn("identity_removed", batch_call[2])
+            semantic_call = next(
+                call for call in management.calls if call[0] == "semantic")
+            self.assertNotIn(
+                "identity_override", semantic_call[2]["attributes"])
+            self.assertNotIn(
+                "identity_removed", semantic_call[2]["attributes"])
 
     def test_generate_skips_the_identity_guard_in_graph_mode(self):
         with tempfile.TemporaryDirectory() as directory:

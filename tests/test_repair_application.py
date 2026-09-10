@@ -294,6 +294,44 @@ class RepairApplicationTest(unittest.TestCase):
             self.assertEqual(result["batch_id"], "repair-batch-id")
             self.assertEqual(len(result["generation_ids"]), 2)
 
+    def test_lora_reaches_the_graph_builder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            seen = {}
+
+            def fake_repair_graph(source, **kwargs):
+                seen["loras"] = kwargs.get("loras")
+                return {"repair-graph": kwargs.get("seed")}
+
+            services = base_services(directory, repair_graph=fake_repair_graph)
+            repair("gen-1", services, parts=["feet"], seeds=[1], lora=0.8)
+            self.assertEqual(seen["loras"], (("feet-xl-ill.safetensors", 0.8),))
+
+    def test_no_lora_reaches_the_graph_builder_as_an_empty_tuple(self):
+        with tempfile.TemporaryDirectory() as directory:
+            seen = {}
+
+            def fake_repair_graph(source, **kwargs):
+                seen["loras"] = kwargs.get("loras")
+                return {"repair-graph": kwargs.get("seed")}
+
+            services = base_services(directory, repair_graph=fake_repair_graph)
+            repair("gen-1", services, parts=["feet"], seeds=[1])
+            self.assertEqual(seen["loras"], ())
+
+    def test_lora_is_recorded_in_batch_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            repair("gen-1", services, parts=["feet"], seeds=[1], lora=0.8)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["lora"], 0.8)
+
+    def test_lora_defaults_to_none_in_batch_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            repair("gen-1", services, parts=["feet"], seeds=[1])
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertIsNone(parameters["lora"])
+
     def test_notifier_is_sent_once_after_the_batch_completes(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)

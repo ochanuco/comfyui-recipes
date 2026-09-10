@@ -862,6 +862,30 @@ class FinalizeRepairTest(unittest.TestCase):
             self.assertTrue(call["mask_name"].startswith("uploaded-fin-gen-id-"))
             self.assertTrue(call["mask_name"].endswith("-mask.png"))
 
+    def test_repair_lora_reaches_splice_repair_as_part_loras(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake()
+            splice_calls, splice_repair = self._splice_recorder()
+            services = base_services(
+                directory, comfyui=comfy,
+                chain_pass=lambda *a, **k: copy.deepcopy(REDRAW_GRAPH),
+                splice_repair=splice_repair, image_size=lambda data: (800, 1000))
+            finalize("gen-id", services, repair=["feet"], repair_lora=0.8)
+            call = splice_calls[0]
+            self.assertEqual(call["loras"], (("feet-xl-ill.safetensors", 0.8),))
+
+    def test_repair_lora_off_by_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake()
+            splice_calls, splice_repair = self._splice_recorder()
+            services = base_services(
+                directory, comfyui=comfy,
+                chain_pass=lambda *a, **k: copy.deepcopy(REDRAW_GRAPH),
+                splice_repair=splice_repair, image_size=lambda data: (800, 1000))
+            finalize("gen-id", services, repair=["feet"])
+            call = splice_calls[0]
+            self.assertEqual(call["loras"], ())
+
     def test_repair_and_skin_share_one_staged_source(self):
         with tempfile.TemporaryDirectory() as directory:
             comfy = RepairComfyFake()
@@ -883,13 +907,15 @@ class FinalizeRepairTest(unittest.TestCase):
                 directory, comfyui=comfy,
                 chain_pass=lambda *a, **k: copy.deepcopy(REDRAW_GRAPH),
                 splice_repair=splice_repair, image_size=lambda data: (800, 1000))
-            finalize("gen-id", services, repair=["feet"], repair_pad=1.5)
+            finalize("gen-id", services, repair=["feet"], repair_pad=1.5,
+                     repair_lora=0.8)
             parameters = batch_call(services)[2]["parameters"]
             self.assertEqual(parameters["repair"]["parts"], ["feet"])
             self.assertEqual(parameters["repair"]["regions"], [])
             self.assertEqual(parameters["repair"]["denoise"], 0.6)
             self.assertEqual(parameters["repair"]["pad"], 1.5)
             self.assertEqual(parameters["repair"]["size"], 1024)
+            self.assertEqual(parameters["repair"]["lora"], 0.8)
             self.assertIn("mask_bbox", parameters["repair"])
 
     def test_batch_parameters_omit_repair_when_not_requested(self):

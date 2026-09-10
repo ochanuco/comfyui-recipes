@@ -106,8 +106,12 @@ COSTUME_FINGERPRINT = "b3b98896c4629649"
 # mixes them tells the reader the wrong thing moved. Hashed from an explicit
 # canonical payload (not from the module source), so a comment edit does not
 # move it and a value edit always does.
-DELIVERY_FINGERPRINT = "0afbe3875ab51649"
-FINGERPRINT_SCHEMA = 3
+#
+# 0afbe3875ab51649 -> 05d1d128bebf30e1 on 2026-09-10. The hand-cut sticker
+# rim: STROKE #6a3494 -> #885b80, and STROKE_CUT_EPS_PCT joins the payload
+# (schema 3 -> 4) -- see docs/render-notes.md.
+DELIVERY_FINGERPRINT = "05d1d128bebf30e1"
+FINGERPRINT_SCHEMA = 4
 
 
 def tags(text: str) -> list[str]:
@@ -527,6 +531,7 @@ def delivery_fingerprint() -> str:
         "figure_sat_p90_max": d.FIGURE_SAT_P90_MAX,
         "figure_light_v": d.FIGURE_LIGHT_V,
         "figure_light_sat_target": d.FIGURE_LIGHT_SAT_TARGET,
+        "stroke_cut_eps_pct": d.STROKE_CUT_EPS_PCT,
         "backdrop_spread_max": d.BACKDROP_SPREAD_MAX,
         "palette_windows": [dict(sorted(w.items())) for w in d.PALETTE_WINDOWS],
         "finalize_denoise": d.FINALIZE_DENOISE,

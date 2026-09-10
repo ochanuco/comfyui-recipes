@@ -5,8 +5,9 @@ prompt cannot hold these values -- the backdrop is not prompt-stable and the
 purple marker is a post-process -- but they are identity all the same,
 applied by the delivery tools instead of the graph. Every tool reads its
 default from here, so the value a delivered picture actually wears has one
-source; before this file, `#c7e5e9` lived in two scripts and `#6a3494` in
-two others, and only the session that set them knew which copy was current.
+source; before this file, `#c7e5e9` lived in two scripts and the stroke
+colour in two others, and only the session that set them knew which copy was
+current.
 
 ## BACKDROP
 
@@ -20,10 +21,26 @@ belongs to the delivery, not to the tool.
 ## STROKE
 
 The purple marker drawn outside the figure's own white band (the white band
-itself is the model's `(white outline:1.6)` from `SURFACE`). Re-picked
-2026-08-26 on the colW kick sweep: `#6a3494`, darker than the hair-accent
-`#9256b8` it replaced, judged against a lighter `#b591d6` at the same
-width.
+itself is the model's `(white outline:1.6)` from `SURFACE`). Currently
+`#885b80`, a mauve measured off a render whose rim was drawn before a strong
+redraw rather than after and read as a hand-cut sticker rather than a
+machine-cut one -- see `STROKE_CUT_EPS_PCT` below for the geometry half of
+that same look.
+
+## STROKE_CUT_EPS_PCT
+
+The outer outline of the white band and of the purple band are each
+polygon-simplified (Douglas-Peucker, `cv2.approxPolyDP` on a 2x-supersampled
+fill of the band's own region) into straight, angular segments instead of
+ramped off a smoothed distance field -- the hand-cut half of the look
+`STROKE` carries the colour half of. The value is the epsilon as a percent of
+the image's longest side; `0` reproduces the old smooth ramp exactly, and
+`band_alphas` branches on that. It has to stay well under `WHITE_WIDTH_PCT`
+(the white band's own width) -- an epsilon comparable to or larger than a
+band's width can simplify the outline to a straight run that cuts inside the
+band, fragmenting it. `light`, when set, shades the purple region's width
+before it is simplified, not after: the shaded region's own outline is what
+gets straightened, not a straightened uniform one that is then reshaded.
 
 ## STROKE_WIDTH_BAND / STROKE_WIDTH_PCT
 

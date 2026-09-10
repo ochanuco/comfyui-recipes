@@ -92,7 +92,9 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         strength = SKETCH_LORA[1] if lora_strength is None else lora_strength
         redraw_lora = (SKETCH_LORA[0], strength, strength)
     if denoise is None:
-        denoise = (sketch_delivery_style.FINALIZE_DENOISE if is_sketch
+        denoise = (sketch_delivery_style.FINALIZE_DENOISE_LAYERDIFFUSE
+                   if is_sketch and is_layerdiffuse
+                   else sketch_delivery_style.FINALIZE_DENOISE if is_sketch
                    else anima_delivery_style.FINALIZE_DENOISE if is_anima
                    else delivery_style.FINALIZE_DENOISE)
     if size is None:

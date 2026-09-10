@@ -19,6 +19,10 @@ re-downloadable bit-for-bit. Civitai rows were resolved through
 them later. `manifests/models-sha256.txt` carries the full hashes in
 `shasum -a 256 -c` format.
 
+`loras/feet-xl-ill.safetensors` and `loras/hands-xl-ill.safetensors` are not
+on any local machine yet, so their SHA256 rows carry the upstream Civitai API
+hash and have not been verified against a local copy.
+
 ### Hugging Face
 
 | file | size | repo :: path | sha256 |
@@ -55,7 +59,9 @@ Whole-folder copies of a Civitai model converted to diffusers by John6666.
 | `loras/add-micro-details-ill-v6.safetensors` | 218 MB | Add Micro Details - Concept (Illustrious \| Pony \| NoobAI) / v6.0_Illustrious | [1377820/2832991](https://civitai.com/models/1377820?modelVersionId=2832991) |
 | `loras/detail-slider-ill.safetensors` | 8 MB | Detail Slider LoRA \| Illustrious-XL / v1.0 - Initial Release | [1001945/1122976](https://civitai.com/models/1001945?modelVersionId=1122976) |
 | `loras/detailed-perfection-ill.safetensors` | 435 MB | Detailed Perfection style (Hands + Feet + Face + Body + All in one) XL + F1D + SD1.5 + Pony + Illu + zit + zib / Detailed Illu v0.9 | [411088/1506333](https://civitai.com/models/411088?modelVersionId=1506333) |
+| `loras/feet-xl-ill.safetensors` | 435 MB | Feet XL + SD 1.5 + F1D + Pony + Illustrious + zit / Feet Illu v0.1 | [200251/1464471](https://civitai.com/models/200251?modelVersionId=1464471) |
 | `loras/glossy-eyedetail-ill.safetensors` | 218 MB | Eye detail LoRA [Illustrious+FLUX+Z Image Turbo] / Glossy EyeDetail | [1300857/2552350](https://civitai.com/models/1300857?modelVersionId=2552350) |
+| `loras/hands-xl-ill.safetensors` | 435 MB | Hands XL + SD 1.5 + F1D + Pony + Illustrious + zit + ZIB / Hands Illu v1.1 | [200255/2212079](https://civitai.com/models/200255?modelVersionId=2212079) |
 | `loras/miru-tights-ill.safetensors` | 218 MB | Miru Tights Pack (Characters and style) - NatMontero / illustrious v1.0 | [997012/1680610](https://civitai.com/models/997012?modelVersionId=1680610) |
 | `loras/moe-2000s-a.safetensors` | 244 MB | moe style / v1.0 | [2030057/2297509](https://civitai.com/models/2030057?modelVersionId=2297509) |
 | `loras/moe-2000s-b.safetensors` | 37 MB | moe style 2000s / v1.0 | [2031779/2299478](https://civitai.com/models/2031779?modelVersionId=2299478) |

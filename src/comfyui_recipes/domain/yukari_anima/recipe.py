@@ -8,6 +8,7 @@ than silently ignoring them.
 from __future__ import annotations
 
 from ..generation.models import PromptPair, RenderSpec
+from ..generation.prompt_lint import tags as prompt_tags
 from ..yukari.prompt_style import DOT_BAN, HAND_BAN, SHADE_BAN
 from .costumes import COSTUMES
 from .delivery_style import PAINT_BAN, ROUGH_BAN, ROUGH_STYLE
@@ -40,14 +41,42 @@ from .prompt_style import (
 )
 
 
-def positive(pose: str, costume: str | None = None,
-            expression: str | None = None) -> str:
+# The order `positive()` joins its blocks in. `patches.py` resolves
+# `prompt.positive.<part>` against these names; concatenating the texts of
+# `positive_parts()` in order reproduces `positive()` byte for byte.
+PART_NAMES = ("quality", "identity", "pose", "mouth", "mood", "eyes",
+              "gesture", "costume", "scene", "body", "background", "face",
+              "style")
+
+# The identity vocabulary this recipe can carry, at bare-tag level. Anima's
+# costumes (roomwear, outing) never carry a cardigan/hood, so those two names
+# are not in the vocabulary -- `identity_tags()` only ever has hair, sidelock,
+# eye colour, ornament and eye-shape to find.
+IDENTITY_TAG_NAMES = frozenset({
+    "light purple hair", "short hair with long locks", "very long sidelocks",
+    "purple eyes", "hair ornament", "tareme", "jitome",
+})
+
+
+def positive_parts(pose: str, costume: str | None = None,
+                   expression: str | None = None) -> tuple[tuple[str, str], ...]:
     p = POSES[pose]
     e = EXPRESSIONS[expression if expression is not None else p.expression]
     costume_block = COSTUMES[costume if costume is not None else p.costume]
-    return (QUALITY + CHARACTER + IDENTITY + p.action + e.mouth + p.mood
-            + e.eyes + p.gesture + costume_block + p.scene + BODY
-            + BACKGROUND + FACE + STYLE)
+    values = (QUALITY, CHARACTER + IDENTITY, p.action, e.mouth, p.mood,
+              e.eyes, p.gesture, costume_block, p.scene, BODY, BACKGROUND,
+              FACE, STYLE)
+    return tuple(zip(PART_NAMES, values))
+
+
+def positive(pose: str, costume: str | None = None,
+            expression: str | None = None) -> str:
+    return "".join(text for _, text in positive_parts(pose, costume, expression))
+
+
+def identity_tags(pose: str, costume: str | None = None) -> frozenset[str]:
+    bare = set(prompt_tags(positive(pose, costume)))
+    return frozenset(IDENTITY_TAG_NAMES & bare)
 
 
 def negative(pose: str, costume: str | None = None,
@@ -80,10 +109,12 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
         raise ValueError(
             "yukari-anima has no second pass -- denoise must be None")
     width, height = POSES[pose].canvas or (WIDTH, HEIGHT)
+    parts = positive_parts(pose, costume, expression)
     return RenderSpec(
         model_path=MODEL,
-        prompts=PromptPair(positive(pose, costume, expression),
+        prompts=PromptPair("".join(text for _, text in parts),
                            negative(pose, costume, expression)),
+        positive_parts=parts,
         width=width, height=height, seed=seed, steps=STEPS, cfg=CFG,
         sampler_name=SAMPLER, scheduler=SCHEDULER, denoise=1.0,
         filename_prefix=prefix, hires=None)

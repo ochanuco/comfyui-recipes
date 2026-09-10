@@ -17,7 +17,8 @@ from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
 from comfyui_recipes.domain.yukari_sketch import delivery_style as ds
 from comfyui_recipes.domain.yukari_sketch import prompt_style as ps
 from comfyui_recipes.domain.yukari_sketch.recipe import (
-    negative, positive, refinement_prompt, render_spec,
+    PART_NAMES, identity_tags, negative, positive, positive_parts,
+    refinement_prompt, render_spec,
 )
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 from comfyui_recipes.infrastructure.comfyui.yukari_graph import build_graph
@@ -83,6 +84,50 @@ class PromptTest(unittest.TestCase):
     def test_face_override_is_used_only_when_set(self):
         self.assertIn(ps.FACE, positive("cinema"))
         self.assertNotIn(ps.FACE, positive("date"))
+
+
+class PartsTest(unittest.TestCase):
+    def test_parts_concatenate_to_the_confirmed_render_byte_for_byte(self):
+        for fixture, pose in ((CINEMA, "cinema"), (STAND, "stand"),
+                              (DATE, "date"), (CAFE, "cafe"), (HOME, "home"),
+                              (BATH, "bath")):
+            with self.subTest(pose=pose):
+                joined = "".join(text for _, text in positive_parts(pose))
+                self.assertEqual(joined, fixture["positive"])
+
+    def test_part_names_match_the_declared_order(self):
+        self.assertEqual(
+            [name for name, _ in positive_parts("cinema")], list(PART_NAMES))
+        self.assertEqual(PART_NAMES, (
+            "quality", "identity", "costume", "pose", "proportion",
+            "background", "legwear", "face", "body", "finish"))
+
+
+class IdentityTagsTest(unittest.TestCase):
+    def test_default_costume_carries_cardigan_and_hood_but_no_jitome(self):
+        self.assertEqual(identity_tags("cinema"), frozenset({
+            "light purple hair", "short hair with long locks",
+            "very long sidelocks", "purple eyes", "hair ornament",
+            "tareme", "black hooded cardigan", "rabbit hood",
+        }))
+
+    def test_date_face_override_adds_jitome(self):
+        self.assertEqual(identity_tags("date"), frozenset({
+            "light purple hair", "short hair with long locks",
+            "very long sidelocks", "purple eyes", "hair ornament",
+            "tareme", "jitome", "black hooded cardigan", "rabbit hood",
+        }))
+
+    def test_bath_costume_has_no_cardigan_or_hood(self):
+        self.assertEqual(identity_tags("bath"), frozenset({
+            "light purple hair", "short hair with long locks",
+            "very long sidelocks", "purple eyes", "hair ornament",
+            "tareme", "jitome",
+        }))
+
+    def test_costume_override_forces_the_cardigan_back_in(self):
+        self.assertIn("black hooded cardigan", identity_tags("bath", "default"))
+        self.assertIn("rabbit hood", identity_tags("bath", "default"))
 
 
 class RefinementPromptTest(unittest.TestCase):

@@ -8,6 +8,9 @@ from .models import RenderSpec
 
 TEXT_TARGETS = ("prompt.positive", "prompt.negative",
                 "prompt.hires.positive", "prompt.hires.negative")
+# `prompt.positive.<part>` targets one named part of `RenderSpec.positive_parts`
+# instead of the whole joined string -- same ops and fields as a text target.
+PART_TARGET_PREFIX = "prompt.positive."
 NUMBER_TARGETS = ("render.cfg", "render.steps", "render.width",
                   "render.height", "hires.denoise",
                   "render.layerdiffuse_weight", "render.lora_strength")
@@ -126,14 +129,19 @@ def parse_patches(raw: object) -> tuple[Patch, ...]:
         target = patch.get("target")
         if not isinstance(target, str):
             _fail(target, "'target' must be a string")
+        part_name = (target[len(PART_TARGET_PREFIX):]
+                    if target.startswith(PART_TARGET_PREFIX) else "")
         if target in TEXT_TARGETS:
+            patches.append(_parse_text_patch(patch, target))
+        elif part_name and "." not in part_name:
             patches.append(_parse_text_patch(patch, target))
         elif target in NUMBER_TARGETS:
             patches.append(_parse_number_patch(patch, target))
         elif target in STRING_TARGETS:
             patches.append(_parse_string_patch(patch, target))
         else:
-            allowed = TEXT_TARGETS + NUMBER_TARGETS + STRING_TARGETS
+            allowed = (TEXT_TARGETS + (PART_TARGET_PREFIX + "<part>",)
+                      + NUMBER_TARGETS + STRING_TARGETS)
             _fail(target, f"unknown target, must be one of {allowed}")
     return tuple(patches)
 
@@ -154,7 +162,26 @@ def _apply_text(text: str, patch: Patch) -> str:
     return _splice(text, patch.target, patch.old, "")
 
 
+def _apply_part(spec: RenderSpec, patch: Patch, part_name: str) -> RenderSpec:
+    if not spec.positive_parts:
+        raise ValueError(
+            f"patch {patch.target!r}: this recipe has no prompt parts")
+    names = [name for name, _ in spec.positive_parts]
+    if part_name not in names:
+        raise ValueError(
+            f"patch {patch.target!r}: unknown part, must be one of {names}")
+    parts = list(spec.positive_parts)
+    index = names.index(part_name)
+    name, text = parts[index]
+    parts[index] = (name, _apply_text(text, patch))
+    joined = "".join(text for _, text in parts)
+    prompts = replace(spec.prompts, positive=joined)
+    return replace(spec, positive_parts=tuple(parts), prompts=prompts)
+
+
 def _apply_one(spec: RenderSpec, patch: Patch) -> RenderSpec:
+    if patch.target.startswith(PART_TARGET_PREFIX):
+        return _apply_part(spec, patch, patch.target[len(PART_TARGET_PREFIX):])
     if patch.target == "prompt.positive":
         prompts = replace(spec.prompts,
                           positive=_apply_text(spec.prompts.positive, patch))

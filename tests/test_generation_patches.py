@@ -15,6 +15,8 @@ from comfyui_recipes.domain.generation.patches import (
     parse_patches,
 )
 from comfyui_recipes.domain.yukari.recipe import render_spec
+from comfyui_recipes.domain.yukari_anima.recipe import render_spec as anima_render_spec
+from comfyui_recipes.domain.yukari_sketch.recipe import render_spec as sketch_render_spec
 from comfyui_recipes.infrastructure.comfyui.yukari_graph import build, build_graph
 
 
@@ -368,6 +370,92 @@ class ApplyPatchesTest(unittest.TestCase):
         patched = apply_patches(spec, parse_patches([]))
         self.assertEqual(
             build_graph(patched), build("lounge", 555666777, "prefix"))
+
+
+class PartTargetPatchTest(unittest.TestCase):
+    def setUp(self):
+        self.sketch_spec = sketch_render_spec("cinema", 7, "prefix")
+        self.anima_spec = anima_render_spec("coffee", 7, "prefix")
+        self.yukari_spec = render_spec("lounge", 555666777, "prefix")
+
+    def test_parts_join_back_into_the_whole_positive(self):
+        joined = "".join(text for _, text in self.sketch_spec.positive_parts)
+        self.assertEqual(joined, self.sketch_spec.prompts.positive)
+        joined = "".join(text for _, text in self.anima_spec.positive_parts)
+        self.assertEqual(joined, self.anima_spec.prompts.positive)
+
+    def test_yukari_has_no_parts(self):
+        self.assertEqual(self.yukari_spec.positive_parts, ())
+
+    def test_append_edits_only_the_named_part(self):
+        patches = parse_patches([_patch(
+            target="prompt.positive.background", op="append",
+            value="(overcast:1.1), ", reason="r")])
+        result = apply_patches(self.sketch_spec, patches)
+        parts = dict(result.positive_parts)
+        self.assertTrue(parts["background"].endswith("(overcast:1.1), "))
+        for name, text in dict(self.sketch_spec.positive_parts).items():
+            if name != "background":
+                self.assertEqual(parts[name], text)
+        self.assertEqual(
+            result.prompts.positive,
+            "".join(text for _, text in result.positive_parts))
+
+    def test_replace_and_remove_keep_separators_clean(self):
+        patches = parse_patches([_patch(
+            target="prompt.positive.face", op="replace",
+            old="(tareme:1.2)", value="(tareme:1.3)", reason="r")])
+        result = apply_patches(self.sketch_spec, patches)
+        self.assertIn("(tareme:1.3), (half-closed eyes:1.2)",
+                      result.prompts.positive)
+        self.assertNotIn(",,", result.prompts.positive)
+        self.assertNotIn("  ", result.prompts.positive)
+
+        patches = parse_patches([
+            {"target": "prompt.positive.mood", "op": "remove",
+             "old": "(excited:1.1), ", "reason": "r"}])
+        result = apply_patches(anima_render_spec("cinema", 7, "p"), patches)
+        self.assertNotIn("(excited:1.1)", result.prompts.positive)
+        self.assertNotIn(", , ", result.prompts.positive)
+        self.assertNotIn(",,", result.prompts.positive)
+
+    def test_prepend_to_a_part(self):
+        patches = parse_patches([_patch(
+            target="prompt.positive.mouth", op="prepend",
+            value="(grin:1.1), ", reason="r")])
+        result = apply_patches(self.anima_spec, patches)
+        self.assertTrue(dict(result.positive_parts)["mouth"]
+                        .startswith("(grin:1.1), "))
+
+    def test_unknown_part_raises_and_names_the_valid_parts(self):
+        patches = parse_patches([_patch(
+            target="prompt.positive.nope", op="append", value="x",
+            reason="r")])
+        with self.assertRaises(ValueError) as ctx:
+            apply_patches(self.sketch_spec, patches)
+        message = str(ctx.exception)
+        self.assertIn("quality", message)
+        self.assertIn("finish", message)
+
+    def test_part_target_on_a_recipe_without_parts_raises(self):
+        patches = parse_patches([_patch(
+            target="prompt.positive.face", op="append", value="x",
+            reason="r")])
+        with self.assertRaises(ValueError):
+            apply_patches(self.yukari_spec, patches)
+
+    def test_dotted_sub_part_is_an_unknown_target(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(
+                target="prompt.positive.face.extra", op="append",
+                value="x", reason="r")])
+
+    def test_replace_missing_needle_in_a_part_raises(self):
+        patches = parse_patches([_patch(
+            target="prompt.positive.face", op="replace",
+            old="no such text here", value="x", reason="r")])
+        with self.assertRaises(ValueError):
+            apply_patches(self.sketch_spec, patches)
 
 
 if __name__ == "__main__":

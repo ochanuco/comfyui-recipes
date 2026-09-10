@@ -17,13 +17,16 @@ from ..domain.generation.patches import (
 )
 from ..domain.yukari.costumes import COSTUMES as YUKARI_COSTUMES
 from ..domain.yukari.poses import POSE_RECORDS
+from ..domain.yukari.recipe import identity_tags as yukari_identity_tags
 from ..domain.yukari.recipe import render_spec as yukari_render_spec
 from ..domain.yukari_anima.costumes import COSTUMES as ANIMA_COSTUMES
 from ..domain.yukari_anima.expressions import EXPRESSIONS as ANIMA_EXPRESSIONS
 from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
+from ..domain.yukari_anima.recipe import identity_tags as anima_identity_tags
 from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
 from ..domain.yukari_sketch.costumes import COSTUMES as SKETCH_COSTUMES
 from ..domain.yukari_sketch.poses import POSES as SKETCH_POSES
+from ..domain.yukari_sketch.recipe import identity_tags as sketch_identity_tags
 from ..domain.yukari_sketch.recipe import render_spec as sketch_render_spec
 from .generate import KNOWN_PARAMETERS, RECIPE_REJECTED_PARAMETERS
 
@@ -63,6 +66,8 @@ def _yukari_recipe() -> dict:
         "parameters": _parameters("yukari"),
         "costumes": sorted(YUKARI_COSTUMES),
         "poses": poses,
+        "parts": [],
+        "identity_tags": sorted(yukari_identity_tags(sorted(POSE_RECORDS)[0], "default")),
     }
 
 
@@ -80,6 +85,8 @@ def _sketch_recipe() -> dict:
             "canvas": [spec.width, spec.height],
             "positive": spec.prompts.positive,
             "negative": spec.prompts.negative,
+            "parts": [{"name": part_name, "text": text}
+                     for part_name, text in spec.positive_parts],
         })
     return {
         "name": "yukari-sketch",
@@ -87,6 +94,9 @@ def _sketch_recipe() -> dict:
         "parameters": _parameters("yukari-sketch"),
         "costumes": sorted(SKETCH_COSTUMES),
         "poses": poses,
+        "parts": [name for name, _ in
+                 sketch_render_spec(sorted(SKETCH_POSES)[0], _SEED, _PREFIX).positive_parts],
+        "identity_tags": sorted(sketch_identity_tags(sorted(SKETCH_POSES)[0], "default")),
     }
 
 
@@ -105,6 +115,8 @@ def _anima_recipe() -> dict:
             "canvas": [spec.width, spec.height],
             "positive": spec.prompts.positive,
             "negative": spec.prompts.negative,
+            "parts": [{"name": part_name, "text": text}
+                     for part_name, text in spec.positive_parts],
         })
     return {
         "name": "yukari-anima",
@@ -113,6 +125,9 @@ def _anima_recipe() -> dict:
         "costumes": sorted(ANIMA_COSTUMES),
         "expressions": sorted(ANIMA_EXPRESSIONS),
         "poses": poses,
+        "parts": [name for name, _ in
+                 anima_render_spec(sorted(ANIMA_POSES)[0], _SEED, _PREFIX).positive_parts],
+        "identity_tags": sorted(anima_identity_tags(sorted(ANIMA_POSES)[0])),
     }
 
 
@@ -127,6 +142,7 @@ def _patches_block() -> dict:
         "keys": ["target", "op", "value", "old", "reason"],
         "text": {
             "targets": list(TEXT_TARGETS),
+            "part_target": "prompt.positive.<part>",
             "ops": {op: _TEXT_OP_KEYS[op] for op in TEXT_OPS},
         },
         "number": {
@@ -140,6 +156,11 @@ def _patches_block() -> dict:
                           if target == "render.layerdiffuse_config" else None),
             }
             for target in STRING_TARGETS
+        },
+        "overrides": {
+            "identity_override": (
+                "non-empty reason string; required when patches or a prompt "
+                "override remove identity_tags"),
         },
     }
 

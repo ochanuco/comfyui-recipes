@@ -13,6 +13,8 @@ import json
 import unittest
 from pathlib import Path
 
+from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
+from comfyui_recipes.infrastructure.comfyui.base_graph import base_roles
 from comfyui_recipes.infrastructure.comfyui.repair_graph import (
     DELIVERED_SUFFIX,
     MATTE_SUFFIX,
@@ -22,10 +24,20 @@ from comfyui_recipes.infrastructure.comfyui.repair_graph import (
     source_prompts,
     splice_repair,
 )
+from comfyui_recipes.infrastructure.comfyui.yukari_graph import build_graph
 
 FIXTURES = Path(__file__).parent / "fixtures"
 RAW = json.loads((FIXTURES / "repair-graph-raw.json").read_text())
 FINALIZE = json.loads((FIXTURES / "repair-graph-finalize.json").read_text())
+
+# A layerdiffuse raw: node 12 LayeredDiffusionApply wraps the model, 13
+# LayeredDiffusionDecode/14 InvertMask/15 JoinImageWithAlpha compute the RGBA
+# picture from VAEDecode 8, and SaveImage 9 reads the Join.
+LAYERDIFFUSE = build_graph(RenderSpec(
+    model_path="hassaku-il-v22", prompts=PromptPair("p", "n"),
+    width=832, height=1664, seed=7, steps=30, cfg=5.0,
+    sampler_name="dpmpp_2m", scheduler="karras", denoise=1.0,
+    filename_prefix="ld-src", layerdiffuse=True))
 
 
 class SourcePromptsTest(unittest.TestCase):
@@ -218,6 +230,70 @@ class RepairGraphFinalizeTest(unittest.TestCase):
         encode = next(node for node in self.graph.values()
                      if node["class_type"] == "VAEEncode")
         self.assertEqual(encode["inputs"]["vae"], FINALIZE["14"]["inputs"]["vae"])
+
+
+class RepairGraphLayerDiffuseTest(unittest.TestCase):
+    def setUp(self):
+        self.graph = repair_graph(
+            LAYERDIFFUSE, image_name="src.png", mask_name="mask.png",
+            positive="p", negative="n", seed=11, denoise=0.6, size=1024,
+            prefix="rep-ld-s11")
+
+    def test_ld_decode_and_invert_mask_are_dropped(self):
+        self.assertNotIn("13", self.graph)
+        self.assertNotIn("14", self.graph)
+
+    def test_pass1_and_apply_nodes_are_not_pulled_back_in(self):
+        dropped = {"3", "5", "6", "7", "8", "12"}
+        self.assertFalse(dropped & set(self.graph))
+
+    def test_join_is_rewired_to_the_stitch_and_the_staged_masks_alpha(self):
+        join = self.graph["15"]
+        self.assertEqual(join["class_type"], "JoinImageWithAlpha")
+        stitch_id = join["inputs"]["image"][0]
+        self.assertEqual(self.graph[stitch_id]["class_type"], "InpaintStitchImproved")
+        alpha_ref = join["inputs"]["alpha"]
+        self.assertEqual(alpha_ref[1], 1)
+        load_image = self.graph[alpha_ref[0]]
+        self.assertEqual(load_image["class_type"], "LoadImage")
+        self.assertEqual(load_image["inputs"]["image"], "src.png")
+
+    def test_exactly_one_saveimage_fed_by_the_join_with_the_prefix(self):
+        saves = [(key, node) for key, node in self.graph.items()
+                if node["class_type"] == "SaveImage"]
+        self.assertEqual(len(saves), 1)
+        save_id, save = saves[0]
+        self.assertEqual(save_id, "9")
+        self.assertEqual(save["inputs"]["filename_prefix"], "rep-ld-s11")
+        self.assertEqual(save["inputs"]["images"], ["15", 0])
+
+    def test_base_roles_resolves_the_single_save_as_stitched(self):
+        roles = base_roles(self.graph)
+        self.assertEqual(roles.save_id, "9")
+        self.assertTrue(roles.stitched)
+
+    def test_reroll_model_is_not_the_layereddiffusionapply_node(self):
+        sample = next(node for node in self.graph.values()
+                     if node["class_type"] == "KSampler")
+        self.assertEqual(sample["inputs"]["model"], ["4", 0])
+
+    def test_does_not_mutate_the_source_graph(self):
+        before = json.dumps(LAYERDIFFUSE, sort_keys=True)
+        repair_graph(LAYERDIFFUSE, image_name="x.png", mask_name="m.png",
+                    positive="p", negative="n", seed=1, denoise=0.5,
+                    size=512, prefix="rep-ld")
+        self.assertEqual(json.dumps(LAYERDIFFUSE, sort_keys=True), before)
+
+
+class SpliceRepairLayerDiffuseTest(unittest.TestCase):
+    def test_reroll_model_unwraps_the_layereddiffusionapply_node(self):
+        graph = splice_repair(
+            LAYERDIFFUSE, mask_name="mask.png", positive="p", negative="n",
+            denoise=0.6, size=1024)
+        sample = next(node for node in graph.values()
+                     if node["class_type"] == "KSampler"
+                     and node["inputs"]["denoise"] == 0.6)
+        self.assertEqual(sample["inputs"]["model"], ["4", 0])
 
 
 class MaskedRedrawGraphTest(unittest.TestCase):

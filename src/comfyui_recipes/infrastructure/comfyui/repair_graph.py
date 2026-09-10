@@ -12,6 +12,7 @@ import json
 from collections.abc import Callable, Mapping
 
 from .base_graph import (
+    PASSTHROUGH as _PASSTHROUGH,
     consumers as _consumers,
     find_decode as _find_decode,
     find_sampler as _find_sampler,
@@ -150,9 +151,13 @@ def _redraw_pass(graph: Mapping) -> dict:
     decode_id = _find_decode(graph)
     sampler_id = _find_sampler(graph, decode_id)
     sampler_inputs = graph[sampler_id]["inputs"]
+    model_ref = sampler_inputs["model"]
+    apply_node = graph.get(model_ref[0], {})
+    if apply_node.get("class_type") == "LayeredDiffusionApply":
+        model_ref = apply_node["inputs"]["model"]
     return {
         "decode_id": decode_id,
-        "model_ref": sampler_inputs["model"],
+        "model_ref": model_ref,
         "positive_clip_ref": graph[sampler_inputs["positive"][0]]["inputs"]["clip"],
         "negative_clip_ref": graph[sampler_inputs["negative"][0]]["inputs"]["clip"],
         "vae_ref": graph[decode_id]["inputs"]["vae"],
@@ -162,6 +167,52 @@ def _redraw_pass(graph: Mapping) -> dict:
         "scheduler": sampler_inputs["scheduler"],
         "seed": sampler_inputs["seed"],
     }
+
+
+def _layerdiffuse_tail(graph: Mapping, consumers_map: Mapping[str, list[str]],
+                       decode_id: str) -> tuple[str, str, str] | None:
+    """`(ld_decode_id, invert_id, join_id)` for a `LayeredDiffusionDecode`
+    consuming `decode_id`'s own image directly (`yukari_graph.build_graph`'s
+    layerdiffuse tail: node 12 `LayeredDiffusionApply`, 13
+    `LayeredDiffusionDecode`, 14 `InvertMask`, 15 `JoinImageWithAlpha`), or
+    `None` if the source is not shaped that way.
+    """
+    for node_id in consumers_map.get(decode_id, []):
+        node = graph[node_id]
+        if node.get("class_type") != "LayeredDiffusionDecode":
+            continue
+        images_ref = node["inputs"].get("images")
+        if not (_is_ref(images_ref) and images_ref[0] == decode_id):
+            continue
+        invert_id = next(
+            (consumer_id for consumer_id in consumers_map.get(node_id, [])
+             if graph[consumer_id].get("class_type") == "InvertMask"
+             and graph[consumer_id]["inputs"].get("mask") == [node_id, 1]), None)
+        if invert_id is None:
+            continue
+        join_id = next(
+            (consumer_id for consumer_id in consumers_map.get(node_id, [])
+             if graph[consumer_id].get("class_type") == "JoinImageWithAlpha"
+             and graph[consumer_id]["inputs"].get("image") == [node_id, 0]
+             and graph[consumer_id]["inputs"].get("alpha") == [invert_id, 0]), None)
+        if join_id is None:
+            continue
+        return node_id, invert_id, join_id
+    return None
+
+
+def _reachable_save(result: Mapping, consumers_map: Mapping[str, list[str]],
+                    node_id: str) -> str | None:
+    """The SaveImage reachable from `node_id` through `PASSTHROUGH` nodes only."""
+    for consumer_id in consumers_map.get(node_id, []):
+        class_type = result[consumer_id].get("class_type")
+        if class_type == "SaveImage":
+            return consumer_id
+        if class_type in _PASSTHROUGH:
+            found = _reachable_save(result, consumers_map, consumer_id)
+            if found is not None:
+                return found
+    return None
 
 
 def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
@@ -182,13 +233,19 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
                             pass_["positive_clip_ref"], pass_["negative_clip_ref"]])
 
     consumers = _consumers(graph)
+    ld_tail = _layerdiffuse_tail(graph, consumers, decode_id)
+    dropped = set(ld_tail[:2]) if ld_tail is not None else set()
+
     tail: set[str] = set()
+    seen: set[str] = set()
     stack = list(consumers.get(decode_id, []))
     while stack:
         node_id = stack.pop()
-        if node_id in tail:
+        if node_id in seen:
             continue
-        tail.add(node_id)
+        seen.add(node_id)
+        if node_id not in dropped:
+            tail.add(node_id)
         stack.extend(consumers.get(node_id, []))
     # A tail node can depend on a sibling that is not itself downstream of
     # the decode (a matte model loader feeding a background-removal node
@@ -196,15 +253,17 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
     dependency_stack = [
         value[0] for node_id in tail
         for value in graph[node_id].get("inputs", {}).values()
-        if _is_ref(value) and value[0] in graph and value[0] != decode_id]
+        if _is_ref(value) and value[0] in graph and value[0] != decode_id
+        and value[0] not in dropped]
     while dependency_stack:
         node_id = dependency_stack.pop()
-        if node_id in keep or node_id in tail:
+        if node_id in keep or node_id in tail or node_id in dropped:
             continue
         tail.add(node_id)
         dependency_stack.extend(
             value[0] for value in graph[node_id].get("inputs", {}).values()
-            if _is_ref(value) and value[0] in graph and value[0] != decode_id)
+            if _is_ref(value) and value[0] in graph and value[0] != decode_id
+            and value[0] not in dropped)
 
     result = {node_id: graph[node_id] for node_id in keep}
 
@@ -226,28 +285,35 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
         mask_expand_pixels=mask_expand_pixels, mask_blend_pixels=mask_blend_pixels)
     stitch = repaired_ref[0]
 
-    direct_save = False
+    if ld_tail is not None:
+        _, _, join_id = ld_tail
+        graph[join_id]["inputs"]["image"] = repaired_ref
+        graph[join_id]["inputs"]["alpha"] = [load_image, 1]
+
     for node_id in tail:
         node = graph[node_id]
         inputs = node.get("inputs", {})
         for key, value in list(inputs.items()):
             if _is_ref(value) and value[0] == decode_id:
                 inputs[key] = repaired_ref
-        if node.get("class_type") == "SaveImage":
-            images_ref = inputs.get("images")
-            prefix_now = inputs.get("filename_prefix", "")
-            if _is_ref(images_ref) and images_ref[0] == stitch:
-                inputs["filename_prefix"] = prefix
-                direct_save = True
-            elif prefix_now.endswith(MATTE_SUFFIX):
-                inputs["filename_prefix"] = prefix + MATTE_SUFFIX
-            elif prefix_now.endswith(DELIVERED_SUFFIX):
-                inputs["filename_prefix"] = prefix + DELIVERED_SUFFIX
-            else:
-                inputs["filename_prefix"] = prefix
         result[node_id] = node
 
-    if not direct_save:
+    save_id = _reachable_save(result, _consumers(result), stitch)
+    if save_id is not None:
+        result[save_id]["inputs"]["filename_prefix"] = prefix
+    for node_id in tail:
+        node = result[node_id]
+        if node.get("class_type") != "SaveImage" or node_id == save_id:
+            continue
+        prefix_now = node["inputs"].get("filename_prefix", "")
+        if prefix_now.endswith(MATTE_SUFFIX):
+            node["inputs"]["filename_prefix"] = prefix + MATTE_SUFFIX
+        elif prefix_now.endswith(DELIVERED_SUFFIX):
+            node["inputs"]["filename_prefix"] = prefix + DELIVERED_SUFFIX
+        else:
+            node["inputs"]["filename_prefix"] = prefix
+
+    if save_id is None:
         save = allocate()
         result[save] = {"class_type": "SaveImage", "inputs": {
             "images": repaired_ref, "filename_prefix": prefix}}

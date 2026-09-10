@@ -1087,6 +1087,76 @@ class FinalizeLayerDiffuseTest(unittest.TestCase):
             self.assertIsNone(kwargs["matte_model"])
             self.assertEqual(kwargs["backdrop"], "#112233")
 
+    def test_layerdiffuse_transparent_path_defaults_denoise_to_the_layerdiffuse_constant(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(denoise)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services)
+            self.assertEqual(calls[-1], sketch_delivery_style.FINALIZE_DENOISE_LAYERDIFFUSE)
+
+    def test_layerdiffuse_legacy_path_defaults_denoise_to_the_layerdiffuse_constant(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(denoise)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services, backdrop="#112233")
+            self.assertEqual(calls[-1], sketch_delivery_style.FINALIZE_DENOISE_LAYERDIFFUSE)
+
+    def test_layerdiffuse_transparent_path_honors_an_explicit_denoise(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(denoise)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services, denoise=0.42)
+            self.assertEqual(calls[-1], 0.42)
+
+    def test_layerdiffuse_legacy_path_honors_an_explicit_denoise(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(denoise)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            finalize("gen-id", services, backdrop="#112233", denoise=0.42)
+            self.assertEqual(calls[-1], 0.42)
+
+    def test_non_layerdiffuse_sketch_base_still_defaults_denoise_to_the_recipe_constant(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(denoise)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            finalize("gen-id", services)
+            self.assertEqual(calls[-1], sketch_delivery_style.FINALIZE_DENOISE)
+
     def test_layerdiffuse_transparent_records_a_matte_asset_and_two_generations(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(

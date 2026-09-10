@@ -75,9 +75,14 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     vae_ref = graph[roles.decode_id]["inputs"].get("vae", ["4", 2])
     compose_id = None
     if compose:
-        if matte_model or deliver:
+        # transparent is the band-less compose: the redraw moves the
+        # silhouette, so the band is drawn once afterward, from the redrawn
+        # pixels' own matte, instead of here from the raw layerdiffuse alpha.
+        bands = not transparent
+        if bands and (matte_model or deliver):
             raise ValueError(
-                "compose cannot be combined with matte_model or deliver")
+                "compose cannot be combined with matte_model or deliver "
+                "unless transparent")
         join_ref = graph[roles.save_id]["inputs"]["images"]
         join_node = graph.get(join_ref[0], {})
         if join_node.get("class_type") != "JoinImageWithAlpha":
@@ -88,7 +93,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         compose_id = str(next_id + 11)
         graph[compose_id] = {"class_type": "YukariCompose", "inputs": {
             "image": join_ref, "backdrop": backdrop or "",
-            "stroke_light": stroke_light or ""}}
+            "stroke_light": stroke_light or "", "bands": bands}}
     if loader:
         # A different checkpoint redraws: its own model, CLIP and VAE, with the
         # base prompts re-encoded through its CLIP.
@@ -175,9 +180,11 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         "samples": [sample, 0], "vae": vae_ref}}
     graph[roles.save_id]["inputs"]["images"] = [decode, 0]
     graph[roles.save_id]["inputs"]["filename_prefix"] = prefix
-    if compose and deliver_target is not None:
-        # compose is the whole delivered picture here -- no separate
-        # YukariDeliver node downstream to scale instead.
+    if compose and not deliver and deliver_target is not None:
+        # compose-with-bands is the whole delivered picture here -- no
+        # separate YukariDeliver node downstream to scale instead. A
+        # band-less compose that goes on to deliver is scaled by that tail,
+        # below, same as any other deliver route.
         deliver_scale = str(max(int(key) for key in graph) + 1)
         graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {
             "image": [decode, 0], "upscale_method": "lanczos",

@@ -396,6 +396,35 @@ class ComposeTest(unittest.TestCase):
                   tuple(arr[-1, 0]), tuple(arr[-1, -1])]
         self.assertGreater(len(set(corners)), 1)
 
+    def test_compose_band_less_tag_and_no_band_drawn(self):
+        pixels = np.full((240, 240, 3), (40, 40, 40), dtype=np.uint8)
+        alpha = np.zeros((240, 240), dtype=np.uint8)
+        alpha[80:160, 80:160] = 255
+        composed, tag = compose(rgba_png(pixels, alpha), bands=False)
+        self.assertEqual(tag, "compose-flat")
+        arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB")).astype(int)
+        backdrop = np.array(parse_color(delivery_style.BACKDROP))
+        row = 120
+        outside = arr[row, 160:240]
+        np.testing.assert_array_equal(outside, np.broadcast_to(backdrop, outside.shape))
+
+    def test_compose_band_less_keeps_the_figures_own_colour(self):
+        pixels = np.full((32, 32, 3), (40, 40, 40), dtype=np.uint8)
+        alpha = np.zeros((32, 32), dtype=np.uint8)
+        alpha[8:24, 10:22] = 255
+        composed, _ = compose(rgba_png(pixels, alpha), bands=False)
+        arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB"))
+        np.testing.assert_array_equal(arr[16, 16], pixels[16, 16])
+
+    def test_compose_band_less_honors_an_explicit_backdrop(self):
+        pixels = np.full((32, 32, 3), (40, 40, 40), dtype=np.uint8)
+        alpha = np.zeros((32, 32), dtype=np.uint8)
+        alpha[8:24, 10:22] = 255
+        composed, tag = compose(rgba_png(pixels, alpha), backdrop="#112233", bands=False)
+        arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB"))
+        np.testing.assert_array_equal(arr[0, 0], np.array(parse_color("#112233")))
+        self.assertEqual(tag, "compose-flat-bg-112233")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -282,27 +282,34 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
 
 
 def compose(data: bytes, backdrop: str | None = None,
-           light: str | None = None) -> tuple[bytes, str]:
-    """Composite an RGBA figure onto the sticker backdrop, unrefined.
+           light: str | None = None, bands: bool = True) -> tuple[bytes, str]:
+    """Composite an RGBA figure onto a flat backdrop, unrefined.
 
     The alpha is a layerdiffuse render's own -- islands and holes are left
     as drawn, unlike `clean_background`'s birefnet matte, which `refine_matte`
     retraces because the model loses strands `refine_matte` was written to
-    put back.
+    put back. `bands=False` skips the white/purple ring and plain
+    alpha-composites the figure onto the backdrop instead: the redraw that
+    follows moves the silhouette, so the transparent finalize path draws its
+    own band afterward, from the redrawn pixels' own matte.
     """
     rgba = Image.open(io.BytesIO(data)).convert("RGBA")
     px = np.array(rgba)[..., :3].astype(float)
     alpha = np.array(rgba)[..., 3]
-    figure = alpha > 127
     coverage = alpha.astype(float) / 255.0
     height, width = px.shape[:2]
     backdrop_rgb = backdrops.render(backdrop, height, width)
-    composite = sticker(px, figure, coverage, backdrop_rgb, light)
-    white_w, purple_w = _band_widths(height, width)
+    if bands:
+        figure = alpha > 127
+        composite = sticker(px, figure, coverage, backdrop_rgb, light)
+        white_w, purple_w = _band_widths(height, width)
+        tag = f"compose-w{white_w:.0f}-p{purple_w:.0f}" + _backdrop_tag_suffix(backdrop)
+    else:
+        composite = coverage[..., None] * px + (1.0 - coverage[..., None]) * backdrop_rgb
+        tag = "compose-flat" + _backdrop_tag_suffix(backdrop)
 
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
-    tag = f"compose-w{white_w:.0f}-p{purple_w:.0f}" + _backdrop_tag_suffix(backdrop)
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 

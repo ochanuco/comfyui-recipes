@@ -5,7 +5,9 @@ from __future__ import annotations
 FINALIZE_SIZE = 2560
 # Longest side the delivered file is downscaled to after the redraw.
 DELIVER_SIZE = 1536
-FINALIZE_DENOISE = 0.55
+# Under ~0.7 the redraw keeps the base pass's own rough line instead of
+# re-drawing it, and the delivery reads as scribble rather than sketch.
+FINALIZE_DENOISE = 0.8
 FINALIZE_SAMPLER = ("euler", "normal")
 # The latent route leaves a staircase on hard contours that the redraw turns
 # into visible stroke -- the sketch look this recipe delivers for.

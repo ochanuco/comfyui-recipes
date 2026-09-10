@@ -91,7 +91,7 @@ is exactly the pre-existing `yukari` shape.
 
 ## Finalize defaults
 
-`delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.55`,
+`delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.8`,
 `FINALIZE_SAMPLER = ("euler", "normal")`, `FINALIZE_LATENT_ROUTE = True`,
 `FINALIZE_TRANSPARENT = True`.
 `application/finalize.py` detects a sketch base by a `LoraLoader` node in

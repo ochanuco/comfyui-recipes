@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..domain.repair.loras import part_loras
 from ..domain.repair.prompt import repair_prompt
 from ..domain.repair.regions import rects_from_fractions, regions_from_pose
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
@@ -60,6 +61,7 @@ def repair(generation_id: str, services: RepairServices, *,
           regions: Sequence[Sequence[float]] = (),
           denoise: float = 0.6, seeds: Sequence[int] = (1, 2, 3, 4),
           size: int = 1024, pad: float = 1.0,
+          lora: float | None = None,
           key_prefix: str | None = None) -> dict:
     context = services.management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
@@ -102,6 +104,7 @@ def repair(generation_id: str, services: RepairServices, *,
 
     base_positive, base_negative = source_prompts(source_graph)
     positive = repair_prompt(base_positive, parts)
+    loras = part_loras(parts, lora)
 
     git = services.git_metadata()
     batch_payload = {
@@ -117,6 +120,7 @@ def repair(generation_id: str, services: RepairServices, *,
             "denoise": denoise,
             "size": size,
             "pad": pad,
+            "lora": lora,
             "seeds": list(seeds),
             "mask_bbox": list(mask_bbox),
         },
@@ -138,7 +142,7 @@ def repair(generation_id: str, services: RepairServices, *,
         graph = services.repair_graph(
             source_graph, image_name=staged_source, mask_name=staged_mask,
             positive=positive, negative=base_negative, seed=seed,
-            denoise=denoise, size=size, prefix=job_prefix)
+            denoise=denoise, size=size, prefix=job_prefix, loras=loras)
         prompt_id = services.comfyui.submit(graph)
         services.emit(f"{job_prefix} {prompt_id}")
         outputs = services.comfyui.wait_for(prompt_id)

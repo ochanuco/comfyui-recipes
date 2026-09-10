@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import itertools
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 
 from .base_graph import (
+    PASSTHROUGH as _PASSTHROUGH,
     consumers as _consumers,
     find_decode as _find_decode,
     find_sampler as _find_sampler,
@@ -94,14 +95,33 @@ def _splice_reroll(graph: dict, allocate: Callable[[], str], *, image_ref: list,
                    negative_clip_ref: list, vae_ref: list, steps: int, cfg: float,
                    sampler_name: str, scheduler: str, seed: int, denoise: float,
                    size: int, mask_expand_pixels: int = 0,
-                   mask_blend_pixels: int = 32) -> tuple[str, list]:
+                   mask_blend_pixels: int = 32,
+                   loras: Sequence[tuple[str, float]] = ()) -> tuple[str, list]:
     """Adds the crop/resample/stitch reroll subgraph to `graph` (mutated).
 
     Returns `(crop_id, repaired_ref)`: `crop_id` so a caller that spliced
     `image_ref` from its own graph's output can exclude the crop's own input
     when rewiring every other consumer of that output; `repaired_ref` is the
     stitch node's `[id, 0]` output.
+
+    `loras` chains `LoraLoader` nodes onto `model_ref`/`positive_clip_ref`
+    ahead of the reroll's own KSampler/CLIPTextEncode. `negative_clip_ref`
+    rides the same chain only when it started out equal to
+    `positive_clip_ref` -- otherwise it keeps its own ref untouched.
     """
+    if loras:
+        share_negative = negative_clip_ref == positive_clip_ref
+        clip_ref = positive_clip_ref
+        for lora_name, weight in loras:
+            lora_id = allocate()
+            graph[lora_id] = {"class_type": "LoraLoader", "inputs": {
+                "model": model_ref, "clip": clip_ref, "lora_name": lora_name,
+                "strength_model": weight, "strength_clip": weight}}
+            model_ref, clip_ref = [lora_id, 0], [lora_id, 1]
+        positive_clip_ref = clip_ref
+        if share_negative:
+            negative_clip_ref = clip_ref
+
     load_mask = allocate()
     graph[load_mask] = {"class_type": "LoadImage", "inputs": {"image": mask_name}}
     to_mask = allocate()
@@ -150,9 +170,13 @@ def _redraw_pass(graph: Mapping) -> dict:
     decode_id = _find_decode(graph)
     sampler_id = _find_sampler(graph, decode_id)
     sampler_inputs = graph[sampler_id]["inputs"]
+    model_ref = sampler_inputs["model"]
+    apply_node = graph.get(model_ref[0], {})
+    if apply_node.get("class_type") == "LayeredDiffusionApply":
+        model_ref = apply_node["inputs"]["model"]
     return {
         "decode_id": decode_id,
-        "model_ref": sampler_inputs["model"],
+        "model_ref": model_ref,
         "positive_clip_ref": graph[sampler_inputs["positive"][0]]["inputs"]["clip"],
         "negative_clip_ref": graph[sampler_inputs["negative"][0]]["inputs"]["clip"],
         "vae_ref": graph[decode_id]["inputs"]["vae"],
@@ -164,10 +188,57 @@ def _redraw_pass(graph: Mapping) -> dict:
     }
 
 
+def _layerdiffuse_tail(graph: Mapping, consumers_map: Mapping[str, list[str]],
+                       decode_id: str) -> tuple[str, str, str] | None:
+    """`(ld_decode_id, invert_id, join_id)` for a `LayeredDiffusionDecode`
+    consuming `decode_id`'s own image directly (`yukari_graph.build_graph`'s
+    layerdiffuse tail: node 12 `LayeredDiffusionApply`, 13
+    `LayeredDiffusionDecode`, 14 `InvertMask`, 15 `JoinImageWithAlpha`), or
+    `None` if the source is not shaped that way.
+    """
+    for node_id in consumers_map.get(decode_id, []):
+        node = graph[node_id]
+        if node.get("class_type") != "LayeredDiffusionDecode":
+            continue
+        images_ref = node["inputs"].get("images")
+        if not (_is_ref(images_ref) and images_ref[0] == decode_id):
+            continue
+        invert_id = next(
+            (consumer_id for consumer_id in consumers_map.get(node_id, [])
+             if graph[consumer_id].get("class_type") == "InvertMask"
+             and graph[consumer_id]["inputs"].get("mask") == [node_id, 1]), None)
+        if invert_id is None:
+            continue
+        join_id = next(
+            (consumer_id for consumer_id in consumers_map.get(node_id, [])
+             if graph[consumer_id].get("class_type") == "JoinImageWithAlpha"
+             and graph[consumer_id]["inputs"].get("image") == [node_id, 0]
+             and graph[consumer_id]["inputs"].get("alpha") == [invert_id, 0]), None)
+        if join_id is None:
+            continue
+        return node_id, invert_id, join_id
+    return None
+
+
+def _reachable_save(result: Mapping, consumers_map: Mapping[str, list[str]],
+                    node_id: str) -> str | None:
+    """The SaveImage reachable from `node_id` through `PASSTHROUGH` nodes only."""
+    for consumer_id in consumers_map.get(node_id, []):
+        class_type = result[consumer_id].get("class_type")
+        if class_type == "SaveImage":
+            return consumer_id
+        if class_type in _PASSTHROUGH:
+            found = _reachable_save(result, consumers_map, consumer_id)
+            if found is not None:
+                return found
+    return None
+
+
 def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
                       positive: str, negative: str, seed: int, denoise: float,
                       size: int, prefix: str, mask_expand_pixels: int,
-                      mask_blend_pixels: int) -> dict:
+                      mask_blend_pixels: int,
+                      loras: Sequence[tuple[str, float]] = ()) -> dict:
     """Shared body of `repair_graph`/`masked_redraw_graph`: prune to the
     redraw pass's own loaders, keep the tail downstream of its decode, and
     splice a fresh crop/resample/stitch reroll off a staged source image.
@@ -182,13 +253,19 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
                             pass_["positive_clip_ref"], pass_["negative_clip_ref"]])
 
     consumers = _consumers(graph)
+    ld_tail = _layerdiffuse_tail(graph, consumers, decode_id)
+    dropped = set(ld_tail[:2]) if ld_tail is not None else set()
+
     tail: set[str] = set()
+    seen: set[str] = set()
     stack = list(consumers.get(decode_id, []))
     while stack:
         node_id = stack.pop()
-        if node_id in tail:
+        if node_id in seen:
             continue
-        tail.add(node_id)
+        seen.add(node_id)
+        if node_id not in dropped:
+            tail.add(node_id)
         stack.extend(consumers.get(node_id, []))
     # A tail node can depend on a sibling that is not itself downstream of
     # the decode (a matte model loader feeding a background-removal node
@@ -196,15 +273,17 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
     dependency_stack = [
         value[0] for node_id in tail
         for value in graph[node_id].get("inputs", {}).values()
-        if _is_ref(value) and value[0] in graph and value[0] != decode_id]
+        if _is_ref(value) and value[0] in graph and value[0] != decode_id
+        and value[0] not in dropped]
     while dependency_stack:
         node_id = dependency_stack.pop()
-        if node_id in keep or node_id in tail:
+        if node_id in keep or node_id in tail or node_id in dropped:
             continue
         tail.add(node_id)
         dependency_stack.extend(
             value[0] for value in graph[node_id].get("inputs", {}).values()
-            if _is_ref(value) and value[0] in graph and value[0] != decode_id)
+            if _is_ref(value) and value[0] in graph and value[0] != decode_id
+            and value[0] not in dropped)
 
     result = {node_id: graph[node_id] for node_id in keep}
 
@@ -223,31 +302,39 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
         negative_clip_ref=pass_["negative_clip_ref"], vae_ref=pass_["vae_ref"],
         steps=pass_["steps"], cfg=pass_["cfg"], sampler_name=pass_["sampler_name"],
         scheduler=pass_["scheduler"], seed=seed, denoise=denoise, size=size,
-        mask_expand_pixels=mask_expand_pixels, mask_blend_pixels=mask_blend_pixels)
+        mask_expand_pixels=mask_expand_pixels, mask_blend_pixels=mask_blend_pixels,
+        loras=loras)
     stitch = repaired_ref[0]
 
-    direct_save = False
+    if ld_tail is not None:
+        _, _, join_id = ld_tail
+        graph[join_id]["inputs"]["image"] = repaired_ref
+        graph[join_id]["inputs"]["alpha"] = [load_image, 1]
+
     for node_id in tail:
         node = graph[node_id]
         inputs = node.get("inputs", {})
         for key, value in list(inputs.items()):
             if _is_ref(value) and value[0] == decode_id:
                 inputs[key] = repaired_ref
-        if node.get("class_type") == "SaveImage":
-            images_ref = inputs.get("images")
-            prefix_now = inputs.get("filename_prefix", "")
-            if _is_ref(images_ref) and images_ref[0] == stitch:
-                inputs["filename_prefix"] = prefix
-                direct_save = True
-            elif prefix_now.endswith(MATTE_SUFFIX):
-                inputs["filename_prefix"] = prefix + MATTE_SUFFIX
-            elif prefix_now.endswith(DELIVERED_SUFFIX):
-                inputs["filename_prefix"] = prefix + DELIVERED_SUFFIX
-            else:
-                inputs["filename_prefix"] = prefix
         result[node_id] = node
 
-    if not direct_save:
+    save_id = _reachable_save(result, _consumers(result), stitch)
+    if save_id is not None:
+        result[save_id]["inputs"]["filename_prefix"] = prefix
+    for node_id in tail:
+        node = result[node_id]
+        if node.get("class_type") != "SaveImage" or node_id == save_id:
+            continue
+        prefix_now = node["inputs"].get("filename_prefix", "")
+        if prefix_now.endswith(MATTE_SUFFIX):
+            node["inputs"]["filename_prefix"] = prefix + MATTE_SUFFIX
+        elif prefix_now.endswith(DELIVERED_SUFFIX):
+            node["inputs"]["filename_prefix"] = prefix + DELIVERED_SUFFIX
+        else:
+            node["inputs"]["filename_prefix"] = prefix
+
+    if save_id is None:
         save = allocate()
         result[save] = {"class_type": "SaveImage", "inputs": {
             "images": repaired_ref, "filename_prefix": prefix}}
@@ -257,12 +344,14 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
 
 def repair_graph(source: Mapping, *, image_name: str, mask_name: str,
                  positive: str, negative: str, seed: int, denoise: float,
-                 size: int, prefix: str) -> dict:
+                 size: int, prefix: str,
+                 loras: Sequence[tuple[str, float]] = ()) -> dict:
     return _prune_and_splice(
         source, image_name=image_name, mask_name=mask_name, positive=positive,
         negative=negative, seed=seed, denoise=denoise, size=size, prefix=prefix,
         mask_expand_pixels=_INPAINT_CROP_DEFAULTS["mask_expand_pixels"],
-        mask_blend_pixels=_INPAINT_CROP_DEFAULTS["mask_blend_pixels"])
+        mask_blend_pixels=_INPAINT_CROP_DEFAULTS["mask_blend_pixels"],
+        loras=loras)
 
 
 def masked_redraw_graph(source: Mapping, *, image_name: str, mask_name: str,
@@ -281,7 +370,8 @@ def masked_redraw_graph(source: Mapping, *, image_name: str, mask_name: str,
 
 
 def splice_repair(graph: Mapping, *, mask_name: str, positive: str, negative: str,
-                  denoise: float, size: int, seed: int | None = None) -> dict:
+                  denoise: float, size: int, seed: int | None = None,
+                  loras: Sequence[tuple[str, float]] = ()) -> dict:
     """Splice a masked reroll into an already-built graph (e.g. `chain_pass`'s).
 
     Unlike `repair_graph`, nothing is pruned or renamed: the reroll's image
@@ -306,7 +396,7 @@ def splice_repair(graph: Mapping, *, mask_name: str, positive: str, negative: st
         steps=pass_["steps"], cfg=pass_["cfg"], sampler_name=pass_["sampler_name"],
         scheduler=pass_["scheduler"],
         seed=pass_["seed"] if seed is None else seed,
-        denoise=denoise, size=size)
+        denoise=denoise, size=size, loras=loras)
 
     for node_id, node in result.items():
         if node_id == crop_id:

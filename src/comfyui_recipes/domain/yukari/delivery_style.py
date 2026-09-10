@@ -170,6 +170,13 @@ BACKDROP_SPREAD_MAX = 25.0
 # 56 away -- this stays comfortably under that with margin to spare.
 CUT_BACKDROP_TOLERANCE = 40
 
+# `cut_backdrop`'s colour test only ever fires inside the compose's own
+# outside-the-bands mask, dilated by this share of the white band's width to
+# absorb the redraw's own edge drift. Colour alone cannot bound the cut: the
+# figure's own light passages (pale hair, a pale prop) sit inside
+# CUT_BACKDROP_TOLERANCE of the backdrop too.
+CUT_BACKDROP_MARGIN = 0.5
+
 # The worker-side model that cuts the figure out. The silhouette has to come
 # from something other than colour, because repin moves the figure's colours
 # into the backdrop's tolerance before the delivery ever sees them.

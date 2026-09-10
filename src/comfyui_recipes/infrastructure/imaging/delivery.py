@@ -312,6 +312,19 @@ def band_alphas(figure: np.ndarray, light: str | None = None,
     return white_a, purple_a
 
 
+def outside_mask(figure: np.ndarray, light: str | None = None,
+                 eps_pct: float | None = None) -> np.ndarray:
+    """Pixels outside the purple band's own outer edge.
+
+    Not `figure`, not the white band, not the purple band -- the same
+    geometry `band_alphas` draws, so a hole the bands still reach (an arm
+    against the body, narrower than the two bands together) stays inside
+    while backdrop beyond the purple band's outer edge comes back `True`.
+    """
+    white_a, purple_a = band_alphas(figure, light, eps_pct)
+    return ~figure & (white_a < 0.5) & (purple_a < 0.5)
+
+
 def _bands_over(white_a: np.ndarray, purple_a: np.ndarray,
                 flat: np.ndarray) -> np.ndarray:
     white_rgb = np.array([255.0, 255.0, 255.0])
@@ -430,6 +443,22 @@ def compose(data: bytes, backdrop: str | None = None,
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 
+def compose_outside_mask(data: bytes, light: str | None = None) -> bytes:
+    """`outside_mask` for a `compose`'s own RGBA input, PNG-encoded (mode L).
+
+    Reads its figure the same way `compose` does, off the same alpha and at
+    the same scale, so `YukariCompose`'s MASK output carries exactly the
+    geometry its own IMAGE output drew the bands from -- the redraw that
+    follows moves both to a different scale together.
+    """
+    rgba = Image.open(io.BytesIO(data)).convert("RGBA")
+    figure = np.array(rgba)[..., 3] > 127
+    output = io.BytesIO()
+    Image.fromarray(outside_mask(figure, light).astype(np.uint8) * 255,
+                    "L").save(output, "PNG")
+    return output.getvalue()
+
+
 def transparent(data: bytes, matte: bytes,
                 light: str | None = None) -> tuple[bytes, str]:
     """Cut the figure out and frame it with the sticker bands on alpha 0.
@@ -479,30 +508,39 @@ def transparent(data: bytes, matte: bytes,
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 
-def cut_backdrop(data: bytes,
+def cut_backdrop(data: bytes, outside_mask: bytes,
                  backdrop: str | None = None) -> tuple[bytes, bytes, str]:
     """Turn a redrawn picture's flat backdrop into transparency.
 
     A compose-then-redraw bakes the white band and purple rim into the
     picture before the redraw runs, so nothing downstream cuts a silhouette
     from a matte model -- the backdrop itself is the only thing left to cut,
-    by colour, against `backdrops.render`'s own flat fill. The redraw
-    retints and textures that flat fill, so the tolerance is generous
-    (`delivery_style.CUT_BACKDROP_TOLERANCE`), not exact; a pattern backdrop
-    has no single colour to tolerance against. `background_mask` claims the
-    backdrop reaching the frame edge, `enclosed_mask` the backdrop the
-    figure encloses (an arm against the body); the kept edge is softened by
-    one pixel so the rim's outer boundary is not aliased.
+    by colour, against `backdrops.render`'s own flat fill. Colour alone
+    cannot bound that cut: the redraw retints and textures the flat fill, so
+    the tolerance against it (`delivery_style.CUT_BACKDROP_TOLERANCE`) is
+    generous, and the figure's own light passages (pale hair, a pale prop)
+    sit inside it too. `outside_mask` -- `compose_outside_mask`'s own output,
+    at the compose's own scale -- bounds the colour test instead: resized to
+    this picture and dilated by `delivery_style.CUT_BACKDROP_MARGIN` (a
+    share of the white band's own width, absorbing the redraw's edge drift),
+    a pixel outside it is kept whatever colour the redraw gave it. A pattern
+    backdrop has no single colour to tolerance against. The kept edge is
+    softened by one pixel so the rim's outer boundary is not aliased.
     """
     if backdrop in backdrops.PATTERNS:
         raise ValueError(
             f"cut_backdrop needs a flat colour, got pattern {backdrop!r}")
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
     height, width = px.shape[:2]
+    outside_img = Image.open(io.BytesIO(outside_mask)).convert("L")
+    outside = np.array(
+        outside_img.resize((width, height), Image.BILINEAR)) > 127
+    margin = round(_band_widths(height, width)[0] * delivery_style.CUT_BACKDROP_MARGIN)
+    if margin > 0:
+        outside = ndimage.binary_dilation(outside, iterations=margin)
     seed = backdrops.render(backdrop, height, width)[0, 0]
     tolerance = delivery_style.CUT_BACKDROP_TOLERANCE
-    cut = background_mask(px, tolerance, seed=seed)
-    cut |= enclosed_mask(px, cut, tolerance, seed=seed)
+    cut = outside & (np.abs(px - seed).max(axis=2) <= tolerance)
     coverage = np.clip(
         ndimage.gaussian_filter((~cut).astype(float), 0.6), 0.0, 1.0)
 

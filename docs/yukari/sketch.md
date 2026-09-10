@@ -148,8 +148,14 @@ By default (`FINALIZE_TRANSPARENT`) the redrawn picture then goes through
 `YukariCutBackdrop`: no birefnet matte, since there is no silhouette left
 to find by segmentation -- the only thing outside the rim is the flat
 backdrop, redrawn, so it is cut by colour tolerance
-(`delivery_style.CUT_BACKDROP_TOLERANCE`) instead, keeping the redrawn white
-band and purple rim as part of the picture. The cut's own matte (the
+(`delivery_style.CUT_BACKDROP_TOLERANCE`), bounded by `YukariCompose`'s own
+MASK output (the geometry outside its bands, at the compose's own scale)
+so a light figure passage -- pale hair, a pale prop -- never falls through
+just for sitting inside the colour tolerance. The mask is resized to the
+redraw's own scale and dilated by `delivery_style.CUT_BACKDROP_MARGIN` (a
+share of the white band's own width) to absorb the redraw's edge drift
+before the colour test runs, keeping the redrawn white band and purple rim
+as part of the picture. The cut's own matte (the
 `MaskToImage` of `YukariCutBackdrop`'s mask output) and the delivered RGBA
 follow the usual `-matte`/`-delivered` `SaveImage` shape, with the
 `deliver_size` scale applied to the delivered output only. An explicit

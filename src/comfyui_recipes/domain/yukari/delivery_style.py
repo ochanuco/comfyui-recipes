@@ -26,9 +26,15 @@ WHITE_WIDTH_PCT = 1.3
 
 # The purple marker drawn outside the white band, at Yukari's own hue,
 # deliberately darker than the hair accent.
-STROKE = "#6a3494"
+STROKE = "#885b80"
 # Width as a share of the white band's own width, both computed together.
 STROKE_WIDTH_BAND = 0.80
+
+# Douglas-Peucker epsilon for the band outlines' outer edge, as a percent of
+# the image's longest side -- straight, angular segments instead of the
+# smooth distance-field ramp, for a hand-cut rather than die-cut look. 0
+# reproduces the smooth ramp exactly; band_alphas branches on this.
+STROKE_CUT_EPS_PCT = 0.5
 
 # Purple width on the lit and the shadow side, as multiples of the uniform width.
 STROKE_LIGHT_THIN = 0.5

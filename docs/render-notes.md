@@ -11429,3 +11429,33 @@ running birefnet on it:
   birefnet matte on the compose path any more, transparent or not.
   `compose=True, deliver=True` without `transparent=True` raises too -- the
   cut tail is the only tail a compose delivers through.
+
+## `cut_backdrop`'s colour test is bounded by the compose's own geometry (2026-09-11)
+
+Production deliveries cut transparent holes through Yukari's light-purple
+hair and other pale figure passages: `cut_backdrop`'s colour tolerance
+against the backdrop cannot tell a pale passage the model drew from the
+backdrop itself, and the border-connected/enclosed-region flood from
+`background_mask`/`enclosed_mask` had no other way to bound the cut.
+
+- `delivery.outside_mask` reads `band_alphas`' own geometry for a `compose`
+  call's figure: not the figure, not the white band, not the purple band. A
+  hole the bands still reach (an arm against the body, narrower than the two
+  bands together) stays inside; only backdrop beyond the purple band's own
+  outer edge comes back `True`.
+- `delivery.compose_outside_mask` runs it against a `compose` call's own
+  RGBA input and PNG-encodes it, at the compose's own scale.
+  `YukariCompose` gains a third output, `mask` (`MASK`), appended after
+  `image`/`tag` so existing graphs keep resolving those two unchanged.
+- `delivery.cut_backdrop` takes this mask as a required second positional
+  argument, `outside_mask`: resized to the picture being cut, dilated by
+  `delivery_style.CUT_BACKDROP_MARGIN` (a share of the white band's own
+  width) to absorb the redraw's own edge drift, and only pixels inside the
+  dilated mask are tested by colour at all -- a pixel outside it is kept
+  whatever colour the redraw gave it. `YukariCutBackdrop` gains a matching
+  required `outside` (`MASK`) input; `refinement_graph.chain_pass` wires it
+  from the compose node's own third output.
+- `background_mask`/`enclosed_mask` are no longer used inside
+  `cut_backdrop` -- both stay in `infrastructure/imaging/delivery.py` for
+  `palette.py` and the standalone scripts, which still flood-fill by colour
+  alone.

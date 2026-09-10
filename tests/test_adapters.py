@@ -724,8 +724,11 @@ class AdapterTest(unittest.TestCase):
         self.assertFalse(any(node.get("class_type") in
                              ("RemoveBackground", "LoadBackgroundRemovalModel", "YukariDeliver")
                              for node in graph.values()))
+        compose_node = self._single(graph, "YukariCompose")
+        compose_id = self._id_of(graph, compose_node)
         cut_node = self._single(graph, "YukariCutBackdrop")
         self.assertEqual(cut_node["inputs"]["image"], [decode_id, 0])
+        self.assertEqual(cut_node["inputs"]["outside"], [compose_id, 2])
         self.assertEqual(cut_node["inputs"]["backdrop"], "#112233")
         cut_id = self._id_of(graph, cut_node)
         to_image = self._single(graph, "MaskToImage")

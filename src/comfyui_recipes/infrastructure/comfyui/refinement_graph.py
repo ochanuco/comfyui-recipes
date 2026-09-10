@@ -271,7 +271,8 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
 
         cut_id = allocate()
         graph[cut_id] = {"class_type": "YukariCutBackdrop", "inputs": {
-            "image": [decode, 0], "backdrop": backdrop or ""}}
+            "image": [decode, 0], "outside": [compose_id, 2],
+            "backdrop": backdrop or ""}}
         to_image = allocate()
         graph[to_image] = {"class_type": "MaskToImage", "inputs": {
             "mask": [cut_id, 1]}}

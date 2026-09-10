@@ -60,6 +60,13 @@ def matte_array() -> np.ndarray:
     return mask
 
 
+def outside_array() -> np.ndarray:
+    """`matte_array`'s own inverse: outside everywhere but its figure block."""
+    mask = np.full((64, 64), 255, dtype=np.uint8)
+    mask[16:48, 16:48] = 0
+    return mask
+
+
 def image_tensor(pixels: np.ndarray) -> FakeTensor:
     return FakeTensor((pixels.astype(np.float32) / 255.0)[None, ...])
 
@@ -242,23 +249,29 @@ class NodeRunTest(unittest.TestCase):
         self.assertTrue(tag.startswith("clean-"))
         self.assertNotIn("-bg-", tag)
 
-    def test_compose_wiring_returns_a_three_channel_image_and_the_tag(self):
+    def test_compose_wiring_returns_a_three_channel_image_tag_and_mask(self):
         node = nodes.YukariCompose()
         pixels = swatch()
         alpha = matte_array()
         rgba = np.dstack([pixels, alpha])
-        image, tag = node.run(image_tensor(rgba))
+        image, tag, mask = node.run(image_tensor(rgba))
         self.assertEqual(image.array.shape, (1, 64, 64, 3))
         self.assertTrue(tag.startswith("compose-"))
+        self.assertEqual(mask.array.shape, (1, 64, 64))
+        # Inside the figure's own alpha: not outside the bands.
+        self.assertLess(mask.array[0, 32, 32], 0.5)
+        # A far corner, well past the bands: outside.
+        self.assertGreater(mask.array[0, 0, 0], 0.5)
 
     def test_cut_backdrop_wiring_returns_rgba_matte_and_tag(self):
         node = nodes.YukariCutBackdrop()
-        image, matte, tag = node.run(image_tensor(swatch()), backdrop="#808080")
+        image, matte, tag = node.run(
+            image_tensor(swatch()), mask_tensor(outside_array()), backdrop="#808080")
         self.assertEqual(image.array.shape, (1, 64, 64, 4))
         self.assertEqual(matte.array.shape, (1, 64, 64))
         self.assertTrue(tag.startswith("cutbg-t"))
         # The flat #808080 corner is cut to transparent; the saturated
-        # centre block -- the swatch's own "figure" -- stays opaque.
+        # centre block -- outside the outside mask -- stays opaque.
         self.assertLess(image.array[0, 0, 0, 3], 0.5)
         self.assertGreater(image.array[0, 32, 32, 3], 0.5)
 

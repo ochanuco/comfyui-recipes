@@ -18,6 +18,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     band_alphas,
     clean_background,
     compose,
+    cut_backdrop,
     down2,
     graph_from_png,
     keep_scene,
@@ -505,6 +506,88 @@ class ComposeTest(unittest.TestCase):
         arr = np.array(Image.open(io.BytesIO(composed)).convert("RGB"))
         np.testing.assert_array_equal(arr[0, 0], np.array(parse_color("#112233")))
         self.assertEqual(tag, "compose-flat-bg-112233")
+
+
+class CutBackdropTest(unittest.TestCase):
+    def test_cut_backdrop_cuts_the_border_connected_backdrop(self):
+        pixels = np.full((64, 64, 3), parse_color(delivery_style.BACKDROP),
+                         dtype=np.uint8)
+        pixels[16:48, 16:48] = (40, 40, 40)
+        cut, matte, tag = cut_backdrop(png(pixels))
+        image = Image.open(io.BytesIO(cut))
+        self.assertEqual(image.mode, "RGBA")
+        self.assertEqual(image.size, (64, 64))
+        arr = np.array(image)
+        self.assertEqual(arr[0, 0, 3], 0)
+        self.assertEqual(arr[32, 32, 3], 255)
+        np.testing.assert_array_equal(arr[32, 32, :3], (40, 40, 40))
+        self.assertTrue(tag.startswith("cutbg-t"))
+        matte_arr = np.array(Image.open(io.BytesIO(matte)).convert("L"))
+        self.assertEqual(matte_arr[0, 0], 0)
+        self.assertEqual(matte_arr[32, 32], 255)
+
+    def test_cut_backdrop_cuts_an_enclosed_hole(self):
+        # No figure pixel is backdrop-coloured here, so the frame-edge flood
+        # finds nothing -- only `enclosed_mask`'s own region test reaches
+        # the hole between where an arm would meet the body.
+        pixels = np.full((64, 64, 3), (40, 40, 40), dtype=np.uint8)
+        pixels[24:32, 24:32] = parse_color(delivery_style.BACKDROP)
+        cut, _, _ = cut_backdrop(png(pixels))
+        arr = np.array(Image.open(io.BytesIO(cut)).convert("RGBA"))
+        self.assertEqual(arr[28, 28, 3], 0)
+        self.assertEqual(arr[0, 0, 3], 255)
+
+    def test_cut_backdrop_keeps_the_white_band_and_purple_rim(self):
+        # A compose-with-bands, standing in for the redrawn picture the real
+        # node sees -- the bands are already baked in, and cutting must not
+        # touch them. A large canvas keeps the bands many pixels wide, so a
+        # sample point can sit well clear of cut_backdrop's own 1px edge
+        # soften.
+        size = 800
+        pixels = np.full((size, size, 3), (40, 40, 40), dtype=np.uint8)
+        alpha = np.zeros((size, size), dtype=np.uint8)
+        alpha[200:600, 200:600] = 255
+        composed, _ = compose(rgba_png(pixels, alpha))
+        cut, _, _ = cut_backdrop(composed)
+        arr = np.array(Image.open(io.BytesIO(cut)).convert("RGBA"))
+        white = np.array([255, 255, 255])
+        purple = np.array(parse_color(delivery_style.STROKE))
+        row = 400
+        cols = np.arange(600, size)
+        strip_rgb = arr[row, cols, :3].astype(int)
+
+        def middle_of_exact_run(color):
+            # The pixel or two right at a band's own seam can, by pure
+            # colour coincidence, fall inside the backdrop tolerance and
+            # lose a sliver of alpha to the edge soften; sampling the
+            # middle of the band's solid run instead of its first pixel is
+            # what this test means to check, not that coincidence.
+            hits = np.where((strip_rgb == color).all(axis=1))[0]
+            self.assertTrue(hits.size, f"strip never reaches {color}")
+            return cols[hits[len(hits) // 2]]
+
+        white_at = middle_of_exact_run(white)
+        purple_at = middle_of_exact_run(purple)
+        self.assertEqual(arr[row, white_at, 3], 255)
+        self.assertEqual(arr[row, purple_at, 3], 255)
+        # Well past the rim, the flat backdrop is cut.
+        self.assertEqual(arr[row, size - 1, 3], 0)
+
+    def test_cut_backdrop_tolerance_is_inclusive_and_bounded(self):
+        backdrop = np.array(parse_color(delivery_style.BACKDROP))
+        tolerance = delivery_style.CUT_BACKDROP_TOLERANCE
+        pixels = np.zeros((32, 32, 3), dtype=np.uint8)
+        pixels[:, :16] = np.clip(backdrop + tolerance, 0, 255)
+        pixels[:, 16:] = np.clip(backdrop + tolerance + 1, 0, 255)
+        cut, _, _ = cut_backdrop(png(pixels))
+        arr = np.array(Image.open(io.BytesIO(cut)).convert("RGBA"))
+        self.assertEqual(arr[16, 4, 3], 0)
+        self.assertEqual(arr[16, 28, 3], 255)
+
+    def test_cut_backdrop_pattern_backdrop_raises(self):
+        pixels = np.full((32, 32, 3), (40, 40, 40), dtype=np.uint8)
+        with self.assertRaisesRegex(ValueError, "flat colour"):
+            cut_backdrop(png(pixels), backdrop="stripes")
 
 
 if __name__ == "__main__":

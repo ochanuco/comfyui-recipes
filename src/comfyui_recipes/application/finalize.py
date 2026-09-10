@@ -112,16 +112,19 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     if keep_scene:
         transparent = False
     if is_layerdiffuse:
-        # transparent (the sketch default) composites band-less and appends
-        # the birefnet/deliver tail to the redrawn pixels; the legacy path
-        # (an explicit backdrop, keep_scene, or transparent=False) composites
-        # the bands straight onto the backdrop before the redraw and stops
-        # there. Either way latent_route stays an explicit opt-in: the pixel
-        # route is faithful to what the redraw actually draws.
+        # transparent (the sketch default) composites the bands onto the
+        # backdrop, redraws, then cuts the backdrop's own colour out with
+        # `YukariCutBackdrop` -- no matte model, since the redraw already
+        # painted the rim into the picture. The legacy path (an explicit
+        # backdrop, keep_scene, or transparent=False) stops at that same
+        # composed-and-redrawn picture and never cuts it. Either way
+        # latent_route stays an explicit opt-in: the pixel route is
+        # faithful to what the redraw actually draws.
         if backdrop:
-            # transparent's own YukariDeliver ignores backdrop, so an
-            # explicit one always wins over a caller's own transparent=True
-            # -- otherwise the backdrop request silently does nothing.
+            # cut_backdrop only means something against the flat colour it
+            # is given, so an explicit backdrop always wins over a caller's
+            # own transparent=True -- otherwise the backdrop request
+            # silently does nothing.
             transparent = False
         latent_route = (caller_latent_route if caller_latent_route is not None
                         else False)
@@ -178,7 +181,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         graph = services.chain_pass(
             base, size, denoise, prefix,
             prompt=(prompt.positive, prompt.negative),
-            matte_model=delivery_style.MATTE_MODEL if transparent else None,
+            matte_model=None,
             latent_route=latent_route,
             sampler=sampler,
             loader=loader,
@@ -250,10 +253,10 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
     # A layerdiffuse base on the legacy (non-transparent) path is one
-    # SaveImage, already the finished picture: no birefnet pass ran, so
+    # SaveImage, already the finished picture: no deliver tail ran, so
     # there is no separate matte or delivered output to classify. Every
-    # other route -- including a transparent layerdiffuse finalize -- runs
-    # the birefnet/deliver tail and produces all three.
+    # other route -- the non-layerdiffuse birefnet tail, and a transparent
+    # layerdiffuse finalize's cut_backdrop tail alike -- produces all three.
     single_output = is_layerdiffuse and not transparent
     if single_output:
         if not outputs:
@@ -312,6 +315,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                        **({"keep_scene": True} if keep_scene else {}),
                        **({"transparent": True} if transparent else {}),
                        **({"compose": True} if is_layerdiffuse else {}),
+                       **({"cut": "backdrop"} if is_layerdiffuse and transparent else {}),
                        **({"backdrop": backdrop} if backdrop else {}),
                        **({"upscale": upscale} if upscale else {}),
                        **({"lora_strength": lora_strength}

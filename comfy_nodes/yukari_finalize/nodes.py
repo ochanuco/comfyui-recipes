@@ -124,12 +124,33 @@ class YukariCompose:
         return (bridge.png_to_image(data, "RGB"), tag)
 
 
+class YukariCutBackdrop:
+    CATEGORY = "yukari"
+    RETURN_TYPES = ("IMAGE", "MASK", "STRING")
+    RETURN_NAMES = ("image", "matte", "tag")
+    FUNCTION = "run"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "image": ("IMAGE",),
+        }, "optional": {
+            "backdrop": ("STRING", {"default": ""}),
+        }}
+
+    def run(self, image, backdrop=""):
+        data, matte_png, tag = delivery.cut_backdrop(
+            bridge.image_to_png(image), backdrop or None)
+        return (bridge.png_to_image(data, "RGBA"), bridge.png_to_mask(matte_png), tag)
+
+
 NODE_CLASS_MAPPINGS = {
     "YukariRepinSkin": YukariRepinSkin,
     "YukariRepin": YukariRepin,
     "YukariRecolor": YukariRecolor,
     "YukariDeliver": YukariDeliver,
     "YukariCompose": YukariCompose,
+    "YukariCutBackdrop": YukariCutBackdrop,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -138,4 +159,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "YukariRecolor": "Yukari Recolor",
     "YukariDeliver": "Yukari Deliver",
     "YukariCompose": "Yukari Compose",
+    "YukariCutBackdrop": "Yukari Cut Backdrop",
 }

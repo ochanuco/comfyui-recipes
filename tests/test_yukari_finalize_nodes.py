@@ -117,12 +117,20 @@ class BridgeTest(unittest.TestCase):
         np.testing.assert_allclose(
             (back.array[0] * 255.0).round(), rgba, atol=1)
 
+    def test_png_to_mask_yields_a_batched_hw_tensor(self):
+        mask = matte_array()
+        data = bridge.array_to_png(mask, "L")
+        with mock.patch.dict(sys.modules, {"torch": FakeTorch()}):
+            back = bridge.png_to_mask(data)
+        self.assertEqual(back.array.shape, (1, 64, 64))
+        np.testing.assert_allclose((back.array[0] * 255.0).round(), mask, atol=1)
+
 
 class NodeMappingTest(unittest.TestCase):
-    def test_node_class_mappings_cover_the_five_nodes(self):
+    def test_node_class_mappings_cover_the_six_nodes(self):
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS), {
             "YukariRepinSkin", "YukariRepin", "YukariRecolor", "YukariDeliver",
-            "YukariCompose",
+            "YukariCompose", "YukariCutBackdrop",
         })
         self.assertEqual(
             set(nodes.NODE_DISPLAY_NAME_MAPPINGS),
@@ -242,6 +250,17 @@ class NodeRunTest(unittest.TestCase):
         image, tag = node.run(image_tensor(rgba))
         self.assertEqual(image.array.shape, (1, 64, 64, 3))
         self.assertTrue(tag.startswith("compose-"))
+
+    def test_cut_backdrop_wiring_returns_rgba_matte_and_tag(self):
+        node = nodes.YukariCutBackdrop()
+        image, matte, tag = node.run(image_tensor(swatch()), backdrop="#808080")
+        self.assertEqual(image.array.shape, (1, 64, 64, 4))
+        self.assertEqual(matte.array.shape, (1, 64, 64))
+        self.assertTrue(tag.startswith("cutbg-t"))
+        # The flat #808080 corner is cut to transparent; the saturated
+        # centre block -- the swatch's own "figure" -- stays opaque.
+        self.assertLess(image.array[0, 0, 0, 3], 0.5)
+        self.assertGreater(image.array[0, 32, 32, 3], 0.5)
 
 
 if __name__ == "__main__":

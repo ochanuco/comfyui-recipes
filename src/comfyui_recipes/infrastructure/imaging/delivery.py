@@ -281,28 +281,56 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 
+# Below this alpha, the band-less compose drops a pixel outright: a
+# layerdiffuse raw's own low-alpha haze skirt reads near-white for tens of
+# pixels past the figure, and composited at its raw alpha/255 it bakes in as
+# a pale glow the redraw then treats as picture. Above HAZE_ALPHA_CEIL a
+# pixel keeps its own coverage unchanged; between the two it ramps linearly,
+# so a real antialiased edge is thinned rather than cut.
+HAZE_ALPHA_FLOOR = 32
+HAZE_ALPHA_CEIL = 64
+
+
+def _dehaze_coverage(alpha: np.ndarray) -> np.ndarray:
+    raw = alpha.astype(float) / 255.0
+    ramp = np.clip((alpha.astype(float) - HAZE_ALPHA_FLOOR)
+                   / (HAZE_ALPHA_CEIL - HAZE_ALPHA_FLOOR), 0.0, 1.0)
+    return raw * ramp
+
+
 def compose(data: bytes, backdrop: str | None = None,
-           light: str | None = None) -> tuple[bytes, str]:
-    """Composite an RGBA figure onto the sticker backdrop, unrefined.
+           light: str | None = None, bands: bool = True) -> tuple[bytes, str]:
+    """Composite an RGBA figure onto a flat backdrop, unrefined.
 
     The alpha is a layerdiffuse render's own -- islands and holes are left
     as drawn, unlike `clean_background`'s birefnet matte, which `refine_matte`
     retraces because the model loses strands `refine_matte` was written to
-    put back.
+    put back. `bands=False` skips the white/purple ring and plain
+    alpha-composites the figure onto the backdrop instead: the redraw that
+    follows moves the silhouette, so the transparent finalize path draws its
+    own band afterward, from the redrawn pixels' own matte. That path leaves
+    `backdrop` unset -- `delivery_style.BACKDROP` is the only flat colour this
+    module already owns, so the band-less compose reads it too rather than
+    adding a second one.
     """
     rgba = Image.open(io.BytesIO(data)).convert("RGBA")
     px = np.array(rgba)[..., :3].astype(float)
     alpha = np.array(rgba)[..., 3]
-    figure = alpha > 127
     coverage = alpha.astype(float) / 255.0
     height, width = px.shape[:2]
     backdrop_rgb = backdrops.render(backdrop, height, width)
-    composite = sticker(px, figure, coverage, backdrop_rgb, light)
-    white_w, purple_w = _band_widths(height, width)
+    if bands:
+        figure = alpha > 127
+        composite = sticker(px, figure, coverage, backdrop_rgb, light)
+        white_w, purple_w = _band_widths(height, width)
+        tag = f"compose-w{white_w:.0f}-p{purple_w:.0f}" + _backdrop_tag_suffix(backdrop)
+    else:
+        dehazed = _dehaze_coverage(alpha)
+        composite = dehazed[..., None] * px + (1.0 - dehazed[..., None]) * backdrop_rgb
+        tag = "compose-flat" + _backdrop_tag_suffix(backdrop)
 
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
-    tag = f"compose-w{white_w:.0f}-p{purple_w:.0f}" + _backdrop_tag_suffix(backdrop)
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 

@@ -78,8 +78,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     is_anima = (not is_sketch) and any(
         node.get("class_type") == "UNETLoader" for node in base.values())
     # A base with its own layerdiffuse alpha finalizes as compose-then-redraw:
-    # the RGBA composites onto the sticker backdrop before the redraw ever
-    # sees it, so there is no birefnet matte and no separate delivery node.
+    # the RGBA composites onto a flat backdrop before the redraw ever sees
+    # it, since the redraw itself moves the silhouette.
     is_layerdiffuse = any(node.get("class_type") == "LayeredDiffusionApply"
                           for node in base.values())
     if lora_strength is not None and not is_sketch:
@@ -110,12 +110,19 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     if keep_scene:
         transparent = False
     if is_layerdiffuse:
-        # The RGBA composites straight onto the sticker backdrop, so there is
-        # no cutout left for the delivery node to make; only an explicit
-        # opt-in encodes the composite and upscales it in latent space.
+        # transparent (the sketch default) composites band-less and appends
+        # the birefnet/deliver tail to the redrawn pixels; the legacy path
+        # (an explicit backdrop, keep_scene, or transparent=False) composites
+        # the bands straight onto the backdrop before the redraw and stops
+        # there. Either way latent_route stays an explicit opt-in: the pixel
+        # route is faithful to what the redraw actually draws.
+        if backdrop:
+            # transparent's own YukariDeliver ignores backdrop, so an
+            # explicit one always wins over a caller's own transparent=True
+            # -- otherwise the backdrop request silently does nothing.
+            transparent = False
         latent_route = (caller_latent_route if caller_latent_route is not None
                         else False)
-        transparent = False
     if roles.stitched:
         # A stitched base's sampler latent is the inpaint crop, not the whole
         # picture -- the pixel route is the only correct one, so a caller's
@@ -169,13 +176,14 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         graph = services.chain_pass(
             base, size, denoise, prefix,
             prompt=(prompt.positive, prompt.negative),
-            matte_model=None,
+            matte_model=delivery_style.MATTE_MODEL if transparent else None,
             latent_route=latent_route,
             sampler=sampler,
             loader=loader,
             sampling=sampling,
-            deliver=False,
+            deliver=transparent,
             compose=True,
+            transparent=transparent,
             backdrop=backdrop,
             upscale=upscale or "bicubic",
             redraw_lora=redraw_lora,
@@ -239,10 +247,13 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     prompt_id = services.comfyui.submit(graph)
     services.emit(f"{prefix} {prompt_id}")
     outputs = services.comfyui.wait_for(prompt_id)
-    if is_layerdiffuse:
-        # Compose-then-redraw is one SaveImage, already the finished picture:
-        # no birefnet pass ran, so there is no separate matte or delivered
-        # output to classify.
+    # A layerdiffuse base on the legacy (non-transparent) path is one
+    # SaveImage, already the finished picture: no birefnet pass ran, so
+    # there is no separate matte or delivered output to classify. Every
+    # other route -- including a transparent layerdiffuse finalize -- runs
+    # the birefnet/deliver tail and produces all three.
+    single_output = is_layerdiffuse and not transparent
+    if single_output:
         if not outputs:
             raise SystemExit(f"{prefix} produced no output; one is required")
         image = outputs[-1]
@@ -270,7 +281,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         delivered = services.comfyui.fetch(delivereds[-1])
     services.output_root.mkdir(parents=True, exist_ok=True)
     (services.output_root / image["filename"]).write_bytes(raw)
-    if not is_layerdiffuse:
+    if not single_output:
         (services.output_root / matte_name).write_bytes(matte)
         (services.output_root / delivered_name).write_bytes(delivered)
     if services.measure is not None:
@@ -330,7 +341,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         {"status": "queued", "comfy_prompt_id": prompt_id, "graph": graph})
     services.management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "completed"})
-    uploads = ([(image["filename"], raw)] if is_layerdiffuse
+    uploads = ([(image["filename"], raw)] if single_output
               else [(image["filename"], raw), (delivered_name, delivered)])
     ids, urls = [], []
     for index, (name, data) in enumerate(uploads):
@@ -342,7 +353,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         ids.append(rendered["id"])
         urls.append(rendered["canonical_url"])
         services.emit(f"{name} -> {rendered['canonical_url']}")
-    if not is_layerdiffuse:
+    if not single_output:
         # The matte is the silhouette of the raw redraw, not of the delivered
         # composite, so it hangs off generation 0. Storing it is what lets the
         # cutout be redone later without re-running the 2048 pass.

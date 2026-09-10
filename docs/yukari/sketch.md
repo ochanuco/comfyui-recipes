@@ -132,15 +132,22 @@ The latent route is this recipe's own default (`FINALIZE_LATENT_ROUTE`):
 `--latent-route` is then a no-op, and `--pixel-route` forces the pixel-space
 route instead.
 
-A base rendered with `layerdiffuse` carries its own RGBA, so its finalize is
-compose, then redraw instead of redraw, then matte, then deliver: the alpha
-composites onto the sticker backdrop (flat colour, white band, purple band)
-in the `YukariCompose` node, the opaque result is what the pixel-route
-upscale and redraw run on, and the redraw carries the recipe's own LoRA into
-its model and CLIP -- no birefnet matte, no `YukariDeliver`. The `backdrop`
+A base rendered with `layerdiffuse` carries its own RGBA, so its finalize
+composes before it redraws. By default (`FINALIZE_TRANSPARENT`) the compose
+is band-less: `YukariCompose` places the RGBA onto the delivery's own flat
+backdrop with no white/purple ring, the pixel-route upscale and redraw (the
+recipe's own LoRA riding into the redraw's model and CLIP as usual) run on
+that, and the normal deliver tail then runs on the redrawn pixels -- birefnet
+`RemoveBackground`, `YukariDeliver(transparent=True)`, the `deliver_size`
+scale, `-delivered` and `-matte` `SaveImage`s -- so the band is drawn once,
+from the redrawn matte, not from the raw layerdiffuse alpha the redraw has
+already moved. An explicit `backdrop`, `keep_scene`, or `transparent: false`
+selects the legacy path instead: `YukariCompose` draws the white/purple bands
+onto the backdrop before the redraw runs, and that redraw is the whole
+delivered picture -- no birefnet matte, no `YukariDeliver`. The `backdrop`
 request option (`--backdrop` on the CLI, a `#RRGGBB` hex colour or the named
-pattern `stripes`) overrides the composite's backdrop; unset, it is the
-delivery's own flat default.
+pattern `stripes`) overrides the legacy composite's backdrop; unset, it is
+the delivery's own flat default.
 The `upscale` request option (`--upscale` on the CLI: `bicubic`,
 `nearest-exact`, `bilinear` or `lanczos`) selects the pixel-route
 `ImageScale` node's `upscale_method` feeding that redraw; unset, it stays

@@ -37,7 +37,9 @@ Three recipes are live, all under `src/comfyui_recipes/domain/`:
   derived from, and its face as `face_edits` diffed over the shared `FACE`
   block -- a full-string `face` override is still allowed as an escape
   hatch); `comfy-recipes sketch lineage` prints each pose's departures from
-  its parent (or from `FACE`/an empty pose block, for one with none).
+  its parent (or from `FACE`/an empty pose block, for one with none), plus
+  its settled seed when one is recorded; `comfy-recipes sketch plain --pose
+  NAME` prints a plain request.json payload at that seed.
 
 The ComfyUI node encoding for all three is under `infrastructure/comfyui/`.
 `comfy-recipes {yukari,anima,sketch} prompt --pose …` prints what a recipe

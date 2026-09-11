@@ -29,8 +29,10 @@ from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
 from ..domain.yukari_sketch.costumes import COSTUMES as SKETCH_COSTUMES
 from ..domain.yukari_sketch.dials import DIALS as SKETCH_DIALS
 from ..domain.yukari_sketch.poses import POSES as SKETCH_POSES
+from ..domain.yukari_sketch.recipe import departures as sketch_departures
 from ..domain.yukari_sketch.recipe import identity_tags as sketch_identity_tags
 from ..domain.yukari_sketch.recipe import render_spec as sketch_render_spec
+from ..domain.yukari_sketch.recipe import resolved_face as sketch_resolved_face
 from .generate import KNOWN_PARAMETERS, RECIPE_REJECTED_PARAMETERS
 
 SCHEMA_VERSION = 1
@@ -85,7 +87,9 @@ def _sketch_recipe() -> dict:
         poses.append({
             "name": name,
             "costume": pose.costume,
-            "face": pose.face,
+            "face": sketch_resolved_face(name),
+            "parent": pose.parent,
+            "departures": sketch_departures(name),
             "canvas": [spec.width, spec.height],
             "positive": spec.prompts.positive,
             "negative": spec.prompts.negative,

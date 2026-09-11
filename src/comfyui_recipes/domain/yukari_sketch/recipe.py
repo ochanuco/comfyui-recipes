@@ -6,13 +6,20 @@ ignoring them. The delivery redraw reuses the base prompt verbatim; the
 LoRA that gives the base pass its look rides into the redraw through the
 graph (see `infrastructure/comfyui/yukari_graph.py`), not through the
 prompt.
+
+A pose's face is a declared diff over `FACE` (`face_block`), not a copied
+string; `departures`/`lineage` read a pose's edits and `parent` back out as
+a tag-level report of what changed and against what.
 """
 
 from __future__ import annotations
 
+import difflib
+
 from ..generation.models import PromptPair, RenderSpec
 from ..generation.prompt_lint import tags as prompt_tags
 from .costumes import COSTUMES, LEGWEAR_BY_COSTUME, NEGATIVE_BY_COSTUME
+from .models import Edit
 from .poses import POSES
 from .prompt_style import (
     BACKGROUND,
@@ -56,12 +63,52 @@ IDENTITY_TAG_NAMES = frozenset({
 })
 
 
+def _splice(text: str, old: str, new: str) -> str:
+    """`str.replace`, except that a needle which is not there is an error.
+
+    A replacement that matches nothing does nothing AND SAYS NOTHING;
+    mirrors `domain/yukari/recipe.py::_splice`.
+    """
+    assert old in text, f"splice needle absent: {old!r}"
+    return text.replace(old, new)
+
+
+def _apply(text: str, edits: tuple[Edit, ...]) -> str:
+    for e in edits:
+        if e.op == "replace":
+            text = _splice(text, e.old, e.new)
+        elif e.op == "remove":
+            text = _splice(text, e.old, "")
+        elif e.op == "prepend":
+            text = e.new + text
+        elif e.op == "append":
+            text = text + e.new
+        else:
+            raise ValueError(f"unknown op: {e.op!r}")
+    return text
+
+
+def face_block(pose: str) -> str:
+    p = POSES[pose]
+    if p.face is not None:
+        return p.face
+    return _apply(FACE, p.face_edits)
+
+
+def resolved_face(pose: str) -> str | None:
+    """The face text a pose actually renders with, or None when it is
+    `FACE` unchanged -- what the catalog publishes.
+    """
+    text = face_block(pose)
+    return None if text == FACE else text
+
+
 def positive_parts(pose: str, costume: str | None = None) -> tuple[tuple[str, str], ...]:
     p = POSES[pose]
     name = costume if costume is not None else p.costume
     costume_block = COSTUMES[name]
     legwear = LEGWEAR_BY_COSTUME.get(name, LEGWEAR)
-    face = p.face if p.face is not None else FACE
+    face = face_block(pose)
     values = (QUALITY + TRIGGER, CHARACTER + IDENTITY, costume_block,
               p.action, PROPORTION, BACKGROUND, legwear, face, BODY, FINISH)
     return tuple(zip(PART_NAMES, values))
@@ -108,3 +155,117 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
         sampler_name=SAMPLER, scheduler=SCHEDULER, denoise=1.0,
         filename_prefix=prefix, hires=None, loras=(LORA,),
         layerdiffuse=layerdiffuse)
+
+
+def _parse_tags(text: str) -> list[tuple[str, str | None]]:
+    """(bare name, weight-or-None) for each tag, in the text's own order.
+
+    Kept separate from `prompt_lint.tags`, which strips weights -- a
+    departure report needs them to tell a reweight from an untouched tag.
+    """
+    result = []
+    for part in text.split(", "):
+        part = part.strip().strip("()")
+        if not part:
+            continue
+        name, sep, weight = part.rpartition(":")
+        result.append((name, weight) if sep else (part, None))
+    return result
+
+
+# One diff entry: (kind, name, old weight, new weight). kind is "add",
+# "drop", "reweight" or (after `_merge_moved`) "moved".
+_DiffEntry = tuple[str, str, "str | None", "str | None"]
+
+
+def _merge_moved(entries: list[_DiffEntry]) -> list[_DiffEntry]:
+    """A tag both dropped and re-added under the same bare name did not
+    change identity, only position -- collapse the pair into one `moved`
+    entry (or a reweight, if its weight changed too) at the add's slot.
+    """
+    drop_queues: dict[str, list[int]] = {}
+    for i, (kind, name, _old, _new) in enumerate(entries):
+        if kind == "drop":
+            drop_queues.setdefault(name, []).append(i)
+    merged = list(entries)
+    consumed: set[int] = set()
+    for i, (kind, name, _old, new_w) in enumerate(entries):
+        if kind != "add":
+            continue
+        queue = drop_queues.get(name)
+        if not queue:
+            continue
+        drop_i = queue.pop(0)
+        _, _, drop_old_w, _ = entries[drop_i]
+        consumed.add(drop_i)
+        if drop_old_w == new_w:
+            merged[i] = ("moved", name, None, None)
+        else:
+            merged[i] = ("reweight", name, drop_old_w, new_w)
+    return [entry for i, entry in enumerate(merged) if i not in consumed]
+
+
+def _tag_diff(reference: str, own: str) -> list[str]:
+    """One entry per tag that changed, in the order a walk from `reference`
+    to `own` visits them: `+tag[:weight]` added, `-tag` dropped, `tag old ->
+    new` reweighted, `tag moved` when the same tag was dropped and re-added
+    unchanged elsewhere in the text.
+    """
+    ref_tags = _parse_tags(reference)
+    own_tags = _parse_tags(own)
+    ref_names = [name for name, _ in ref_tags]
+    own_names = [name for name, _ in own_tags]
+    matcher = difflib.SequenceMatcher(None, ref_names, own_names, autojunk=False)
+    entries: list[_DiffEntry] = []
+    for op, i1, i2, j1, j2 in matcher.get_opcodes():
+        if op == "equal":
+            for (name, old_w), (_, new_w) in zip(ref_tags[i1:i2], own_tags[j1:j2]):
+                if old_w != new_w:
+                    entries.append(("reweight", name, old_w, new_w))
+        else:
+            if op in ("delete", "replace"):
+                entries.extend(
+                    ("drop", name, weight, None) for name, weight in ref_tags[i1:i2])
+            if op in ("insert", "replace"):
+                entries.extend(
+                    ("add", name, None, weight) for name, weight in own_tags[j1:j2])
+    changes = []
+    for kind, name, old_w, new_w in _merge_moved(entries):
+        if kind == "reweight":
+            changes.append(f"{name} {old_w or '1.0'} -> {new_w or '1.0'}")
+        elif kind == "moved":
+            changes.append(f"{name} moved")
+        elif kind == "add":
+            changes.append(f"+{name}:{new_w}" if new_w else f"+{name}")
+        elif kind == "drop":
+            changes.append(f"-{name}")
+    return changes
+
+
+def departures(pose: str, costume: str | None = None) -> dict:
+    """What `pose` changes relative to its `parent`, or relative to the
+    shared blocks when it has none -- a tag-level report of the same edits
+    `face_block`/`positive_parts` apply.
+    """
+    p = POSES[pose]
+    own_parts = dict(positive_parts(pose, costume))
+    if p.parent is not None:
+        reference_parts = dict(positive_parts(p.parent))
+    else:
+        reference_parts = dict(own_parts)
+        reference_parts["pose"] = ""
+        reference_parts["face"] = FACE
+    parts = {}
+    for name in PART_NAMES:
+        changes = _tag_diff(reference_parts[name], own_parts[name])
+        if changes:
+            parts[name] = changes
+    return {
+        "parent": p.parent,
+        "face_override": p.face is not None,
+        "parts": parts,
+    }
+
+
+def lineage() -> dict[str, dict]:
+    return {name: departures(name) for name in POSES}

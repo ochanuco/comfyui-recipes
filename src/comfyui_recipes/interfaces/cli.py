@@ -336,7 +336,7 @@ def parser() -> argparse.ArgumentParser:
     sketch_lineage_parser.add_argument("--json", action="store_true")
     sketch_plain_parser = sketch_commands.add_parser("plain")
     sketch_plain_parser.add_argument("--pose", required=True, choices=sorted(SKETCH_POSES))
-    sketch_plain_parser.add_argument("--seed", type=int)
+    sketch_plain_parser.add_argument("--seed", type=int, required=True)
     sketch_plain_parser.add_argument("--costume", choices=sorted(SKETCH_COSTUMES))
     return root
 
@@ -365,19 +365,15 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "sketch":
         if args.sketch_command == "lineage":
-            base = ({args.pose: sketch_departures(args.pose)} if args.pose
+            data = ({args.pose: sketch_departures(args.pose)} if args.pose
                     else sketch_lineage())
-            data = {name: {**dep, "settled_seed": SKETCH_POSES[name].settled_seed}
-                    for name, dep in base.items()}
             if args.json:
                 print(json.dumps(data, ensure_ascii=False, indent=2))
             else:
                 for name, dep in data.items():
                     parent = dep["parent"] or "base"
-                    seed = dep["settled_seed"]
-                    seed_suffix = f"  seed={seed}" if seed is not None else ""
                     print(f"{name}  <- {parent}  "
-                         f"costume={SKETCH_POSES[name].costume}{seed_suffix}")
+                         f"costume={SKETCH_POSES[name].costume}")
                     for part, changes in dep["parts"].items():
                         marker = (" (full override)"
                                  if part == "face" and dep["face_override"]
@@ -385,10 +381,7 @@ def main(argv: list[str] | None = None) -> None:
                         print(f"  {part}:{marker} " + " ".join(changes))
             return
         if args.sketch_command == "plain":
-            try:
-                payload = sketch_plain_request(args.pose, args.seed, args.costume)
-            except ValueError as exc:
-                raise SystemExit(str(exc))
+            payload = sketch_plain_request(args.pose, args.seed, args.costume)
             print(json.dumps(payload, ensure_ascii=False, indent=2))
             return
         prompts = {

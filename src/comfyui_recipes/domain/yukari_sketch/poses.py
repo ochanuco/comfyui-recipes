@@ -25,7 +25,6 @@ POSES = {
                 "body:1.3), (sneakers:1.3), (white sneakers:1.2), "),
         costume="outing",
         parent="cinema",
-        settled_seed=737373737,
         face_edits=(
             Edit("replace", "(tareme:1.2), ",
                  "(tareme:1.2), (jitome:1.25), "),
@@ -43,7 +42,6 @@ POSES = {
         costume="outing",
         parent="date",
         canvas=(1024, 1280),
-        settled_seed=7,
         face_edits=(
             Edit("replace", "(tareme:1.2), ",
                  "(tareme:1.2), (jitome:1.2), "),
@@ -63,7 +61,6 @@ POSES = {
         costume="outing",
         parent="cafe",
         canvas=(1024, 1280),
-        settled_seed=7,
         face_edits=(
             Edit("replace", "(tareme:1.2), ",
                  "(tareme:1.2), (jitome:1.15), "),
@@ -83,7 +80,6 @@ POSES = {
         costume="bath",
         parent="home",
         canvas=(1024, 1280),
-        settled_seed=1832285246,
         face_edits=(
             Edit("replace", "(tareme:1.2), ",
                  "(tareme:1.2), (jitome:1.2), "),

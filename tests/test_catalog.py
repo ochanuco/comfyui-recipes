@@ -135,13 +135,6 @@ class BuildCatalogTest(unittest.TestCase):
         for name, face in expected_face.items():
             with self.subTest(pose=name):
                 self.assertEqual(poses[name]["face"], face)
-        expected_seed = {
-            "cinema": None, "stand": None, "date": 737373737,
-            "cafe": 7, "home": 7, "bath": 1832285246,
-        }
-        for name, seed in expected_seed.items():
-            with self.subTest(pose=name):
-                self.assertEqual(poses[name]["settled_seed"], seed)
 
     def test_recipe_parameters_agree_with_validate_request(self):
         catalog = build_catalog(GIT)

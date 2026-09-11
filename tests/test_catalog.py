@@ -6,17 +6,34 @@ network socket.
 
 from __future__ import annotations
 
+import re
 import unittest
 
 from comfyui_recipes.application.catalog import build_catalog, publish_catalog
 from comfyui_recipes.application.generate import validate_request
+from comfyui_recipes.application.work import (
+    _KNOWN_FINALIZE_OPTIONS,
+    _KNOWN_REPAIR_OPTIONS,
+    finalize_arguments,
+    repair_arguments,
+)
 from comfyui_recipes.domain.generation.patches import (
     NUMBER_TARGETS,
     STRING_TARGETS,
     TEXT_TARGETS,
+    parse_patches,
 )
 
 GIT = {"commit": "abc123", "branch": "dev/catalog-publish", "dirty": False}
+
+_DIAL_WORD = re.compile(r"^[a-z][a-z0-9-]*$")
+
+# scope -> the real option/target keys a dial in that scope may name.
+_DIAL_SCOPE_KEYS = {
+    "finalize": _KNOWN_FINALIZE_OPTIONS,
+    "repair": _KNOWN_REPAIR_OPTIONS,
+    "patches": set(NUMBER_TARGETS),
+}
 
 
 def _request(recipe: str, parameters: dict) -> dict:
@@ -170,6 +187,61 @@ class BuildCatalogTest(unittest.TestCase):
                 for tag in tags:
                     self.assertNotIn("(", tag)
                     self.assertNotIn(":", tag)
+
+
+class DialsTest(unittest.TestCase):
+    def test_every_recipe_publishes_a_dials_block(self):
+        catalog = build_catalog(GIT)
+        for recipe in catalog["recipes"]:
+            with self.subTest(recipe=recipe["name"]):
+                self.assertIn("dials", recipe)
+                self.assertLessEqual(set(recipe["dials"]), set(_DIAL_SCOPE_KEYS))
+
+    def test_sketch_is_the_only_recipe_with_repair_or_patches_dials(self):
+        catalog = build_catalog(GIT)
+        by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
+        self.assertEqual(set(by_name["yukari-sketch"]["dials"]),
+                         {"finalize", "repair", "patches"})
+        for recipe_name in ("yukari", "yukari-anima"):
+            self.assertEqual(set(by_name[recipe_name]["dials"]), {"finalize"})
+
+    def test_dial_keys_are_real_option_keys_of_their_scope(self):
+        catalog = build_catalog(GIT)
+        for recipe in catalog["recipes"]:
+            for scope, options in recipe["dials"].items():
+                with self.subTest(recipe=recipe["name"], scope=scope):
+                    self.assertLessEqual(set(options), _DIAL_SCOPE_KEYS[scope])
+
+    def test_dial_words_match_the_naming_pattern(self):
+        catalog = build_catalog(GIT)
+        for recipe in catalog["recipes"]:
+            for scope, options in recipe["dials"].items():
+                for key, words in options.items():
+                    for word in words:
+                        with self.subTest(
+                                recipe=recipe["name"], scope=scope, key=key, word=word):
+                            self.assertRegex(word, _DIAL_WORD)
+
+    def test_dial_values_satisfy_their_option_s_own_range(self):
+        # Runs each dial value through the exact validator its option uses at
+        # request time -- a value out of range raises there, same as a
+        # caller-supplied number out of range would.
+        catalog = build_catalog(GIT)
+        for recipe in catalog["recipes"]:
+            for scope, options in recipe["dials"].items():
+                for key, words in options.items():
+                    for word in words:
+                        with self.subTest(
+                                recipe=recipe["name"], scope=scope, key=key, word=word):
+                            if scope == "finalize":
+                                finalize_arguments({key: word}, options)
+                            elif scope == "repair":
+                                repair_arguments({"parts": ["hands"], key: word}, options)
+                            else:
+                                parse_patches(
+                                    [{"target": key, "op": "set", "value": word,
+                                      "reason": "catalog pin"}],
+                                    options)
 
 
 class PublishCatalogTest(unittest.TestCase):

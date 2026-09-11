@@ -110,7 +110,7 @@ repo:
 ```text
 list_generations                      find a starting ID: published=true is every delivered
                                       look, each carrying its look:<pose> tag
-list_catalog                          every recipe's pose / costume names + patch vocabulary  (~2k)
+list_catalog                          every recipe's pose / costume names + patch/dial vocabulary (~2k)
 get_catalog_pose recipe pose          one pose: canvas, default costume, assembled prompts    (~1k)
 get_generation <short_id>             rating, semantic, batch prompt + parameters, seed
 list_batch <short_id>                 every arm of a batch with rating and semantic summary

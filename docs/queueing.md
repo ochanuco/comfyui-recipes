@@ -117,6 +117,36 @@ uv run comfy-recipes catalog --publish       # print it, then PUT and print the 
 the catalog once at startup, best-effort: a publish failure is logged and
 does not stop the worker from serving. Pass `--no-catalog` to skip it.
 
+## Named dials
+
+Each catalog recipe entry carries a `dials` object -- up to three scopes
+(`finalize`, `repair`, `patches`), each mapping an option key to a
+`{word: number}` vocabulary a caller can name instead of typing the raw
+number. A finalize/repair/masked_redraw row's `options`, and a
+`generation.patches` number-target patch's `value`, accept a dial word
+anywhere a number is legal; the worker resolves it against the source
+generation's batch (`batch.recipe`) and rejects an unknown word, or a word
+for a key/recipe with no dials, the same way it rejects a number out of
+range. `masked_redraw`'s own `denoise` resolves against the recipe's
+`repair` scope rather than a `masked_redraw` scope of its own. The bare
+tri-state `true` (`keep_legwear`, `toe_guard`, `repair_lora`, `lora`) keeps
+its existing constant; a recipe's `"on"` word, where published, resolves to
+that same number.
+
+```json
+{"denoise": "tidy", "repin": true, "keep_legwear": true}
+```
+
+resolves to `{"denoise": 0.65, "repin": true, "keep_legwear": 0.62}` on
+`yukari-sketch`, and a finalize/repair/masked_redraw row's result gains
+`resolved_options` -- the request's own options, words and `true` replaced
+by what they resolved to, keys the request did not give omitted -- so a
+caller can read back what actually ran without re-deriving it from the
+catalog. `comfy-recipes finalize --denoise/--lora-strength/--repair-denoise
+/--keep-legwear/--toe-guard/--repair-lora` and `comfy-recipes repair
+--denoise/--lora` accept a word the same way; the CLI already has the
+generation id, so it looks up the recipe itself.
+
 ## Repair
 
 `comfy-recipes repair <generation>` masks and redraws just the hands and/or

@@ -44,6 +44,14 @@ requests, open images, or know ComfyUI node ids.
 decides prompts, sampling parameters, sizes and filenames; the ComfyUI adapter
 decides how those values are encoded as nodes and links.
 
+Each recipe package (`yukari/`, `yukari_anima/`, `yukari_sketch/`) owns a
+`dials.py`: the named words (`{word: number}`) it publishes for its own
+finalize/repair/patch option values, referencing the same constants the
+recipe itself uses rather than duplicating a number. `application/work.py`
+and `application/generate.py` resolve a request's word against the source
+generation's recipe; `application/catalog.py` publishes the vocabulary as
+each recipe's `dials` block.
+
 ## Application
 
 `src/comfyui_recipes/application/` owns use cases: generate and record a batch,

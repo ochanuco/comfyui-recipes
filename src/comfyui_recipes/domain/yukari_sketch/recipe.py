@@ -269,3 +269,25 @@ def departures(pose: str, costume: str | None = None) -> dict:
 
 def lineage() -> dict[str, dict]:
     return {name: departures(name) for name in POSES}
+
+
+def plain_request(pose: str, seed: int | None = None,
+                   costume: str | None = None) -> dict:
+    """A request.json v1 payload for `pose` at recipe defaults, no patches --
+    the settled seed unless one is given.
+    """
+    p = POSES[pose]
+    resolved_seed = seed if seed is not None else p.settled_seed
+    if resolved_seed is None:
+        raise ValueError(f"{pose} has no settled_seed; pass one")
+    resolved_costume = costume if costume is not None else p.costume
+    return {
+        "schema_version": 1,
+        "request": {"count": 1, "instruction": f"plain {pose}",
+                    "seeds": [resolved_seed]},
+        "generation": {"recipe": "yukari-sketch",
+                       "parameters": {"pose": pose,
+                                      "costume": resolved_costume}},
+        "semantic": {"summary": f"plain render of yukari-sketch {pose}: "
+                     f"recipe defaults, no patches, seed {resolved_seed}"},
+    }

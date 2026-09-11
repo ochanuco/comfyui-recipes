@@ -58,11 +58,14 @@ def masked_redraw(generation_id: str, services: MaskedRedrawServices, *,
                   denoise: float = 0.45, mask_padding: int = 0,
                   mask_feather: int = 32, size: int = 1024,
                   seeds: Sequence[int] = (1, 2, 3, 4),
-                  key_prefix: str | None = None) -> dict:
-    context = services.management.request(
-        "GET", f"/api/v1/generations/{generation_id}/context")
-    batch = services.management.request(
-        "GET", f"/api/v1/batches/{context['batch']['id']}")
+                  key_prefix: str | None = None,
+                  context: dict | None = None, batch: dict | None = None) -> dict:
+    if context is None:
+        context = services.management.request(
+            "GET", f"/api/v1/generations/{generation_id}/context")
+    if batch is None:
+        batch = services.management.request(
+            "GET", f"/api/v1/batches/{context['batch']['id']}")
     source_id = _resolve_source(batch, generation_id)
     source_short = _source_short(batch.get("generations") or [], source_id)
     prefix = f"mrd-{source_short}"

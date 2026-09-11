@@ -29,16 +29,23 @@ from comfyui_recipes.application.work import (
     work_once,
 )
 from comfyui_recipes.domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
+from comfyui_recipes.domain.yukari.dials import DIALS as YUKARI_DIALS
 from comfyui_recipes.domain.yukari.recipe import TOE_GUARD
+from comfyui_recipes.domain.yukari_sketch.dials import DIALS as SKETCH_DIALS
 
 
 class ManagementFake:
-    def __init__(self, claim_responses=None, dry_run_items=None):
+    def __init__(self, claim_responses=None, dry_run_items=None,
+                context=None, batch=None):
         self.calls = []
         self.claim_responses = list(claim_responses or [])
         self.claim_error = None
         self.dry_run_items = dry_run_items or []
         self.running_items = []
+        # A finalize/repair/masked_redraw row's dial resolution fetches the
+        # source generation's context, then its batch, for `batch.recipe`.
+        self.context = context if context is not None else {"batch": {"id": "batch-1"}}
+        self.batch = batch if batch is not None else {"id": "batch-1", "recipe": "yukari"}
 
     def request(self, method, path, payload=None, multipart=None):
         self.calls.append((method, path, payload, multipart))
@@ -57,6 +64,10 @@ class ManagementFake:
             return {"items": self.running_items}
         if method == "PATCH" and path.startswith("/api/v1/requests/"):
             return {}
+        if method == "GET" and path.endswith("/context"):
+            return self.context
+        if method == "GET" and path.startswith("/api/v1/batches/"):
+            return self.batch
         raise AssertionError(f"unexpected management call: {method} {path}")
 
 
@@ -487,6 +498,53 @@ class FinalizeArgumentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "repair_lora"):
             finalize_arguments({"repair_lora": "on"})
 
+    def test_denoise_word_resolves_through_dials(self):
+        dials = SKETCH_DIALS["finalize"]
+        self.assertEqual(finalize_arguments({"denoise": "tidy"}, dials)["denoise"], 0.65)
+        self.assertEqual(finalize_arguments({"denoise": "redraw"}, dials)["denoise"], 0.8)
+
+    def test_denoise_unknown_word_names_the_key_and_word(self):
+        dials = SKETCH_DIALS["finalize"]
+        with self.assertRaises(ValueError) as ctx:
+            finalize_arguments({"denoise": "blurry"}, dials)
+        self.assertIn("denoise", str(ctx.exception))
+        self.assertIn("blurry", str(ctx.exception))
+
+    def test_word_on_a_recipe_with_no_dial_for_that_key_is_rejected(self):
+        # yukari (IL) publishes only a `denoise` dial -- a word for a key it
+        # has no vocabulary for fails the same way as an unknown word.
+        with self.assertRaisesRegex(ValueError, "toe_guard"):
+            finalize_arguments({"toe_guard": "on"}, YUKARI_DIALS["finalize"])
+
+    def test_keep_legwear_word_resolves_to_the_same_constant_as_true(self):
+        dials = SKETCH_DIALS["finalize"]
+        self.assertEqual(finalize_arguments({"keep_legwear": "on"}, dials)["keep_legwear"], 0.62)
+
+    def test_toe_guard_word_resolves_to_the_recipe_constant(self):
+        dials = SKETCH_DIALS["finalize"]
+        self.assertEqual(finalize_arguments({"toe_guard": "on"}, dials)["toe_guard"], TOE_GUARD)
+
+    def test_lora_strength_word_resolves_through_dials(self):
+        dials = SKETCH_DIALS["finalize"]
+        self.assertEqual(finalize_arguments({"lora_strength": "raw"}, dials)["lora_strength"], 1.5)
+        self.assertEqual(
+            finalize_arguments({"lora_strength": "recipe"}, dials)["lora_strength"], 0.8)
+
+    def test_repair_lora_word_resolves_through_dials(self):
+        dials = SKETCH_DIALS["finalize"]
+        self.assertEqual(
+            finalize_arguments({"repair_lora": "on"}, dials)["repair_lora"],
+            DEFAULT_PART_LORA_WEIGHT)
+
+    def test_repair_denoise_word_resolves_through_dials(self):
+        dials = SKETCH_DIALS["finalize"]
+        self.assertEqual(
+            finalize_arguments({"repair_denoise": "keep"}, dials)["repair_denoise"], 0.6)
+
+    def test_a_number_is_unaffected_by_dials_being_given(self):
+        dials = SKETCH_DIALS["finalize"]
+        self.assertEqual(finalize_arguments({"denoise": 0.7}, dials)["denoise"], 0.7)
+
     def test_unknown_key_is_rejected(self):
         with self.assertRaises(ValueError) as ctx:
             finalize_arguments({"nope": True})
@@ -612,6 +670,22 @@ class RepairArgumentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lora"):
             repair_arguments({"lora": "on"})
 
+    def test_denoise_word_resolves_through_dials(self):
+        dials = SKETCH_DIALS["repair"]
+        self.assertEqual(repair_arguments({"denoise": "keep"}, dials)["denoise"], 0.6)
+
+    def test_lora_word_resolves_through_dials(self):
+        dials = SKETCH_DIALS["repair"]
+        self.assertEqual(
+            repair_arguments({"lora": "on"}, dials)["lora"], DEFAULT_PART_LORA_WEIGHT)
+
+    def test_unknown_word_names_the_key_and_word(self):
+        dials = SKETCH_DIALS["repair"]
+        with self.assertRaises(ValueError) as ctx:
+            repair_arguments({"denoise": "fuzzy"}, dials)
+        self.assertIn("denoise", str(ctx.exception))
+        self.assertIn("fuzzy", str(ctx.exception))
+
 
 class MaskedRedrawArgumentsTest(unittest.TestCase):
     def _valid(self, **overrides):
@@ -708,6 +782,18 @@ class MaskedRedrawArgumentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "seeds"):
             masked_redraw_arguments(self._valid(seeds=[True]))
 
+    def test_denoise_word_resolves_through_the_repair_scope_dials(self):
+        dials = SKETCH_DIALS["repair"]
+        self.assertEqual(
+            masked_redraw_arguments(self._valid(denoise="keep"), dials)["denoise"], 0.6)
+
+    def test_unknown_denoise_word_names_the_key_and_word(self):
+        dials = SKETCH_DIALS["repair"]
+        with self.assertRaises(ValueError) as ctx:
+            masked_redraw_arguments(self._valid(denoise="blurry"), dials)
+        self.assertIn("denoise", str(ctx.exception))
+        self.assertIn("blurry", str(ctx.exception))
+
 
 class ExecuteTest(unittest.TestCase):
     def test_recipe_ref_mismatch_fails_without_executing(self):
@@ -755,13 +841,17 @@ class ExecuteTest(unittest.TestCase):
                 "options": {"repin": True, "keep_legwear": True, "route": "pixel"},
             })
             result = execute(services, row)
-            self.assertEqual(result, {"batch_id": "b2", "generation_ids": ["g2"]})
+            self.assertEqual(result, {
+                "batch_id": "b2", "generation_ids": ["g2"],
+                "resolved_options": {"repin": True, "keep_legwear": 0.62, "route": "pixel"},
+            })
             self.assertEqual(finalize_calls[0][0], "gen-1")
             self.assertEqual(finalize_calls[0][1], "finalize-services-sentinel")
             self.assertEqual(finalize_calls[0][2]["apply_repin"], True)
             self.assertEqual(finalize_calls[0][2]["keep_legwear"], 0.62)
             self.assertIs(finalize_calls[0][2]["latent_route"], False)
             self.assertIs(finalize_calls[0][2]["keep_scene"], False)
+            self.assertIn("context", finalize_calls[0][2])
 
     def test_finalize_kind_with_bad_options_fails_before_finalizing(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -782,6 +872,48 @@ class ExecuteTest(unittest.TestCase):
             row = finalize_row(payload={"options": {}})
             with self.assertRaises(SystemExit):
                 execute(services, row)
+
+    def test_finalize_resolves_words_against_the_source_batchs_recipe(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(
+                batch={"id": "batch-1", "recipe": "yukari-sketch"})
+            services = make_services(
+                directory, management,
+                finalize=lambda generation_id, finalize_services, **kwargs: {
+                    "batch_id": "b2", "generation_ids": ["g2"]})
+            row = finalize_row(payload={
+                "generation_id": "gen-1",
+                "options": {"denoise": "tidy", "repin": True, "keep_legwear": True},
+            })
+            result = execute(services, row)
+            self.assertEqual(result["resolved_options"], {
+                "denoise": 0.65, "repin": True, "keep_legwear": 0.62,
+            })
+
+    def test_finalize_word_unknown_to_the_source_recipe_fails_the_request(self):
+        with tempfile.TemporaryDirectory() as directory:
+            # yukari (IL, the default fake recipe) has no `redraw` word.
+            services = make_services(
+                directory, ManagementFake(),
+                finalize=lambda *a, **k: (_ for _ in ()).throw(
+                    AssertionError("finalize must not run")))
+            row = finalize_row(payload={
+                "generation_id": "gen-1", "options": {"denoise": "redraw"}})
+            with self.assertRaisesRegex(SystemExit, "denoise"):
+                execute(services, row)
+
+    def test_finalize_payload_ignores_extra_keys_such_as_chimeras_profile(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = make_services(
+                directory, ManagementFake(),
+                finalize=lambda generation_id, finalize_services, **kwargs: {
+                    "batch_id": "b2", "generation_ids": ["g2"]})
+            row = finalize_row(payload={
+                "generation_id": "gen-1", "options": {},
+                "profile": {"name": "cinema-tidy", "version": 3},
+            })
+            result = execute(services, row)
+            self.assertEqual(result["batch_id"], "b2")
 
     def test_unsupported_kind_fails(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -805,11 +937,16 @@ class ExecuteTest(unittest.TestCase):
                 "options": {"parts": ["feet"], "seeds": [7]},
             })
             result = execute(services, row)
-            self.assertEqual(result, {"batch_id": "b3", "generation_ids": ["g3"]})
+            self.assertEqual(result, {
+                "batch_id": "b3", "generation_ids": ["g3"],
+                "resolved_options": {"parts": ["feet"], "seeds": [7]},
+            })
             self.assertEqual(repair_calls[0][0], "gen-1")
             self.assertEqual(repair_calls[0][1], "repair-services-sentinel")
             self.assertEqual(repair_calls[0][2]["parts"], ["feet"])
             self.assertEqual(repair_calls[0][2]["seeds"], [7])
+            self.assertIn("context", repair_calls[0][2])
+            self.assertIn("batch", repair_calls[0][2])
 
     def test_repair_kind_with_bad_options_fails_before_repairing(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -848,12 +985,18 @@ class ExecuteTest(unittest.TestCase):
                             "prompt_patch": "a dress", "seeds": [7]},
             })
             result = execute(services, row)
-            self.assertEqual(result, {"batch_id": "b4", "generation_ids": ["g4"]})
+            self.assertEqual(result, {
+                "batch_id": "b4", "generation_ids": ["g4"],
+                "resolved_options": {"regions": [[0.1, 0.1, 0.5, 0.5]],
+                                     "prompt_patch": "a dress", "seeds": [7]},
+            })
             self.assertEqual(masked_redraw_calls[0][0], "gen-1")
             self.assertEqual(masked_redraw_calls[0][1], "masked-redraw-services-sentinel")
             self.assertEqual(masked_redraw_calls[0][2]["regions"], [[0.1, 0.1, 0.5, 0.5]])
             self.assertEqual(masked_redraw_calls[0][2]["prompt_patch"], "a dress")
             self.assertEqual(masked_redraw_calls[0][2]["seeds"], [7])
+            self.assertIn("context", masked_redraw_calls[0][2])
+            self.assertIn("batch", masked_redraw_calls[0][2])
 
     def test_masked_redraw_kind_with_bad_options_fails_before_running(self):
         with tempfile.TemporaryDirectory() as directory:

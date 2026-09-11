@@ -17,8 +17,19 @@ from typing import Protocol
 from ..domain.generation.models import PromptPair, RenderSpec
 from ..domain.generation.patches import apply_patches, parse_patches
 from ..domain.generation.prompt_lint import tags as prompt_tags
+from ..domain.yukari_sketch.dials import DIALS as SKETCH_DIALS
 
 PresetFetcher = Callable[[str, str, str, int], dict]
+
+# `generation.recipe` -> its `dials.patches` vocabulary (target -> word ->
+# number); a recipe absent here, or with no `patches` scope, has none.
+PATCH_DIALS: dict[str, Mapping[str, Mapping[str, float]]] = {
+    "yukari-sketch": SKETCH_DIALS.get("patches", {}),
+}
+
+
+def _patch_dials(recipe: str | None) -> Mapping[str, Mapping[str, float]]:
+    return PATCH_DIALS.get(recipe, {})
 
 
 class Management(Protocol):
@@ -162,7 +173,7 @@ def validate_request(req: object) -> None:
                 "override and a patch would be ambiguous"
             )
         try:
-            parse_patches(generation["patches"])
+            parse_patches(generation["patches"], _patch_dials(generation.get("recipe")))
         except ValueError as error:
             raise SystemExit(str(error))
     presets = generation.get("presets")
@@ -245,7 +256,7 @@ def validate_request(req: object) -> None:
                     "ambiguous"
                 )
             try:
-                parse_patches(override_patches)
+                parse_patches(override_patches, _patch_dials(generation.get("recipe")))
             except ValueError as error:
                 raise SystemExit(str(error))
     if not semantic.get("summary"):
@@ -285,7 +296,8 @@ def request_graph(generation: dict, seed: int, prefix: str,
             generation.get("prompt") or spec.prompts.positive,
             generation.get("negative_prompt") or spec.prompts.negative))
     if generation.get("patches"):
-        spec = apply_patches(spec, parse_patches(generation["patches"]))
+        spec = apply_patches(spec, parse_patches(
+            generation["patches"], _patch_dials(generation.get("recipe"))))
     return encode(spec)
 
 

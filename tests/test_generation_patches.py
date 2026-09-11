@@ -197,6 +197,34 @@ class ParsePatchesTest(unittest.TestCase):
         self.assertEqual(parsed[4], Patch("render.cfg", "set", 4.5, None,
                                           "r5"))
 
+    def test_number_target_word_resolves_through_dials(self):
+        dials = {"render.lora_strength": {"recipe": 0.8, "raw": 1.5}}
+        parsed = parse_patches([_patch(
+            target="render.lora_strength", op="set", value="raw",
+            reason="r")], dials)
+        self.assertEqual(parsed[0], Patch("render.lora_strength", "set", 1.5,
+                                          None, "r"))
+
+    def test_number_target_unknown_word_names_the_word(self):
+        dials = {"render.lora_strength": {"recipe": 0.8, "raw": 1.5}}
+        with self.assertRaisesRegex(ValueError, "punchy"):
+            parse_patches([_patch(
+                target="render.lora_strength", op="set", value="punchy",
+                reason="r")], dials)
+
+    def test_number_target_word_with_no_dials_for_that_target_is_rejected(self):
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(
+                target="render.lora_strength", op="set", value="raw",
+                reason="r")])
+
+    def test_number_target_word_still_enforces_its_own_range(self):
+        dials = {"render.lora_strength": {"blown_out": 5.0}}
+        with self.assertRaises(ValueError):
+            parse_patches([_patch(
+                target="render.lora_strength", op="set", value="blown_out",
+                reason="r")], dials)
+
 
 class ApplyPatchesTest(unittest.TestCase):
     def setUp(self):

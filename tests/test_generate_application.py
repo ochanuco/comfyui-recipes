@@ -183,6 +183,21 @@ class GenerateApplicationTest(unittest.TestCase):
              "reason": "test"}])
         validate_request(request)
 
+    def test_validate_request_accepts_a_patch_word_for_a_recipe_with_dials(self):
+        request = base_request(
+            recipe="yukari-sketch",
+            patches=[{"target": "render.lora_strength", "op": "set",
+                     "value": "raw", "reason": "test"}])
+        validate_request(request)
+
+    def test_validate_request_rejects_a_patch_word_for_a_recipe_with_no_dials(self):
+        # yukari (IL) has no `dials.patches` vocabulary at all.
+        request = base_request(patches=[
+            {"target": "render.lora_strength", "op": "set", "value": "raw",
+             "reason": "test"}])
+        with self.assertRaisesRegex(SystemExit, "raw"):
+            validate_request(request)
+
     def test_validate_request_accepts_well_formed_presets(self):
         request = base_request(presets=[
             {"kind": "pose", "name": "lounge", "version": 1}])
@@ -360,6 +375,27 @@ class GenerateApplicationTest(unittest.TestCase):
         generation = request_generation(request)
         graph = request_graph(generation, 42, "prefix", builder, encode)
         self.assertEqual(graph["6"]["inputs"]["text"], "base positive, extra tag")
+
+    def test_request_graph_resolves_a_lora_strength_word_for_yukari_sketch(self):
+        from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
+
+        def builder(*args, **kwargs):
+            return RenderSpec(
+                model_path="m", prompts=PromptPair("p", "n"),
+                width=8, height=8, seed=42, steps=30, cfg=5.0,
+                sampler_name="s", scheduler="k", denoise=1.0,
+                filename_prefix="p", loras=(("sketch-style-xl-linaqruf.safetensors", 0.8),))
+
+        def encode(spec):
+            return {"loras": list(spec.loras)}
+
+        generation = {
+            "recipe": "yukari-sketch", "parameters": {"pose": "cinema"},
+            "patches": [{"target": "render.lora_strength", "op": "set",
+                        "value": "raw", "reason": "test"}],
+        }
+        graph = request_graph(generation, 42, "prefix", builder, encode)
+        self.assertEqual(graph["loras"], [("sketch-style-xl-linaqruf.safetensors", 1.5)])
 
     def test_batch_payload_forwards_experiment(self):
         request = base_request()

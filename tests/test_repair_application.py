@@ -174,6 +174,19 @@ class RepairApplicationTest(unittest.TestCase):
             repair("gen-1", services, parts=[], regions=[[0.0, 0.0, 0.1, 0.1]])
             self.assertEqual(fetched, ["gen-1"])
 
+    def test_a_given_context_and_batch_skip_their_fetch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            repair("gen-1", services, parts=[], regions=[[0.0, 0.0, 0.1, 0.1]],
+                  context={"batch": {"id": "source-batch"}},
+                  batch=services.management.batch)
+            fetch_calls = [
+                call for call in services.management.calls
+                if call[0] == "GET" and (
+                    call[1].endswith("/context")
+                    or call[1] == f"/api/v1/batches/{services.management.batch['id']}")]
+            self.assertEqual(fetch_calls, [])
+
     def test_no_regions_found_raises_system_exit(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)

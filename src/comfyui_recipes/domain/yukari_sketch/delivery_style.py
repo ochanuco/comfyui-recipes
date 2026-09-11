@@ -5,12 +5,13 @@ from __future__ import annotations
 FINALIZE_SIZE = 2560
 # Longest side the delivered file is downscaled to after the redraw.
 DELIVER_SIZE = 1536
-# Under ~0.7 the redraw keeps the base pass's own rough line instead of
-# re-drawing it, and the delivery reads as scribble rather than sketch.
-FINALIZE_DENOISE = 0.8
-# At FINALIZE_DENOISE (0.8) the redraw invents background objects a
-# layerdiffuse raw did not draw (a chair behind the figure) and washes the
-# delivery bands out; 0.55 does not.
+# 0.8 re-draws the line, but on a full-body base it also re-decides the held
+# props and the expression (a paper cup became a sheet of paper); 0.55 keeps
+# them and still turns the latent route's staircase into stroke.
+FINALIZE_DENOISE = 0.55
+# A layerdiffuse raw already holds its own scene at full opacity; a stronger
+# redraw invents background objects it never drew (a chair behind the
+# figure) and washes the delivery bands out.
 FINALIZE_DENOISE_LAYERDIFFUSE = 0.55
 FINALIZE_SAMPLER = ("euler", "normal")
 # The latent route leaves a staircase on hard contours that the redraw turns

@@ -37,6 +37,8 @@ from ..domain.yukari_anima.recipe import negative as anima_negative
 from ..domain.yukari_anima.recipe import positive as anima_positive
 from ..domain.yukari_sketch.costumes import COSTUMES as SKETCH_COSTUMES
 from ..domain.yukari_sketch.poses import POSES as SKETCH_POSES
+from ..domain.yukari_sketch.recipe import departures as sketch_departures
+from ..domain.yukari_sketch.recipe import lineage as sketch_lineage
 from ..domain.yukari_sketch.recipe import negative as sketch_negative
 from ..domain.yukari_sketch.recipe import positive as sketch_positive
 from ..infrastructure.chimera.client import ChimeraClient
@@ -328,6 +330,9 @@ def parser() -> argparse.ArgumentParser:
     sketch_prompt.add_argument("--pose", required=True, choices=sorted(SKETCH_POSES))
     sketch_prompt.add_argument("--costume", choices=sorted(SKETCH_COSTUMES))
     sketch_prompt.add_argument("--json", action="store_true")
+    sketch_lineage_parser = sketch_commands.add_parser("lineage")
+    sketch_lineage_parser.add_argument("--pose", choices=sorted(SKETCH_POSES))
+    sketch_lineage_parser.add_argument("--json", action="store_true")
     return root
 
 
@@ -354,6 +359,22 @@ def main(argv: list[str] | None = None) -> None:
             print(prompts["positive"], "\n\n---\n\n", prompts["negative"])
         return
     if args.command == "sketch":
+        if args.sketch_command == "lineage":
+            data = ({args.pose: sketch_departures(args.pose)} if args.pose
+                    else sketch_lineage())
+            if args.json:
+                print(json.dumps(data, ensure_ascii=False, indent=2))
+            else:
+                for name, dep in data.items():
+                    parent = dep["parent"] or "base"
+                    print(f"{name}  <- {parent}  "
+                         f"costume={SKETCH_POSES[name].costume}")
+                    for part, changes in dep["parts"].items():
+                        marker = (" (full override)"
+                                 if part == "face" and dep["face_override"]
+                                 else "")
+                        print(f"  {part}:{marker} " + " ".join(changes))
+            return
         prompts = {
             "positive": sketch_positive(args.pose, args.costume),
             "negative": sketch_negative(args.pose, args.costume),

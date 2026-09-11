@@ -99,6 +99,12 @@ the base graph (checked before the anima check -- a base graph carries at
 most one of the two) and picks these constants over yukari's and anima's
 own. A layerdiffuse base picks `FINALIZE_DENOISE_LAYERDIFFUSE` instead of
 `FINALIZE_DENOISE`. `--denoise`/`--size` still override either way.
+`domain/yukari_sketch/dials.py` publishes this recipe's finalize denoise as
+words -- `keep` (0.55, the default), `tidy` (0.65), `redraw` (0.8, the
+value that turned a paper cup into a sheet of paper on a full-body base) --
+plus `keep_legwear`, `toe_guard`, `lora_strength` and the repair-carried
+options; `docs/queueing.md`'s "Named dials" section covers the resolution
+rule shared by every recipe.
 
 The redraw runs at `FINALIZE_SIZE` (2560), but the delivered file is then
 downscaled (lanczos) to `delivery_style.DELIVER_SIZE` (1536), the recipe's

@@ -26,6 +26,7 @@ class Pose:
     face: str | None = None      # full override; mutually exclusive with face_edits
     parent: str | None = None    # the pose this one was derived from
     canvas: tuple[int, int] | None = None
+    settled_seed: int | None = None
 
     def __post_init__(self) -> None:
         if self.face is not None and self.face_edits:

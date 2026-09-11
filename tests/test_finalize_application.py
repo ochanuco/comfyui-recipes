@@ -516,6 +516,14 @@ class FinalizeApplicationTest(unittest.TestCase):
             self.assertEqual(result["batch_id"], "batch-id")
             self.assertEqual(result["generation_ids"], ["generation", "generation"])
 
+    def test_a_given_context_skips_the_context_fetch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services, context={"batch": {"id": "source-batch"}})
+            context_calls = [call for call in services.management.calls
+                             if call[0] == "GET" and call[1].endswith("/context")]
+            self.assertEqual(context_calls, [])
+
     def test_key_prefix_derives_batch_and_job_keys(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)

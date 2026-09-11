@@ -101,6 +101,71 @@ class CliTest(unittest.TestCase):
         self.assertEqual(kwargs["repair_pad"], 1.0)
         self.assertEqual(kwargs["repair_size"], 1024)
 
+    @patch.object(cli, "fetch_source")
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_denoise_word_resolves_through_the_source_recipe(
+            self, chimera_class, run_finalize, fetch_source):
+        context, batch = object(), object()
+        fetch_source.return_value = (context, batch, "yukari-sketch")
+        cli.main(["finalize", "gen-1", "--denoise", "tidy"])
+        fetch_source.assert_called_once_with(chimera_class.return_value, "gen-1")
+        args, kwargs = run_finalize.call_args
+        self.assertEqual(kwargs["denoise"], 0.65)
+        # The context fetch_source already made is passed through so
+        # finalize() does not fetch it again.
+        self.assertIs(kwargs["context"], context)
+
+    @patch.object(cli, "fetch_source")
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_unknown_word_exits_before_finalizing(
+            self, chimera_class, run_finalize, fetch_source):
+        fetch_source.return_value = ({}, {}, "yukari")
+        with self.assertRaises(SystemExit):
+            cli.main(["finalize", "gen-1", "--denoise", "blurry"])
+        run_finalize.assert_not_called()
+
+    @patch.object(cli, "fetch_source")
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_numeric_denoise_never_looks_up_the_recipe(
+            self, chimera_class, run_finalize, fetch_source):
+        cli.main(["finalize", "gen-1", "--denoise", "0.7"])
+        fetch_source.assert_not_called()
+        kwargs = run_finalize.call_args.kwargs
+        self.assertEqual(kwargs["denoise"], 0.7)
+        self.assertIsNone(kwargs["context"])
+
+    @patch.object(cli, "fetch_source")
+    @patch.object(cli, "repair")
+    @patch.object(cli, "ChimeraClient")
+    def test_repair_denoise_and_lora_words_resolve_through_the_source_recipe(
+            self, chimera_class, run_repair, fetch_source):
+        context, batch = object(), object()
+        fetch_source.return_value = (context, batch, "yukari-sketch")
+        cli.main(["repair", "gen-1", "--denoise", "keep", "--lora", "on"])
+        fetch_source.assert_called_once_with(chimera_class.return_value, "gen-1")
+        args, kwargs = run_repair.call_args
+        self.assertEqual(kwargs["denoise"], 0.6)
+        self.assertEqual(kwargs["lora"], 0.8)
+        # The context/batch fetch_source already made are passed through so
+        # repair() does not fetch either again.
+        self.assertIs(kwargs["context"], context)
+        self.assertIs(kwargs["batch"], batch)
+
+    @patch.object(cli, "fetch_source")
+    @patch.object(cli, "repair")
+    @patch.object(cli, "ChimeraClient")
+    def test_repair_numeric_args_never_look_up_the_recipe(
+            self, chimera_class, run_repair, fetch_source):
+        cli.main(["repair", "gen-1", "--denoise", "0.7"])
+        fetch_source.assert_not_called()
+        kwargs = run_repair.call_args.kwargs
+        self.assertEqual(kwargs["denoise"], 0.7)
+        self.assertIsNone(kwargs["context"])
+        self.assertIsNone(kwargs["batch"])
+
     @patch.object(cli, "work")
     @patch.object(cli, "ChimeraClient")
     def test_work_default_kinds_include_repair_and_masked_redraw(

@@ -16,7 +16,10 @@ from urllib.parse import quote
 
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
+from ..domain.yukari.dials import DIALS as _YUKARI_DIALS
 from ..domain.yukari.recipe import TOE_GUARD
+from ..domain.yukari_anima.dials import DIALS as _ANIMA_DIALS
+from ..domain.yukari_sketch.dials import DIALS as _SKETCH_DIALS
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
 from .catalog import publish_catalog as publish_catalog_document
 from .finalize import FinalizeServices, finalize
@@ -48,6 +51,61 @@ _REPAIR_PARTS = frozenset({"hands", "feet"})
 
 _MASKED_REDRAW_PROMPT_PATCH_MAX_LENGTH = 4096
 _MASKED_REDRAW_SEEDS_MAX = 16
+
+# `generation.recipe` -> its published `dials` block (see domain/*/dials.py).
+_RECIPE_DIALS = {
+    "yukari": _YUKARI_DIALS,
+    "yukari-anima": _ANIMA_DIALS,
+    "yukari-sketch": _SKETCH_DIALS,
+}
+
+# The finalize/repair option keys a recipe may define dial words for -- kept
+# in sync by hand with the resolve_dial() call sites in finalize_arguments()
+# and repair_arguments(); a key resolved there and missing here is reported
+# unresolved in resolved_options. Public: interfaces/cli.py reads them too,
+# to resolve the same keys' words from the args it already parsed.
+FINALIZE_DIAL_KEYS = ("denoise", "keep_legwear", "toe_guard", "lora_strength",
+                     "repair_denoise", "repair_lora")
+REPAIR_DIAL_KEYS = ("denoise", "lora")
+_MASKED_REDRAW_DIAL_KEYS = ("denoise",)
+
+
+def dials_scope(recipe: str, scope: str) -> Mapping[str, Mapping[str, float]]:
+    return _RECIPE_DIALS.get(recipe, {}).get(scope, {})
+
+
+def fetch_source(management: Management, generation_id: str) -> tuple[dict, dict, str]:
+    """The requested generation's context, its batch, and that batch's recipe."""
+    context = management.request(
+        "GET", f"/api/v1/generations/{generation_id}/context")
+    batch = management.request(
+        "GET", f"/api/v1/batches/{context['batch']['id']}")
+    return context, batch, batch.get("recipe") or "yukari"
+
+
+def resolve_dial(key: str, value: object,
+                  dials: Mapping[str, Mapping[str, float]]) -> object:
+    """A string option value is looked up in `dials[key]`; every other value
+    (a number, `true`, `null`) passes through for the option's own checks.
+    """
+    if not isinstance(value, str):
+        return value
+    words = dials.get(key) or {}
+    if value not in words:
+        raise ValueError(f"unknown {key} word: {value!r}")
+    return words[value]
+
+
+def _resolved_options(options: Mapping, arguments: Mapping,
+                      dial_keys: tuple[str, ...]) -> dict:
+    """The request's own options, with each dial-eligible key's value
+    replaced by what `finalize_arguments()`/`repair_arguments()`/
+    `masked_redraw_arguments()` actually resolved it to in `arguments` --
+    the single source of truth for what the request ran with, rather than a
+    second independent word/`true` resolution that could drift from it.
+    """
+    return {key: (arguments[key] if key in dial_keys else value)
+           for key, value in options.items()}
 
 
 # Shared by `finalize_arguments`' `repair`/`repair_*` options and
@@ -346,12 +404,15 @@ class ProgressRelay:
             backoff = min(backoff * 2, self.services.backoff_max)
 
 
-def finalize_arguments(options: Mapping) -> dict:
+def finalize_arguments(options: Mapping,
+                       dials: Mapping[str, Mapping[str, float]] | None = None) -> dict:
     """Validate a finalize request's `options` and map it to finalize() kwargs.
 
     Every key in the return value is a finalize() kwarg. Missing keys mean
     false/null; unknown keys or a wrong type raise ValueError naming the
-    offending key.
+    offending key. `dials` is the source recipe's `dials.finalize`
+    vocabulary (option key -> word -> number); a dial-eligible key given a
+    word absent there raises the same way.
     """
     if not isinstance(options, Mapping):
         raise ValueError(
@@ -359,6 +420,7 @@ def finalize_arguments(options: Mapping) -> dict:
     unknown = sorted(set(options) - _KNOWN_FINALIZE_OPTIONS)
     if unknown:
         raise ValueError(f"unknown finalize options keys: {unknown}")
+    dials = dials or {}
 
     def boolean(key: str) -> bool:
         value = options.get(key, False)
@@ -367,7 +429,7 @@ def finalize_arguments(options: Mapping) -> dict:
         return value
 
     def number(key: str) -> float | int | None:
-        value = options.get(key)
+        value = resolve_dial(key, options.get(key), dials)
         if value is None or (isinstance(value, (int, float))
                              and not isinstance(value, bool)):
             return value
@@ -375,7 +437,7 @@ def finalize_arguments(options: Mapping) -> dict:
 
     denoise = number("denoise")
 
-    keep_legwear = options.get("keep_legwear")
+    keep_legwear = resolve_dial("keep_legwear", options.get("keep_legwear"), dials)
     if keep_legwear is True:
         keep_legwear = 0.62
     elif keep_legwear is not None and not (
@@ -410,7 +472,7 @@ def finalize_arguments(options: Mapping) -> dict:
     if deliver_size is not None and deliver_size < 1:
         raise ValueError(f"deliver_size must be at least 1, got {deliver_size!r}")
 
-    toe_guard = options.get("toe_guard")
+    toe_guard = resolve_dial("toe_guard", options.get("toe_guard"), dials)
     if toe_guard is True:
         toe_guard = TOE_GUARD
     elif toe_guard is not None and not (
@@ -441,7 +503,7 @@ def finalize_arguments(options: Mapping) -> dict:
             "upscale must be null, 'bicubic', 'nearest-exact', 'bilinear' or "
             f"'lanczos', got {upscale!r}")
 
-    lora_strength = options.get("lora_strength")
+    lora_strength = resolve_dial("lora_strength", options.get("lora_strength"), dials)
     if lora_strength is not None and not (
             isinstance(lora_strength, (int, float)) and not isinstance(lora_strength, bool)):
         raise ValueError(
@@ -460,12 +522,14 @@ def finalize_arguments(options: Mapping) -> dict:
     repair_regions = _regions_argument(
         options.get("repair_regions", []), key="repair_regions")
     repair_denoise = _denoise_argument(
-        options.get("repair_denoise", 0.6), key="repair_denoise")
+        resolve_dial("repair_denoise", options.get("repair_denoise", 0.6), dials),
+        key="repair_denoise")
     repair_pad = _pad_argument(options.get("repair_pad", 1.0), key="repair_pad")
     repair_size = _crop_size_argument(
         options.get("repair_size", 1024), key="repair_size")
     repair_lora = _part_lora_argument(
-        options.get("repair_lora"), key="repair_lora")
+        resolve_dial("repair_lora", options.get("repair_lora"), dials),
+        key="repair_lora")
 
     return {
         "denoise": float(denoise) if denoise is not None else None,
@@ -494,11 +558,13 @@ def finalize_arguments(options: Mapping) -> dict:
     }
 
 
-def repair_arguments(options: Mapping) -> dict:
+def repair_arguments(options: Mapping,
+                     dials: Mapping[str, Mapping[str, float]] | None = None) -> dict:
     """Validate a repair request's `options` and map it to repair() kwargs.
 
     Every key in the return value is a repair() kwarg; unknown keys or a
-    wrong type raise ValueError naming the offending key.
+    wrong type raise ValueError naming the offending key. `dials` is the
+    source recipe's `dials.repair` vocabulary (option key -> word -> number).
     """
     if not isinstance(options, Mapping):
         raise ValueError(
@@ -506,6 +572,7 @@ def repair_arguments(options: Mapping) -> dict:
     unknown = sorted(set(options) - _KNOWN_REPAIR_OPTIONS)
     if unknown:
         raise ValueError(f"unknown repair options keys: {unknown}")
+    dials = dials or {}
 
     parts = _parts_argument(options.get("parts", ["hands", "feet"]))
     parsed_regions = _regions_argument(options.get("regions", []))
@@ -513,7 +580,8 @@ def repair_arguments(options: Mapping) -> dict:
     if not parts and not parsed_regions:
         raise ValueError("repair needs at least one of parts or regions")
 
-    denoise = _denoise_argument(options.get("denoise", 0.6))
+    denoise = _denoise_argument(
+        resolve_dial("denoise", options.get("denoise", 0.6), dials))
 
     seeds = options.get("seeds", [1, 2, 3, 4])
     if (not isinstance(seeds, list) or not seeds
@@ -523,7 +591,7 @@ def repair_arguments(options: Mapping) -> dict:
 
     size = _crop_size_argument(options.get("size", 1024))
     pad = _pad_argument(options.get("pad", 1.0))
-    lora = _part_lora_argument(options.get("lora"))
+    lora = _part_lora_argument(resolve_dial("lora", options.get("lora"), dials))
 
     return {
         "parts": parts, "regions": parsed_regions, "denoise": denoise,
@@ -531,12 +599,15 @@ def repair_arguments(options: Mapping) -> dict:
     }
 
 
-def masked_redraw_arguments(options: Mapping) -> dict:
+def masked_redraw_arguments(options: Mapping,
+                            dials: Mapping[str, Mapping[str, float]] | None = None) -> dict:
     """Validate a masked_redraw request's `options` and map it to
     masked_redraw() kwargs.
 
     Every key in the return value is a masked_redraw() kwarg; unknown keys or
-    a wrong type raise ValueError naming the offending key.
+    a wrong type raise ValueError naming the offending key. `dials` is the
+    source recipe's `dials.repair` vocabulary -- masked_redraw's own
+    `denoise` shares repair's, rather than defining its own.
     """
     if not isinstance(options, Mapping):
         raise ValueError(
@@ -544,6 +615,7 @@ def masked_redraw_arguments(options: Mapping) -> dict:
     unknown = sorted(set(options) - _KNOWN_MASKED_REDRAW_OPTIONS)
     if unknown:
         raise ValueError(f"unknown masked_redraw options keys: {unknown}")
+    dials = dials or {}
 
     regions = _regions_argument(options.get("regions", []))
     if not regions:
@@ -558,7 +630,8 @@ def masked_redraw_arguments(options: Mapping) -> dict:
             "prompt_patch must be at most "
             f"{_MASKED_REDRAW_PROMPT_PATCH_MAX_LENGTH} characters, got {len(prompt_patch)}")
 
-    denoise = _denoise_argument(options.get("denoise", 0.45), max_value=0.75)
+    denoise = _denoise_argument(
+        resolve_dial("denoise", options.get("denoise", 0.45), dials), max_value=0.75)
     mask_padding = _pixel_argument(
         options.get("mask_padding", 0), key="mask_padding", max_value=512)
     mask_feather = _pixel_argument(
@@ -602,12 +675,18 @@ def _execute_finalize(services: WorkServices, row: Mapping) -> dict:
     generation_id = payload.get("generation_id")
     if not generation_id:
         raise SystemExit("finalize payload.generation_id is required")
+    context, _batch, recipe = fetch_source(services.management, generation_id)
+    dials = dials_scope(recipe, "finalize")
+    options = payload.get("options") or {}
     try:
-        arguments = finalize_arguments(payload.get("options") or {})
+        arguments = finalize_arguments(options, dials)
     except ValueError as error:
         raise SystemExit(str(error)) from error
-    return services.finalize(generation_id, services.finalize_services,
-                             key_prefix=f"request:{row['id']}", **arguments)
+    result = services.finalize(generation_id, services.finalize_services,
+                               key_prefix=f"request:{row['id']}", context=context,
+                               **arguments)
+    result["resolved_options"] = _resolved_options(options, arguments, FINALIZE_DIAL_KEYS)
+    return result
 
 
 def _execute_repair(services: WorkServices, row: Mapping) -> dict:
@@ -615,12 +694,18 @@ def _execute_repair(services: WorkServices, row: Mapping) -> dict:
     generation_id = payload.get("generation_id")
     if not generation_id:
         raise SystemExit("repair payload.generation_id is required")
+    context, batch, recipe = fetch_source(services.management, generation_id)
+    dials = dials_scope(recipe, "repair")
+    options = payload.get("options") or {}
     try:
-        arguments = repair_arguments(payload.get("options") or {})
+        arguments = repair_arguments(options, dials)
     except ValueError as error:
         raise SystemExit(str(error)) from error
-    return services.repair(generation_id, services.repair_services,
-                           key_prefix=f"request:{row['id']}", **arguments)
+    result = services.repair(generation_id, services.repair_services,
+                             key_prefix=f"request:{row['id']}", context=context,
+                             batch=batch, **arguments)
+    result["resolved_options"] = _resolved_options(options, arguments, REPAIR_DIAL_KEYS)
+    return result
 
 
 def _execute_masked_redraw(services: WorkServices, row: Mapping) -> dict:
@@ -628,12 +713,19 @@ def _execute_masked_redraw(services: WorkServices, row: Mapping) -> dict:
     generation_id = payload.get("generation_id")
     if not generation_id:
         raise SystemExit("masked_redraw payload.generation_id is required")
+    context, batch, recipe = fetch_source(services.management, generation_id)
+    dials = dials_scope(recipe, "repair")
+    options = payload.get("options") or {}
     try:
-        arguments = masked_redraw_arguments(payload.get("options") or {})
+        arguments = masked_redraw_arguments(options, dials)
     except ValueError as error:
         raise SystemExit(str(error)) from error
-    return services.masked_redraw(generation_id, services.masked_redraw_services,
-                                  key_prefix=f"request:{row['id']}", **arguments)
+    result = services.masked_redraw(generation_id, services.masked_redraw_services,
+                                    key_prefix=f"request:{row['id']}", context=context,
+                                    batch=batch, **arguments)
+    result["resolved_options"] = _resolved_options(
+        options, arguments, _MASKED_REDRAW_DIAL_KEYS)
+    return result
 
 
 def execute(services: WorkServices, row: Mapping) -> dict:

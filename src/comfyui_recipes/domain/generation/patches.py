@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
 from .models import RenderSpec
@@ -72,13 +73,19 @@ def _parse_text_patch(patch: dict, target: str) -> Patch:
     return Patch(target, op, None, old, reason)
 
 
-def _parse_number_patch(patch: dict, target: str) -> Patch:
+def _parse_number_patch(patch: dict, target: str,
+                        dials: Mapping[str, Mapping[str, float]]) -> Patch:
     op = patch.get("op")
     if op != "set":
         _fail(target, f"op must be 'set' for {target!r}, got {op!r}")
     reason = _require_str(patch, "reason", target)
     value = patch.get("value")
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    if isinstance(value, str):
+        words = dials.get(target) or {}
+        if value not in words:
+            _fail(target, f"unknown word {value!r}")
+        value = words[value]
+    elif isinstance(value, bool) or not isinstance(value, (int, float)):
         _fail(target, f"value must be a number, got {value!r}")
     constraint = NUMBER_CONSTRAINTS[target]
     if target == "render.steps":
@@ -115,9 +122,14 @@ def _parse_string_patch(patch: dict, target: str) -> Patch:
     return Patch(target, op, value, None, reason)
 
 
-def parse_patches(raw: object) -> tuple[Patch, ...]:
+def parse_patches(raw: object,
+                  dials: Mapping[str, Mapping[str, float]] | None = None) -> tuple[Patch, ...]:
+    """`dials` is the source recipe's `dials.patches` vocabulary (target ->
+    word -> number); a number target with no entry there rejects any word.
+    """
     if not isinstance(raw, list):
         raise ValueError("generation.patches must be an array of patch objects")
+    dials = dials or {}
     patches = []
     for patch in raw:
         if not isinstance(patch, dict):
@@ -136,7 +148,7 @@ def parse_patches(raw: object) -> tuple[Patch, ...]:
         elif part_name and "." not in part_name:
             patches.append(_parse_text_patch(patch, target))
         elif target in NUMBER_TARGETS:
-            patches.append(_parse_number_patch(patch, target))
+            patches.append(_parse_number_patch(patch, target, dials))
         elif target in STRING_TARGETS:
             patches.append(_parse_string_patch(patch, target))
         else:

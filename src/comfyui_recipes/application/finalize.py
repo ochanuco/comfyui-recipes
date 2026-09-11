@@ -66,9 +66,11 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              repair_denoise: float = 0.6,
              repair_pad: float = 1.0,
              repair_size: int = 1024,
-             repair_lora: float | None = None) -> dict:
-    context = services.management.request(
-        "GET", f"/api/v1/generations/{generation_id}/context")
+             repair_lora: float | None = None,
+             context: dict | None = None) -> dict:
+    if context is None:
+        context = services.management.request(
+            "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
     base = services.graph_from_png(picked)
     roles = base_roles(base)

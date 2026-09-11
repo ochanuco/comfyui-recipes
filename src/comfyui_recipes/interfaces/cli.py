@@ -17,7 +17,14 @@ from ..application.generate import generate
 from ..application.masked_redraw import masked_redraw
 from ..application.repair import repair
 from ..application.watch import WatchServices, watch
-from ..application.work import work
+from ..application.work import (
+    FINALIZE_DIAL_KEYS,
+    REPAIR_DIAL_KEYS,
+    dials_scope,
+    fetch_source,
+    resolve_dial,
+    work,
+)
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
@@ -43,6 +50,39 @@ from .agent import (
     build_repair_services,
     wire_work_services,
 )
+
+
+def _number_or_word(raw: str) -> float | str:
+    """argparse type= for a dial-eligible flag: a recipe word passes through
+    as a string for `_resolve_word_args` to resolve once the generation's
+    recipe is known.
+    """
+    try:
+        return float(raw)
+    except ValueError:
+        return raw
+
+
+def _resolve_word_args(chimera: ChimeraClient, generation_id: str, scope: str,
+                       values: dict) -> tuple[dict | None, dict | None, dict]:
+    """Resolve any word (string) values in `values` against the source
+    generation's recipe dials for `scope`; numbers and `None` pass through.
+
+    Returns the `context`/`batch` `fetch_source` fetched (or `(None, None)`
+    if no word was given, so the numeric-only path stays fetch-free) so the
+    caller can pass them into finalize()/repair() and avoid re-fetching.
+    """
+    if not any(isinstance(value, str) for value in values.values()):
+        return None, None, values
+    context, batch, recipe = fetch_source(chimera, generation_id)
+    dials = dials_scope(recipe, scope)
+    resolved = {}
+    for key, value in values.items():
+        try:
+            resolved[key] = resolve_dial(key, value, dials)
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
+    return context, batch, resolved
 
 
 def _positive_finite_seconds(raw: str) -> float:
@@ -92,12 +132,12 @@ def parser() -> argparse.ArgumentParser:
 
     finalize_parser = commands.add_parser("finalize", help="deliver one picked render")
     finalize_parser.add_argument("generation_id")
-    finalize_parser.add_argument("--denoise", type=float)
+    finalize_parser.add_argument("--denoise", type=_number_or_word)
     finalize_parser.add_argument("--handdrawn", action="store_true")
     finalize_parser.add_argument(
         "--repin", action="store_true", help="repin the delivery's palette")
     finalize_parser.add_argument(
-        "--toe-guard", type=float, nargs="?", const=TOE_GUARD, metavar="WEIGHT",
+        "--toe-guard", type=_number_or_word, nargs="?", const=TOE_GUARD, metavar="WEIGHT",
         help="ban the toes in the redraw, hiding the count behind a smooth "
              "toe box; off by default because the checkpoint draws five")
     finalize_parser.add_argument(
@@ -140,7 +180,7 @@ def parser() -> argparse.ArgumentParser:
         help="composite on the backdrop with the purple stroke instead")
     finalize_parser.add_argument("--recolor", action="store_true")
     finalize_parser.add_argument(
-        "--keep-legwear", nargs="?", const=0.62, type=float, default=None,
+        "--keep-legwear", nargs="?", const=0.62, type=_number_or_word, default=None,
         metavar="COL_CUT",
         help="keep the asserted legwear verbatim through repin; the value is "
              "the width share the legs stay left of (default 0.62)")
@@ -154,7 +194,7 @@ def parser() -> argparse.ArgumentParser:
         help="pixel-route upscale method feeding the redraw, overriding the "
              "delivery's own bicubic default")
     finalize_parser.add_argument(
-        "--lora-strength", type=float, metavar="STRENGTH",
+        "--lora-strength", type=_number_or_word, metavar="STRENGTH",
         help="strength the redraw's LoRA runs at, overriding the recipe's "
              "own default")
     finalize_parser.add_argument(
@@ -171,7 +211,7 @@ def parser() -> argparse.ArgumentParser:
         help="fractional rectangle [0..1], in the redraw's own frame, added "
              "to the repair mask; repeatable")
     finalize_parser.add_argument(
-        "--repair-denoise", type=float, default=0.6,
+        "--repair-denoise", type=_number_or_word, default=0.6,
         help="the repair reroll's own denoise")
     finalize_parser.add_argument(
         "--repair-pad", type=float, default=1.0,
@@ -180,8 +220,8 @@ def parser() -> argparse.ArgumentParser:
         "--repair-size", type=int, default=1024, metavar="LONGEST",
         help="the repair crop's target long side")
     finalize_parser.add_argument(
-        "--repair-lora", type=float, nargs="?", const=DEFAULT_PART_LORA_WEIGHT,
-        metavar="WEIGHT",
+        "--repair-lora", type=_number_or_word, nargs="?",
+        const=DEFAULT_PART_LORA_WEIGHT, metavar="WEIGHT",
         help="load each repaired part's own LoRA (Feet XL / Hands XL) inside "
              "the repair crop, at this strength; off by default")
 
@@ -194,7 +234,7 @@ def parser() -> argparse.ArgumentParser:
     repair_parser.add_argument(
         "--region", dest="regions", action="append", metavar="X0,Y0,X1,Y1",
         help="fractional rectangle [0..1] added to the mask; repeatable")
-    repair_parser.add_argument("--denoise", type=float, default=0.6)
+    repair_parser.add_argument("--denoise", type=_number_or_word, default=0.6)
     repair_parser.add_argument(
         "--seeds", default="1,2,3,4",
         help="comma-separated seeds; one job per seed")
@@ -205,7 +245,7 @@ def parser() -> argparse.ArgumentParser:
         "--pad", type=float, default=1.0,
         help="multiplier on the auto region radius")
     repair_parser.add_argument(
-        "--lora", type=float, nargs="?", const=DEFAULT_PART_LORA_WEIGHT,
+        "--lora", type=_number_or_word, nargs="?", const=DEFAULT_PART_LORA_WEIGHT,
         metavar="WEIGHT",
         help="load each repaired part's own LoRA (Feet XL / Hands XL) inside "
              "the crop, at this strength; off by default")
@@ -222,6 +262,10 @@ def parser() -> argparse.ArgumentParser:
         "--prompt-patch", required=True,
         help="text appended to the source's own positive prompt after the "
              "face/hair/framing drop")
+    # A queued masked_redraw row's own `denoise` resolves a dial word the
+    # same as repair's (see dials_scope(recipe, "repair") in work.py); the
+    # CLI flag stays numeric-only here since masked_redraw is not one of the
+    # named-dial commands this branch's CLI support covers.
     masked_redraw_parser.add_argument("--denoise", type=float, default=0.45)
     masked_redraw_parser.add_argument(
         "--mask-padding", type=int, default=0, metavar="PIXELS",
@@ -357,28 +401,32 @@ def main(argv: list[str] | None = None) -> None:
                         if args.repair else None)
         repair_regions = [[float(value) for value in region.split(",")]
                           for region in (args.repair_regions or [])]
-        finalize(args.generation_id, services, denoise=args.denoise,
+        context, _batch, dial_values = _resolve_word_args(
+            chimera, args.generation_id, "finalize",
+            {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
+        finalize(args.generation_id, services, denoise=dial_values["denoise"],
                  handdrawn=args.handdrawn, apply_repin=args.repin,
                  apply_skin=args.skin,
                  apply_recolor=args.recolor,
-                 keep_legwear=args.keep_legwear,
+                 keep_legwear=dial_values["keep_legwear"],
                  keep_scene=args.keep_scene,
                  transparent=args.transparent,
                  size=args.size,
                  latent_route=args.latent_route,
                  finalizer=args.finalizer,
-                 toe_guard=args.toe_guard,
+                 toe_guard=dial_values["toe_guard"],
                  backdrop=args.backdrop,
                  upscale=args.upscale,
-                 lora_strength=args.lora_strength,
+                 lora_strength=dial_values["lora_strength"],
                  deliver_size=args.deliver_size,
                  stroke_light=args.stroke_light,
                  repair=repair_parts,
                  repair_regions=repair_regions,
-                 repair_denoise=args.repair_denoise,
+                 repair_denoise=dial_values["repair_denoise"],
                  repair_pad=args.repair_pad,
                  repair_size=args.repair_size,
-                 repair_lora=args.repair_lora)
+                 repair_lora=dial_values["repair_lora"],
+                 context=context)
         return
     if args.command == "catalog":
         git = repository_metadata()
@@ -395,9 +443,13 @@ def main(argv: list[str] | None = None) -> None:
         regions = [[float(value) for value in region.split(",")]
                   for region in (args.regions or [])]
         seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
+        context, batch, dial_values = _resolve_word_args(
+            chimera, args.generation_id, "repair",
+            {key: getattr(args, key) for key in REPAIR_DIAL_KEYS})
         repair(args.generation_id, services, parts=parts, regions=regions,
-              denoise=args.denoise, seeds=seeds, size=args.size, pad=args.pad,
-              lora=args.lora)
+              denoise=dial_values["denoise"], seeds=seeds, size=args.size,
+              pad=args.pad, lora=dial_values["lora"],
+              context=context, batch=batch)
         return
     if args.command == "masked_redraw":
         services = build_masked_redraw_services(

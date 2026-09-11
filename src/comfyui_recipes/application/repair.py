@@ -62,11 +62,14 @@ def repair(generation_id: str, services: RepairServices, *,
           denoise: float = 0.6, seeds: Sequence[int] = (1, 2, 3, 4),
           size: int = 1024, pad: float = 1.0,
           lora: float | None = None,
-          key_prefix: str | None = None) -> dict:
-    context = services.management.request(
-        "GET", f"/api/v1/generations/{generation_id}/context")
-    batch = services.management.request(
-        "GET", f"/api/v1/batches/{context['batch']['id']}")
+          key_prefix: str | None = None,
+          context: dict | None = None, batch: dict | None = None) -> dict:
+    if context is None:
+        context = services.management.request(
+            "GET", f"/api/v1/generations/{generation_id}/context")
+    if batch is None:
+        batch = services.management.request(
+            "GET", f"/api/v1/batches/{context['batch']['id']}")
     source_id = _resolve_source(batch, generation_id)
     source_short = _source_short(batch.get("generations") or [], source_id)
     prefix = f"rep-{source_short}"

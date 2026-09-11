@@ -23,17 +23,15 @@ The variable part is two small record sets:
   an optional `parent` naming the pose it was derived from, its face as
   `face_edits` diffed over the shared `FACE` block (an optional full-string
   `face` override is still allowed in its place, mutually exclusive with
-  `face_edits`), an optional `canvas` used in place of the recipe's
-  `WIDTH x HEIGHT`, and an optional `settled_seed` -- the seed of the
-  render the pose was settled from, or `None` for one with no approved
-  sketch render yet. Unlike `yukari` and `yukari-anima`, there is no mood,
+  `face_edits`), and an optional `canvas` used in place of the recipe's
+  `WIDTH x HEIGHT`. Unlike `yukari` and `yukari-anima`, there is no mood,
   gesture or scene split; the pose is one tag block. `recipe.face_block`
   replays the edits into text; `recipe.departures`/`lineage` (also
   `comfy-recipes sketch lineage`) report a pose's changes from its parent,
   or from `FACE` and an empty pose block for one with none.
   `recipe.plain_request` builds a request.json v1 payload for a pose at
-  recipe defaults, no patches, at its `settled_seed` unless one is given
-  (`comfy-recipes sketch plain --pose NAME`).
+  recipe defaults, no patches, at a given seed
+  (`comfy-recipes sketch plain --pose NAME --seed N`).
 - `costumes.py`: one tag block per costume (`default`, `outing`, `bath`),
   plus two small per-costume tables: `LEGWEAR_BY_COSTUME` (the garment on
   the leg when it is not the recipe's `LEGWEAR` -- `bath` is bare-legged)

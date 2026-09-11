@@ -16,9 +16,11 @@ from comfyui_recipes.application.generate import validate_request
 from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
 from comfyui_recipes.domain.yukari_sketch import delivery_style as ds
 from comfyui_recipes.domain.yukari_sketch import prompt_style as ps
+from comfyui_recipes.domain.yukari_sketch.models import Edit, Pose
+from comfyui_recipes.domain.yukari_sketch.poses import POSES as SKETCH_POSES
 from comfyui_recipes.domain.yukari_sketch.recipe import (
-    PART_NAMES, identity_tags, negative, positive, positive_parts,
-    refinement_prompt, render_spec,
+    PART_NAMES, _apply, departures, identity_tags, lineage, negative,
+    positive, positive_parts, refinement_prompt, render_spec,
 )
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 from comfyui_recipes.infrastructure.comfyui.yukari_graph import build_graph
@@ -101,6 +103,57 @@ class PartsTest(unittest.TestCase):
         self.assertEqual(PART_NAMES, (
             "quality", "identity", "costume", "pose", "proportion",
             "background", "legwear", "face", "body", "finish"))
+
+
+class PoseModelTest(unittest.TestCase):
+    def test_face_and_face_edits_are_mutually_exclusive(self):
+        with self.assertRaises(ValueError):
+            Pose(action="x", face="literal face, ",
+                 face_edits=(Edit("replace", "a", "b"),))
+
+    def test_face_edit_with_absent_needle_raises_when_applied(self):
+        bad = Pose(action="x", face_edits=(Edit("replace", "not present", "y"),))
+        with self.assertRaises(AssertionError):
+            _apply(ps.FACE, bad.face_edits)
+
+    def test_no_pose_uses_a_full_face_override(self):
+        for name, pose in SKETCH_POSES.items():
+            with self.subTest(pose=name):
+                self.assertIsNone(pose.face)
+
+
+class DeparturesTest(unittest.TestCase):
+    def test_date_departs_from_cinema_on_costume_pose_and_face(self):
+        self.assertEqual(departures("date"), {
+            "parent": "cinema",
+            "face_override": False,
+            "parts": {
+                "costume": ["-short dress", "+long dress:1.15",
+                           "+knee-length dress:1.1"],
+                "pose": ["+sneakers:1.3", "+white sneakers:1.2"],
+                "face": ["+jitome:1.25", "half-closed eyes 1.2 -> 1.15",
+                        "-unamused", "+smirk:1.2", "+smug:1.15",
+                        "+blush:1.1", "+head tilt:1.1"],
+            },
+        })
+
+    def test_stand_has_no_parent_and_only_departs_on_pose(self):
+        dep = departures("stand")
+        self.assertIsNone(dep["parent"])
+        self.assertFalse(dep["face_override"])
+        self.assertEqual(set(dep["parts"]), {"pose"})
+
+    def test_cafe_face_reports_a_moved_tag_instead_of_a_drop_and_re_add(self):
+        self.assertEqual(departures("cafe")["parts"]["face"], [
+            "jitome 1.25 -> 1.2", "-half-closed eyes", "-smirk", "-smug",
+            "-closed mouth", "+upturned eyes:1.3", "+looking up:1.15",
+            "looking at viewer moved", "+light smile:1.1",
+            "+parted lips:1.2", "blush 1.1 -> 1.15",
+        ])
+
+    def test_lineage_covers_every_pose(self):
+        self.assertEqual(set(lineage()), set(SKETCH_POSES))
+        self.assertEqual(lineage()["date"], departures("date"))
 
 
 class IdentityTagsTest(unittest.TestCase):
@@ -412,6 +465,23 @@ class CliTest(unittest.TestCase):
         payload = json.loads(output.getvalue())
         self.assertEqual(payload["positive"], CINEMA["positive"])
         self.assertEqual(payload["negative"], CINEMA["negative"])
+
+    def test_sketch_lineage_json_needs_no_clients(self):
+        output = io.StringIO()
+        with patch.object(cli, "ChimeraClient") as chimera_class, \
+                redirect_stdout(output):
+            cli.main(["sketch", "lineage", "--json"])
+        chimera_class.assert_not_called()
+        payload = json.loads(output.getvalue())
+        self.assertEqual(set(payload), set(SKETCH_POSES))
+        self.assertEqual(payload["date"], departures("date"))
+
+    def test_sketch_lineage_single_pose_json(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            cli.main(["sketch", "lineage", "--pose", "date", "--json"])
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload, {"date": departures("date")})
 
 
 if __name__ == "__main__":

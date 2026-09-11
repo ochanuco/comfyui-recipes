@@ -105,6 +105,37 @@ class BuildCatalogTest(unittest.TestCase):
         self.assertNotIn("expressions", by_name["yukari"])
         self.assertNotIn("expressions", by_name["yukari-sketch"])
 
+    def test_sketch_poses_carry_parent_and_departures(self):
+        catalog = build_catalog(GIT)
+        by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
+        poses = {pose["name"]: pose for pose in by_name["yukari-sketch"]["poses"]}
+        self.assertEqual(poses["date"]["parent"], "cinema")
+        self.assertIn("departures", poses["date"])
+        self.assertEqual(poses["date"]["departures"]["parent"], "cinema")
+        for name in ("cinema", "stand"):
+            self.assertIsNone(poses[name]["parent"])
+        expected_face = {
+            "cinema": None,
+            "stand": None,
+            "date": ("(tareme:1.2), (jitome:1.25), (half-closed eyes:1.15), "
+                     "(smirk:1.2), (smug:1.15), closed mouth, (blush:1.1), "
+                     "(head tilt:1.1), looking at viewer, "),
+            "cafe": ("(tareme:1.2), (jitome:1.2), (upturned eyes:1.3), "
+                     "(looking up:1.15), looking at viewer, (light "
+                     "smile:1.1), (parted lips:1.2), (blush:1.15), (head "
+                     "tilt:1.1), "),
+            "home": ("(tareme:1.2), (jitome:1.15), (half-closed "
+                     "eyes:1.25), (head back:1.3), (looking up:1.15), "
+                     "(open mouth:1.25), (exhausted:1.25), (sigh:1.15), "
+                     "(blush:1.1), "),
+            "bath": ("(tareme:1.2), (jitome:1.2), (half-closed eyes:1.2), "
+                     "(looking down:1.25), closed mouth, (blush:1.3), "
+                     "(flushed:1.2), "),
+        }
+        for name, face in expected_face.items():
+            with self.subTest(pose=name):
+                self.assertEqual(poses[name]["face"], face)
+
     def test_recipe_parameters_agree_with_validate_request(self):
         catalog = build_catalog(GIT)
         for recipe in catalog["recipes"]:

@@ -17,13 +17,19 @@ from typing import Protocol
 from ..domain.generation.models import PromptPair, RenderSpec
 from ..domain.generation.patches import apply_patches, parse_patches
 from ..domain.generation.prompt_lint import tags as prompt_tags
+from ..domain.yukari.dials import DIALS as YUKARI_DIALS
+from ..domain.yukari_anima.dials import DIALS as ANIMA_DIALS
 from ..domain.yukari_sketch.dials import DIALS as SKETCH_DIALS
 
 PresetFetcher = Callable[[str, str, str, int], dict]
 
 # `generation.recipe` -> its `dials.patches` vocabulary (target -> word ->
-# number); a recipe absent here, or with no `patches` scope, has none.
+# number). One entry per recipe DIALS in domain/*/dials.py -- application/
+# work.py's _RECIPE_DIALS is the same three, keyed the same way, for its own
+# finalize/repair scopes.
 PATCH_DIALS: dict[str, Mapping[str, Mapping[str, float]]] = {
+    "yukari": YUKARI_DIALS.get("patches", {}),
+    "yukari-anima": ANIMA_DIALS.get("patches", {}),
     "yukari-sketch": SKETCH_DIALS.get("patches", {}),
 }
 

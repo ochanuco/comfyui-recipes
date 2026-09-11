@@ -9,8 +9,9 @@ from ..yukari.recipe import TOE_GUARD
 from .delivery_style import FINALIZE_DENOISE
 from .prompt_style import LORA as SKETCH_LORA
 
-# 0.65 re-draws the line without re-deciding held props; 0.8 is the
-# incident value (a paper cup became a sheet of paper on a full-body base).
+# 0.65 redraws the line only; 0.8 also redraws held props and the
+# expression on a full-body base (delivery_style.FINALIZE_DENOISE), which
+# is why it is a named word rather than the default.
 _REDRAW_DENOISE = 0.8
 _TIDY_DENOISE = 0.65
 _RAW_LORA_STRENGTH = 1.5

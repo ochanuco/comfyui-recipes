@@ -17,7 +17,14 @@ from ..application.generate import generate
 from ..application.masked_redraw import masked_redraw
 from ..application.repair import repair
 from ..application.watch import WatchServices, watch
-from ..application.work import dials_scope, fetch_source, resolve_dial, work
+from ..application.work import (
+    FINALIZE_DIAL_KEYS,
+    REPAIR_DIAL_KEYS,
+    dials_scope,
+    fetch_source,
+    resolve_dial,
+    work,
+)
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
@@ -251,6 +258,10 @@ def parser() -> argparse.ArgumentParser:
         "--prompt-patch", required=True,
         help="text appended to the source's own positive prompt after the "
              "face/hair/framing drop")
+    # A queued masked_redraw row's own `denoise` resolves a dial word the
+    # same as repair's (see dials_scope(recipe, "repair") in work.py); the
+    # CLI flag stays numeric-only here since masked_redraw is not one of the
+    # named-dial commands this branch's CLI support covers.
     masked_redraw_parser.add_argument("--denoise", type=float, default=0.45)
     masked_redraw_parser.add_argument(
         "--mask-padding", type=int, default=0, metavar="PIXELS",
@@ -387,12 +398,8 @@ def main(argv: list[str] | None = None) -> None:
         repair_regions = [[float(value) for value in region.split(",")]
                           for region in (args.repair_regions or [])]
         dial_values = _resolve_word_args(
-            chimera, args.generation_id, "finalize", {
-                "denoise": args.denoise, "keep_legwear": args.keep_legwear,
-                "toe_guard": args.toe_guard, "lora_strength": args.lora_strength,
-                "repair_denoise": args.repair_denoise,
-                "repair_lora": args.repair_lora,
-            })
+            chimera, args.generation_id, "finalize",
+            {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
         finalize(args.generation_id, services, denoise=dial_values["denoise"],
                  handdrawn=args.handdrawn, apply_repin=args.repin,
                  apply_skin=args.skin,
@@ -433,7 +440,7 @@ def main(argv: list[str] | None = None) -> None:
         seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
         dial_values = _resolve_word_args(
             chimera, args.generation_id, "repair",
-            {"denoise": args.denoise, "lora": args.lora})
+            {key: getattr(args, key) for key in REPAIR_DIAL_KEYS})
         repair(args.generation_id, services, parts=parts, regions=regions,
               denoise=dial_values["denoise"], seeds=seeds, size=args.size,
               pad=args.pad, lora=dial_values["lora"])

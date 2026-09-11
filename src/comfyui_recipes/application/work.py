@@ -59,10 +59,14 @@ _RECIPE_DIALS = {
     "yukari-sketch": _SKETCH_DIALS,
 }
 
-# The finalize/repair option keys a recipe may define dial words for.
-_FINALIZE_DIAL_KEYS = ("denoise", "keep_legwear", "toe_guard", "lora_strength",
-                      "repair_denoise", "repair_lora")
-_REPAIR_DIAL_KEYS = ("denoise", "lora")
+# The finalize/repair option keys a recipe may define dial words for -- kept
+# in sync by hand with the resolve_dial() call sites in finalize_arguments()
+# and repair_arguments(); a key resolved there and missing here is reported
+# unresolved in resolved_options. Public: interfaces/cli.py reads them too,
+# to resolve the same keys' words from the args it already parsed.
+FINALIZE_DIAL_KEYS = ("denoise", "keep_legwear", "toe_guard", "lora_strength",
+                     "repair_denoise", "repair_lora")
+REPAIR_DIAL_KEYS = ("denoise", "lora")
 _MASKED_REDRAW_DIAL_KEYS = ("denoise",)
 
 
@@ -92,28 +96,16 @@ def resolve_dial(key: str, value: object,
     return words[value]
 
 
-# The tri-state options whose bare `true` is a fixed constant rather than a
-# dial word -- `_resolved_options` reports that constant the same way a word
-# resolves to one.
-_TRUE_DIAL_CONSTANTS = {
-    "keep_legwear": 0.62, "toe_guard": TOE_GUARD,
-    "repair_lora": DEFAULT_PART_LORA_WEIGHT, "lora": DEFAULT_PART_LORA_WEIGHT,
-}
-
-
-def _resolved_options(options: Mapping, dials: Mapping[str, Mapping[str, float]],
+def _resolved_options(options: Mapping, arguments: Mapping,
                       dial_keys: tuple[str, ...]) -> dict:
-    """The request's own options, words and `true` replaced by the numbers
-    they resolved to -- what the request actually ran with.
+    """The request's own options, with each dial-eligible key's value
+    replaced by what `finalize_arguments()`/`repair_arguments()`/
+    `masked_redraw_arguments()` actually resolved it to in `arguments` --
+    the single source of truth for what the request ran with, rather than a
+    second independent word/`true` resolution that could drift from it.
     """
-    def resolve(key: str, value: object) -> object:
-        if key not in dial_keys:
-            return value
-        if value is True and key in _TRUE_DIAL_CONSTANTS:
-            return _TRUE_DIAL_CONSTANTS[key]
-        return resolve_dial(key, value, dials)
-
-    return {key: resolve(key, value) for key, value in options.items()}
+    return {key: (arguments[key] if key in dial_keys else value)
+           for key, value in options.items()}
 
 
 # Shared by `finalize_arguments`' `repair`/`repair_*` options and
@@ -693,7 +685,7 @@ def _execute_finalize(services: WorkServices, row: Mapping) -> dict:
     result = services.finalize(generation_id, services.finalize_services,
                                key_prefix=f"request:{row['id']}", context=context,
                                **arguments)
-    result["resolved_options"] = _resolved_options(options, dials, _FINALIZE_DIAL_KEYS)
+    result["resolved_options"] = _resolved_options(options, arguments, FINALIZE_DIAL_KEYS)
     return result
 
 
@@ -712,7 +704,7 @@ def _execute_repair(services: WorkServices, row: Mapping) -> dict:
     result = services.repair(generation_id, services.repair_services,
                              key_prefix=f"request:{row['id']}", context=context,
                              batch=batch, **arguments)
-    result["resolved_options"] = _resolved_options(options, dials, _REPAIR_DIAL_KEYS)
+    result["resolved_options"] = _resolved_options(options, arguments, REPAIR_DIAL_KEYS)
     return result
 
 
@@ -732,7 +724,7 @@ def _execute_masked_redraw(services: WorkServices, row: Mapping) -> dict:
                                     key_prefix=f"request:{row['id']}", context=context,
                                     batch=batch, **arguments)
     result["resolved_options"] = _resolved_options(
-        options, dials, _MASKED_REDRAW_DIAL_KEYS)
+        options, arguments, _MASKED_REDRAW_DIAL_KEYS)
     return result
 
 

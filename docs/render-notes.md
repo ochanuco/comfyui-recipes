@@ -11459,3 +11459,25 @@ backdrop itself, and the border-connected/enclosed-region flood from
   `cut_backdrop` -- both stay in `infrastructure/imaging/delivery.py` for
   `palette.py` and the standalone scripts, which still flood-fill by colour
   alone.
+
+## The sketch finalize default returns to 0.55 (2026-09-11)
+
+`3rcz39` (yukari-sketch, date pose with the Spartan helmet, popcorn bucket
+and paper cup, seed 3325046388) was finalized from the same source and seed
+at three redraw denoises:
+
+```text
+denoise   delivered   props
+0.8       m06tnf      the paper cup in the raised hand became a sheet of
+                      paper; the cup moved to hang below the bucket; the
+                      smirk softened; the helmet ornament changed
+0.65      go2fq4      cup, straw and bucket where the source had them
+0.55      g7jk9y      same, with the base pass's rougher line
+```
+
+The 0.8 pick above was made on `ctwwn5`, a cafe bust-up with no held
+objects. On a full-body base the redraw that re-decides the line also
+re-decides the props and the face, and that is a different picture, not a
+cleaner one. `FINALIZE_DENOISE` for `yukari_sketch` is 0.55 again; 0.8
+stays available per request (`"denoise": 0.8`) for a bust-up without
+props. The observation is on chimera against `m06tnf`.

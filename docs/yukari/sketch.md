@@ -91,7 +91,7 @@ is exactly the pre-existing `yukari` shape.
 
 ## Finalize defaults
 
-`delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.8`,
+`delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.55`,
 `FINALIZE_DENOISE_LAYERDIFFUSE = 0.55`, `FINALIZE_SAMPLER = ("euler", "normal")`,
 `FINALIZE_LATENT_ROUTE = True`, `FINALIZE_TRANSPARENT = True`.
 `application/finalize.py` detects a sketch base by a `LoraLoader` node in
@@ -140,9 +140,10 @@ around it -- the same hand-cut rim every other delivery gets -- and the
 pixel-route upscale and redraw (the recipe's own LoRA riding into the
 redraw's model and CLIP as usual) run on that composite, so the rim is
 redrawn into the picture along with everything else. The redraw itself
-runs at `FINALIZE_DENOISE_LAYERDIFFUSE` (0.55), not the recipe's usual 0.8:
-the layerdiffuse raw already holds its own scene at full opacity, and 0.8
-lets the redraw invent background objects the raw never drew.
+runs at `FINALIZE_DENOISE_LAYERDIFFUSE` (0.55), its own constant rather than
+`FINALIZE_DENOISE`: the layerdiffuse raw already holds its own scene at full
+opacity, and a stronger redraw lets it invent background objects the raw
+never drew.
 
 By default (`FINALIZE_TRANSPARENT`) the redrawn picture then goes through
 `YukariCutBackdrop`: no birefnet matte, since there is no silhouette left

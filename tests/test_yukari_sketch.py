@@ -20,7 +20,7 @@ from comfyui_recipes.domain.yukari_sketch.models import Edit, Pose
 from comfyui_recipes.domain.yukari_sketch.poses import POSES as SKETCH_POSES
 from comfyui_recipes.domain.yukari_sketch.recipe import (
     PART_NAMES, _apply, departures, identity_tags, lineage, negative,
-    positive, positive_parts, refinement_prompt, render_spec,
+    plain_request, positive, positive_parts, refinement_prompt, render_spec,
 )
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 from comfyui_recipes.infrastructure.comfyui.yukari_graph import build_graph
@@ -120,6 +120,16 @@ class PoseModelTest(unittest.TestCase):
         for name, pose in SKETCH_POSES.items():
             with self.subTest(pose=name):
                 self.assertIsNone(pose.face)
+
+    def test_settled_seeds_on_the_approved_poses(self):
+        self.assertEqual(SKETCH_POSES["date"].settled_seed, 737373737)
+        self.assertEqual(SKETCH_POSES["cafe"].settled_seed, 7)
+        self.assertEqual(SKETCH_POSES["home"].settled_seed, 7)
+        self.assertEqual(SKETCH_POSES["bath"].settled_seed, 1832285246)
+
+    def test_no_settled_seed_yet_for_stand_or_cinema(self):
+        self.assertIsNone(SKETCH_POSES["stand"].settled_seed)
+        self.assertIsNone(SKETCH_POSES["cinema"].settled_seed)
 
 
 class DeparturesTest(unittest.TestCase):
@@ -455,6 +465,34 @@ class ValidateRequestTest(unittest.TestCase):
             validate_request(request)
 
 
+class PlainRequestTest(unittest.TestCase):
+    def test_date_uses_its_settled_seed_and_default_costume(self):
+        payload = plain_request("date")
+        self.assertEqual(payload["request"]["seeds"], [737373737])
+        self.assertEqual(payload["generation"]["parameters"],
+                         {"pose": "date", "costume": "outing"})
+        self.assertNotIn("patches", payload["generation"])
+        validate_request(payload)
+
+    def test_stand_has_no_settled_seed_and_raises(self):
+        with self.assertRaises(ValueError):
+            plain_request("stand")
+
+    def test_stand_with_an_explicit_seed_works(self):
+        payload = plain_request("stand", seed=5)
+        self.assertEqual(payload["request"]["seeds"], [5])
+        validate_request(payload)
+
+    def test_explicit_seed_overrides_the_settled_one(self):
+        payload = plain_request("date", seed=1)
+        self.assertEqual(payload["request"]["seeds"], [1])
+
+    def test_explicit_costume_overrides_the_pose_default(self):
+        payload = plain_request("date", costume="default")
+        self.assertEqual(payload["generation"]["parameters"]["costume"],
+                         "default")
+
+
 class CliTest(unittest.TestCase):
     def test_sketch_prompt_json_needs_no_clients(self):
         output = io.StringIO()
@@ -474,14 +512,43 @@ class CliTest(unittest.TestCase):
         chimera_class.assert_not_called()
         payload = json.loads(output.getvalue())
         self.assertEqual(set(payload), set(SKETCH_POSES))
-        self.assertEqual(payload["date"], departures("date"))
+        self.assertEqual(payload["date"],
+                         {**departures("date"), "settled_seed": 737373737})
 
     def test_sketch_lineage_single_pose_json(self):
         output = io.StringIO()
         with redirect_stdout(output):
             cli.main(["sketch", "lineage", "--pose", "date", "--json"])
         payload = json.loads(output.getvalue())
-        self.assertEqual(payload, {"date": departures("date")})
+        self.assertEqual(payload,
+                         {"date": {**departures("date"), "settled_seed": 737373737}})
+
+    def test_sketch_lineage_text_shows_seed_when_settled(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            cli.main(["sketch", "lineage", "--pose", "date"])
+        self.assertIn("seed=737373737", output.getvalue())
+
+    def test_sketch_lineage_text_omits_seed_when_unset(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            cli.main(["sketch", "lineage", "--pose", "stand"])
+        self.assertNotIn("seed=", output.getvalue())
+
+    def test_sketch_plain_json_needs_no_clients(self):
+        output = io.StringIO()
+        with patch.object(cli, "ChimeraClient") as chimera_class, \
+                redirect_stdout(output):
+            cli.main(["sketch", "plain", "--pose", "date"])
+        chimera_class.assert_not_called()
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload, plain_request("date"))
+
+    def test_sketch_plain_without_seed_or_settled_seed_exits(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            with self.assertRaises(SystemExit):
+                cli.main(["sketch", "plain", "--pose", "stand"])
 
 
 if __name__ == "__main__":

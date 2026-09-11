@@ -64,13 +64,17 @@ def _number_or_word(raw: str) -> float | str:
 
 
 def _resolve_word_args(chimera: ChimeraClient, generation_id: str, scope: str,
-                       values: dict) -> dict:
+                       values: dict) -> tuple[dict | None, dict | None, dict]:
     """Resolve any word (string) values in `values` against the source
     generation's recipe dials for `scope`; numbers and `None` pass through.
+
+    Returns the `context`/`batch` `fetch_source` fetched (or `(None, None)`
+    if no word was given, so the numeric-only path stays fetch-free) so the
+    caller can pass them into finalize()/repair() and avoid re-fetching.
     """
     if not any(isinstance(value, str) for value in values.values()):
-        return values
-    _, _, recipe = fetch_source(chimera, generation_id)
+        return None, None, values
+    context, batch, recipe = fetch_source(chimera, generation_id)
     dials = dials_scope(recipe, scope)
     resolved = {}
     for key, value in values.items():
@@ -78,7 +82,7 @@ def _resolve_word_args(chimera: ChimeraClient, generation_id: str, scope: str,
             resolved[key] = resolve_dial(key, value, dials)
         except ValueError as error:
             raise SystemExit(str(error)) from error
-    return resolved
+    return context, batch, resolved
 
 
 def _positive_finite_seconds(raw: str) -> float:
@@ -397,7 +401,7 @@ def main(argv: list[str] | None = None) -> None:
                         if args.repair else None)
         repair_regions = [[float(value) for value in region.split(",")]
                           for region in (args.repair_regions or [])]
-        dial_values = _resolve_word_args(
+        context, _batch, dial_values = _resolve_word_args(
             chimera, args.generation_id, "finalize",
             {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
         finalize(args.generation_id, services, denoise=dial_values["denoise"],
@@ -421,7 +425,8 @@ def main(argv: list[str] | None = None) -> None:
                  repair_denoise=dial_values["repair_denoise"],
                  repair_pad=args.repair_pad,
                  repair_size=args.repair_size,
-                 repair_lora=dial_values["repair_lora"])
+                 repair_lora=dial_values["repair_lora"],
+                 context=context)
         return
     if args.command == "catalog":
         git = repository_metadata()
@@ -438,12 +443,13 @@ def main(argv: list[str] | None = None) -> None:
         regions = [[float(value) for value in region.split(",")]
                   for region in (args.regions or [])]
         seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
-        dial_values = _resolve_word_args(
+        context, batch, dial_values = _resolve_word_args(
             chimera, args.generation_id, "repair",
             {key: getattr(args, key) for key in REPAIR_DIAL_KEYS})
         repair(args.generation_id, services, parts=parts, regions=regions,
               denoise=dial_values["denoise"], seeds=seeds, size=args.size,
-              pad=args.pad, lora=dial_values["lora"])
+              pad=args.pad, lora=dial_values["lora"],
+              context=context, batch=batch)
         return
     if args.command == "masked_redraw":
         services = build_masked_redraw_services(

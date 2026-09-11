@@ -90,7 +90,6 @@ def _sketch_recipe() -> dict:
             "face": sketch_resolved_face(name),
             "parent": pose.parent,
             "departures": sketch_departures(name),
-            "settled_seed": pose.settled_seed,
             "canvas": [spec.width, spec.height],
             "positive": spec.prompts.positive,
             "negative": spec.prompts.negative,

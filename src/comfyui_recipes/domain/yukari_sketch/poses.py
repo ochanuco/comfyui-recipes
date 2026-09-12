@@ -19,6 +19,12 @@ POSES = {
         action=("(standing:1.5), (own hands together:1.3), (hands "
                 "up:1.2), (arched back:1.15), (from front:1.3), (full "
                 "body:1.45), (wide shot:1.3), ")),
+    "bust": Pose(
+        action=("(portrait:1.5), (head and shoulders:1.4), (upper "
+                "body:1.35), (face focus:1.3), (from front:1.2), "),
+        canvas=(1024, 1024),
+        part_overrides={"proportion": "adult, ", "legwear": "",
+                        "body": "pale skin, "}),
     "date": Pose(
         action=("(walking:1.2), (holding popcorn:1.3), popcorn, (holding "
                 "cup:1.25), disposable cup, (drinking straw:1.3), (full "

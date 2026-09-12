@@ -103,15 +103,22 @@ def resolved_face(pose: str) -> str | None:
     return None if text == FACE else text
 
 
+def _parts(action: str, costume: str, face: str,
+           overrides: dict[str, str]) -> tuple[tuple[str, str], ...]:
+    unknown = set(overrides) - set(PART_NAMES)
+    assert not unknown, f"part_overrides name no part: {sorted(unknown)}"
+    costume_block = COSTUMES[costume]
+    legwear = LEGWEAR_BY_COSTUME.get(costume, LEGWEAR)
+    values = (QUALITY + TRIGGER, CHARACTER + IDENTITY, costume_block,
+              action, PROPORTION, BACKGROUND, legwear, face, BODY, FINISH)
+    return tuple((name, overrides.get(name, text))
+                 for name, text in zip(PART_NAMES, values))
+
+
 def positive_parts(pose: str, costume: str | None = None) -> tuple[tuple[str, str], ...]:
     p = POSES[pose]
     name = costume if costume is not None else p.costume
-    costume_block = COSTUMES[name]
-    legwear = LEGWEAR_BY_COSTUME.get(name, LEGWEAR)
-    face = face_block(pose)
-    values = (QUALITY + TRIGGER, CHARACTER + IDENTITY, costume_block,
-              p.action, PROPORTION, BACKGROUND, legwear, face, BODY, FINISH)
-    return tuple(zip(PART_NAMES, values))
+    return _parts(p.action, name, face_block(pose), p.part_overrides)
 
 
 def positive(pose: str, costume: str | None = None) -> str:
@@ -252,9 +259,8 @@ def departures(pose: str, costume: str | None = None) -> dict:
     if p.parent is not None:
         reference_parts = dict(positive_parts(p.parent))
     else:
-        reference_parts = dict(own_parts)
-        reference_parts["pose"] = ""
-        reference_parts["face"] = FACE
+        name = costume if costume is not None else p.costume
+        reference_parts = dict(_parts("", name, FACE, {}))
     parts = {}
     for name in PART_NAMES:
         changes = _tag_diff(reference_parts[name], own_parts[name])

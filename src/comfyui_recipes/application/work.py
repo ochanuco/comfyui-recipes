@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Protocol
 from urllib.parse import quote
 
-from ..domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH, control_model
+from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
@@ -200,12 +200,9 @@ def _model_argument(value: object, *, key: str = "model") -> str | None:
 def _control_argument(value: object, *, key: str = "control") -> str | None:
     if value is None:
         return None
-    if not isinstance(value, str):
-        raise ValueError(f"{key} must be null or a string, got {type(value).__name__}")
-    try:
-        control_model(value)
-    except ValueError as error:
-        raise ValueError(f"{key}: {error}") from error
+    if value not in CONTROL_MODELS:
+        valid = ", ".join(repr(word) for word in sorted(CONTROL_MODELS))
+        raise ValueError(f"{key} must be null or one of {valid}, got {value!r}")
     return value
 
 

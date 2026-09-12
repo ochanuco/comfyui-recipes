@@ -98,7 +98,7 @@ $LoraFiles = @(
     @{
         Name       = 'anima-sketch-style-chosen.safetensors'
         VersionId  = 3218039
-        Size       = 183500800
+        Size       = 183625016
         Sha256     = 'af001933a8fa4c0e7950594171f9c4c77e5dd499364761b298b2c726bb22d4d6'
         CivitaiUrl = 'https://civitai.com/api/download/models/3218039'
         Title      = 'sketch style anima v2.0'
@@ -106,7 +106,7 @@ $LoraFiles = @(
     @{
         Name       = 'anima-handdrawn-feel-chosen.safetensors'
         VersionId  = 3267407
-        Size       = 183500800
+        Size       = 183606224
         Sha256     = '5c61afd609cad8ee9853e0d27543da08b938f84dcaea08debcdfb15dd3260dd9'
         CivitaiUrl = 'https://civitai.com/api/download/models/3267407'
         Title      = 'Hand-drawn feel anima v2.0'

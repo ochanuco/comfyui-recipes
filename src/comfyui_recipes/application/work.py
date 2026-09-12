@@ -37,7 +37,7 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
     "backdrop", "upscale", "lora_strength", "deliver_size", "stroke_light",
     "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
-    "repair_lora",
+    "repair_lora", "keep_regions", "keep_strength",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
@@ -161,6 +161,14 @@ def _pad_argument(value: object, *, key: str = "pad") -> float:
         raise ValueError(f"{key} must be a number, got {type(value).__name__}")
     if not (0.5 <= value <= 3):
         raise ValueError(f"{key} must be between 0.5 and 3, got {value!r}")
+    return float(value)
+
+
+def _keep_strength_argument(value: object, *, key: str = "keep_strength") -> float:
+    if not (isinstance(value, (int, float)) and not isinstance(value, bool)):
+        raise ValueError(f"{key} must be a number, got {type(value).__name__}")
+    if not (0 < value < 1):
+        raise ValueError(f"{key} must be > 0 and < 1, got {value!r}")
     return float(value)
 
 
@@ -560,6 +568,9 @@ def finalize_arguments(options: Mapping,
     repair_lora = _part_lora_argument(
         resolve_dial("repair_lora", options.get("repair_lora"), dials),
         key="repair_lora")
+    keep_regions = _regions_argument(
+        options.get("keep_regions", []), key="keep_regions")
+    keep_strength = _keep_strength_argument(options.get("keep_strength", 0.25))
 
     return {
         "denoise": float(denoise) if denoise is not None else None,
@@ -585,6 +596,8 @@ def finalize_arguments(options: Mapping,
         "repair_pad": repair_pad,
         "repair_size": repair_size,
         "repair_lora": repair_lora,
+        "keep_regions": keep_regions,
+        "keep_strength": keep_strength,
     }
 
 

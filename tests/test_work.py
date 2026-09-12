@@ -301,6 +301,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "stroke_light": None,
             "repair": None, "repair_regions": [], "repair_denoise": 0.6,
             "repair_pad": 1.0, "repair_size": 1024, "repair_lora": None,
+            "keep_regions": [], "keep_strength": 0.25,
         })
 
     def test_backdrop_null_passes_through(self):
@@ -541,6 +542,30 @@ class FinalizeArgumentsTest(unittest.TestCase):
         dials = SKETCH_DIALS["finalize"]
         self.assertEqual(
             finalize_arguments({"repair_denoise": "keep"}, dials)["repair_denoise"], 0.6)
+
+    def test_keep_regions_default_empty(self):
+        self.assertEqual(finalize_arguments({})["keep_regions"], [])
+
+    def test_keep_regions_pass_through_as_floats(self):
+        arguments = finalize_arguments({"keep_regions": [[0, 0.25, 1, 0.75]]})
+        self.assertEqual(arguments["keep_regions"], [[0.0, 0.25, 1.0, 0.75]])
+
+    def test_keep_regions_out_of_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "region"):
+            finalize_arguments({"keep_regions": [[0, 0, 1, 1.5]]})
+
+    def test_keep_strength_default(self):
+        self.assertEqual(finalize_arguments({})["keep_strength"], 0.25)
+
+    def test_keep_strength_must_be_strictly_between_zero_and_one(self):
+        with self.assertRaisesRegex(ValueError, "keep_strength"):
+            finalize_arguments({"keep_strength": 0})
+        with self.assertRaisesRegex(ValueError, "keep_strength"):
+            finalize_arguments({"keep_strength": 1})
+
+    def test_keep_strength_a_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "keep_strength"):
+            finalize_arguments({"keep_strength": "0.25"})
 
     def test_a_number_is_unaffected_by_dials_being_given(self):
         dials = SKETCH_DIALS["finalize"]

@@ -229,6 +229,15 @@ def parser() -> argparse.ArgumentParser:
         const=DEFAULT_PART_LORA_WEIGHT, metavar="WEIGHT",
         help="load each repaired part's own LoRA (Feet XL / Hands XL) inside "
              "the repair crop, at this strength; off by default")
+    finalize_parser.add_argument(
+        "--keep-region", dest="keep_regions", action="append",
+        metavar="X0,Y0,X1,Y1",
+        help="fractional rectangle [0..1], in the redraw's own frame, "
+             "shielded from the redraw under a soft noise mask; repeatable")
+    finalize_parser.add_argument(
+        "--keep-strength", type=float, default=0.25, metavar="STRENGTH",
+        help="how much the redraw still touches a --keep-region, 0 < s < 1; "
+             "lower keeps more of the source pixels")
 
     repair_parser = commands.add_parser(
         "repair", help="masked local redraw of hands/feet on an existing generation")
@@ -445,6 +454,8 @@ def main(argv: list[str] | None = None) -> None:
                         if args.repair else None)
         repair_regions = [[float(value) for value in region.split(",")]
                           for region in (args.repair_regions or [])]
+        keep_regions = [[float(value) for value in region.split(",")]
+                       for region in (args.keep_regions or [])]
         context, _batch, dial_values = _resolve_word_args(
             chimera, args.generation_id, "finalize",
             {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
@@ -470,6 +481,8 @@ def main(argv: list[str] | None = None) -> None:
                  repair_pad=args.repair_pad,
                  repair_size=args.repair_size,
                  repair_lora=dial_values["repair_lora"],
+                 keep_regions=keep_regions,
+                 keep_strength=args.keep_strength,
                  context=context)
         return
     if args.command == "catalog":

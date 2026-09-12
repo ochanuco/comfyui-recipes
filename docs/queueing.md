@@ -217,6 +217,20 @@ or an explicit `--latent-route`/`latent_route: true`); a non-latent-route
 recipe or a layerdiffuse base is rejected, since the pixel route has no seam
 yet for a source image outside the base graph.
 
+**Shielding a region from the finalize redraw**: `finalize`'s `keep_regions`
+(`--keep-region x0,y0,x1,y1`, repeatable; `keep_regions` in a queued finalize
+row's `options`) and `keep_strength` (`--keep-strength`; `keep_strength`,
+default `0.25`) protect rectangles -- fractions (0..1) of the redraw's own
+canvas, the same shape as `repair_regions` -- from the redraw itself: the
+redraw sampler runs under a soft `SetLatentNoiseMask`, 1.0 (full redraw)
+everywhere and `keep_strength` inside each rectangle, feathered at the
+rectangle edges (about 3% of the canvas' longest side) so the protected
+region blends in rather than showing a hard seam. This is what makes a
+repair's fix (e.g. a corrected toe count) survive the finalize redraw
+instead of being redrawn away. `keep_strength` must be strictly between 0
+and 1; `keep_regions` empty (the default) submits exactly the graph finalize
+built before this option existed.
+
 ## Masked redraw
 
 `comfy-recipes masked_redraw <generation>` is `repair` without DWPose: the

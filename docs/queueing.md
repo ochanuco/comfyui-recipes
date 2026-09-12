@@ -207,6 +207,16 @@ anything else is the raw generation. The rendered region mask itself is
 also stored as a `repair-mask` asset on every job's raw generation, so the
 exact region redrawn is on record without recomputing it from the pose.
 
+**Finalizing a repair/masked_redraw output**: `finalize` given a Generation
+whose batch's `parameters.kind` is `repair` or `masked_redraw` reads its
+recipe, loaders, prompts, seed, sampler and LoRA from that batch's
+`parameters.base_generation` instead of from the picked Generation's own
+graph -- the picked Generation's own picture (the repaired pixels) is still
+what gets redrawn. This only works on the latent route (the sketch default,
+or an explicit `--latent-route`/`latent_route: true`); a non-latent-route
+recipe or a layerdiffuse base is rejected, since the pixel route has no seam
+yet for a source image outside the base graph.
+
 ## Masked redraw
 
 `comfy-recipes masked_redraw <generation>` is `repair` without DWPose: the

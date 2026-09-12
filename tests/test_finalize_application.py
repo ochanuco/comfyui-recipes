@@ -88,14 +88,24 @@ MASKED_REDRAW_GRAPH = {
 
 
 class ManagementFake:
-    def __init__(self):
+    def __init__(self, *, batch_parameters=None, generation_records=None):
         self.calls = []
         self.context = {"batch": {"id": "source-batch"}}
+        self.batch_parameters = batch_parameters or {}
+        self.generation_records = generation_records or {}
 
     def request(self, method, path, payload=None, multipart=None):
         self.calls.append((method, path, payload, multipart))
         if path.endswith("/context"):
             return self.context
+        if (method == "GET"
+                and path == f"/api/v1/batches/{self.context['batch']['id']}"):
+            return {"id": self.context["batch"]["id"],
+                    "parameters": self.batch_parameters}
+        if (method == "GET" and path.startswith("/api/v1/generations/")
+                and path.count("/") == 4):
+            generation_id = path.rsplit("/", 1)[1]
+            return self.generation_records.get(generation_id, {"id": generation_id})
         if method == "POST" and path == "/api/v1/batches":
             return {"id": "batch-id", "short_id": "batch"}
         if method == "POST" and path.endswith("/jobs"):
@@ -1286,6 +1296,133 @@ class MaskedRedrawBaseTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "stitched"):
             chain_pass(copy.deepcopy(MASKED_REDRAW_GRAPH), 2560, 0.55, "fin",
                       latent_route=True, canvas=(1024, 1024))
+
+
+class RepairedRawSourceResolutionTest(unittest.TestCase):
+    def test_repair_batch_resolves_base_from_the_base_generation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((base, kwargs))
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                generation_records={"raw-1": {"comfy_job": {"graph": SKETCH_GRAPH}}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            base, kwargs = calls[-1]
+            self.assertEqual(base, SKETCH_GRAPH)
+            self.assertIs(kwargs["latent_route"], True)
+
+    def test_masked_redraw_batch_also_resolves_base_from_the_base_generation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((base, kwargs))
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "masked_redraw", "base_generation": "raw-2"},
+                generation_records={"raw-2": {"comfy_job": {"graph": SKETCH_GRAPH}}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            base, _kwargs = calls[-1]
+            self.assertEqual(base, SKETCH_GRAPH)
+
+    def test_repaired_raw_uploads_the_picked_picture_as_source_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                generation_records={"raw-1": {"comfy_job": {"graph": SKETCH_GRAPH}}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            self.assertIsNotNone(calls[-1]["source_image"])
+            uploaded = dict(services.comfyui.uploaded)
+            self.assertIn(calls[-1]["source_image"].removeprefix("uploaded-"), uploaded)
+
+    def test_repaired_raw_falls_back_to_the_base_s_own_png_without_a_job_graph(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((base, kwargs))
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                generation_records={"raw-1": {}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            finalize("gen-id", services)
+            base, _kwargs = calls[-1]
+            self.assertEqual(base, SKETCH_GRAPH)
+
+    def test_repaired_raw_on_a_non_latent_route_recipe_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-3"},
+                generation_records={"raw-3": {"comfy_job": {"graph": ANIMA_GRAPH}}})
+            services = base_services(directory, management=management)
+            with self.assertRaisesRegex(SystemExit, "latent route"):
+                finalize("gen-id", services)
+
+    def test_repaired_raw_on_a_layerdiffuse_base_is_rejected_even_with_latent_route(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-4"},
+                generation_records={
+                    "raw-4": {"comfy_job": {"graph": LAYERDIFFUSE_SKETCH_GRAPH}}})
+            services = base_services(directory, management=management)
+            with self.assertRaisesRegex(SystemExit, "latent route"):
+                finalize("gen-id", services, latent_route=True)
+
+    def test_hires_chain_kind_is_not_treated_as_a_repaired_raw(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((base, kwargs))
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "hires-chain", "base_generation": "gen-id"})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: GRAPH)
+            finalize("gen-id", services)
+            base, kwargs = calls[-1]
+            self.assertEqual(base, GRAPH)
+            self.assertIsNone(kwargs["source_image"])
+
+    def test_a_plain_raw_batch_uses_graph_from_png_as_before(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((base, kwargs))
+                return {}
+
+            management = ManagementFake(batch_parameters={"kind": "generate"})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: GRAPH)
+            finalize("gen-id", services)
+            base, kwargs = calls[-1]
+            self.assertEqual(base, GRAPH)
+            self.assertIsNone(kwargs["source_image"])
 
 
 if __name__ == "__main__":

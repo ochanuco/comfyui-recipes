@@ -72,7 +72,19 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         context = services.management.request(
             "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
-    base = services.graph_from_png(picked)
+    source_batch = services.management.request(
+        "GET", f"/api/v1/batches/{context['batch']['id']}")
+    source_kind = (source_batch.get("parameters") or {}).get("kind")
+    is_repaired_raw = source_kind in ("repair", "masked_redraw")
+    if is_repaired_raw:
+        base_generation_id = source_batch["parameters"]["base_generation"]
+        base_record = services.management.request(
+            "GET", f"/api/v1/generations/{base_generation_id}")
+        base = ((base_record.get("comfy_job") or {}).get("graph")
+                or services.graph_from_png(
+                    services.management.fetch_generation_image(base_generation_id)))
+    else:
+        base = services.graph_from_png(picked)
     roles = base_roles(base)
     # A LoraLoader in the base graph marks a sketch render; a UNETLoader
     # (checked only once sketch is ruled out) marks an anima render -- a
@@ -137,6 +149,10 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         # picture -- the pixel route is the only correct one, so a caller's
         # explicit opt-in does not survive here.
         latent_route = False
+    if is_repaired_raw and (is_layerdiffuse or not latent_route):
+        raise SystemExit(
+            "finalizing a repaired raw needs the latent route: pass "
+            "latent_route on a recipe whose base is not layerdiffuse")
     seed = base[roles.sampler_id]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"
     base_prompt = PromptPair(
@@ -172,15 +188,16 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     # One staged name per run, shared by skin and repair: a second upload of
     # the same picked bytes buys nothing, and ComfyUI would report a cached
     # node's pose text for nothing if the pose pass reused a stale name.
-    staged_prefix = f"{prefix}-{uuid.uuid4().hex[:8]}" if repair_requested else None
+    staged_prefix = (f"{prefix}-{uuid.uuid4().hex[:8]}"
+                     if repair_requested or is_repaired_raw else None)
     source_image = None
     staged_source = None
     if repair_requested:
         staged_source = services.comfyui.upload_image(
             f"{staged_prefix}-source.png", picked)
-    if skin_applied:
+    if is_repaired_raw or skin_applied:
         source_image = staged_source or services.comfyui.upload_image(
-            f"{prefix}-source.png", picked)
+            f"{staged_prefix or prefix}-source.png", picked)
     if is_layerdiffuse:
         graph = services.chain_pass(
             base, size, denoise, prefix,

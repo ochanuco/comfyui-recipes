@@ -362,6 +362,46 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(sample["inputs"]["cfg"], 5.0)
         self.assertEqual(graph["3"], original_node_3)
 
+    def _plain_base(self):
+        return {
+            "3": {"class_type": "KSampler",
+                  "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
+            "4": {"class_type": "DiffusersLoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                  "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+            "9": {"class_type": "SaveImage",
+                  "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+        }
+
+    def test_chain_pass_latent_route_with_source_image_encodes_it_then_upscales(self):
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                           latent_route=True, source_image="repaired.png")
+        load = graph["23"]
+        self.assertEqual(load, {"class_type": "LoadImage",
+                                "inputs": {"image": "repaired.png"}})
+        encode = graph["11"]
+        self.assertEqual(encode["class_type"], "VAEEncode")
+        self.assertEqual(encode["inputs"]["pixels"], ["23", 0])
+        self.assertEqual(encode["inputs"]["vae"], ["4", 2])
+        scale = graph["10"]
+        self.assertEqual(scale["class_type"], "LatentUpscale")
+        self.assertEqual(scale["inputs"]["samples"], ["11", 0])
+        sample = graph["12"]
+        self.assertEqual(sample["inputs"]["latent_image"], ["10", 0])
+        self.assertEqual(sample["inputs"]["denoise"], 0.55)
+
+    def test_chain_pass_latent_route_without_source_image_upscales_the_base_latent(self):
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                           latent_route=True)
+        scale = graph["10"]
+        self.assertEqual(scale["class_type"], "LatentUpscale")
+        self.assertEqual(scale["inputs"]["samples"], ["3", 0])
+        self.assertNotIn("23", graph)
+
     def test_chain_pass_rejects_a_saved_image_that_is_not_decoded(self):
         base = {
             "3": {"class_type": "KSampler",

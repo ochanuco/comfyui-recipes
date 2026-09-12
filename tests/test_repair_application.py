@@ -395,6 +395,62 @@ class RepairApplicationTest(unittest.TestCase):
             parameters = batch_call(services)[2]["parameters"]
             self.assertIsNone(parameters["model"])
 
+    def test_control_reaches_the_graph_builder_as_a_conditioning_hook(self):
+        with tempfile.TemporaryDirectory() as directory:
+            seen = {}
+
+            def fake_repair_graph(source, **kwargs):
+                seen["conditioning_hooks"] = kwargs.get("conditioning_hooks")
+                return {"repair-graph": kwargs.get("seed")}
+
+            services = base_services(directory, repair_graph=fake_repair_graph)
+            repair("gen-1", services, parts=["feet"], seeds=[1],
+                  control="lineart", control_strength=0.5)
+            self.assertEqual(len(seen["conditioning_hooks"]), 1)
+
+    def test_no_control_reaches_the_graph_builder_as_an_empty_list(self):
+        with tempfile.TemporaryDirectory() as directory:
+            seen = {}
+
+            def fake_repair_graph(source, **kwargs):
+                seen["conditioning_hooks"] = kwargs.get("conditioning_hooks")
+                return {"repair-graph": kwargs.get("seed")}
+
+            services = base_services(directory, repair_graph=fake_repair_graph)
+            repair("gen-1", services, parts=["feet"], seeds=[1])
+            self.assertEqual(seen["conditioning_hooks"], [])
+
+    def test_control_stages_the_reference_hint_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            repair("gen-1", services, parts=["feet"], seeds=[1], control="lineart")
+            names = [name for name, _data in services.comfyui.uploaded]
+            self.assertTrue(any(name.endswith("-control.png") for name in names))
+
+    def test_no_control_stages_no_reference_hint_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            repair("gen-1", services, parts=["feet"], seeds=[1])
+            names = [name for name, _data in services.comfyui.uploaded]
+            self.assertFalse(any(name.endswith("-control.png") for name in names))
+
+    def test_control_is_recorded_in_batch_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            repair("gen-1", services, parts=["feet"], seeds=[1],
+                  control="lineart", control_strength=0.5)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["control"], "lineart")
+            self.assertEqual(parameters["control_strength"], 0.5)
+
+    def test_control_defaults_to_none_in_batch_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            repair("gen-1", services, parts=["feet"], seeds=[1])
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertIsNone(parameters["control"])
+            self.assertIsNone(parameters["control_strength"])
+
     def test_notifier_is_sent_once_after_the_batch_completes(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)

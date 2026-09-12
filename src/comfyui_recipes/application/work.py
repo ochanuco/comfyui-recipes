@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Protocol
 from urllib.parse import quote
 
+from ..domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH, control_model
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
@@ -41,6 +42,7 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
     "parts", "regions", "denoise", "seeds", "size", "pad", "lora", "model",
+    "control", "control_strength",
 })
 
 _KNOWN_MASKED_REDRAW_OPTIONS = frozenset({
@@ -193,6 +195,27 @@ def _model_argument(value: object, *, key: str = "model") -> str | None:
         valid = ", ".join(repr(word) for word in sorted(MODELS))
         raise ValueError(f"{key} must be null or one of {valid}, got {value!r}")
     return value
+
+
+def _control_argument(value: object, *, key: str = "control") -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be null or a string, got {type(value).__name__}")
+    try:
+        control_model(value)
+    except ValueError as error:
+        raise ValueError(f"{key}: {error}") from error
+    return value
+
+
+def _control_strength_argument(value: object, *,
+                               key: str = "control_strength") -> float:
+    if not (isinstance(value, (int, float)) and not isinstance(value, bool)):
+        raise ValueError(f"{key} must be a number, got {type(value).__name__}")
+    if not (0 < value <= 2):
+        raise ValueError(f"{key} must be > 0 and <= 2, got {value!r}")
+    return float(value)
 
 
 class Management(Protocol):
@@ -603,10 +626,14 @@ def repair_arguments(options: Mapping,
     pad = _pad_argument(options.get("pad", 1.0))
     lora = _part_lora_argument(resolve_dial("lora", options.get("lora"), dials))
     model = _model_argument(options.get("model"))
+    control = _control_argument(options.get("control"))
+    control_strength = _control_strength_argument(
+        options.get("control_strength", DEFAULT_CONTROL_STRENGTH))
 
     return {
         "parts": parts, "regions": parsed_regions, "denoise": denoise,
         "seeds": seeds, "size": size, "pad": pad, "lora": lora, "model": model,
+        "control": control, "control_strength": control_strength,
     }
 
 

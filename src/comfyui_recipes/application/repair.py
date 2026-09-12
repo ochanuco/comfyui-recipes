@@ -7,10 +7,12 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import part_loras
 from ..domain.repair.prompt import repair_prompt
 from ..domain.repair.regions import rects_from_fractions, regions_from_pose
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
+from ..infrastructure.comfyui.repair_controlnet import control_hook
 from ..infrastructure.comfyui.repair_graph import (
     DELIVERED_SUFFIX,
     MATTE_SUFFIX,
@@ -19,6 +21,7 @@ from ..infrastructure.comfyui.repair_graph import (
 )
 from ..infrastructure.comfyui.repair_model import anima_model_hook
 from ..infrastructure.imaging.masks import mask_bbox_fraction, render_mask_png
+from ..infrastructure.imaging.toe_template import reference_hint
 
 
 @dataclass(frozen=True)
@@ -64,6 +67,8 @@ def repair(generation_id: str, services: RepairServices, *,
           size: int = 1024, pad: float = 1.0,
           lora: float | None = None,
           model: str | None = None,
+          control: str | None = None,
+          control_strength: float = DEFAULT_CONTROL_STRENGTH,
           key_prefix: str | None = None,
           context: dict | None = None, batch: dict | None = None) -> dict:
     if context is None:
@@ -112,6 +117,13 @@ def repair(generation_id: str, services: RepairServices, *,
     loras = () if model else part_loras(parts, lora)
     model_hooks = [anima_model_hook(model)] if model else ()
 
+    conditioning_hooks = []
+    if control:
+        staged_control_ref = services.comfyui.upload_image(
+            f"{staged}-control.png", reference_hint(size))
+        conditioning_hooks.append(
+            control_hook(control, control_strength, staged_control_ref))
+
     git = services.git_metadata()
     batch_payload = {
         "idempotency_key": key_prefix or str(uuid.uuid4()),
@@ -128,6 +140,8 @@ def repair(generation_id: str, services: RepairServices, *,
             "pad": pad,
             "lora": lora,
             "model": model,
+            "control": control,
+            "control_strength": control_strength if control else None,
             "seeds": list(seeds),
             "mask_bbox": list(mask_bbox),
         },
@@ -150,7 +164,7 @@ def repair(generation_id: str, services: RepairServices, *,
             source_graph, image_name=staged_source, mask_name=staged_mask,
             positive=positive, negative=base_negative, seed=seed,
             denoise=denoise, size=size, prefix=job_prefix, loras=loras,
-            model_hooks=model_hooks)
+            model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
         prompt_id = services.comfyui.submit(graph)
         services.emit(f"{job_prefix} {prompt_id}")
         outputs = services.comfyui.wait_for(prompt_id)

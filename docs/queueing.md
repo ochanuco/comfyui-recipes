@@ -182,9 +182,13 @@ uv run comfy-recipes repair <generation_id> \
 | `pad` | `--pad` | `1.0` | multiplier on the auto-detected region radius, `0.5..3` |
 | `lora` | `--lora [WEIGHT]` | off | load each redrawn part's own LoRA (Feet XL for `feet`, Hands XL for `hands`) inside the crop; bare flag/`true` is weight `0.8`, or give a number in `0..2` |
 | `model` | `--model` | off | sample the crop on another checkpoint instead of the source's own, from the vocabulary in `domain/repair/models.py` (`anima`, `anima-hassaku`, `anima-base`); the crop/mask/stitch stay on the source graph, only the reroll's model/CLIP/VAE/sampler move. Skips `lora` -- the part LoRA chain is Illustrious-only |
+| `control` | `--control SIGNAL` | off | route the crop's conditioning through a ControlNet fed by a synthetic reference hint (see `domain/repair/controlnet.py`); the only signal currently defined is `lineart` |
+| `control_strength` | `--control-strength STRENGTH` | `0.8` | the ControlNet's own strength, `0 < s <= 2`; only used when `control` is set |
 
 `repair_lora` on a finalize-carried repair works the same way; `--repair-lora
-[WEIGHT]` / `repair_lora` in a queued finalize row's `options`.
+[WEIGHT]` / `repair_lora` in a queued finalize row's `options`. `model` /
+`control` / `control_strength` are not available on a finalize-carried
+repair, only on the standalone `repair` request kind and CLI subcommand.
 
 At least one of `parts` or `regions` must be non-empty; a request with both
 empty is rejected before anything is submitted.

@@ -112,11 +112,17 @@ class BuildCatalogTest(unittest.TestCase):
         self.assertEqual(poses["date"]["parent"], "cinema")
         self.assertIn("departures", poses["date"])
         self.assertEqual(poses["date"]["departures"]["parent"], "cinema")
-        for name in ("cinema", "stand"):
+        for name in ("cinema", "stand", "bust"):
             self.assertIsNone(poses[name]["parent"])
+        self.assertEqual(poses["bust"]["canvas"], [1024, 1024])
+        self.assertEqual(
+            [part["text"] for part in poses["bust"]["parts"]
+             if part["name"] in ("proportion", "legwear", "body")],
+            ["adult, ", "", "pale skin, "])
         expected_face = {
             "cinema": None,
             "stand": None,
+            "bust": None,
             "date": ("(tareme:1.2), (jitome:1.25), (half-closed eyes:1.15), "
                      "(smirk:1.2), (smug:1.15), closed mouth, (blush:1.1), "
                      "(head tilt:1.1), looking at viewer, "),

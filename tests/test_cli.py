@@ -73,6 +73,20 @@ class CliTest(unittest.TestCase):
         self.assertEqual(kwargs["seeds"], [1, 2, 3, 4])
         self.assertEqual(kwargs["size"], 1024)
         self.assertEqual(kwargs["pad"], 1.0)
+        self.assertIsNone(kwargs["model"])
+
+    @patch.object(cli, "repair")
+    @patch.object(cli, "ChimeraClient")
+    def test_repair_model_flag_dispatches_without_network(
+            self, chimera_class, run_repair):
+        cli.main(["repair", "gen-1", "--model", "anima"])
+        kwargs = run_repair.call_args.kwargs
+        self.assertEqual(kwargs["model"], "anima")
+
+    def test_repair_unknown_model_is_rejected_by_argparse(self):
+        with redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                cli.main(["repair", "gen-1", "--model", "nope"])
 
     @patch.object(cli, "finalize")
     @patch.object(cli, "ChimeraClient")

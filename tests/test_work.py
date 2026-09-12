@@ -578,6 +578,7 @@ class RepairArgumentsTest(unittest.TestCase):
         self.assertEqual(arguments, {
             "parts": ["hands", "feet"], "regions": [], "denoise": 0.6,
             "seeds": [1, 2, 3, 4], "size": 1024, "pad": 1.0, "lora": None,
+            "model": None,
         })
 
     def test_not_a_mapping_is_rejected(self):
@@ -685,6 +686,16 @@ class RepairArgumentsTest(unittest.TestCase):
             repair_arguments({"denoise": "fuzzy"}, dials)
         self.assertIn("denoise", str(ctx.exception))
         self.assertIn("fuzzy", str(ctx.exception))
+
+    def test_model_default_null(self):
+        self.assertIsNone(repair_arguments({})["model"])
+
+    def test_model_passes_through(self):
+        self.assertEqual(repair_arguments({"model": "anima"})["model"], "anima")
+
+    def test_unknown_model_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "model"):
+            repair_arguments({"model": "nope"})
 
 
 class MaskedRedrawArgumentsTest(unittest.TestCase):

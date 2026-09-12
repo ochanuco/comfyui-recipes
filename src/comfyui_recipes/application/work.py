@@ -15,6 +15,7 @@ from typing import Protocol
 from urllib.parse import quote
 
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
+from ..domain.repair.models import MODELS
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.dials import DIALS as _YUKARI_DIALS
 from ..domain.yukari.recipe import TOE_GUARD
@@ -39,7 +40,7 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
-    "parts", "regions", "denoise", "seeds", "size", "pad", "lora",
+    "parts", "regions", "denoise", "seeds", "size", "pad", "lora", "model",
 })
 
 _KNOWN_MASKED_REDRAW_OPTIONS = frozenset({
@@ -183,6 +184,15 @@ def _part_lora_argument(value: object, *, key: str = "lora") -> float | None:
         return float(value)
     raise ValueError(
         f"{key} must be null, true or a number, got {type(value).__name__}")
+
+
+def _model_argument(value: object, *, key: str = "model") -> str | None:
+    if value is None:
+        return None
+    if value not in MODELS:
+        valid = ", ".join(repr(word) for word in sorted(MODELS))
+        raise ValueError(f"{key} must be null or one of {valid}, got {value!r}")
+    return value
 
 
 class Management(Protocol):
@@ -592,10 +602,11 @@ def repair_arguments(options: Mapping,
     size = _crop_size_argument(options.get("size", 1024))
     pad = _pad_argument(options.get("pad", 1.0))
     lora = _part_lora_argument(resolve_dial("lora", options.get("lora"), dials))
+    model = _model_argument(options.get("model"))
 
     return {
         "parts": parts, "regions": parsed_regions, "denoise": denoise,
-        "seeds": seeds, "size": size, "pad": pad, "lora": lora,
+        "seeds": seeds, "size": size, "pad": pad, "lora": lora, "model": model,
     }
 
 

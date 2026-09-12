@@ -26,6 +26,7 @@ from ..application.work import (
     work,
 )
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
+from ..domain.repair.models import MODELS
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.poses import POSES
@@ -252,6 +253,10 @@ def parser() -> argparse.ArgumentParser:
         metavar="WEIGHT",
         help="load each repaired part's own LoRA (Feet XL / Hands XL) inside "
              "the crop, at this strength; off by default")
+    repair_parser.add_argument(
+        "--model", choices=sorted(MODELS),
+        help="sample the crop on this checkpoint instead of the source's own; "
+             "skips the part LoRA chain, which is Illustrious-only")
 
     masked_redraw_parser = commands.add_parser(
         "masked_redraw", help="masked local redraw of a caller-given region")
@@ -478,7 +483,7 @@ def main(argv: list[str] | None = None) -> None:
             {key: getattr(args, key) for key in REPAIR_DIAL_KEYS})
         repair(args.generation_id, services, parts=parts, regions=regions,
               denoise=dial_values["denoise"], seeds=seeds, size=args.size,
-              pad=args.pad, lora=dial_values["lora"],
+              pad=args.pad, lora=dial_values["lora"], model=args.model,
               context=context, batch=batch)
         return
     if args.command == "masked_redraw":

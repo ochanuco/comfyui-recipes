@@ -345,6 +345,56 @@ class RepairApplicationTest(unittest.TestCase):
             parameters = batch_call(services)[2]["parameters"]
             self.assertIsNone(parameters["lora"])
 
+    def test_model_reaches_the_graph_builder_as_a_model_hook(self):
+        with tempfile.TemporaryDirectory() as directory:
+            seen = {}
+
+            def fake_repair_graph(source, **kwargs):
+                seen["model_hooks"] = kwargs.get("model_hooks")
+                return {"repair-graph": kwargs.get("seed")}
+
+            services = base_services(directory, repair_graph=fake_repair_graph)
+            repair("gen-1", services, parts=["feet"], seeds=[1], model="anima")
+            self.assertEqual(len(seen["model_hooks"]), 1)
+
+    def test_no_model_reaches_the_graph_builder_as_an_empty_tuple(self):
+        with tempfile.TemporaryDirectory() as directory:
+            seen = {}
+
+            def fake_repair_graph(source, **kwargs):
+                seen["model_hooks"] = kwargs.get("model_hooks")
+                return {"repair-graph": kwargs.get("seed")}
+
+            services = base_services(directory, repair_graph=fake_repair_graph)
+            repair("gen-1", services, parts=["feet"], seeds=[1])
+            self.assertEqual(seen["model_hooks"], ())
+
+    def test_model_skips_the_part_lora_chain(self):
+        with tempfile.TemporaryDirectory() as directory:
+            seen = {}
+
+            def fake_repair_graph(source, **kwargs):
+                seen["loras"] = kwargs.get("loras")
+                return {"repair-graph": kwargs.get("seed")}
+
+            services = base_services(directory, repair_graph=fake_repair_graph)
+            repair("gen-1", services, parts=["feet"], seeds=[1], lora=0.8, model="anima")
+            self.assertEqual(seen["loras"], ())
+
+    def test_model_is_recorded_in_batch_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            repair("gen-1", services, parts=["feet"], seeds=[1], model="anima")
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["model"], "anima")
+
+    def test_model_defaults_to_none_in_batch_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            repair("gen-1", services, parts=["feet"], seeds=[1])
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertIsNone(parameters["model"])
+
     def test_notifier_is_sent_once_after_the_batch_completes(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)

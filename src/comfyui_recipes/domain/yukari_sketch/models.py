@@ -8,7 +8,7 @@ silently vanishing. `Pose.parent` names the pose this one was derived from;
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -26,9 +26,16 @@ class Pose:
     face: str | None = None      # full override; mutually exclusive with face_edits
     parent: str | None = None    # the pose this one was derived from
     canvas: tuple[int, int] | None = None
+    # Shared blocks this pose renders with its own text instead, by part
+    # name (`recipe.PART_NAMES`); "" leaves the part empty.
+    part_overrides: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.face is not None and self.face_edits:
             raise ValueError(
                 "Pose.face (full override) and Pose.face_edits are mutually "
                 "exclusive")
+        if {"pose", "face"} & set(self.part_overrides):
+            raise ValueError(
+                "Pose.part_overrides cannot name pose or face -- those are "
+                "Pose.action and Pose.face_edits")

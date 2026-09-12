@@ -19,7 +19,7 @@ from comfyui_recipes.domain.yukari_sketch import prompt_style as ps
 from comfyui_recipes.domain.yukari_sketch.models import Edit, Pose
 from comfyui_recipes.domain.yukari_sketch.poses import POSES as SKETCH_POSES
 from comfyui_recipes.domain.yukari_sketch.recipe import (
-    PART_NAMES, _apply, departures, identity_tags, lineage, negative,
+    PART_NAMES, _apply, _parts, departures, identity_tags, lineage, negative,
     plain_request, positive, positive_parts, refinement_prompt, render_spec,
 )
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
@@ -79,9 +79,26 @@ class PromptTest(unittest.TestCase):
         self.assertEqual(negative("home"), ps.NEGATIVE + ps.GLOSS_BAN)
 
     def test_every_pose_ends_with_the_finish_and_the_gloss_ban(self):
-        for pose in ("cinema", "stand", "date", "cafe", "home", "bath"):
+        for pose in SKETCH_POSES:
             self.assertTrue(positive(pose).endswith(", " + ps.FINISH), pose)
             self.assertTrue(negative(pose).endswith(ps.GLOSS_BAN), pose)
+
+    def test_bust_drops_the_leg_and_thigh_blocks_and_keeps_the_face(self):
+        text = positive("bust")
+        parts = dict(positive_parts("bust"))
+        self.assertEqual(parts["proportion"], "adult, ")
+        self.assertEqual(parts["legwear"], "")
+        self.assertEqual(parts["body"], "pale skin, ")
+        for tag in ("long legs", "tall", "pantyhose", "gradient legwear",
+                    "wide hips", "thick thighs", "soft thighs", "narrow waist"):
+            self.assertNotIn(tag, text, tag)
+        self.assertIn("(head and shoulders:1.4), ", text)
+        self.assertIn(ps.FACE, text)
+        self.assertIn(ps.BACKGROUND, text)
+        self.assertEqual(negative("bust"), ps.NEGATIVE + ps.GLOSS_BAN)
+
+    def test_pose_overrides_win_over_the_costume_legwear(self):
+        self.assertEqual(dict(positive_parts("bust", "bath"))["legwear"], "")
 
     def test_face_override_is_used_only_when_set(self):
         self.assertIn(ps.FACE, positive("cinema"))
@@ -121,6 +138,16 @@ class PoseModelTest(unittest.TestCase):
             with self.subTest(pose=name):
                 self.assertIsNone(pose.face)
 
+    def test_part_overrides_cannot_name_pose_or_face(self):
+        for part in ("pose", "face"):
+            with self.subTest(part=part):
+                with self.assertRaises(ValueError):
+                    Pose(action="x", part_overrides={part: ""})
+
+    def test_part_override_naming_no_part_raises_when_applied(self):
+        with self.assertRaises(AssertionError):
+            _parts("x, ", "default", ps.FACE, {"legs": ""})
+
 
 class DeparturesTest(unittest.TestCase):
     def test_date_departs_from_cinema_on_costume_pose_and_face(self):
@@ -142,6 +169,19 @@ class DeparturesTest(unittest.TestCase):
         self.assertIsNone(dep["parent"])
         self.assertFalse(dep["face_override"])
         self.assertEqual(set(dep["parts"]), {"pose"})
+
+    def test_bust_has_no_parent_and_reports_the_dropped_blocks(self):
+        dep = departures("bust")
+        self.assertIsNone(dep["parent"])
+        self.assertEqual(dep["parts"], {
+            "pose": ["+portrait:1.5", "+head and shoulders:1.4",
+                     "+upper body:1.35", "+face focus:1.3", "+from front:1.2"],
+            "proportion": ["-long legs", "-tall"],
+            "legwear": ["-black pantyhose", "-pale purple pantyhose",
+                        "-gradient legwear"],
+            "body": ["-wide hips", "-thick thighs", "-soft thighs",
+                     "-narrow waist"],
+        })
 
     def test_cafe_face_reports_a_moved_tag_instead_of_a_drop_and_re_add(self):
         self.assertEqual(departures("cafe")["parts"]["face"], [
@@ -205,6 +245,8 @@ class RenderSpecTest(unittest.TestCase):
     def test_pose_canvas_overrides_the_default(self):
         spec = render_spec("cafe", 7, "p")
         self.assertEqual((spec.width, spec.height), (1024, 1280))
+        spec = render_spec("bust", 7, "p")
+        self.assertEqual((spec.width, spec.height), (1024, 1024))
 
     def test_hires_is_rejected(self):
         with self.assertRaises(ValueError):
@@ -467,6 +509,12 @@ class PlainRequestTest(unittest.TestCase):
     def test_stand_with_an_explicit_seed_works(self):
         payload = plain_request("stand", 5)
         self.assertEqual(payload["request"]["seeds"], [5])
+        validate_request(payload)
+
+    def test_bust_is_a_plain_default_costume_request(self):
+        payload = plain_request("bust", 5)
+        self.assertEqual(payload["generation"]["parameters"],
+                         {"pose": "bust", "costume": "default"})
         validate_request(payload)
 
     def test_explicit_costume_overrides_the_pose_default(self):

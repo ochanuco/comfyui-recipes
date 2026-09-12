@@ -23,8 +23,12 @@ The variable part is two small record sets:
   an optional `parent` naming the pose it was derived from, its face as
   `face_edits` diffed over the shared `FACE` block (an optional full-string
   `face` override is still allowed in its place, mutually exclusive with
-  `face_edits`), and an optional `canvas` used in place of the recipe's
-  `WIDTH x HEIGHT`. Unlike `yukari` and `yukari-anima`, there is no mood,
+  `face_edits`), an optional `canvas` used in place of the recipe's
+  `WIDTH x HEIGHT`, and optional `part_overrides` -- the shared blocks the
+  pose renders with its own text instead, by part name (`""` leaves the
+  part empty; `pose` and `face` are refused, since `action` and
+  `face_edits` own them). A pose override wins over the costume's
+  `LEGWEAR_BY_COSTUME` entry. Unlike `yukari` and `yukari-anima`, there is no mood,
   gesture or scene split; the pose is one tag block. `recipe.face_block`
   replays the edits into text; `recipe.departures`/`lineage` (also
   `comfy-recipes sketch lineage`) report a pose's changes from its parent,
@@ -44,6 +48,11 @@ The variable part is two small record sets:
   cup, full body.
 - `stand`: costume `default`. Standing with hands together, arched back,
   from the front, wide shot.
+- `bust`: costume `default`, canvas `1024x1024`. A plain bust-up: portrait,
+  head and shoulders, face focus, from the front, the shared `FACE`. The
+  `proportion`, `legwear` and `body` parts are overridden to `adult`,
+  nothing and `pale skin` -- the leg and thigh tags would otherwise pull
+  the frame down to the thighs ([bust.md](../poses/yukari/bust.md)).
 - `date`: costume `outing`. The cinema props plus white sneakers, a
   knee-length outing dress, and a jitome smirk with a blush and head
   tilt in place of the default `FACE`.
@@ -72,6 +81,9 @@ QUALITY + TRIGGER + CHARACTER + IDENTITY
 + face_block(pose) + BODY + FINISH
 ```
 
+with each part replaced by the pose's `part_overrides` entry when it has
+one.
+
 Negative is `NEGATIVE` plus the costume's `NEGATIVE_BY_COSTUME` entry when
 it has one, then `GLOSS_BAN` -- `pose` and `costume` are still validated
 against their tables so an unknown one is a `KeyError`, and the pose never
@@ -82,7 +94,8 @@ contributes a tag of its own to the negative.
 ## Render constants
 
 Fixed in `prompt_style.py`: `MODEL = "hassaku-il-v22"`, canvas `832x1664`
-(a pose's own `canvas` replaces it -- `cafe`, `home` and `bath` are `1024x1280`), `steps=30`, `cfg=5.0`, sampler `dpmpp_2m`, scheduler `karras`, denoise
+(a pose's own `canvas` replaces it -- `cafe`, `home` and `bath` are `1024x1280`,
+`bust` is `1024x1024`), `steps=30`, `cfg=5.0`, sampler `dpmpp_2m`, scheduler `karras`, denoise
 `1.0`. `LORA = ("sketch-style-xl-linaqruf.safetensors", 0.8)`. There is no
 hires pass -- `render_spec` raises `ValueError` if `hires` or `denoise` is
 requested.

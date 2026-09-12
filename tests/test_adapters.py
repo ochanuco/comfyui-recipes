@@ -426,6 +426,22 @@ class AdapterTest(unittest.TestCase):
         sample = graph["12"]
         self.assertEqual(sample["inputs"]["latent_image"], ["26", 0])
 
+    def test_chain_pass_keep_mask_wires_onto_the_source_image_latent_route(self):
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                           latent_route=True, source_image="repaired.png",
+                           keep_mask_image="keep.png")
+        source_load_id = next(key for key, node in graph.items()
+                              if node.get("inputs", {}).get("image") == "repaired.png")
+        encode = graph["11"]
+        self.assertEqual(encode["inputs"]["pixels"], [source_load_id, 0])
+        scale = graph["10"]
+        self.assertEqual(scale["inputs"]["samples"], ["11", 0])
+        noise_mask = graph["26"]
+        self.assertEqual(noise_mask["class_type"], "SetLatentNoiseMask")
+        self.assertEqual(noise_mask["inputs"]["samples"], ["10", 0])
+        sample = graph["12"]
+        self.assertEqual(sample["inputs"]["latent_image"], ["26", 0])
+
     def test_chain_pass_keep_mask_omitted_adds_nothing(self):
         with_none = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
                                keep_mask_image=None)
@@ -434,6 +450,36 @@ class AdapterTest(unittest.TestCase):
         self.assertFalse(
             any(node.get("class_type") in ("LoadImage", "ImageToMask", "SetLatentNoiseMask")
                 for node in with_none.values()))
+
+    def test_chain_pass_keep_mask_omitted_reproduces_the_pre_existing_graph_exactly(self):
+        # Pinned by hand against the shape chain_pass has always built for a
+        # plain pixel-route pass -- if this ever changes without a
+        # keep_mask_image argument in play, something broke the no-op case.
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664))
+        self.assertEqual(graph, {
+            "3": {"class_type": "KSampler",
+                 "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
+            "4": {"class_type": "DiffusersLoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                 "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                 "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+            "9": {"class_type": "SaveImage",
+                 "inputs": {"images": ["13", 0], "filename_prefix": "fin"}},
+            "10": {"class_type": "ImageScale", "inputs": {
+                "image": ["8", 0], "upscale_method": "bicubic",
+                "width": 1024, "height": 2048, "crop": "disabled"}},
+            "11": {"class_type": "VAEEncode",
+                  "inputs": {"pixels": ["10", 0], "vae": ["4", 2]}},
+            "12": {"class_type": "KSampler", "inputs": {
+                "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
+                "latent_image": ["11", 0], "seed": 7, "steps": 30, "cfg": 5.0,
+                "sampler_name": "dpmpp_2m", "scheduler": "karras", "denoise": 0.55}},
+            "13": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["12", 0], "vae": ["4", 2]}},
+        })
 
     def test_chain_pass_rejects_a_saved_image_that_is_not_decoded(self):
         base = {

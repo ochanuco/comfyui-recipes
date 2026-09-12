@@ -1471,6 +1471,23 @@ class KeepRegionsTest(unittest.TestCase):
             self.assertNotIn("keep_regions", parameters)
             self.assertNotIn("keep_strength", parameters)
 
+    def test_keep_regions_composes_with_a_repaired_raw_finalize(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                generation_records={"raw-1": {"comfy_job": {"graph": SKETCH_GRAPH}}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, keep_regions=[[0.1, 0.1, 0.4, 0.4]])
+            self.assertIsNotNone(calls[-1]["source_image"])
+            self.assertIsNotNone(calls[-1]["keep_mask_image"])
+
     def test_is_layerdiffuse_branch_also_receives_the_keep_mask(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []

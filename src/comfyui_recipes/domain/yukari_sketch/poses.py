@@ -34,7 +34,7 @@ POSES = {
         parent="bust",
         face_edits=(
             Edit("replace", "(tareme:1.2), ",
-                 "(tareme:1.2), (jitome:1.3), "),
+                 "(tareme:1.2), (jitome:1.4), "),
             Edit("replace", "(unamused:1.1), ",
                  "(confident:1.18), (tiny one-corner smirk:1.1), "),
         )),

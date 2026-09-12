@@ -17,6 +17,7 @@ from ..infrastructure.comfyui.repair_graph import (
     repair_graph,
     source_prompts,
 )
+from ..infrastructure.comfyui.repair_model import anima_model_hook
 from ..infrastructure.imaging.masks import mask_bbox_fraction, render_mask_png
 
 
@@ -62,6 +63,7 @@ def repair(generation_id: str, services: RepairServices, *,
           denoise: float = 0.6, seeds: Sequence[int] = (1, 2, 3, 4),
           size: int = 1024, pad: float = 1.0,
           lora: float | None = None,
+          model: str | None = None,
           key_prefix: str | None = None,
           context: dict | None = None, batch: dict | None = None) -> dict:
     if context is None:
@@ -107,7 +109,8 @@ def repair(generation_id: str, services: RepairServices, *,
 
     base_positive, base_negative = source_prompts(source_graph)
     positive = repair_prompt(base_positive, parts)
-    loras = part_loras(parts, lora)
+    loras = () if model else part_loras(parts, lora)
+    model_hooks = [anima_model_hook(model)] if model else ()
 
     git = services.git_metadata()
     batch_payload = {
@@ -124,6 +127,7 @@ def repair(generation_id: str, services: RepairServices, *,
             "size": size,
             "pad": pad,
             "lora": lora,
+            "model": model,
             "seeds": list(seeds),
             "mask_bbox": list(mask_bbox),
         },
@@ -145,7 +149,8 @@ def repair(generation_id: str, services: RepairServices, *,
         graph = services.repair_graph(
             source_graph, image_name=staged_source, mask_name=staged_mask,
             positive=positive, negative=base_negative, seed=seed,
-            denoise=denoise, size=size, prefix=job_prefix, loras=loras)
+            denoise=denoise, size=size, prefix=job_prefix, loras=loras,
+            model_hooks=model_hooks)
         prompt_id = services.comfyui.submit(graph)
         services.emit(f"{job_prefix} {prompt_id}")
         outputs = services.comfyui.wait_for(prompt_id)

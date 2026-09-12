@@ -181,6 +181,7 @@ uv run comfy-recipes repair <generation_id> \
 | `size` | `--size` | `1024` | the crop's target long side, a multiple of 8, at least 256 |
 | `pad` | `--pad` | `1.0` | multiplier on the auto-detected region radius, `0.5..3` |
 | `lora` | `--lora [WEIGHT]` | off | load each redrawn part's own LoRA (Feet XL for `feet`, Hands XL for `hands`) inside the crop; bare flag/`true` is weight `0.8`, or give a number in `0..2` |
+| `model` | `--model` | off | sample the crop on another checkpoint instead of the source's own, from the vocabulary in `domain/repair/models.py` (`anima`, `anima-hassaku`, `anima-base`); the crop/mask/stitch stay on the source graph, only the reroll's model/CLIP/VAE/sampler move. Skips `lora` -- the part LoRA chain is Illustrious-only |
 
 `repair_lora` on a finalize-carried repair works the same way; `--repair-lora
 [WEIGHT]` / `repair_lora` in a queued finalize row's `options`.

@@ -131,11 +131,11 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     if deliver_size is not None and deliver_size < longest:
         deliver_target = (round(width * deliver_size / longest),
                           round(height * deliver_size / longest))
-    # Two routes to the bigger latent, and they do not draw the same picture.
-    # Pixel space is faithful; the latent route leaves a staircase on hard
-    # contours that the redraw turns into visible stroke, which is the hand in
-    # the line this delivery is judged on.
-    if latent_route and not compose:
+    # Several routes to the bigger latent, and they do not draw the same
+    # picture. Pixel space is faithful; the latent route leaves a staircase
+    # on hard contours that the redraw turns into visible stroke, which is
+    # the hand in the line this delivery is judged on.
+    if latent_route and not compose and not source_image:
         graph[scale] = {"class_type": "LatentUpscale", "inputs": {
             "samples": [roles.sampler_id, 0], "upscale_method": "bicubic",
             "width": width, "height": height, "crop": "disabled"}}
@@ -143,6 +143,18 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     elif compose and latent_route:
         graph[encode] = {"class_type": "VAEEncode", "inputs": {
             "pixels": [compose_id, 0], "vae": vae_ref}}
+        graph[scale] = {"class_type": "LatentUpscale", "inputs": {
+            "samples": [encode, 0], "upscale_method": "bicubic",
+            "width": width, "height": height, "crop": "disabled"}}
+        latent_in = [scale, 0]
+    elif latent_route and source_image:
+        # A source image outside the base graph (a repaired raw's own
+        # picture) replaces the base sampler's latent as the thing upscaled.
+        source_load_id = str(next_id + 13)
+        graph[source_load_id] = {"class_type": "LoadImage", "inputs": {
+            "image": source_image}}
+        graph[encode] = {"class_type": "VAEEncode", "inputs": {
+            "pixels": [source_load_id, 0], "vae": vae_ref}}
         graph[scale] = {"class_type": "LatentUpscale", "inputs": {
             "samples": [encode, 0], "upscale_method": "bicubic",
             "width": width, "height": height, "crop": "disabled"}}

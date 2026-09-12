@@ -114,6 +114,19 @@ class CliTest(unittest.TestCase):
         self.assertEqual(kwargs["repair_denoise"], 0.6)
         self.assertEqual(kwargs["repair_pad"], 1.0)
         self.assertEqual(kwargs["repair_size"], 1024)
+        self.assertEqual(kwargs["keep_regions"], [])
+        self.assertEqual(kwargs["keep_strength"], 0.25)
+
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_keep_region_flags_dispatch_without_network(
+            self, chimera_class, run_finalize):
+        cli.main(["finalize", "gen-1", "--keep-region", "0.3,0.58,0.85,0.8",
+                  "--keep-region", "0.0,0.84,0.65,1.0", "--keep-strength", "0.45"])
+        args, kwargs = run_finalize.call_args
+        self.assertEqual(kwargs["keep_regions"],
+                         [[0.3, 0.58, 0.85, 0.8], [0.0, 0.84, 0.65, 1.0]])
+        self.assertEqual(kwargs["keep_strength"], 0.45)
 
     @patch.object(cli, "fetch_source")
     @patch.object(cli, "finalize")

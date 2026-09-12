@@ -20,13 +20,20 @@ from ..domain.yukari_sketch.prompt_style import LORA as SKETCH_LORA
 from ..domain.yukari_sketch.recipe import refinement_prompt as sketch_refinement_prompt
 from ..infrastructure.comfyui.base_graph import base_roles
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
-from ..infrastructure.comfyui.refinement_graph import DELIVERED_SUFFIX, MATTE_SUFFIX
+from ..infrastructure.comfyui.refinement_graph import DELIVERED_SUFFIX, MATTE_SUFFIX, sizes
 from ..infrastructure.comfyui.repair_graph import redraw_canvas, splice_repair
 from ..infrastructure.imaging.delivery import image_size
-from ..infrastructure.imaging.masks import mask_bbox_fraction, render_mask_png
+from ..infrastructure.imaging.masks import (
+    mask_bbox_fraction,
+    render_mask_png,
+    render_soft_mask_png,
+)
 
 # The delivery redraw's longest side.
 FINALIZE_SIZE = 2560
+
+# `render_soft_mask_png`'s feather, as a share of the redraw canvas' longest side.
+KEEP_FEATHER_FRACTION = 0.03
 
 
 @dataclass(frozen=True)
@@ -67,6 +74,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              repair_pad: float = 1.0,
              repair_size: int = 1024,
              repair_lora: float | None = None,
+             keep_regions: Sequence[Sequence[float]] = (),
+             keep_strength: float = 0.25,
              context: dict | None = None) -> dict:
     if context is None:
         context = services.management.request(
@@ -198,6 +207,16 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     if is_repaired_raw or skin_applied:
         source_image = staged_source or services.comfyui.upload_image(
             f"{staged_prefix or prefix}-source.png", picked)
+    keep_region_list = [list(region) for region in keep_regions]
+    keep_mask_image = None
+    if keep_region_list:
+        redraw_width, redraw_height = sizes(*services.image_size(picked), size)
+        keep_rects = rects_from_fractions(keep_region_list, redraw_width, redraw_height)
+        feather = round(KEEP_FEATHER_FRACTION * max(redraw_width, redraw_height))
+        keep_mask_png = render_soft_mask_png(
+            redraw_width, redraw_height, keep_rects, keep_strength, feather)
+        keep_mask_image = services.comfyui.upload_image(
+            f"{prefix}-keep-mask.png", keep_mask_png)
     if is_layerdiffuse:
         graph = services.chain_pass(
             base, size, denoise, prefix,
@@ -213,6 +232,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             backdrop=backdrop,
             upscale=upscale or "bicubic",
             redraw_lora=redraw_lora,
+            keep_mask_image=keep_mask_image,
             deliver_size=deliver_size,
             stroke_light=stroke_light,
             canvas=services.image_size(picked))
@@ -232,6 +252,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             keep_legwear=keep_legwear,
             keep_scene=keep_scene,
             source_image=source_image,
+            keep_mask_image=keep_mask_image,
             transparent=transparent,
             backdrop=backdrop,
             upscale=upscale or "bicubic",
@@ -352,6 +373,9 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                               "size": repair_size, "lora": repair_lora,
                               "mask_bbox": list(repair_mask_bbox)}}
                           if repair_requested else {}),
+                       **({"keep_regions": keep_region_list,
+                           "keep_strength": keep_strength}
+                          if keep_region_list else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,

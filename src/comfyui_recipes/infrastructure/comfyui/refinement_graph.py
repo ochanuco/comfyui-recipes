@@ -31,6 +31,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                skin: bool = False, repin: bool = False, recolor: bool = False,
                keep_legwear: float | None = None, keep_scene: bool = False,
                source_image: str | None = None,
+               keep_mask_image: str | None = None,
                deliver: bool = False, transparent: bool = False,
                compose: bool = False, backdrop: str | None = None,
                redraw_lora: tuple[str, float, float] | None = None,
@@ -169,6 +170,17 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         graph[encode] = {"class_type": "VAEEncode", "inputs": {
             "pixels": [scale, 0], "vae": vae_ref}}
         latent_in = [encode, 0]
+    if keep_mask_image is not None:
+        keep_load_id = str(next_id + 14)
+        graph[keep_load_id] = {"class_type": "LoadImage", "inputs": {
+            "image": keep_mask_image}}
+        keep_to_mask_id = str(next_id + 15)
+        graph[keep_to_mask_id] = {"class_type": "ImageToMask", "inputs": {
+            "image": [keep_load_id, 0], "channel": "red"}}
+        keep_noise_mask_id = str(next_id + 16)
+        graph[keep_noise_mask_id] = {"class_type": "SetLatentNoiseMask", "inputs": {
+            "samples": latent_in, "mask": [keep_to_mask_id, 0]}}
+        latent_in = [keep_noise_mask_id, 0]
     # Steps, cfg and seed are the base pass's own: a checkpoint that was tuned
     # at a different cfg must be redrawn the way it was drawn. The sampler is
     # the base pass's own too, unless the caller overrides it.

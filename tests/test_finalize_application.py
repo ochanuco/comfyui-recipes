@@ -1425,5 +1425,66 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
             self.assertIsNone(kwargs["source_image"])
 
 
+class KeepRegionsTest(unittest.TestCase):
+    def test_keep_regions_uploads_a_soft_mask_and_passes_it_to_chain_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, keep_regions=[[0.1, 0.1, 0.4, 0.4]])
+            self.assertIsNotNone(calls[-1]["keep_mask_image"])
+            uploaded_names = [name for name, _data in services.comfyui.uploaded]
+            self.assertTrue(any(name.endswith("-keep-mask.png") for name in uploaded_names))
+
+    def test_keep_regions_empty_leaves_keep_mask_image_none(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            self.assertIsNone(calls[-1]["keep_mask_image"])
+            uploaded_names = [name for name, _data in services.comfyui.uploaded]
+            self.assertFalse(any(name.endswith("-keep-mask.png") for name in uploaded_names))
+
+    def test_keep_regions_and_strength_are_recorded_in_batch_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services, keep_regions=[[0.1, 0.1, 0.4, 0.4]],
+                     keep_strength=0.4)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["keep_regions"], [[0.1, 0.1, 0.4, 0.4]])
+            self.assertEqual(parameters["keep_strength"], 0.4)
+
+    def test_keep_regions_default_is_not_recorded_in_batch_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertNotIn("keep_regions", parameters)
+            self.assertNotIn("keep_strength", parameters)
+
+    def test_is_layerdiffuse_branch_also_receives_the_keep_mask(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: copy.deepcopy(LAYERDIFFUSE_SKETCH_GRAPH))
+            finalize("gen-id", services, keep_regions=[[0.1, 0.1, 0.4, 0.4]])
+            self.assertIsNotNone(calls[-1]["keep_mask_image"])
+
+
 if __name__ == "__main__":
     unittest.main()

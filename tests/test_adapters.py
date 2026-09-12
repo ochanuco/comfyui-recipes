@@ -402,6 +402,39 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(scale["inputs"]["samples"], ["3", 0])
         self.assertNotIn("23", graph)
 
+    def test_chain_pass_keep_mask_wires_between_latent_source_and_sampler(self):
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                           keep_mask_image="keep.png")
+        load = graph["24"]
+        self.assertEqual(load, {"class_type": "LoadImage", "inputs": {"image": "keep.png"}})
+        to_mask = graph["25"]
+        self.assertEqual(to_mask, {"class_type": "ImageToMask",
+                                   "inputs": {"image": ["24", 0], "channel": "red"}})
+        noise_mask = graph["26"]
+        self.assertEqual(noise_mask["class_type"], "SetLatentNoiseMask")
+        self.assertEqual(noise_mask["inputs"]["mask"], ["25", 0])
+        # Pixel route: the noise mask sits between the VAEEncode and the sampler.
+        self.assertEqual(noise_mask["inputs"]["samples"], ["11", 0])
+        sample = graph["12"]
+        self.assertEqual(sample["inputs"]["latent_image"], ["26", 0])
+
+    def test_chain_pass_keep_mask_wires_onto_the_latent_route_too(self):
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                           latent_route=True, keep_mask_image="keep.png")
+        noise_mask = graph["26"]
+        self.assertEqual(noise_mask["inputs"]["samples"], ["10", 0])
+        sample = graph["12"]
+        self.assertEqual(sample["inputs"]["latent_image"], ["26", 0])
+
+    def test_chain_pass_keep_mask_omitted_adds_nothing(self):
+        with_none = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                               keep_mask_image=None)
+        without_kwarg = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664))
+        self.assertEqual(with_none, without_kwarg)
+        self.assertFalse(
+            any(node.get("class_type") in ("LoadImage", "ImageToMask", "SetLatentNoiseMask")
+                for node in with_none.values()))
+
     def test_chain_pass_rejects_a_saved_image_that_is_not_decoded(self):
         base = {
             "3": {"class_type": "KSampler",

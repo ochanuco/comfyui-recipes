@@ -109,7 +109,6 @@ def repair(generation_id: str, services: RepairServices, *,
 
     base_positive, base_negative = source_prompts(source_graph)
     positive = repair_prompt(base_positive, parts)
-    # The part LoRA chain is Illustrious-only; a model swap leaves it behind.
     loras = () if model else part_loras(parts, lora)
     model_hooks = [anima_model_hook(model)] if model else ()
 

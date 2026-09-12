@@ -188,7 +188,7 @@ class DeparturesTest(unittest.TestCase):
             "parent": "bust",
             "face_override": False,
             "parts": {
-                "face": ["+jitome:1.3", "-unamused", "+confident:1.18",
+                "face": ["+jitome:1.4", "-unamused", "+confident:1.18",
                          "+tiny one-corner smirk:1.1"],
             },
         })

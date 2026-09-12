@@ -123,7 +123,7 @@ class BuildCatalogTest(unittest.TestCase):
             "cinema": None,
             "stand": None,
             "bust": None,
-            "smug": ("(tareme:1.2), (jitome:1.3), (half-closed eyes:1.2), "
+            "smug": ("(tareme:1.2), (jitome:1.4), (half-closed eyes:1.2), "
                      "(confident:1.18), (tiny one-corner smirk:1.1), "
                      "closed mouth, looking at viewer, "),
             "date": ("(tareme:1.2), (jitome:1.25), (half-closed eyes:1.15), "

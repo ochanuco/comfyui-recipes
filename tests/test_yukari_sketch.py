@@ -183,6 +183,18 @@ class DeparturesTest(unittest.TestCase):
                      "-narrow waist"],
         })
 
+    def test_smug_departs_from_bust_on_face_only(self):
+        self.assertEqual(departures("smug"), {
+            "parent": "bust",
+            "face_override": False,
+            "parts": {
+                "face": ["+jitome:1.3", "-unamused", "+confident:1.18",
+                         "+tiny one-corner smirk:1.1"],
+            },
+        })
+        self.assertEqual(
+            positive_parts("smug")[:7], positive_parts("bust")[:7])
+
     def test_cafe_face_reports_a_moved_tag_instead_of_a_drop_and_re_add(self):
         self.assertEqual(departures("cafe")["parts"]["face"], [
             "jitome 1.25 -> 1.2", "-half-closed eyes", "-smirk", "-smug",

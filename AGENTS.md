@@ -32,8 +32,8 @@ Three recipes are live, all under `src/comfyui_recipes/domain/`:
   linaqruf sketch LoRA on a minimal prompt (no style block, no texture bans,
   a moderate proportion block, simple grey background) and a latent-route
   2560 redraw at denoise 0.55. `docs/yukari/sketch.md` is the description;
-  `poses.py` holds `cinema`, `stand`, `bust`, `date`, `cafe`, `home` and
-  `bath`. A pose is one `Pose` record (action string, costume, a `parent`
+  `poses.py` holds `cinema`, `stand`, `bust`, `smug`, `date`, `cafe`, `home`
+  and `bath`. A pose is one `Pose` record (action string, costume, a `parent`
   pose it was derived from, its face as `face_edits` diffed over the shared
   `FACE` block -- a full-string `face` override is still allowed as an
   escape hatch -- and `part_overrides`, shared blocks it renders with its

@@ -53,6 +53,9 @@ The variable part is two small record sets:
   `proportion`, `legwear` and `body` parts are overridden to `adult`,
   nothing and `pale skin` -- the leg and thigh tags would otherwise pull
   the frame down to the thighs ([bust.md](../poses/yukari/bust.md)).
+- `smug`: `bust` with the face changed -- jitome added, `unamused` replaced
+  by `confident` and a tiny one-corner smirk. The bust-up that knows
+  something ([smug.md](../poses/yukari/smug.md)).
 - `date`: costume `outing`. The cinema props plus white sneakers, a
   knee-length outing dress, and a jitome smirk with a blush and head
   tilt in place of the default `FACE`.

@@ -5,7 +5,9 @@
 .DESCRIPTION
     The recipe in scripts/yukari_recipe.py needs exactly one thing: the
     hassaku-il-v22 diffusers folder. The two LoRAs are legacy optional files
-    and are not used by the current Yukari recipe.
+    and are not used by the current Yukari recipe. The ControlNet adapter is
+    for the repair reroll's `control=lineart` option and is not required for
+    plain generation.
 
     Every SHA256 below was taken from the mac's own copy and matched against
     the Hugging Face mirror, so what lands here is bit-for-bit the model the
@@ -52,6 +54,15 @@ $ErrorActionPreference = 'Stop'
 # ---------------------------------------------------------------------------
 
 $HfRepo = 'John6666/hassaku-xl-illustrious-v22-sdxl'
+
+# ControlNet adapter for the repair reroll's `control=lineart` signal.
+$ControlNetHfRepo = 'Eugeoter/noob-sdxl-controlnet-lineart_anime'
+$ControlNetFile = @{
+    Path   = 'diffusion_pytorch_model.fp16.safetensors'
+    Name   = 'noob-lineart-anime-fp16.safetensors'
+    Size   = 2502139136
+    Sha256 = '44eae6a514a60ae426ff966ecdbb9e170ad63d8889456982bb29037df42b86a8'
+}
 
 # Mirror of Civitai model 140272 version 1697082 (Hassaku XL Illustrious v2.2
 # by Ikena), converted to diffusers by John6666. ComfyUI's CheckpointLoader
@@ -206,10 +217,12 @@ if (-not (Test-Path -LiteralPath $mainPy)) {
 $modelsDir = Join-Path $ComfyRoot 'models'
 $diffusersDir = Join-Path $modelsDir 'diffusers\hassaku-il-v22'
 $lorasDir = Join-Path $modelsDir 'loras'
+$controlnetDir = Join-Path $modelsDir 'controlnet'
 
 Write-Host "ComfyUI root : $ComfyRoot"
 Write-Host "checkpoint   : $diffusersDir"
 Write-Host "loras        : $lorasDir"
+Write-Host "controlnet   : $controlnetDir"
 
 # ---------------------------------------------------------------------------
 # The checkpoint
@@ -281,6 +294,23 @@ else {
 
     Write-Host ""
     Write-Host "loras done" -ForegroundColor Green
+}
+
+# ---------------------------------------------------------------------------
+# The repair reroll's ControlNet
+# ---------------------------------------------------------------------------
+
+Write-Step "noob-lineart-anime-fp16 (~2.3 GB) from $ControlNetHfRepo"
+
+$target = Join-Path $controlnetDir $ControlNetFile.Name
+Write-Host "  $($ControlNetFile.Name)"
+if (Test-Existing -Path $target -Size $ControlNetFile.Size -Sha256 $ControlNetFile.Sha256) {
+    Write-Host "    already present" -ForegroundColor DarkGray
+}
+else {
+    $url = "https://huggingface.co/$ControlNetHfRepo/resolve/main/$($ControlNetFile.Path)"
+    Get-RemoteFile -Url $url -Destination $target
+    Assert-Hash -Path $target -Sha256 $ControlNetFile.Sha256 -Size $ControlNetFile.Size
 }
 
 # ---------------------------------------------------------------------------

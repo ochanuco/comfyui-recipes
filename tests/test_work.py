@@ -28,6 +28,7 @@ from comfyui_recipes.application.work import (
     work,
     work_once,
 )
+from comfyui_recipes.domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH
 from comfyui_recipes.domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from comfyui_recipes.domain.yukari.dials import DIALS as YUKARI_DIALS
 from comfyui_recipes.domain.yukari.recipe import TOE_GUARD
@@ -579,6 +580,7 @@ class RepairArgumentsTest(unittest.TestCase):
             "parts": ["hands", "feet"], "regions": [], "denoise": 0.6,
             "seeds": [1, 2, 3, 4], "size": 1024, "pad": 1.0, "lora": None,
             "model": None,
+            "control": None, "control_strength": DEFAULT_CONTROL_STRENGTH,
         })
 
     def test_not_a_mapping_is_rejected(self):
@@ -696,6 +698,34 @@ class RepairArgumentsTest(unittest.TestCase):
     def test_unknown_model_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "model"):
             repair_arguments({"model": "nope"})
+
+    def test_control_default_null(self):
+        self.assertIsNone(repair_arguments({})["control"])
+
+    def test_control_lineart_passes_through(self):
+        self.assertEqual(repair_arguments({"control": "lineart"})["control"], "lineart")
+
+    def test_control_unknown_word_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "control"):
+            repair_arguments({"control": "nope"})
+
+    def test_control_not_a_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "control"):
+            repair_arguments({"control": True})
+
+    def test_control_strength_default(self):
+        self.assertEqual(
+            repair_arguments({})["control_strength"], DEFAULT_CONTROL_STRENGTH)
+
+    def test_control_strength_number_passes_through(self):
+        self.assertEqual(
+            repair_arguments({"control_strength": 0.5})["control_strength"], 0.5)
+
+    def test_control_strength_out_of_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "control_strength"):
+            repair_arguments({"control_strength": 0})
+        with self.assertRaisesRegex(ValueError, "control_strength"):
+            repair_arguments({"control_strength": 2.5})
 
 
 class MaskedRedrawArgumentsTest(unittest.TestCase):

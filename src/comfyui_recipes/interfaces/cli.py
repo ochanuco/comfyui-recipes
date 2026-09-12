@@ -25,6 +25,7 @@ from ..application.work import (
     resolve_dial,
     work,
 )
+from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
 from ..domain.yukari.costumes import COSTUMES
@@ -257,6 +258,14 @@ def parser() -> argparse.ArgumentParser:
         "--model", choices=sorted(MODELS),
         help="sample the crop on this checkpoint instead of the source's own; "
              "skips the part LoRA chain, which is Illustrious-only")
+    repair_parser.add_argument(
+        "--control", choices=sorted(CONTROL_MODELS), metavar="SIGNAL",
+        help="route the crop's conditioning through this ControlNet signal; "
+             "off by default")
+    repair_parser.add_argument(
+        "--control-strength", type=float, default=DEFAULT_CONTROL_STRENGTH,
+        metavar="STRENGTH",
+        help="the ControlNet's own strength, used only with --control")
 
     masked_redraw_parser = commands.add_parser(
         "masked_redraw", help="masked local redraw of a caller-given region")
@@ -484,6 +493,7 @@ def main(argv: list[str] | None = None) -> None:
         repair(args.generation_id, services, parts=parts, regions=regions,
               denoise=dial_values["denoise"], seeds=seeds, size=args.size,
               pad=args.pad, lora=dial_values["lora"], model=args.model,
+              control=args.control, control_strength=args.control_strength,
               context=context, batch=batch)
         return
     if args.command == "masked_redraw":

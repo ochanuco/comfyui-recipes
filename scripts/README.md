@@ -19,7 +19,7 @@ they still need to exist:
 - `costume_check.py`, `palette_check.py`, `prompt_lint.py` — contract and
   request checks.
 - `recolor_*.py`, `outline_stroke.py`, `line_*.py`, `stripe_paint.py`,
-  `repin.py` — manual image utilities.
+  `repin.py`, `glitch.py` — manual image utilities.
 - `analysis/` — measurement and diagnostic CLIs.
 - `archive/` — exhausted one-off experiments kept only as provenance.
 - `*.sh`, `*.ps1` — environment setup and operator automation.

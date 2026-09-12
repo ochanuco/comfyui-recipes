@@ -13,6 +13,7 @@ import copy
 import json
 import tempfile
 import unittest
+from dataclasses import replace as dataclass_replace
 from pathlib import Path
 
 from comfyui_recipes.application.finalize import FinalizeServices, finalize
@@ -23,7 +24,11 @@ from comfyui_recipes.domain.yukari.recipe import refinement_prompt
 from comfyui_recipes.domain.yukari_anima import delivery_style as anima_delivery_style
 from comfyui_recipes.domain.yukari_anima.recipe import render_spec
 from comfyui_recipes.domain.yukari_sketch import delivery_style as sketch_delivery_style
+from comfyui_recipes.domain.yukari_sketch.prompt_style import CFG as SKETCH_CFG
 from comfyui_recipes.domain.yukari_sketch.prompt_style import LORA as SKETCH_LORA
+from comfyui_recipes.domain.yukari_sketch.prompt_style import STEPS as SKETCH_STEPS
+from comfyui_recipes.domain.yukari_sketch.recipe import negative as sketch_negative
+from comfyui_recipes.domain.yukari_sketch.recipe import positive as sketch_positive
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 
@@ -501,6 +506,131 @@ class FinalizeApplicationTest(unittest.TestCase):
             self.assertEqual(
                 batch_call(services)[2]["parameters"]["finalizer"],
                 "other-checkpoint")
+
+    def test_sketch_redraw_needs_an_anima_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for graph_from_png in (lambda data: GRAPH, lambda data: SKETCH_GRAPH):
+                services = base_services(directory, graph_from_png=graph_from_png)
+                with self.assertRaises(SystemExit):
+                    finalize("gen-id", services, sketch_redraw="cinema")
+
+    def test_sketch_redraw_unknown_pose_raises(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory, graph_from_png=lambda data: ANIMA_GRAPH)
+            with self.assertRaises(KeyError):
+                finalize("gen-id", services, sketch_redraw="not-a-pose")
+
+    def test_sketch_redraw_uses_the_sketch_prompt_lora_and_sampler(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chain_pass_calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                chain_pass_calls.append((size, denoise, kwargs))
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: ANIMA_GRAPH)
+            finalize("gen-id", services, sketch_redraw="cinema")
+
+            size, denoise, kwargs = chain_pass_calls[-1]
+            self.assertEqual(kwargs["prompt"],
+                             (sketch_positive("cinema"), sketch_negative("cinema")))
+            self.assertEqual(kwargs["sampler"], sketch_delivery_style.FINALIZE_SAMPLER)
+            self.assertEqual(kwargs["sampling"], (SKETCH_STEPS, SKETCH_CFG))
+            self.assertEqual(kwargs["loader"], anima_delivery_style.FINALIZE_MODEL)
+            self.assertEqual(kwargs["redraw_lora"],
+                             (SKETCH_LORA[0], SKETCH_LORA[1], SKETCH_LORA[1]))
+            self.assertEqual(denoise, sketch_delivery_style.FINALIZE_DENOISE)
+            self.assertEqual(size, sketch_delivery_style.FINALIZE_SIZE)
+            self.assertIs(kwargs["transparent"], True)
+            self.assertEqual(
+                batch_call(services)[2]["parameters"]["deliver_size"],
+                sketch_delivery_style.DELIVER_SIZE)
+            self.assertEqual(
+                batch_call(services)[2]["parameters"]["sketch_redraw"], "cinema")
+
+    def test_sketch_redraw_honors_an_explicit_lora_strength(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chain_pass_calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                chain_pass_calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: ANIMA_GRAPH)
+            finalize("gen-id", services, sketch_redraw="cinema", lora_strength=1.3)
+
+            self.assertEqual(chain_pass_calls[-1]["redraw_lora"], (SKETCH_LORA[0], 1.3, 1.3))
+
+    def test_lora_strength_on_an_anima_base_without_sketch_redraw_still_raises(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory, graph_from_png=lambda data: ANIMA_GRAPH)
+            with self.assertRaises(SystemExit):
+                finalize("gen-id", services, lora_strength=1.0)
+
+    def test_sketch_redraw_submitted_graph_carries_the_sketch_lora_and_sampler(self):
+        with tempfile.TemporaryDirectory() as directory:
+            spec = render_spec("stand", 42, "fin-nare8p-il-rough")
+            anima_base = anima_graph.build_graph(spec)
+            submitted = []
+
+            class RealComfyFake(ComfyFake):
+                def submit(self, graph):
+                    submitted.append(graph)
+                    return "prompt-id"
+
+            services = base_services(
+                directory, chain_pass=chain_pass, comfyui=RealComfyFake(),
+                graph_from_png=lambda data: anima_base)
+            finalize("gen-id", services, sketch_redraw="cinema")
+
+            graph = submitted[0]
+            loaders = [node for node in graph.values()
+                      if node.get("class_type") == "DiffusersLoader"]
+            self.assertTrue(any(
+                loader["inputs"]["model_path"] == "hassaku-il-v22"
+                for loader in loaders))
+            lora_loaders = [node for node in graph.values()
+                           if node.get("class_type") == "LoraLoader"]
+            self.assertTrue(any(
+                node["inputs"]["lora_name"] == SKETCH_LORA[0]
+                for node in lora_loaders))
+            redraw_sampler = next(
+                node["inputs"] for node in graph.values()
+                if node.get("class_type") == "KSampler"
+                and node["inputs"]["sampler_name"] == "euler")
+            self.assertEqual(redraw_sampler["scheduler"], "normal")
+            self.assertEqual(redraw_sampler["denoise"], sketch_delivery_style.FINALIZE_DENOISE)
+            positive_id = redraw_sampler["positive"][0]
+            self.assertEqual(graph[positive_id]["inputs"]["text"], sketch_positive("cinema"))
+
+    def test_anima_base_with_a_lora_loader_model_only_still_classifies_as_anima(self):
+        with tempfile.TemporaryDirectory() as directory:
+            spec = dataclass_replace(
+                render_spec("stand", 42, "p"),
+                loras=(("anima-sketch-style-chosen.safetensors", 0.8),))
+            anima_base_with_lora = anima_graph.build_graph(spec)
+            chain_pass_calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                chain_pass_calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: anima_base_with_lora)
+            finalize("gen-id", services)
+
+            # A sketch classification would leave loader/sampling unset (None);
+            # the anima defaults prove the LoraLoaderModelOnly node (not
+            # LoraLoader) did not get mistaken for a sketch base's own LoRA.
+            self.assertEqual(
+                chain_pass_calls[-1]["loader"], anima_delivery_style.FINALIZE_MODEL)
+            self.assertEqual(
+                chain_pass_calls[-1]["sampler"], anima_delivery_style.FINALIZE_SAMPLER)
 
     def test_yukari_base_keeps_no_loader_and_no_sampling_override(self):
         with tempfile.TemporaryDirectory() as directory:

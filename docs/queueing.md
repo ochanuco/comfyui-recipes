@@ -52,11 +52,21 @@ case `comfy-recipes generate` does. A `finalize` row's payload is
 flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
 `size`, `deliver_size`, `handdrawn`, `skin`, `toe_guard`, `keep_scene`,
 `stroke_light`, `repair`, `repair_regions`, `repair_denoise`, `repair_pad`,
-`repair_size`, `repair_lora`) with the same defaults `comfy-recipes finalize`
-has when a flag is omitted. A `repair` row's payload is `{"generation_id", "options":
+`repair_size`, `repair_lora`, `sketch_redraw`) with the same defaults
+`comfy-recipes finalize` has when a flag is omitted. A `repair` row's payload is
+`{"generation_id", "options":
 {...}}` too; see [Repair](#repair) below for its options. A `masked_redraw`
 row's payload is the same shape again; see
 [Masked redraw](#masked-redraw) below for its options.
+
+`sketch_redraw` (`--sketch-redraw POSE`) is valid only on an anima base: the
+redraw runs the yukari-sketch recipe's own prompt for `POSE` (its own default
+costume) instead of the anima recipe's rough-style redraw, loads the sketch
+LoRA at `lora_strength` (or the sketch recipe's own default), and samples
+`euler`/`normal` at the sketch recipe's steps/cfg. Denoise, size, deliver-size
+and the transparent-cutout default all follow yukari-sketch's own defaults
+too; an unknown pose is the same error `comfy-recipes sketch prompt` raises,
+and using it on a non-anima base is rejected.
 
 `backdrop` (`--backdrop` on the CLI) takes a `#RRGGBB` colour or the named
 pattern `stripes`; setting it turns off the sketch recipe's transparent
@@ -287,7 +297,12 @@ recipe to that strength; it fails on a recipe with no LoRA. String targets
 are `render.model`, `render.sampler`, `render.scheduler`, and
 `render.layerdiffuse_config`, with op `set` only and a required non-empty
 string `value`; `render.layerdiffuse_config` must be `"SDXL, Attention
-Injection"` or `"SDXL, Conv Injection"`.
+Injection"` or `"SDXL, Conv Injection"`. `render.loras`, op `set` only,
+replaces `spec.loras` outright: `value` is a non-empty list of `[name,
+strength]` pairs, `name` a non-empty string ending in `.safetensors` and
+`strength` a number with `0 <= strength <= 2`. On `yukari-anima` each pair
+becomes a `LoraLoaderModelOnly` node chained from the `UNETLoader` into the
+`KSampler`'s model.
 
 Every patch requires a one-line `reason`. The patch list is recorded into
 each generation's semantic attributes at ingest, and the submitted graph

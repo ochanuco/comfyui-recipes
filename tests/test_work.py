@@ -301,7 +301,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "stroke_light": None,
             "repair": None, "repair_regions": [], "repair_denoise": 0.6,
             "repair_pad": 1.0, "repair_size": 1024, "repair_lora": None,
-            "keep_regions": [], "keep_strength": 0.25,
+            "keep_regions": [], "keep_strength": 0.25, "sketch_redraw": None,
         })
 
     def test_backdrop_null_passes_through(self):
@@ -570,6 +570,21 @@ class FinalizeArgumentsTest(unittest.TestCase):
     def test_a_number_is_unaffected_by_dials_being_given(self):
         dials = SKETCH_DIALS["finalize"]
         self.assertEqual(finalize_arguments({"denoise": 0.7}, dials)["denoise"], 0.7)
+
+    def test_sketch_redraw_null_passes_through(self):
+        self.assertIsNone(finalize_arguments({})["sketch_redraw"])
+
+    def test_sketch_redraw_string_passes_through(self):
+        self.assertEqual(
+            finalize_arguments({"sketch_redraw": "cinema"})["sketch_redraw"], "cinema")
+
+    def test_sketch_redraw_empty_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "sketch_redraw"):
+            finalize_arguments({"sketch_redraw": ""})
+
+    def test_sketch_redraw_non_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "sketch_redraw"):
+            finalize_arguments({"sketch_redraw": True})
 
     def test_unknown_key_is_rejected(self):
         with self.assertRaises(ValueError) as ctx:

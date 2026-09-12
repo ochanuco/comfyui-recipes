@@ -119,6 +119,21 @@ class CliTest(unittest.TestCase):
 
     @patch.object(cli, "finalize")
     @patch.object(cli, "ChimeraClient")
+    def test_finalize_sketch_redraw_dispatches_without_network(
+            self, chimera_class, run_finalize):
+        cli.main(["finalize", "gen-1", "--sketch-redraw", "cinema"])
+        args, kwargs = run_finalize.call_args
+        self.assertEqual(kwargs["sketch_redraw"], "cinema")
+
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_sketch_redraw_defaults_to_none(self, chimera_class, run_finalize):
+        cli.main(["finalize", "gen-1"])
+        args, kwargs = run_finalize.call_args
+        self.assertIsNone(kwargs["sketch_redraw"])
+
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
     def test_finalize_keep_region_flags_dispatch_without_network(
             self, chimera_class, run_finalize):
         cli.main(["finalize", "gen-1", "--keep-region", "0.3,0.58,0.85,0.8",

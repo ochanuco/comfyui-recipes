@@ -172,6 +172,11 @@ def parser() -> argparse.ArgumentParser:
         help="DiffusersLoader model_path that redraws instead of the base "
              "pass's own checkpoint")
     finalize_parser.add_argument(
+        "--sketch-redraw", metavar="POSE",
+        help="on an anima base, redraw with the yukari-sketch look for POSE "
+             "(that pose's own prompt, LoRA and sampler) instead of the "
+             "anima recipe's own rough-style redraw")
+    finalize_parser.add_argument(
         "--keep-scene", action="store_true",
         help="deliver the redraw uncut, background and all")
     transparent_group = finalize_parser.add_mutually_exclusive_group()
@@ -469,6 +474,7 @@ def main(argv: list[str] | None = None) -> None:
                  size=args.size,
                  latent_route=args.latent_route,
                  finalizer=args.finalizer,
+                 sketch_redraw=args.sketch_redraw,
                  toe_guard=dial_values["toe_guard"],
                  backdrop=args.backdrop,
                  upscale=args.upscale,

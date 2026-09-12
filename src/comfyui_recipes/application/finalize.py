@@ -16,7 +16,11 @@ from ..domain.yukari.recipe import refinement_prompt
 from ..domain.yukari_anima import delivery_style as anima_delivery_style
 from ..domain.yukari_anima.recipe import refinement_prompt as anima_refinement_prompt
 from ..domain.yukari_sketch import delivery_style as sketch_delivery_style
+from ..domain.yukari_sketch.prompt_style import CFG as SKETCH_CFG
 from ..domain.yukari_sketch.prompt_style import LORA as SKETCH_LORA
+from ..domain.yukari_sketch.prompt_style import STEPS as SKETCH_STEPS
+from ..domain.yukari_sketch.recipe import negative as sketch_negative
+from ..domain.yukari_sketch.recipe import positive as sketch_positive
 from ..domain.yukari_sketch.recipe import refinement_prompt as sketch_refinement_prompt
 from ..infrastructure.comfyui.base_graph import base_roles
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
@@ -62,6 +66,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              toe_guard: float | None = None,
              size: int | None = None, latent_route: bool | None = None,
              finalizer: str | None = None,
+             sketch_redraw: str | None = None,
              key_prefix: str | None = None,
              backdrop: str | None = None,
              upscale: str | None = None,
@@ -107,33 +112,41 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     # it, since the redraw itself moves the silhouette.
     is_layerdiffuse = any(node.get("class_type") == "LayeredDiffusionApply"
                           for node in base.values())
-    if lora_strength is not None and not is_sketch:
+    if sketch_redraw is not None and not is_anima:
+        raise SystemExit("sketch_redraw needs an anima base")
+    is_anima_sketch_redraw = is_anima and sketch_redraw is not None
+    # An anima base asked for the sketch redraw takes the same delivery
+    # defaults (denoise, size, transparent cutout) as a real yukari-sketch
+    # base -- it is the same look, drawn from a different base recipe.
+    is_sketch_style = is_sketch or is_anima_sketch_redraw
+    if lora_strength is not None and not is_sketch_style:
         raise SystemExit("lora_strength needs a recipe with a LoRA")
     if apply_recolor and is_sketch:
         raise SystemExit("recolor asserts the lap-look palette and strips a "
                          "yukari-sketch render's own; use repin or nothing")
     redraw_lora = None
-    if is_sketch and (is_layerdiffuse or lora_strength is not None):
+    if ((is_sketch and (is_layerdiffuse or lora_strength is not None))
+            or is_anima_sketch_redraw):
         strength = SKETCH_LORA[1] if lora_strength is None else lora_strength
         redraw_lora = (SKETCH_LORA[0], strength, strength)
     if denoise is None:
         denoise = (sketch_delivery_style.FINALIZE_DENOISE_LAYERDIFFUSE
                    if is_sketch and is_layerdiffuse
-                   else sketch_delivery_style.FINALIZE_DENOISE if is_sketch
+                   else sketch_delivery_style.FINALIZE_DENOISE if is_sketch_style
                    else anima_delivery_style.FINALIZE_DENOISE if is_anima
                    else delivery_style.FINALIZE_DENOISE)
     if size is None:
-        size = (sketch_delivery_style.FINALIZE_SIZE if is_sketch
+        size = (sketch_delivery_style.FINALIZE_SIZE if is_sketch_style
                 else anima_delivery_style.FINALIZE_SIZE if is_anima
                 else FINALIZE_SIZE)
     if deliver_size is None:
-        deliver_size = sketch_delivery_style.DELIVER_SIZE if is_sketch else None
+        deliver_size = sketch_delivery_style.DELIVER_SIZE if is_sketch_style else None
     caller_latent_route = latent_route
     if latent_route is None:
         latent_route = is_sketch and sketch_delivery_style.FINALIZE_LATENT_ROUTE
     if transparent is None:
         transparent = False if backdrop else (
-            is_sketch and sketch_delivery_style.FINALIZE_TRANSPARENT)
+            is_sketch_style and sketch_delivery_style.FINALIZE_TRANSPARENT)
     if keep_scene:
         transparent = False
     if is_layerdiffuse:
@@ -173,6 +186,12 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         sampler = sketch_delivery_style.FINALIZE_SAMPLER
         loader = None
         sampling = None
+    elif is_anima_sketch_redraw:
+        prompt = PromptPair(sketch_positive(sketch_redraw),
+                            sketch_negative(sketch_redraw))
+        sampler = sketch_delivery_style.FINALIZE_SAMPLER
+        loader = finalizer or anima_delivery_style.FINALIZE_MODEL
+        sampling = (SKETCH_STEPS, SKETCH_CFG)
     elif is_anima:
         prompt = anima_refinement_prompt(base_prompt)
         sampler = anima_delivery_style.FINALIZE_SAMPLER
@@ -350,6 +369,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                        "size": size, "denoise": denoise,
                        **({"route": "latent"} if latent_route else {}),
                        **({"finalizer": loader} if loader else {}),
+                       **({"sketch_redraw": sketch_redraw}
+                          if sketch_redraw is not None else {}),
                        "repin": repin_applied,
                        "skin": skin_applied,
                        **({"recolor": True} if recolor_applied else {}),

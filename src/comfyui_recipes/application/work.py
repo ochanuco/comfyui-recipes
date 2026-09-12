@@ -37,7 +37,7 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
     "backdrop", "upscale", "lora_strength", "deliver_size", "stroke_light",
     "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
-    "repair_lora", "keep_regions", "keep_strength",
+    "repair_lora", "keep_regions", "keep_strength", "sketch_redraw",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
@@ -572,6 +572,12 @@ def finalize_arguments(options: Mapping,
         options.get("keep_regions", []), key="keep_regions")
     keep_strength = _keep_strength_argument(options.get("keep_strength", 0.25))
 
+    sketch_redraw = options.get("sketch_redraw")
+    if sketch_redraw is not None and not (
+            isinstance(sketch_redraw, str) and sketch_redraw):
+        raise ValueError(
+            f"sketch_redraw must be null or a non-empty string, got {sketch_redraw!r}")
+
     return {
         "denoise": float(denoise) if denoise is not None else None,
         "handdrawn": boolean("handdrawn"),
@@ -598,6 +604,7 @@ def finalize_arguments(options: Mapping,
         "repair_lora": repair_lora,
         "keep_regions": keep_regions,
         "keep_strength": keep_strength,
+        "sketch_redraw": sketch_redraw,
     }
 
 

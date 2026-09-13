@@ -210,9 +210,13 @@ solves the figure's own colour back out of its blend with the local
 backdrop, rather than leaving the blend in. `despill` then reads the raw's
 own backdrop colour (`_corner_seed`) as a key: if its dominant channel
 clears the larger of the other two by at least `KEY_DESPILL_MIN_EXCESS`
-(`24`), that channel is capped to the larger of the other two on every
-figure pixel. On a flat grey backdrop neither the excess check nor the
-ramp typically fires past 1, so only the edge softening changes.
+(`24`), every figure pixel's chroma is projected onto the key's chroma
+direction and the positive part subtracted. A projection rather than a
+channel cap because the model draws `(green background:1.3)` as a teal
+(`86, 186, 155` on the bust canary), and capping green alone left a cyan
+rim two to three pixels wide around the whole silhouette (`qodxqz`). On a
+flat grey backdrop neither the excess check nor the ramp typically fires
+past 1, so only the edge softening changes.
 
 ## FINALIZE_DENOISE
 

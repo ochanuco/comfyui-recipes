@@ -432,6 +432,18 @@ class DeliveryTest(unittest.TestCase):
                         <= np.maximum(result[..., 0], result[..., 2])[figure]).all())
         np.testing.assert_array_equal(result[..., 1][~figure], 220)
 
+    def test_despill_teal_key_clears_its_chroma_and_leaves_lavender_alone(self):
+        key = np.array((86.0, 186.0, 155.0))
+        direction = key - key.mean()
+        direction = direction / np.linalg.norm(direction)
+        figure = np.ones((1, 2), dtype=bool)
+        lavender = np.array((220.0, 200.0, 240.0))
+        pixels = np.array([[0.5 * lavender + 0.5 * key, lavender]])
+        result = despill(pixels, figure, key)
+        chroma = result[0, 0] - result[0, 0].mean()
+        self.assertLessEqual(float(chroma @ direction), 0.5)
+        np.testing.assert_array_equal(result[0, 1], lavender)
+
     def test_despill_grey_key_is_a_no_op(self):
         key = np.array((200.0, 200.0, 200.0))
         figure = np.ones((2, 2), dtype=bool)

@@ -190,21 +190,24 @@ def _key_excess(key: np.ndarray) -> float:
 
 
 def despill(pixels: np.ndarray, figure: np.ndarray, key: np.ndarray) -> np.ndarray:
-    """Remove a chromatic key colour's dominant channel from `figure`.
+    """Remove the key colour's own chroma from every `figure` pixel.
 
     A no-op unless `key` is a chromatic key: its dominant channel has to
     clear the larger of the other two by `delivery_style.KEY_DESPILL_MIN_EXCESS`.
-    Where it does, every figure pixel's dominant channel is capped to the
-    larger of its other two channels, the standard despill.
+    Where it does, each figure pixel's chroma (its departure from its own
+    grey) is projected onto the key's chroma direction and the positive part
+    subtracted, so a teal key leaves neither green nor cyan behind; a single
+    channel cap only strips the dominant channel and leaves the rest of the
+    key's tint in place.
     """
     if _key_excess(key) < delivery_style.KEY_DESPILL_MIN_EXCESS:
         return pixels
-    dominant, others = _key_channels(key)
-    capped = np.maximum(pixels[..., others[0]], pixels[..., others[1]])
-    result = pixels.copy()
-    result[..., dominant] = np.where(
-        figure, np.minimum(pixels[..., dominant], capped), pixels[..., dominant])
-    return result
+    direction = key - key.mean()
+    direction = direction / np.linalg.norm(direction)
+    chroma = pixels - pixels.mean(axis=2, keepdims=True)
+    along = np.clip((chroma * direction).sum(axis=2), 0.0, None)
+    cleared = np.clip(pixels - along[..., None] * direction, 0, 255)
+    return np.where(figure[..., None], cleared, pixels)
 
 
 def stroke_alpha(mask: np.ndarray, gap: float, width: float,

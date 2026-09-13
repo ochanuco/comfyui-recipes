@@ -6,6 +6,7 @@ import io
 import json
 import unittest
 from contextlib import redirect_stdout
+from dataclasses import replace
 from unittest.mock import patch
 
 from comfyui_recipes.application.generate import validate_request
@@ -306,6 +307,33 @@ class GraphTest(unittest.TestCase):
         self.assertEqual(graph["9"]["class_type"], "SaveImage")
         self.assertEqual(graph["9"]["inputs"]["images"], ["8", 0])
         self.assertEqual(graph["9"]["inputs"]["filename_prefix"], "p")
+
+    def test_empty_loras_leaves_the_graph_byte_identical(self):
+        spec = render_spec("coffee", 42, "p")
+        self.assertEqual(anima_graph.build_graph(spec),
+                         anima_graph.build_graph(replace(spec, loras=())))
+
+    def test_loras_chains_lora_loader_model_only_from_the_unet_loader(self):
+        spec = replace(render_spec("coffee", 42, "p"),
+                       loras=(("anima-sketch-style-chosen.safetensors", 0.8),))
+        graph = anima_graph.build_graph(spec)
+        self.assertEqual(graph["10"]["class_type"], "LoraLoaderModelOnly")
+        self.assertEqual(graph["10"]["inputs"], {
+            "model": ["1", 0],
+            "lora_name": "anima-sketch-style-chosen.safetensors",
+            "strength_model": 0.8})
+        self.assertEqual(graph["3"]["inputs"]["model"], ["10", 0])
+
+    def test_two_loras_chain_in_order(self):
+        spec = replace(render_spec("coffee", 42, "p"), loras=(
+            ("anima-sketch-style-chosen.safetensors", 0.8),
+            ("anima-handdrawn-feel-chosen.safetensors", 0.6)))
+        graph = anima_graph.build_graph(spec)
+        self.assertEqual(graph["10"]["inputs"]["model"], ["1", 0])
+        self.assertEqual(graph["11"]["inputs"]["model"], ["10", 0])
+        self.assertEqual(graph["11"]["inputs"]["lora_name"],
+                         "anima-handdrawn-feel-chosen.safetensors")
+        self.assertEqual(graph["3"]["inputs"]["model"], ["11", 0])
 
     def test_chain_pass_accepts_the_built_graph(self):
         spec = render_spec("coffee", 42, "p")

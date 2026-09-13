@@ -13,6 +13,7 @@ import copy
 import json
 import tempfile
 import unittest
+from dataclasses import replace as dataclass_replace
 from pathlib import Path
 
 from comfyui_recipes.application.finalize import FinalizeServices, finalize
@@ -23,7 +24,11 @@ from comfyui_recipes.domain.yukari.recipe import refinement_prompt
 from comfyui_recipes.domain.yukari_anima import delivery_style as anima_delivery_style
 from comfyui_recipes.domain.yukari_anima.recipe import render_spec
 from comfyui_recipes.domain.yukari_sketch import delivery_style as sketch_delivery_style
+from comfyui_recipes.domain.yukari_sketch.prompt_style import CFG as SKETCH_CFG
 from comfyui_recipes.domain.yukari_sketch.prompt_style import LORA as SKETCH_LORA
+from comfyui_recipes.domain.yukari_sketch.prompt_style import STEPS as SKETCH_STEPS
+from comfyui_recipes.domain.yukari_sketch.recipe import negative as sketch_negative
+from comfyui_recipes.domain.yukari_sketch.recipe import positive as sketch_positive
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 
@@ -88,14 +93,24 @@ MASKED_REDRAW_GRAPH = {
 
 
 class ManagementFake:
-    def __init__(self):
+    def __init__(self, *, batch_parameters=None, generation_records=None):
         self.calls = []
         self.context = {"batch": {"id": "source-batch"}}
+        self.batch_parameters = batch_parameters or {}
+        self.generation_records = generation_records or {}
 
     def request(self, method, path, payload=None, multipart=None):
         self.calls.append((method, path, payload, multipart))
         if path.endswith("/context"):
             return self.context
+        if (method == "GET"
+                and path == f"/api/v1/batches/{self.context['batch']['id']}"):
+            return {"id": self.context["batch"]["id"],
+                    "parameters": self.batch_parameters}
+        if (method == "GET" and path.startswith("/api/v1/generations/")
+                and path.count("/") == 4):
+            generation_id = path.rsplit("/", 1)[1]
+            return self.generation_records.get(generation_id, {"id": generation_id})
         if method == "POST" and path == "/api/v1/batches":
             return {"id": "batch-id", "short_id": "batch"}
         if method == "POST" and path.endswith("/jobs"):
@@ -492,6 +507,131 @@ class FinalizeApplicationTest(unittest.TestCase):
                 batch_call(services)[2]["parameters"]["finalizer"],
                 "other-checkpoint")
 
+    def test_sketch_redraw_needs_an_anima_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for graph_from_png in (lambda data: GRAPH, lambda data: SKETCH_GRAPH):
+                services = base_services(directory, graph_from_png=graph_from_png)
+                with self.assertRaises(SystemExit):
+                    finalize("gen-id", services, sketch_redraw="cinema")
+
+    def test_sketch_redraw_unknown_pose_raises(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory, graph_from_png=lambda data: ANIMA_GRAPH)
+            with self.assertRaises(KeyError):
+                finalize("gen-id", services, sketch_redraw="not-a-pose")
+
+    def test_sketch_redraw_uses_the_sketch_prompt_lora_and_sampler(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chain_pass_calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                chain_pass_calls.append((size, denoise, kwargs))
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: ANIMA_GRAPH)
+            finalize("gen-id", services, sketch_redraw="cinema")
+
+            size, denoise, kwargs = chain_pass_calls[-1]
+            self.assertEqual(kwargs["prompt"],
+                             (sketch_positive("cinema"), sketch_negative("cinema")))
+            self.assertEqual(kwargs["sampler"], sketch_delivery_style.FINALIZE_SAMPLER)
+            self.assertEqual(kwargs["sampling"], (SKETCH_STEPS, SKETCH_CFG))
+            self.assertEqual(kwargs["loader"], anima_delivery_style.FINALIZE_MODEL)
+            self.assertEqual(kwargs["redraw_lora"],
+                             (SKETCH_LORA[0], SKETCH_LORA[1], SKETCH_LORA[1]))
+            self.assertEqual(denoise, sketch_delivery_style.FINALIZE_DENOISE)
+            self.assertEqual(size, sketch_delivery_style.FINALIZE_SIZE)
+            self.assertIs(kwargs["transparent"], True)
+            self.assertEqual(
+                batch_call(services)[2]["parameters"]["deliver_size"],
+                sketch_delivery_style.DELIVER_SIZE)
+            self.assertEqual(
+                batch_call(services)[2]["parameters"]["sketch_redraw"], "cinema")
+
+    def test_sketch_redraw_honors_an_explicit_lora_strength(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chain_pass_calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                chain_pass_calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: ANIMA_GRAPH)
+            finalize("gen-id", services, sketch_redraw="cinema", lora_strength=1.3)
+
+            self.assertEqual(chain_pass_calls[-1]["redraw_lora"], (SKETCH_LORA[0], 1.3, 1.3))
+
+    def test_lora_strength_on_an_anima_base_without_sketch_redraw_still_raises(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory, graph_from_png=lambda data: ANIMA_GRAPH)
+            with self.assertRaises(SystemExit):
+                finalize("gen-id", services, lora_strength=1.0)
+
+    def test_sketch_redraw_submitted_graph_carries_the_sketch_lora_and_sampler(self):
+        with tempfile.TemporaryDirectory() as directory:
+            spec = render_spec("stand", 42, "fin-nare8p-il-rough")
+            anima_base = anima_graph.build_graph(spec)
+            submitted = []
+
+            class RealComfyFake(ComfyFake):
+                def submit(self, graph):
+                    submitted.append(graph)
+                    return "prompt-id"
+
+            services = base_services(
+                directory, chain_pass=chain_pass, comfyui=RealComfyFake(),
+                graph_from_png=lambda data: anima_base)
+            finalize("gen-id", services, sketch_redraw="cinema")
+
+            graph = submitted[0]
+            loaders = [node for node in graph.values()
+                      if node.get("class_type") == "DiffusersLoader"]
+            self.assertTrue(any(
+                loader["inputs"]["model_path"] == "hassaku-il-v22"
+                for loader in loaders))
+            lora_loaders = [node for node in graph.values()
+                           if node.get("class_type") == "LoraLoader"]
+            self.assertTrue(any(
+                node["inputs"]["lora_name"] == SKETCH_LORA[0]
+                for node in lora_loaders))
+            redraw_sampler = next(
+                node["inputs"] for node in graph.values()
+                if node.get("class_type") == "KSampler"
+                and node["inputs"]["sampler_name"] == "euler")
+            self.assertEqual(redraw_sampler["scheduler"], "normal")
+            self.assertEqual(redraw_sampler["denoise"], sketch_delivery_style.FINALIZE_DENOISE)
+            positive_id = redraw_sampler["positive"][0]
+            self.assertEqual(graph[positive_id]["inputs"]["text"], sketch_positive("cinema"))
+
+    def test_anima_base_with_a_lora_loader_model_only_still_classifies_as_anima(self):
+        with tempfile.TemporaryDirectory() as directory:
+            spec = dataclass_replace(
+                render_spec("stand", 42, "p"),
+                loras=(("anima-sketch-style-chosen.safetensors", 0.8),))
+            anima_base_with_lora = anima_graph.build_graph(spec)
+            chain_pass_calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                chain_pass_calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: anima_base_with_lora)
+            finalize("gen-id", services)
+
+            # A sketch classification would leave loader/sampling unset (None);
+            # the anima defaults prove the LoraLoaderModelOnly node (not
+            # LoraLoader) did not get mistaken for a sketch base's own LoRA.
+            self.assertEqual(
+                chain_pass_calls[-1]["loader"], anima_delivery_style.FINALIZE_MODEL)
+            self.assertEqual(
+                chain_pass_calls[-1]["sampler"], anima_delivery_style.FINALIZE_SAMPLER)
+
     def test_yukari_base_keeps_no_loader_and_no_sampling_override(self):
         with tempfile.TemporaryDirectory() as directory:
             chain_pass_calls = []
@@ -744,6 +884,141 @@ class FinalizeApplicationTest(unittest.TestCase):
                 graph_from_png=lambda data: SKETCH_GRAPH)
             finalize("gen-id", services)
             self.assertIs(calls[-1]["transparent"], sketch_delivery_style.FINALIZE_TRANSPARENT)
+
+
+class FinalizeDeliverOnlyTest(unittest.TestCase):
+    def test_reaches_chain_pass_with_matte_model_and_the_staged_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            comfy = ComfyFake()
+            services = base_services(
+                directory, chain_pass=recording_chain_pass, comfyui=comfy)
+            finalize("gen-id", services, deliver_only=True)
+            self.assertIs(calls[-1]["deliver_only"], True)
+            self.assertEqual(calls[-1]["matte_model"], delivery_style.MATTE_MODEL)
+            self.assertEqual(comfy.uploaded, [("fin-gen-id-source.png", b"picked")])
+            self.assertEqual(
+                calls[-1]["source_image"], "uploaded-fin-gen-id-source.png")
+
+    def test_repin_skin_recolor_and_keep_legwear_still_reach_chain_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, deliver_only=True, apply_repin=True,
+                     keep_legwear=0.5)
+            self.assertIs(calls[-1]["repin"], True)
+            self.assertEqual(calls[-1]["keep_legwear"], 0.5)
+
+    def test_rejects_a_layerdiffuse_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            with self.assertRaisesRegex(SystemExit, "layerdiffuse"):
+                finalize("gen-id", services, deliver_only=True)
+
+    def test_cannot_combine_with_denoise(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "denoise"):
+                finalize("gen-id", services, deliver_only=True, denoise=0.5)
+
+    def test_cannot_combine_with_size(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "size"):
+                finalize("gen-id", services, deliver_only=True, size=2048)
+
+    def test_cannot_combine_with_latent_route(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "latent_route"):
+                finalize("gen-id", services, deliver_only=True, latent_route=True)
+
+    def test_cannot_combine_with_finalizer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "finalizer"):
+                finalize("gen-id", services, deliver_only=True, finalizer="m")
+
+    def test_cannot_combine_with_lora_strength(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "lora_strength"):
+                finalize("gen-id", services, deliver_only=True, lora_strength=1.0)
+
+    def test_cannot_combine_with_sketch_redraw(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "sketch_redraw"):
+                finalize("gen-id", services, deliver_only=True, sketch_redraw="bust")
+
+    def test_cannot_combine_with_handdrawn(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "handdrawn"):
+                finalize("gen-id", services, deliver_only=True, handdrawn=True)
+
+    def test_cannot_combine_with_toe_guard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "toe_guard"):
+                finalize("gen-id", services, deliver_only=True, toe_guard=0.5)
+
+    def test_cannot_combine_with_repair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "repair"):
+                finalize("gen-id", services, deliver_only=True, repair=["hands"])
+
+    def test_cannot_combine_with_repair_regions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "repair_regions"):
+                finalize("gen-id", services, deliver_only=True,
+                         repair_regions=[[0.0, 0.0, 0.1, 0.1]])
+
+    def test_cannot_combine_with_keep_regions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "keep_regions"):
+                finalize("gen-id", services, deliver_only=True,
+                         keep_regions=[[0.0, 0.0, 0.1, 0.1]])
+
+    def test_cannot_combine_with_upscale(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "upscale"):
+                finalize("gen-id", services, deliver_only=True, upscale="lanczos")
+
+    def test_batch_parameters_record_deliver_only_and_omit_redraw_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services, deliver_only=True)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertIs(parameters["deliver_only"], True)
+            self.assertNotIn("size", parameters)
+            self.assertNotIn("denoise", parameters)
+            self.assertNotIn("route", parameters)
+            self.assertNotIn("finalizer", parameters)
+
+    def test_batch_parameters_omit_deliver_only_when_not_requested(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertNotIn("deliver_only", parameters)
+            self.assertIn("size", parameters)
+            self.assertIn("denoise", parameters)
 
 
 # A minimal redraw graph `redraw_canvas` (not faked -- it is not injectable)
@@ -1286,6 +1561,211 @@ class MaskedRedrawBaseTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "stitched"):
             chain_pass(copy.deepcopy(MASKED_REDRAW_GRAPH), 2560, 0.55, "fin",
                       latent_route=True, canvas=(1024, 1024))
+
+
+class RepairedRawSourceResolutionTest(unittest.TestCase):
+    def test_repair_batch_resolves_base_from_the_base_generation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((base, kwargs))
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                generation_records={"raw-1": {"comfy_job": {"graph": SKETCH_GRAPH}}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            base, kwargs = calls[-1]
+            self.assertEqual(base, SKETCH_GRAPH)
+            self.assertIs(kwargs["latent_route"], True)
+
+    def test_masked_redraw_batch_also_resolves_base_from_the_base_generation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((base, kwargs))
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "masked_redraw", "base_generation": "raw-2"},
+                generation_records={"raw-2": {"comfy_job": {"graph": SKETCH_GRAPH}}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            base, _kwargs = calls[-1]
+            self.assertEqual(base, SKETCH_GRAPH)
+
+    def test_repaired_raw_uploads_the_picked_picture_as_source_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                generation_records={"raw-1": {"comfy_job": {"graph": SKETCH_GRAPH}}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            self.assertIsNotNone(calls[-1]["source_image"])
+            uploaded = dict(services.comfyui.uploaded)
+            self.assertIn(calls[-1]["source_image"].removeprefix("uploaded-"), uploaded)
+
+    def test_repaired_raw_falls_back_to_the_base_s_own_png_without_a_job_graph(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((base, kwargs))
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                generation_records={"raw-1": {}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            finalize("gen-id", services)
+            base, _kwargs = calls[-1]
+            self.assertEqual(base, SKETCH_GRAPH)
+
+    def test_repaired_raw_on_a_non_latent_route_recipe_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-3"},
+                generation_records={"raw-3": {"comfy_job": {"graph": ANIMA_GRAPH}}})
+            services = base_services(directory, management=management)
+            with self.assertRaisesRegex(SystemExit, "latent route"):
+                finalize("gen-id", services)
+
+    def test_repaired_raw_on_a_layerdiffuse_base_is_rejected_even_with_latent_route(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-4"},
+                generation_records={
+                    "raw-4": {"comfy_job": {"graph": LAYERDIFFUSE_SKETCH_GRAPH}}})
+            services = base_services(directory, management=management)
+            with self.assertRaisesRegex(SystemExit, "latent route"):
+                finalize("gen-id", services, latent_route=True)
+
+    def test_hires_chain_kind_is_not_treated_as_a_repaired_raw(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((base, kwargs))
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "hires-chain", "base_generation": "gen-id"})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: GRAPH)
+            finalize("gen-id", services)
+            base, kwargs = calls[-1]
+            self.assertEqual(base, GRAPH)
+            self.assertIsNone(kwargs["source_image"])
+
+    def test_a_plain_raw_batch_uses_graph_from_png_as_before(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((base, kwargs))
+                return {}
+
+            management = ManagementFake(batch_parameters={"kind": "generate"})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: GRAPH)
+            finalize("gen-id", services)
+            base, kwargs = calls[-1]
+            self.assertEqual(base, GRAPH)
+            self.assertIsNone(kwargs["source_image"])
+
+
+class KeepRegionsTest(unittest.TestCase):
+    def test_keep_regions_uploads_a_soft_mask_and_passes_it_to_chain_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, keep_regions=[[0.1, 0.1, 0.4, 0.4]])
+            self.assertIsNotNone(calls[-1]["keep_mask_image"])
+            uploaded_names = [name for name, _data in services.comfyui.uploaded]
+            self.assertTrue(any(name.endswith("-keep-mask.png") for name in uploaded_names))
+
+    def test_keep_regions_empty_leaves_keep_mask_image_none(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            self.assertIsNone(calls[-1]["keep_mask_image"])
+            uploaded_names = [name for name, _data in services.comfyui.uploaded]
+            self.assertFalse(any(name.endswith("-keep-mask.png") for name in uploaded_names))
+
+    def test_keep_regions_and_strength_are_recorded_in_batch_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services, keep_regions=[[0.1, 0.1, 0.4, 0.4]],
+                     keep_strength=0.4)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["keep_regions"], [[0.1, 0.1, 0.4, 0.4]])
+            self.assertEqual(parameters["keep_strength"], 0.4)
+
+    def test_keep_regions_default_is_not_recorded_in_batch_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertNotIn("keep_regions", parameters)
+            self.assertNotIn("keep_strength", parameters)
+
+    def test_keep_regions_composes_with_a_repaired_raw_finalize(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                generation_records={"raw-1": {"comfy_job": {"graph": SKETCH_GRAPH}}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, keep_regions=[[0.1, 0.1, 0.4, 0.4]])
+            self.assertIsNotNone(calls[-1]["source_image"])
+            self.assertIsNotNone(calls[-1]["keep_mask_image"])
+
+    def test_is_layerdiffuse_branch_also_receives_the_keep_mask(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: copy.deepcopy(LAYERDIFFUSE_SKETCH_GRAPH))
+            finalize("gen-id", services, keep_regions=[[0.1, 0.1, 0.4, 0.4]])
+            self.assertIsNotNone(calls[-1]["keep_mask_image"])
 
 
 if __name__ == "__main__":

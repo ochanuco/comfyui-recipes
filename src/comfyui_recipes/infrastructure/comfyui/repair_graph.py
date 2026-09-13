@@ -10,6 +10,7 @@ from __future__ import annotations
 import itertools
 import json
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, replace
 
 from .base_graph import (
     PASSTHROUGH as _PASSTHROUGH,
@@ -49,6 +50,31 @@ _INPAINT_CROP_DEFAULTS = {
     "output_padding": "32",
     "device_mode": "gpu (much faster)",
 }
+
+
+@dataclass(frozen=True)
+class RerollRefs:
+    """The node refs the reroll's sampler is wired from, handed to hooks.
+
+    A hook returns a copy (`dataclasses.replace`) with the refs it rerouted;
+    anything it adds to the graph goes through the same `allocate`. Model
+    hooks run before the reroll's text encode, so `positive`/`negative` are
+    still None there; conditioning hooks see them filled in.
+    """
+    model: list
+    positive_clip: list
+    negative_clip: list
+    vae: list
+    cropped_image: list
+    cropped_mask: list
+    positive: list | None = None
+    negative: list | None = None
+    # KSampler inputs a hook wants over the source pass's own (`steps`, `cfg`,
+    # `sampler_name`, `scheduler`); seed and denoise stay the caller's.
+    sampler: Mapping[str, object] | None = None
+
+
+RerollHook = Callable[[dict, Callable[[], str], RerollRefs], RerollRefs]
 
 
 def _upstream(graph: Mapping, refs: list[list | None]) -> set[str]:
@@ -96,7 +122,9 @@ def _splice_reroll(graph: dict, allocate: Callable[[], str], *, image_ref: list,
                    sampler_name: str, scheduler: str, seed: int, denoise: float,
                    size: int, mask_expand_pixels: int = 0,
                    mask_blend_pixels: int = 32,
-                   loras: Sequence[tuple[str, float]] = ()) -> tuple[str, list]:
+                   loras: Sequence[tuple[str, float]] = (),
+                   model_hooks: Sequence[RerollHook] = (),
+                   conditioning_hooks: Sequence[RerollHook] = ()) -> tuple[str, list]:
     """Adds the crop/resample/stitch reroll subgraph to `graph` (mutated).
 
     Returns `(crop_id, repaired_ref)`: `crop_id` so a caller that spliced
@@ -108,6 +136,13 @@ def _splice_reroll(graph: dict, allocate: Callable[[], str], *, image_ref: list,
     ahead of the reroll's own KSampler/CLIPTextEncode. `negative_clip_ref`
     rides the same chain only when it started out equal to
     `positive_clip_ref` -- otherwise it keeps its own ref untouched.
+
+    `model_hooks` run once the crop exists and before the text encode: a hook
+    that swaps `model`/`positive_clip`/`negative_clip`/`vae` puts the reroll on
+    another checkpoint (the LoRA chain above stays on the source's model and
+    is simply left behind). `conditioning_hooks` run after the text encode and
+    may reroute `positive`/`negative`, e.g. through a ControlNet fed from
+    `cropped_image`.
     """
     if loras:
         share_negative = negative_clip_ref == positive_clip_ref
@@ -134,31 +169,39 @@ def _splice_reroll(graph: dict, allocate: Callable[[], str], *, image_ref: list,
         "mask_blend_pixels": mask_blend_pixels,
         "image": image_ref, "mask": [to_mask, 0],
         "output_target_width": size, "output_target_height": size}}
-    stitcher_ref, cropped_image_ref, cropped_mask_ref = (
-        [crop, 0], [crop, 1], [crop, 2])
+    stitcher_ref = [crop, 0]
+    refs = RerollRefs(model=model_ref, positive_clip=positive_clip_ref,
+                      negative_clip=negative_clip_ref, vae=vae_ref,
+                      cropped_image=[crop, 1], cropped_mask=[crop, 2])
+    for hook in model_hooks:
+        refs = hook(graph, allocate, refs)
 
     positive_id = allocate()
     graph[positive_id] = {"class_type": "CLIPTextEncode", "inputs": {
-        "clip": positive_clip_ref, "text": positive}}
+        "clip": refs.positive_clip, "text": positive}}
     negative_id = allocate()
     graph[negative_id] = {"class_type": "CLIPTextEncode", "inputs": {
-        "clip": negative_clip_ref, "text": negative}}
+        "clip": refs.negative_clip, "text": negative}}
+    refs = replace(refs, positive=[positive_id, 0], negative=[negative_id, 0])
+    for hook in conditioning_hooks:
+        refs = hook(graph, allocate, refs)
 
     encode = allocate()
     graph[encode] = {"class_type": "VAEEncode", "inputs": {
-        "pixels": cropped_image_ref, "vae": vae_ref}}
+        "pixels": refs.cropped_image, "vae": refs.vae}}
     noise_mask = allocate()
     graph[noise_mask] = {"class_type": "SetLatentNoiseMask", "inputs": {
-        "samples": [encode, 0], "mask": cropped_mask_ref}}
+        "samples": [encode, 0], "mask": refs.cropped_mask}}
     sample = allocate()
     graph[sample] = {"class_type": "KSampler", "inputs": {
-        "model": model_ref, "positive": [positive_id, 0],
-        "negative": [negative_id, 0], "latent_image": [noise_mask, 0],
-        "seed": seed, "steps": steps, "cfg": cfg,
-        "sampler_name": sampler_name, "scheduler": scheduler, "denoise": denoise}}
+        "model": refs.model, "positive": refs.positive,
+        "negative": refs.negative, "latent_image": [noise_mask, 0],
+        "steps": steps, "cfg": cfg, "sampler_name": sampler_name,
+        "scheduler": scheduler, **(refs.sampler or {}),
+        "seed": seed, "denoise": denoise}}
     decode = allocate()
     graph[decode] = {"class_type": "VAEDecode", "inputs": {
-        "samples": [sample, 0], "vae": vae_ref}}
+        "samples": [sample, 0], "vae": refs.vae}}
     stitch = allocate()
     graph[stitch] = {"class_type": "InpaintStitchImproved", "inputs": {
         "stitcher": stitcher_ref, "inpainted_image": [decode, 0]}}
@@ -238,7 +281,9 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
                       positive: str, negative: str, seed: int, denoise: float,
                       size: int, prefix: str, mask_expand_pixels: int,
                       mask_blend_pixels: int,
-                      loras: Sequence[tuple[str, float]] = ()) -> dict:
+                      loras: Sequence[tuple[str, float]] = (),
+                      model_hooks: Sequence[RerollHook] = (),
+                      conditioning_hooks: Sequence[RerollHook] = ()) -> dict:
     """Shared body of `repair_graph`/`masked_redraw_graph`: prune to the
     redraw pass's own loaders, keep the tail downstream of its decode, and
     splice a fresh crop/resample/stitch reroll off a staged source image.
@@ -303,7 +348,7 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
         steps=pass_["steps"], cfg=pass_["cfg"], sampler_name=pass_["sampler_name"],
         scheduler=pass_["scheduler"], seed=seed, denoise=denoise, size=size,
         mask_expand_pixels=mask_expand_pixels, mask_blend_pixels=mask_blend_pixels,
-        loras=loras)
+        loras=loras, model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
     stitch = repaired_ref[0]
 
     if ld_tail is not None:
@@ -345,19 +390,23 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
 def repair_graph(source: Mapping, *, image_name: str, mask_name: str,
                  positive: str, negative: str, seed: int, denoise: float,
                  size: int, prefix: str,
-                 loras: Sequence[tuple[str, float]] = ()) -> dict:
+                 loras: Sequence[tuple[str, float]] = (),
+                 model_hooks: Sequence[RerollHook] = (),
+                 conditioning_hooks: Sequence[RerollHook] = ()) -> dict:
     return _prune_and_splice(
         source, image_name=image_name, mask_name=mask_name, positive=positive,
         negative=negative, seed=seed, denoise=denoise, size=size, prefix=prefix,
         mask_expand_pixels=_INPAINT_CROP_DEFAULTS["mask_expand_pixels"],
         mask_blend_pixels=_INPAINT_CROP_DEFAULTS["mask_blend_pixels"],
-        loras=loras)
+        loras=loras, model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
 
 
 def masked_redraw_graph(source: Mapping, *, image_name: str, mask_name: str,
                         positive: str, negative: str, seed: int, denoise: float,
                         mask_padding: int, mask_feather: int, size: int,
-                        prefix: str) -> dict:
+                        prefix: str,
+                        model_hooks: Sequence[RerollHook] = (),
+                        conditioning_hooks: Sequence[RerollHook] = ()) -> dict:
     """Like `repair_graph`, but the mask expand/blend pixels are caller-given.
 
     `parts`/pose-driven regions do not apply here -- the mask is whatever
@@ -366,12 +415,15 @@ def masked_redraw_graph(source: Mapping, *, image_name: str, mask_name: str,
     return _prune_and_splice(
         source, image_name=image_name, mask_name=mask_name, positive=positive,
         negative=negative, seed=seed, denoise=denoise, size=size, prefix=prefix,
-        mask_expand_pixels=mask_padding, mask_blend_pixels=mask_feather)
+        mask_expand_pixels=mask_padding, mask_blend_pixels=mask_feather,
+        model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
 
 
 def splice_repair(graph: Mapping, *, mask_name: str, positive: str, negative: str,
                   denoise: float, size: int, seed: int | None = None,
-                  loras: Sequence[tuple[str, float]] = ()) -> dict:
+                  loras: Sequence[tuple[str, float]] = (),
+                  model_hooks: Sequence[RerollHook] = (),
+                  conditioning_hooks: Sequence[RerollHook] = ()) -> dict:
     """Splice a masked reroll into an already-built graph (e.g. `chain_pass`'s).
 
     Unlike `repair_graph`, nothing is pruned or renamed: the reroll's image
@@ -396,7 +448,8 @@ def splice_repair(graph: Mapping, *, mask_name: str, positive: str, negative: st
         steps=pass_["steps"], cfg=pass_["cfg"], sampler_name=pass_["sampler_name"],
         scheduler=pass_["scheduler"],
         seed=pass_["seed"] if seed is None else seed,
-        denoise=denoise, size=size, loras=loras)
+        denoise=denoise, size=size, loras=loras,
+        model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
 
     for node_id, node in result.items():
         if node_id == crop_id:

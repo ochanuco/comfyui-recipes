@@ -11,7 +11,7 @@ VAE_NAME = "qwen_image_vae.safetensors"
 def build_graph(spec: RenderSpec) -> dict[str, dict]:
     if spec.hires is not None:
         raise ValueError("yukari-anima has no second pass -- spec.hires must be None")
-    return {
+    graph = {
         "1": {"class_type": "UNETLoader", "inputs": {
             "unet_name": spec.model_path, "weight_dtype": "default"}},
         "2": {"class_type": "CLIPLoader", "inputs": {
@@ -33,3 +33,15 @@ def build_graph(spec: RenderSpec) -> dict[str, dict]:
         "9": {"class_type": "SaveImage", "inputs": {
             "images": ["8", 0], "filename_prefix": spec.filename_prefix}},
     }
+    if spec.loras:
+        model_ref = ["1", 0]
+        loader_id = 10
+        for lora_name, weight in spec.loras:
+            node_id = str(loader_id)
+            graph[node_id] = {"class_type": "LoraLoaderModelOnly", "inputs": {
+                "model": model_ref, "lora_name": lora_name,
+                "strength_model": weight}}
+            model_ref = [node_id, 0]
+            loader_id += 1
+        graph["3"]["inputs"]["model"] = model_ref
+    return graph

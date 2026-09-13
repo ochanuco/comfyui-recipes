@@ -52,15 +52,38 @@ case `comfy-recipes generate` does. A `finalize` row's payload is
 flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
 `size`, `deliver_size`, `handdrawn`, `skin`, `toe_guard`, `keep_scene`,
 `stroke_light`, `repair`, `repair_regions`, `repair_denoise`, `repair_pad`,
-`repair_size`, `repair_lora`) with the same defaults `comfy-recipes finalize`
-has when a flag is omitted. A `repair` row's payload is `{"generation_id", "options":
+`repair_size`, `repair_lora`, `sketch_redraw`, `deliver_only`) with the same
+defaults `comfy-recipes finalize` has when a flag is omitted. A `repair` row's payload is
+`{"generation_id", "options":
 {...}}` too; see [Repair](#repair) below for its options. A `masked_redraw`
 row's payload is the same shape again; see
 [Masked redraw](#masked-redraw) below for its options.
 
+`sketch_redraw` (`--sketch-redraw POSE`) is valid only on an anima base: the
+redraw runs the yukari-sketch recipe's own prompt for `POSE` (its own default
+costume) instead of the anima recipe's rough-style redraw, loads the sketch
+LoRA at `lora_strength` (or the sketch recipe's own default), and samples
+`euler`/`normal` at the sketch recipe's steps/cfg. Denoise, size, deliver-size
+and the transparent-cutout default all follow yukari-sketch's own defaults
+too; an unknown pose is the same error `comfy-recipes sketch prompt` raises,
+and using it on a non-anima base is rejected.
+
 `backdrop` (`--backdrop` on the CLI) takes a `#RRGGBB` colour or the named
 pattern `stripes`; setting it turns off the sketch recipe's transparent
 default and delivers an opaque sticker on that backdrop instead.
+
+`deliver_only` (`--deliver-only`) skips the redraw entirely: the picked
+picture's own pixels go straight through the matte, the optional
+repin/skin/recolor, and the backdrop/stroke delivery tail, at the picked
+picture's own canvas size. It works on any base except layerdiffuse, and is
+mutually exclusive with every flag that shapes a redraw -- `denoise`, `size`,
+`route`, `finalizer`, `lora_strength`, `sketch_redraw`, `handdrawn`,
+`toe_guard`, `repair`/`repair_regions`, `keep_regions` and `upscale` --
+each a `SystemExit` if combined. `repin`, `recolor`, `skin`, `keep_legwear`,
+`backdrop`, `transparent`/`opaque`, `keep_scene`, `stroke_light` and
+`deliver_size` still apply. The recorded batch parameters carry
+`deliver_only: true` and omit `size`/`denoise`/`route`/`finalizer`, since no
+redraw ran to give those a meaning.
 
 Idempotency keys are derived from the request id, so a re-claimed row
 resumes the same batch/job/generation records: batch `request:{id}`, job
@@ -181,9 +204,14 @@ uv run comfy-recipes repair <generation_id> \
 | `size` | `--size` | `1024` | the crop's target long side, a multiple of 8, at least 256 |
 | `pad` | `--pad` | `1.0` | multiplier on the auto-detected region radius, `0.5..3` |
 | `lora` | `--lora [WEIGHT]` | off | load each redrawn part's own LoRA (Feet XL for `feet`, Hands XL for `hands`) inside the crop; bare flag/`true` is weight `0.8`, or give a number in `0..2` |
+| `model` | `--model` | off | sample the crop on another checkpoint instead of the source's own, from the vocabulary in `domain/repair/models.py` (`anima`, `anima-hassaku`, `anima-base`); the crop/mask/stitch stay on the source graph, only the reroll's model/CLIP/VAE/sampler move. Skips `lora` -- the part LoRA chain is Illustrious-only |
+| `control` | `--control SIGNAL` | off | route the crop's conditioning through a ControlNet fed by a synthetic reference hint (see `domain/repair/controlnet.py`); the only signal currently defined is `lineart` |
+| `control_strength` | `--control-strength STRENGTH` | `0.8` | the ControlNet's own strength, `0 < s <= 2`; only used when `control` is set |
 
 `repair_lora` on a finalize-carried repair works the same way; `--repair-lora
-[WEIGHT]` / `repair_lora` in a queued finalize row's `options`.
+[WEIGHT]` / `repair_lora` in a queued finalize row's `options`. `model` /
+`control` / `control_strength` are not available on a finalize-carried
+repair, only on the standalone `repair` request kind and CLI subcommand.
 
 At least one of `parts` or `regions` must be non-empty; a request with both
 empty is rejected before anything is submitted.
@@ -201,6 +229,30 @@ raw generation, a `-delivered` suffixed output becomes a second generation,
 anything else is the raw generation. The rendered region mask itself is
 also stored as a `repair-mask` asset on every job's raw generation, so the
 exact region redrawn is on record without recomputing it from the pose.
+
+**Finalizing a repair/masked_redraw output**: `finalize` given a Generation
+whose batch's `parameters.kind` is `repair` or `masked_redraw` reads its
+recipe, loaders, prompts, seed, sampler and LoRA from that batch's
+`parameters.base_generation` instead of from the picked Generation's own
+graph -- the picked Generation's own picture (the repaired pixels) is still
+what gets redrawn. This only works on the latent route (the sketch default,
+or an explicit `--latent-route`/`latent_route: true`); a non-latent-route
+recipe or a layerdiffuse base is rejected, since the pixel route has no seam
+yet for a source image outside the base graph.
+
+**Shielding a region from the finalize redraw**: `finalize`'s `keep_regions`
+(`--keep-region x0,y0,x1,y1`, repeatable; `keep_regions` in a queued finalize
+row's `options`) and `keep_strength` (`--keep-strength`; `keep_strength`,
+default `0.25`) protect rectangles -- fractions (0..1) of the redraw's own
+canvas, the same shape as `repair_regions` -- from the redraw itself: the
+redraw sampler runs under a soft `SetLatentNoiseMask`, 1.0 (full redraw)
+everywhere and `keep_strength` inside each rectangle, feathered at the
+rectangle edges (about 3% of the canvas' longest side) so the protected
+region blends in rather than showing a hard seam. This is what makes a
+repair's fix (e.g. a corrected toe count) survive the finalize redraw
+instead of being redrawn away. `keep_strength` must be strictly between 0
+and 1; `keep_regions` empty (the default) submits exactly the graph finalize
+built before this option existed.
 
 ## Masked redraw
 
@@ -258,7 +310,12 @@ recipe to that strength; it fails on a recipe with no LoRA. String targets
 are `render.model`, `render.sampler`, `render.scheduler`, and
 `render.layerdiffuse_config`, with op `set` only and a required non-empty
 string `value`; `render.layerdiffuse_config` must be `"SDXL, Attention
-Injection"` or `"SDXL, Conv Injection"`.
+Injection"` or `"SDXL, Conv Injection"`. `render.loras`, op `set` only,
+replaces `spec.loras` outright: `value` is a non-empty list of `[name,
+strength]` pairs, `name` a non-empty string ending in `.safetensors` and
+`strength` a number with `0 <= strength <= 2`. On `yukari-anima` each pair
+becomes a `LoraLoaderModelOnly` node chained from the `UNETLoader` into the
+`KSampler`'s model.
 
 Every patch requires a one-line `reason`. The patch list is recorded into
 each generation's semantic attributes at ingest, and the submitted graph

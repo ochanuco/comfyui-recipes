@@ -28,6 +28,7 @@ from comfyui_recipes.application.work import (
     work,
     work_once,
 )
+from comfyui_recipes.domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH
 from comfyui_recipes.domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from comfyui_recipes.domain.yukari.dials import DIALS as YUKARI_DIALS
 from comfyui_recipes.domain.yukari.recipe import TOE_GUARD
@@ -300,7 +301,16 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "stroke_light": None,
             "repair": None, "repair_regions": [], "repair_denoise": 0.6,
             "repair_pad": 1.0, "repair_size": 1024, "repair_lora": None,
+            "keep_regions": [], "keep_strength": 0.25, "sketch_redraw": None,
+            "deliver_only": False,
         })
+
+    def test_deliver_only_true_is_validated_as_a_boolean(self):
+        self.assertIs(finalize_arguments({"deliver_only": True})["deliver_only"], True)
+
+    def test_deliver_only_rejects_a_non_boolean(self):
+        with self.assertRaisesRegex(ValueError, "deliver_only"):
+            finalize_arguments({"deliver_only": "yes"})
 
     def test_backdrop_null_passes_through(self):
         self.assertIsNone(finalize_arguments({})["backdrop"])
@@ -541,9 +551,48 @@ class FinalizeArgumentsTest(unittest.TestCase):
         self.assertEqual(
             finalize_arguments({"repair_denoise": "keep"}, dials)["repair_denoise"], 0.6)
 
+    def test_keep_regions_default_empty(self):
+        self.assertEqual(finalize_arguments({})["keep_regions"], [])
+
+    def test_keep_regions_pass_through_as_floats(self):
+        arguments = finalize_arguments({"keep_regions": [[0, 0.25, 1, 0.75]]})
+        self.assertEqual(arguments["keep_regions"], [[0.0, 0.25, 1.0, 0.75]])
+
+    def test_keep_regions_out_of_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "region"):
+            finalize_arguments({"keep_regions": [[0, 0, 1, 1.5]]})
+
+    def test_keep_strength_default(self):
+        self.assertEqual(finalize_arguments({})["keep_strength"], 0.25)
+
+    def test_keep_strength_must_be_strictly_between_zero_and_one(self):
+        with self.assertRaisesRegex(ValueError, "keep_strength"):
+            finalize_arguments({"keep_strength": 0})
+        with self.assertRaisesRegex(ValueError, "keep_strength"):
+            finalize_arguments({"keep_strength": 1})
+
+    def test_keep_strength_a_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "keep_strength"):
+            finalize_arguments({"keep_strength": "0.25"})
+
     def test_a_number_is_unaffected_by_dials_being_given(self):
         dials = SKETCH_DIALS["finalize"]
         self.assertEqual(finalize_arguments({"denoise": 0.7}, dials)["denoise"], 0.7)
+
+    def test_sketch_redraw_null_passes_through(self):
+        self.assertIsNone(finalize_arguments({})["sketch_redraw"])
+
+    def test_sketch_redraw_string_passes_through(self):
+        self.assertEqual(
+            finalize_arguments({"sketch_redraw": "cinema"})["sketch_redraw"], "cinema")
+
+    def test_sketch_redraw_empty_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "sketch_redraw"):
+            finalize_arguments({"sketch_redraw": ""})
+
+    def test_sketch_redraw_non_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "sketch_redraw"):
+            finalize_arguments({"sketch_redraw": True})
 
     def test_unknown_key_is_rejected(self):
         with self.assertRaises(ValueError) as ctx:
@@ -578,6 +627,8 @@ class RepairArgumentsTest(unittest.TestCase):
         self.assertEqual(arguments, {
             "parts": ["hands", "feet"], "regions": [], "denoise": 0.6,
             "seeds": [1, 2, 3, 4], "size": 1024, "pad": 1.0, "lora": None,
+            "model": None,
+            "control": None, "control_strength": DEFAULT_CONTROL_STRENGTH,
         })
 
     def test_not_a_mapping_is_rejected(self):
@@ -685,6 +736,44 @@ class RepairArgumentsTest(unittest.TestCase):
             repair_arguments({"denoise": "fuzzy"}, dials)
         self.assertIn("denoise", str(ctx.exception))
         self.assertIn("fuzzy", str(ctx.exception))
+
+    def test_model_default_null(self):
+        self.assertIsNone(repair_arguments({})["model"])
+
+    def test_model_passes_through(self):
+        self.assertEqual(repair_arguments({"model": "anima"})["model"], "anima")
+
+    def test_unknown_model_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "model"):
+            repair_arguments({"model": "nope"})
+
+    def test_control_default_null(self):
+        self.assertIsNone(repair_arguments({})["control"])
+
+    def test_control_lineart_passes_through(self):
+        self.assertEqual(repair_arguments({"control": "lineart"})["control"], "lineart")
+
+    def test_control_unknown_word_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "control"):
+            repair_arguments({"control": "nope"})
+
+    def test_control_not_a_string_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "control"):
+            repair_arguments({"control": True})
+
+    def test_control_strength_default(self):
+        self.assertEqual(
+            repair_arguments({})["control_strength"], DEFAULT_CONTROL_STRENGTH)
+
+    def test_control_strength_number_passes_through(self):
+        self.assertEqual(
+            repair_arguments({"control_strength": 0.5})["control_strength"], 0.5)
+
+    def test_control_strength_out_of_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "control_strength"):
+            repair_arguments({"control_strength": 0})
+        with self.assertRaisesRegex(ValueError, "control_strength"):
+            repair_arguments({"control_strength": 2.5})
 
 
 class MaskedRedrawArgumentsTest(unittest.TestCase):

@@ -52,7 +52,8 @@ case `comfy-recipes generate` does. A `finalize` row's payload is
 flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
 `size`, `deliver_size`, `handdrawn`, `skin`, `toe_guard`, `keep_scene`,
 `stroke_light`, `repair`, `repair_regions`, `repair_denoise`, `repair_pad`,
-`repair_size`, `repair_lora`, `sketch_redraw`, `deliver_only`) with the same
+`repair_size`, `repair_lora`, `sketch_redraw`, `deliver_only`, `matte_model`)
+with the same
 defaults `comfy-recipes finalize` has when a flag is omitted. A `repair` row's payload is
 `{"generation_id", "options":
 {...}}` too; see [Repair](#repair) below for its options. A `masked_redraw`
@@ -80,10 +81,15 @@ mutually exclusive with every flag that shapes a redraw -- `denoise`, `size`,
 `route`, `finalizer`, `lora_strength`, `sketch_redraw`, `handdrawn`,
 `toe_guard`, `repair`/`repair_regions`, `keep_regions` and `upscale` --
 each a `SystemExit` if combined. `repin`, `recolor`, `skin`, `keep_legwear`,
-`backdrop`, `transparent`/`opaque`, `keep_scene`, `stroke_light` and
-`deliver_size` still apply. The recorded batch parameters carry
-`deliver_only: true` and omit `size`/`denoise`/`route`/`finalizer`, since no
-redraw ran to give those a meaning.
+`backdrop`, `transparent`/`opaque`, `keep_scene`, `stroke_light`,
+`deliver_size` and `matte_model` still apply. The recorded batch parameters
+carry `deliver_only: true` and omit `size`/`denoise`/`route`/`finalizer`,
+since no redraw ran to give those a meaning.
+
+`matte_model` (`--matte-model`) picks the figure MASK's source: a core
+background-removal model file (the recipe's own default), or
+`rmbg:<model>` to run ComfyUI-RMBG's `BiRefNetRMBG` node with that model
+name instead.
 
 Idempotency keys are derived from the request id, so a re-claimed row
 resumes the same batch/job/generation records: batch `request:{id}`, job

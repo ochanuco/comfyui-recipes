@@ -82,6 +82,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              keep_regions: Sequence[Sequence[float]] = (),
              keep_strength: float = 0.25,
              deliver_only: bool = False,
+             matte_model: str | None = None,
              context: dict | None = None) -> dict:
     if deliver_only:
         conflicts = [name for name, present in (
@@ -282,7 +283,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         graph = services.chain_pass(
             base, size, denoise, prefix,
             prompt=(prompt.positive, prompt.negative),
-            matte_model=delivery_style.MATTE_MODEL,
+            matte_model=matte_model or delivery_style.MATTE_MODEL,
             latent_route=latent_route,
             sampler=sampler,
             loader=loader,

@@ -905,6 +905,19 @@ class FinalizeDeliverOnlyTest(unittest.TestCase):
             self.assertEqual(
                 calls[-1]["source_image"], "uploaded-fin-gen-id-source.png")
 
+    def test_matte_model_overrides_the_recipes_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, deliver_only=True,
+                     matte_model="rmbg:BiRefNet-HR")
+            self.assertEqual(calls[-1]["matte_model"], "rmbg:BiRefNet-HR")
+
     def test_repin_skin_recolor_and_keep_legwear_still_reach_chain_pass(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []

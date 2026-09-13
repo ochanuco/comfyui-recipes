@@ -110,7 +110,9 @@ COSTUME_FINGERPRINT = "b3b98896c4629649"
 # 0afbe3875ab51649 -> 05d1d128bebf30e1 on 2026-09-10. The hand-cut sticker
 # rim: STROKE #6a3494 -> #885b80, and STROKE_CUT_EPS_PCT joins the payload
 # (schema 3 -> 4) -- see docs/render-notes.md.
-DELIVERY_FINGERPRINT = "05d1d128bebf30e1"
+# 05d1d128bebf30e1 -> f92752a11db808ef on 2026-09-13. PALETTE_WINDOWS gains
+# a third entry, `cyan` -- see docs/render-notes.md.
+DELIVERY_FINGERPRINT = "f92752a11db808ef"
 FINGERPRINT_SCHEMA = 4
 
 

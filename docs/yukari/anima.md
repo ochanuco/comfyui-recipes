@@ -20,10 +20,18 @@ The variable part is three small record sets:
 
 - `poses.py`: one `Pose` per pose -- `action`, `mood`, `gesture`, `scene`,
   the pose's own default `expression` and `costume`, and an optional
-  pose-specific negative addition.
-- `costumes.py`: one tag block per costume (`roomwear`, `outing`).
+  pose-specific negative addition. A pose may also override `legwear`
+  (default `True`; `False` drops the costume's leg tags), `body` and
+  `style` (replace `BODY`/`STYLE` wholesale), and carry its own `loras`
+  (default empty).
+- `costumes.py`: one garment tag block per costume (`roomwear`, `outing`,
+  `standard`) and a matching `LEGWEAR` block per costume, layered on top
+  of the garments when the pose's `legwear` is `True`. `standard` is a
+  black hooded cardigan, rabbit hood and purple dress; its `LEGWEAR` is a
+  pale-purple gradient tights. `HOODED_COSTUMES` names the costumes whose
+  garments already include a hood or cardigan (`standard`).
 - `expressions.py`: one `mouth`/`eyes` pair per expression (`resting`,
-  `sleepy`, `doya`).
+  `sleepy`, `doya`, `smile`).
 
 ## Poses
 
@@ -38,6 +46,12 @@ The variable part is three small record sets:
 - `cinema`: expression `doya`, costume `outing`. Walking through a movie
   theater lobby with a popcorn bucket in one hand and a cola cup with a
   straw in the other.
+- `bust`: expression `smile`, costume `standard`, canvas `1280x1280`.
+  Head-and-shoulders portrait, looking at viewer. Drops the costume's
+  legwear (`legwear=False`), overrides `body` to a bare adult-proportions
+  block with no leg tags, prefixes `STYLE` with the sketch-style LoRA's
+  trigger tag via `style`, and loads that LoRA
+  (`anima-sketch-style-chosen.safetensors`, weight `0.8`) via `loras`.
 
 A pose may carry its own `canvas`; `render_spec` uses it in place of the
 default `1280x2048`.
@@ -49,8 +63,9 @@ default `1280x2048`.
 ```
 QUALITY + CHARACTER + IDENTITY
 + pose.action + expression.mouth + pose.mood + expression.eyes + pose.gesture
-+ COSTUMES[costume] + pose.scene
-+ BODY + BACKGROUND + FACE + STYLE
++ COSTUMES[costume] + (LEGWEAR[costume] if pose.legwear else "") + pose.scene
++ (pose.body if pose.body is not None else BODY) + BACKGROUND + FACE
++ (pose.style if pose.style is not None else STYLE)
 ```
 
 Negative:
@@ -58,16 +73,24 @@ Negative:
 ```
 DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
 + pose.negative
-+ SHINE_BAN + HATCH_BAN + GRADIENT_BAN + NEGATIVE_TAIL + PROPORTION_BAN
++ SHINE_BAN + HATCH_BAN + GRADIENT_BAN
++ NEGATIVE_TAIL + (HOOD_BAN unless costume in HOODED_COSTUMES) + SCORE_BAN
++ PROPORTION_BAN
 ```
 
-`PROPORTION_BAN` is the fixed tail after `NEGATIVE_TAIL`: it bans the
-builds `BODY` argues against -- fat, chubby, short legs, muscular, toned,
-and the child/loli/chibi/aged-down range.
+`PROPORTION_BAN` is the fixed tail: it bans the builds `BODY` argues
+against -- fat, chubby, short legs, muscular, toned, and the
+child/loli/chibi/aged-down range. `HOOD_BAN` bans a bare hood/cardigan;
+it is left out for any costume in `HOODED_COSTUMES` so the negative
+doesn't ban the garment the costume just drew.
 
 `costume` and `expression` default to the pose's own; passing either
-overrides just that block. An unknown pose, costume or expression is a
-`KeyError`.
+overrides just that block. `legwear`, `body`, `style` and `loras` are
+fixed by the pose and are not overridable per call -- `pose.legwear`
+still gates the costume override's own `LEGWEAR` entry, so
+`positive("stand", costume="standard")` carries `standard`'s legwear
+tags because `stand.legwear` is `True`. An unknown pose, costume or
+expression is a `KeyError`.
 
 ## Render constants
 
@@ -81,6 +104,9 @@ The graph builder (`infrastructure/comfyui/anima_graph.py`) wires a
 `qwen_image_vae`) rather than yukari's single `DiffusersLoader`; the
 KSampler is node `"3"` and the tail is a `VAEDecode` feeding `SaveImage`,
 the same shape `refinement_graph.chain_pass` reads off any base graph.
+`render_spec` passes the pose's own `loras` straight through; each pair
+chains a `LoraLoaderModelOnly` node off the `UNETLoader` (or the previous
+LoRA), in order.
 
 ## Finalize defaults
 

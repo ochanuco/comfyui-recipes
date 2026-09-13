@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from comfyui_recipes.application.generate import validate_request
 from comfyui_recipes.domain.generation.models import PromptPair
+from comfyui_recipes.domain.generation.prompt_lint import tags as prompt_tags
 from comfyui_recipes.domain.yukari_anima import prompt_style as ps
 from comfyui_recipes.domain.yukari_anima.costumes import COSTUMES
 from comfyui_recipes.domain.yukari_anima.poses import POSES
@@ -122,6 +123,46 @@ STAND_NEGATIVE = (
     "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)"
 )
 
+BUST_POSITIVE = (
+    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
+    "vocaloid, voiceroid, (@ixy:0.7), light purple hair, short hair with long "
+    "locks, very long sidelocks, purple eyes, hair ornament, (portrait:1.5), "
+    "(head and shoulders:1.4), (upper body:1.35), (face focus:1.3), (closed "
+    "mouth:1.2), (light smile:1.25), (tareme:1.2), (jitome:1.4), "
+    "(half-closed eyes:1.2), (confident:1.18), (looking at viewer:1.2), "
+    "(black hooded cardigan:1.25), open cardigan, (rabbit hood:1.3), long "
+    "sleeves, drawstring, (purple dress:1.25), frills, (sleeves past "
+    "wrists:1.15), hood down, (from front:1.2), (mature female:1.3), "
+    "(adult:1.2), adult proportions, pale skin, simple background, grey "
+    "background, (large eyes:1.4), (round face:1.3), (tareme:1.2), (thick "
+    "eyelashes:1.3), (sketch style:1.2), (flat color:1.7), (anime "
+    "coloring:1.4), (cel shading:1.2), (limited palette:1.6), (few "
+    "colors:1.3), (matte:1.5), (minimal shading:1.2), (flat shadow:1.2), "
+    "(thin lineart:1.3), (simple lines:1.3), (minimal lines:1.2), (black "
+    "lineart:1.35), (black outline:1.2)"
+)
+
+# The accepted render's negative, with the missing ", " between "(aged
+# down:1.2)" and "(wavy mouth:1.4)" restored -- the baked negative separates
+# them properly, so the two are compared as tag sets, not bytes.
+BUST_NEGATIVE_TAG_SOURCE = (
+    "(extra digits:1.5), bad anatomy, bad hands, (detailed:1.3), "
+    "(intricate:1.3), (highly detailed:1.3), (fine details:1.2), (colored "
+    "lineart:1.4), (colored outline:1.3), (purple lineart:1.2), (skinny:1.3), "
+    "(thin legs:1.3), (slender legs:1.2), (slender:1.1), (sitting:1.3), "
+    "(shiny:1.4), (glossy:1.3), (shiny hair:1.4), (shiny clothes:1.3), "
+    "(specular highlights:1.3), (reflection:1.2), (hair highlights:1.2), "
+    "(watercolor:1.3), (ink wash:1.3), (painterly:1.3), (hatching:1.5), "
+    "(crosshatching:1.4), (pencil shading:1.3), (sketch shading:1.2), "
+    "(gradient:1.5), (soft shading:1.5), (sparkling eyes:1.4), (glitter:1.3), "
+    "(multiple highlights:1.3), (gradient eyes:1.2), (speed lines:1.45), "
+    "(motion lines:1.4), (emphasis lines:1.4), score_1, score_2, score_3, "
+    "(fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3), "
+    "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2), "
+    "(wavy mouth:1.4), (:3:1.3), (pout:1.3), (pursed lips:1.3), "
+    "(puckered lips:1.2), "
+)
+
 REDRAW_STAND_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
     "vocaloid, voiceroid, (@ixy:0.7), light purple hair, short hair with long "
@@ -181,6 +222,26 @@ class PromptTest(unittest.TestCase):
     def test_stand_negative_matches_the_confirmed_render(self):
         self.assertEqual(negative("stand"), STAND_NEGATIVE)
 
+    def test_bust_positive_matches_the_confirmed_render(self):
+        self.assertEqual(positive("bust"), BUST_POSITIVE)
+
+    def test_bust_negative_tag_set_matches_the_confirmed_render(self):
+        self.assertEqual(set(prompt_tags(negative("bust"))),
+                         set(prompt_tags(BUST_NEGATIVE_TAG_SOURCE)))
+
+    def test_bust_positive_carries_no_pantyhose_tag(self):
+        self.assertNotIn("pantyhose", positive("bust"))
+
+    def test_standard_costume_override_carries_the_gradient_legwear(self):
+        text = positive("stand", costume="standard")
+        self.assertIn("(black pantyhose:1.3), (pale purple pantyhose:1.15), "
+                      "(gradient legwear:1.2), ", text)
+
+    def test_standard_costume_negative_drops_the_hood_ban(self):
+        self.assertIn("(hood:1.3), (cardigan:1.3), ", negative("stand"))
+        self.assertNotIn("(hood:1.3), (cardigan:1.3), ",
+                         negative("stand", costume="standard"))
+
     def test_brush_carries_its_own_expression_and_costume(self):
         text = positive("brush")
         self.assertTrue(text.startswith(ps.QUALITY + ps.CHARACTER + ps.IDENTITY))
@@ -199,7 +260,7 @@ class PromptTest(unittest.TestCase):
 class PartsTest(unittest.TestCase):
     def test_parts_concatenate_to_the_confirmed_render_byte_for_byte(self):
         for fixture, pose in ((COFFEE_POSITIVE, "coffee"), (AMAE_POSITIVE, "amae"),
-                              (STAND_POSITIVE, "stand")):
+                              (STAND_POSITIVE, "stand"), (BUST_POSITIVE, "bust")):
             with self.subTest(pose=pose):
                 joined = "".join(text for _, text in positive_parts(pose))
                 self.assertEqual(joined, fixture)
@@ -255,6 +316,13 @@ class PoseTableTest(unittest.TestCase):
         self.assertEqual(POSES["sofa"].costume, "roomwear")
         self.assertEqual(POSES["sofa"].canvas, (2048, 1280))
 
+    def test_bust_pose_defaults(self):
+        self.assertIn("bust", POSES)
+        self.assertEqual(POSES["bust"].expression, "smile")
+        self.assertEqual(POSES["bust"].costume, "standard")
+        self.assertEqual(POSES["bust"].canvas, (1280, 1280))
+        self.assertFalse(POSES["bust"].legwear)
+
 
 class RenderSpecTest(unittest.TestCase):
     def test_render_spec_fields(self):
@@ -281,6 +349,19 @@ class RenderSpecTest(unittest.TestCase):
     def test_denoise_override_is_rejected(self):
         with self.assertRaises(ValueError):
             render_spec("coffee", 42, "p", denoise=0.5)
+
+    def test_bust_render_spec_canvas_and_loras(self):
+        spec = render_spec("bust", 7, "p")
+        self.assertEqual((spec.width, spec.height), (1280, 1280))
+        self.assertEqual(
+            spec.loras, (("anima-sketch-style-chosen.safetensors", 0.8),))
+
+    def test_other_poses_render_spec_loras_stay_empty(self):
+        for pose in POSES:
+            if pose == "bust":
+                continue
+            with self.subTest(pose=pose):
+                self.assertEqual(render_spec(pose, 42, "p").loras, ())
 
 
 class GraphTest(unittest.TestCase):

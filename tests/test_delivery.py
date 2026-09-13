@@ -20,13 +20,16 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     compose,
     compose_outside_mask,
     cut_backdrop,
+    despill,
     down2,
     graph_from_png,
     keep_scene,
+    keyed_coverage,
     parse_color,
     refine_matte,
     stroke_alpha,
     transparent,
+    unpremultiply,
 )
 
 
@@ -380,6 +383,113 @@ class DeliveryTest(unittest.TestCase):
             _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)))
         self.assertRegex(tag, r"^clean-w\d+-p\d+$")
         self.assertNotIn("-cut", tag)
+
+    def test_keyed_coverage_ramps_the_edge_band_by_colour_distance(self):
+        local = np.full((40, 40, 3), (58, 67, 81), dtype=float)
+        pixels = local.copy()
+        figure = np.zeros((40, 40), dtype=bool)
+        figure[10:30, 10:30] = True
+        pixels[10:30, 10:30] = (190, 170, 220)
+        pixels[10, 20] = (78, 67, 81)  # distance 20 == tolerance, on the figure's own edge row
+        coverage = keyed_coverage(pixels, figure, local, 3, 20)
+        self.assertEqual(coverage[20, 20], 1.0)
+        self.assertEqual(coverage[0, 0], 0.0)
+        self.assertAlmostEqual(coverage[10, 20], 0.5, delta=0.02)
+
+    def test_keyed_coverage_is_the_hard_figure_below_one_pixel_of_band(self):
+        pixels = np.zeros((8, 8, 3))
+        local = np.zeros((8, 8, 3))
+        figure = np.zeros((8, 8), dtype=bool)
+        figure[2:6, 2:6] = True
+        coverage = keyed_coverage(pixels, figure, local, 0, 20)
+        np.testing.assert_array_equal(coverage, figure.astype(float))
+
+    def test_unpremultiply_solves_the_edge_blend_back_to_figure_colour(self):
+        local = np.zeros((1, 1, 3))
+        local[:] = (65, 198, 73)
+        figure_colour = np.array((100.0, 40.0, 160.0))
+        blended = (0.5 * figure_colour + 0.5 * local[0, 0]).reshape(1, 1, 3)
+        coverage = np.full((1, 1), 0.5)
+        solved = unpremultiply(blended, local, coverage)
+        np.testing.assert_allclose(solved[0, 0], figure_colour, atol=1)
+
+    def test_unpremultiply_leaves_fully_covered_and_fully_backdrop_pixels_alone(self):
+        local = np.full((1, 2, 3), (65, 198, 73), dtype=float)
+        pixels = np.array([[(100.0, 40.0, 160.0), (65.0, 198.0, 73.0)]])
+        coverage = np.array([[1.0, 0.0]])
+        np.testing.assert_array_equal(unpremultiply(pixels, local, coverage), pixels)
+
+    def test_despill_green_key_removes_green_excess_from_figure_only(self):
+        key = np.array((60.0, 200.0, 60.0))
+        figure = np.zeros((4, 4), dtype=bool)
+        figure[1:3, 1:3] = True
+        pixels = np.zeros((4, 4, 3))
+        pixels[..., 0] = 50
+        pixels[..., 1] = 220
+        pixels[..., 2] = 40
+        result = despill(pixels, figure, key)
+        self.assertTrue((result[..., 1][figure]
+                        <= np.maximum(result[..., 0], result[..., 2])[figure]).all())
+        np.testing.assert_array_equal(result[..., 1][~figure], 220)
+
+    def test_despill_grey_key_is_a_no_op(self):
+        key = np.array((200.0, 200.0, 200.0))
+        figure = np.ones((2, 2), dtype=bool)
+        pixels = np.array([[(10.0, 250.0, 5.0), (90.0, 200.0, 30.0)],
+                           [(5.0, 5.0, 5.0), (255.0, 0.0, 0.0)]])
+        np.testing.assert_array_equal(despill(pixels, figure, key), pixels)
+
+    def test_despill_excess_below_minimum_is_a_no_op(self):
+        key = np.array((100.0, 77.0, 50.0))  # excess 23, one under KEY_DESPILL_MIN_EXCESS
+        figure = np.ones((2, 2), dtype=bool)
+        pixels = np.array([[(10.0, 250.0, 5.0), (90.0, 200.0, 30.0)],
+                           [(5.0, 5.0, 5.0), (255.0, 0.0, 0.0)]])
+        np.testing.assert_array_equal(despill(pixels, figure, key), pixels)
+
+    def test_clean_background_keyed_edge_blends_and_despills_on_a_green_backdrop(self):
+        # A green-screen raw: a flat green backdrop, a figure with one edge
+        # row that is a 50/50 mix of the figure colour and the backdrop --
+        # the soft matte artefact the keyed edge exists to blend cleanly
+        # instead of cutting as a hard 0/1 pixel. The delivered backdrop is
+        # set to the same colour as the raw one, isolating the blend/despill
+        # arithmetic from the separate choice of coverage ramp value.
+        height = width = 200
+        box = (60, 140, 60, 140)
+        green = np.array((60.0, 90.0, 60.0))
+        figure_colour = np.array((120.0, 70.0, 60.0))
+        mixed_row = 0.5 * figure_colour + 0.5 * green
+
+        pixels = np.zeros((height, width, 3))
+        pixels[:] = green
+        pixels[box[0]:box[1], box[2]:box[3]] = figure_colour
+        pixels[box[0], box[2]:box[3]] = mixed_row
+        backdrop_hex = "#%02x%02x%02x" % tuple(int(c) for c in green)
+
+        cleaned, tag = clean_background(
+            png(pixels), matte((height, width), box), backdrop=backdrop_hex)
+        self.assertTrue(re.search(r"-key(-light-|$)", tag))
+        arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB")).astype(float)
+
+        np.testing.assert_allclose(arr[box[0], 100], mixed_row, atol=3)
+        np.testing.assert_array_equal(arr[box[0] + 5, 100], figure_colour)
+
+        fig_slice = (slice(box[0], box[1]), slice(box[2], box[3]))
+        r, g, b = arr[fig_slice][..., 0], arr[fig_slice][..., 1], arr[fig_slice][..., 2]
+        self.assertTrue((g <= np.maximum(r, b)).all())
+
+        _, light_tag = clean_background(
+            png(pixels), matte((height, width), box),
+            backdrop=backdrop_hex, light="ne")
+        self.assertRegex(light_tag, r"-key-light-ne$")
+
+    def test_clean_background_grey_backdrop_matches_the_old_arithmetic(self):
+        height = width = 32
+        pixels = np.full((height, width, 3), (210, 230, 235), dtype=np.uint8)
+        pixels[8:24, 10:22] = (40, 40, 40)
+        cleaned, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)))
+        self.assertNotIn("-key", tag)
+        arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB"))
+        np.testing.assert_array_equal(arr[16, 16], (40, 40, 40))
 
 
 def rgba_png(pixels: np.ndarray, alpha: np.ndarray) -> bytes:

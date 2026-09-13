@@ -49,9 +49,11 @@ The variable part is three small record sets:
 - `bust`: expression `smile`, costume `standard`, canvas `1280x1280`.
   Head-and-shoulders portrait, looking at viewer. Drops the costume's
   legwear (`legwear=False`), overrides `body` to a bare adult-proportions
-  block with no leg tags, prefixes `STYLE` with the sketch-style LoRA's
-  trigger tag via `style`, and loads that LoRA
-  (`anima-sketch-style-chosen.safetensors`, weight `0.8`) via `loras`.
+  block with no leg tags, overrides `background` to a green screen
+  (`(green background:1.3)`, the key colour `clean_background` despills),
+  prefixes `STYLE` with the sketch-style LoRA's trigger tag via `style`,
+  and loads that LoRA (`anima-sketch-style-chosen.safetensors`, weight
+  `0.8`) via `loras`.
 
 A pose may carry its own `canvas`; `render_spec` uses it in place of the
 default `1280x2048`.

@@ -20,6 +20,7 @@ class Pose:
     legwear: bool = True
     body: str | None = None
     style: str | None = None
+    background: str | None = None
     loras: tuple[tuple[str, float], ...] = ()
 
 
@@ -116,7 +117,8 @@ POSES = {
                   "(pursed lips:1.3), (puckered lips:1.2), "),
         canvas=(1280, 1280),
         legwear=False,
-        body="(mature female:1.3), (adult:1.2), adult proportions, pale skin, ",
+        body="(mature female:1.3), (adult:1.2), adult proportions, ",
         style="(sketch style:1.2), " + STYLE,
+        background="simple background, (green background:1.3), ",
         loras=(("anima-sketch-style-chosen.safetensors", 0.8),)),
 }

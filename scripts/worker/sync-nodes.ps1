@@ -16,7 +16,8 @@ $reader = @'
 import sys, tomllib
 for node in tomllib.loads(open(sys.argv[1], encoding="utf-8").read()).get("node", []):
     print("\t".join([node["name"], node["repo"], node["commit"],
-                     str(bool(node.get("install_requirements", True)))]))
+                     str(bool(node.get("install_requirements", True))),
+                     " ".join(node.get("pip", []))]))
 '@
 $readerPath = Join-Path $env:TEMP "worker-nodes-reader.py"
 Set-Content -Path $readerPath -Value $reader -Encoding ASCII
@@ -25,7 +26,7 @@ if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
 $changed = $false
 foreach ($line in $entries) {
-    $name, $repo, $commit, $requirements = $line -split "`t"
+    $name, $repo, $commit, $requirements, $pip = $line -split "`t"
     $dir = Join-Path $nodesDir $name
     $moved = $false
     if (-not (Test-Path (Join-Path $dir ".git"))) {
@@ -43,6 +44,10 @@ foreach ($line in $entries) {
     }
     if ($moved -and $requirements -eq "True" -and (Test-Path (Join-Path $dir "requirements.txt"))) {
         & $python -m pip install --quiet -r (Join-Path $dir "requirements.txt")
+        if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    }
+    if ($moved -and $pip) {
+        & $python -m pip install --quiet ($pip -split " ")
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
     }
     "{0} {1} {2}" -f $name, $commit.Substring(0, 7), $(if ($moved) { "updated" } else { "ok" })

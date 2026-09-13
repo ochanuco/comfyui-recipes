@@ -30,7 +30,10 @@ are joined by a promotion PR, the same shape as ochanuco/webull-trading.
   brings the third-party node packs under its `custom_nodes/` to the commits
   pinned in `manifests/worker-nodes.toml` (`scripts/worker/sync-nodes.ps1`:
   clone, detached checkout, `requirements.txt` into the portable Python when
-  an entry moved), and restarts ComfyUI
+  an entry moved, then that entry's `pip` list -- packages a node needs
+  that its own `requirements.txt` cannot supply, whether because
+  `install_requirements` is off or because the list omits one), and
+  restarts ComfyUI
   (`scripts/worker/restart-comfyui.ps1`) every time. That restart is not an
   optimisation to skip: the drain below ends the claim loop, and the loop is
   a thread in that process, so nothing else brings the worker back. A deploy

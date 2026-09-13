@@ -541,6 +541,23 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(graph["19"]["inputs"]["filename_prefix"],
                          "fin" + MATTE_SUFFIX)
 
+    def test_chain_pass_deliver_rmbg_matte_model_uses_birefnet_rmbg_node(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                           matte_model="rmbg:BiRefNet-HR", deliver=True)
+        rmbg_nodes = [node for node in graph.values()
+                     if node.get("class_type") == "BiRefNetRMBG"]
+        self.assertEqual(len(rmbg_nodes), 1)
+        rmbg = rmbg_nodes[0]
+        self.assertEqual(rmbg["inputs"]["model"], "BiRefNet-HR")
+        self.assertIs(rmbg["inputs"]["refine_foreground"], False)
+        self.assertFalse(any(
+            node.get("class_type") in ("LoadBackgroundRemovalModel", "RemoveBackground")
+            for node in graph.values()))
+        rmbg_id = next(key for key, node in graph.items() if node is rmbg)
+        deliver_node = next(node for node in graph.values()
+                            if node.get("class_type") == "YukariDeliver")
+        self.assertEqual(deliver_node["inputs"]["matte"], [rmbg_id, 1])
+
     def test_chain_pass_deliver_keep_scene_is_passed_through(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True, keep_scene=True)
@@ -940,6 +957,24 @@ class AdapterTest(unittest.TestCase):
                               if node.get("class_type") == "SaveImage"
                               and node["inputs"]["filename_prefix"] == "fin" + DELIVERED_SUFFIX)
         self.assertEqual(delivered_save["inputs"]["images"], [deliver_id, 0])
+
+    def test_chain_pass_deliver_only_rmbg_matte_model_uses_birefnet_rmbg_node(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="rmbg:BiRefNet-HR")
+        rmbg_nodes = [node for node in graph.values()
+                     if node.get("class_type") == "BiRefNetRMBG"]
+        self.assertEqual(len(rmbg_nodes), 1)
+        rmbg = rmbg_nodes[0]
+        self.assertEqual(rmbg["inputs"]["model"], "BiRefNet-HR")
+        self.assertIs(rmbg["inputs"]["refine_foreground"], False)
+        self.assertFalse(any(
+            node.get("class_type") in ("LoadBackgroundRemovalModel", "RemoveBackground")
+            for node in graph.values()))
+        rmbg_id = next(key for key, node in graph.items() if node is rmbg)
+        deliver_node = next(node for node in graph.values()
+                            if node.get("class_type") == "YukariDeliver")
+        self.assertEqual(deliver_node["inputs"]["matte"], [rmbg_id, 1])
 
     def test_chain_pass_deliver_only_ignores_the_bases_own_nodes(self):
         # _deliver_base() carries a KSampler/DiffusersLoader/VAEDecode of its

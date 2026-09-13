@@ -31,3 +31,10 @@ name = "ComfyUI_IPAdapter_plus"
 repo = "https://github.com/cubiq/ComfyUI_IPAdapter_plus.git"
 commit = "a0f451a5113cf9becb0847b92884cb10cbdec0ef"
 install_requirements = true
+
+[[node]]
+name = "ComfyUI-RMBG"
+repo = "https://github.com/1038lab/ComfyUI-RMBG.git"
+commit = "58f1947a11567a9f8b707223185570850e773856"
+install_requirements = false
+pip = ["timm"]

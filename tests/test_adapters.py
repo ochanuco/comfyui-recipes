@@ -362,6 +362,125 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(sample["inputs"]["cfg"], 5.0)
         self.assertEqual(graph["3"], original_node_3)
 
+    def _plain_base(self):
+        return {
+            "3": {"class_type": "KSampler",
+                  "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
+            "4": {"class_type": "DiffusersLoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                  "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+            "9": {"class_type": "SaveImage",
+                  "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+        }
+
+    def test_chain_pass_latent_route_with_source_image_encodes_it_then_upscales(self):
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                           latent_route=True, source_image="repaired.png")
+        load = graph["23"]
+        self.assertEqual(load, {"class_type": "LoadImage",
+                                "inputs": {"image": "repaired.png"}})
+        encode = graph["11"]
+        self.assertEqual(encode["class_type"], "VAEEncode")
+        self.assertEqual(encode["inputs"]["pixels"], ["23", 0])
+        self.assertEqual(encode["inputs"]["vae"], ["4", 2])
+        scale = graph["10"]
+        self.assertEqual(scale["class_type"], "LatentUpscale")
+        self.assertEqual(scale["inputs"]["samples"], ["11", 0])
+        sample = graph["12"]
+        self.assertEqual(sample["inputs"]["latent_image"], ["10", 0])
+        self.assertEqual(sample["inputs"]["denoise"], 0.55)
+
+    def test_chain_pass_latent_route_without_source_image_upscales_the_base_latent(self):
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                           latent_route=True)
+        scale = graph["10"]
+        self.assertEqual(scale["class_type"], "LatentUpscale")
+        self.assertEqual(scale["inputs"]["samples"], ["3", 0])
+        self.assertNotIn("23", graph)
+
+    def test_chain_pass_keep_mask_wires_between_latent_source_and_sampler(self):
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                           keep_mask_image="keep.png")
+        load = graph["24"]
+        self.assertEqual(load, {"class_type": "LoadImage", "inputs": {"image": "keep.png"}})
+        to_mask = graph["25"]
+        self.assertEqual(to_mask, {"class_type": "ImageToMask",
+                                   "inputs": {"image": ["24", 0], "channel": "red"}})
+        noise_mask = graph["26"]
+        self.assertEqual(noise_mask["class_type"], "SetLatentNoiseMask")
+        self.assertEqual(noise_mask["inputs"]["mask"], ["25", 0])
+        # Pixel route: the noise mask sits between the VAEEncode and the sampler.
+        self.assertEqual(noise_mask["inputs"]["samples"], ["11", 0])
+        sample = graph["12"]
+        self.assertEqual(sample["inputs"]["latent_image"], ["26", 0])
+
+    def test_chain_pass_keep_mask_wires_onto_the_latent_route_too(self):
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                           latent_route=True, keep_mask_image="keep.png")
+        noise_mask = graph["26"]
+        self.assertEqual(noise_mask["inputs"]["samples"], ["10", 0])
+        sample = graph["12"]
+        self.assertEqual(sample["inputs"]["latent_image"], ["26", 0])
+
+    def test_chain_pass_keep_mask_wires_onto_the_source_image_latent_route(self):
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                           latent_route=True, source_image="repaired.png",
+                           keep_mask_image="keep.png")
+        source_load_id = next(key for key, node in graph.items()
+                              if node.get("inputs", {}).get("image") == "repaired.png")
+        encode = graph["11"]
+        self.assertEqual(encode["inputs"]["pixels"], [source_load_id, 0])
+        scale = graph["10"]
+        self.assertEqual(scale["inputs"]["samples"], ["11", 0])
+        noise_mask = graph["26"]
+        self.assertEqual(noise_mask["class_type"], "SetLatentNoiseMask")
+        self.assertEqual(noise_mask["inputs"]["samples"], ["10", 0])
+        sample = graph["12"]
+        self.assertEqual(sample["inputs"]["latent_image"], ["26", 0])
+
+    def test_chain_pass_keep_mask_omitted_adds_nothing(self):
+        with_none = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+                               keep_mask_image=None)
+        without_kwarg = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664))
+        self.assertEqual(with_none, without_kwarg)
+        self.assertFalse(
+            any(node.get("class_type") in ("LoadImage", "ImageToMask", "SetLatentNoiseMask")
+                for node in with_none.values()))
+
+    def test_chain_pass_keep_mask_omitted_reproduces_the_pre_existing_graph_exactly(self):
+        # Pinned by hand against the shape chain_pass has always built for a
+        # plain pixel-route pass -- if this ever changes without a
+        # keep_mask_image argument in play, something broke the no-op case.
+        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664))
+        self.assertEqual(graph, {
+            "3": {"class_type": "KSampler",
+                 "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
+            "4": {"class_type": "DiffusersLoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                 "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                 "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+            "9": {"class_type": "SaveImage",
+                 "inputs": {"images": ["13", 0], "filename_prefix": "fin"}},
+            "10": {"class_type": "ImageScale", "inputs": {
+                "image": ["8", 0], "upscale_method": "bicubic",
+                "width": 1024, "height": 2048, "crop": "disabled"}},
+            "11": {"class_type": "VAEEncode",
+                  "inputs": {"pixels": ["10", 0], "vae": ["4", 2]}},
+            "12": {"class_type": "KSampler", "inputs": {
+                "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
+                "latent_image": ["11", 0], "seed": 7, "steps": 30, "cfg": 5.0,
+                "sampler_name": "dpmpp_2m", "scheduler": "karras", "denoise": 0.55}},
+            "13": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["12", 0], "vae": ["4", 2]}},
+        })
+
     def test_chain_pass_rejects_a_saved_image_that_is_not_decoded(self):
         base = {
             "3": {"class_type": "KSampler",
@@ -778,6 +897,107 @@ class AdapterTest(unittest.TestCase):
         scale = graph["10"]
         self.assertEqual(
             (scale["inputs"]["width"], scale["inputs"]["height"]), (2048, 2048))
+
+    def test_chain_pass_deliver_only_requires_source_image(self):
+        with self.assertRaisesRegex(ValueError, "deliver_only requires source_image"):
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                      deliver_only=True, matte_model="birefnet")
+
+    def test_chain_pass_deliver_only_requires_matte_model(self):
+        with self.assertRaisesRegex(ValueError, "deliver_only requires matte_model"):
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                      deliver_only=True, source_image="picked.png")
+
+    def test_chain_pass_deliver_only_builds_a_self_contained_delivery_chain(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet")
+        forbidden = {"KSampler", "VAEEncode", "VAEDecode", "DiffusersLoader"}
+        self.assertFalse(
+            any(node.get("class_type") in forbidden for node in graph.values()))
+        load = next(node for node in graph.values()
+                   if node.get("class_type") == "LoadImage")
+        self.assertEqual(load["inputs"]["image"], "picked.png")
+        load_id = next(key for key, node in graph.items() if node is load)
+        raw_save = next(node for node in graph.values()
+                        if node.get("class_type") == "SaveImage"
+                        and node["inputs"]["filename_prefix"] == "fin")
+        self.assertEqual(raw_save["inputs"]["images"], [load_id, 0])
+        remove = next(node for node in graph.values()
+                     if node.get("class_type") == "RemoveBackground")
+        self.assertEqual(remove["inputs"]["image"], [load_id, 0])
+        remove_id = next(key for key, node in graph.items() if node is remove)
+        matte_save = next(node for node in graph.values()
+                          if node.get("class_type") == "SaveImage"
+                          and node["inputs"]["filename_prefix"] == "fin" + MATTE_SUFFIX)
+        self.assertIsNotNone(matte_save)
+        deliver_node = next(node for node in graph.values()
+                            if node.get("class_type") == "YukariDeliver")
+        self.assertEqual(deliver_node["inputs"]["image"], [load_id, 0])
+        self.assertEqual(deliver_node["inputs"]["matte"], [remove_id, 0])
+        deliver_id = next(key for key, node in graph.items() if node is deliver_node)
+        delivered_save = next(node for node in graph.values()
+                              if node.get("class_type") == "SaveImage"
+                              and node["inputs"]["filename_prefix"] == "fin" + DELIVERED_SUFFIX)
+        self.assertEqual(delivered_save["inputs"]["images"], [deliver_id, 0])
+
+    def test_chain_pass_deliver_only_ignores_the_bases_own_nodes(self):
+        # _deliver_base() carries a KSampler/DiffusersLoader/VAEDecode of its
+        # own; deliver_only must not copy any of it into the result.
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet")
+        self.assertNotIn({"class_type": "DiffusersLoader", "inputs": {}}, graph.values())
+
+    def test_chain_pass_deliver_only_applies_deliver_size(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(1000, 2000),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet", deliver_size=1000)
+        scale = next(node for node in graph.values()
+                    if node.get("class_type") == "ImageScale")
+        self.assertEqual((scale["inputs"]["width"], scale["inputs"]["height"]), (500, 1000))
+        delivered_save = next(node for node in graph.values()
+                              if node.get("class_type") == "SaveImage"
+                              and node["inputs"]["filename_prefix"] == "fin" + DELIVERED_SUFFIX)
+        scale_id = next(key for key, node in graph.items() if node is scale)
+        self.assertEqual(delivered_save["inputs"]["images"], [scale_id, 0])
+
+    def test_chain_pass_deliver_only_omits_scale_below_deliver_size(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(1000, 2000),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet", deliver_size=4000)
+        self.assertFalse(
+            any(node.get("class_type") == "ImageScale" for node in graph.values()))
+
+    def test_chain_pass_deliver_only_chains_skin_before_delivery(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet", skin=True)
+        loads = [node for node in graph.values() if node.get("class_type") == "LoadImage"]
+        self.assertEqual(len(loads), 2)
+        skin_node = next(node for node in graph.values()
+                         if node.get("class_type") == "YukariRepinSkin")
+        deliver_node = next(node for node in graph.values()
+                            if node.get("class_type") == "YukariDeliver")
+        skin_id = next(key for key, node in graph.items() if node is skin_node)
+        self.assertEqual(deliver_node["inputs"]["image"], [skin_id, 0])
+
+    def test_chain_pass_deliver_only_recolor_wins_over_repin(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet", repin=True, recolor=True)
+        self.assertFalse(
+            any(node.get("class_type") == "YukariRepin" for node in graph.values()))
+        self.assertTrue(
+            any(node.get("class_type") == "YukariRecolor" for node in graph.values()))
+
+    def test_chain_pass_deliver_only_absent_is_a_byte_identical_no_op(self):
+        with_default = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                                  canvas=(832, 1664), matte_model="birefnet", deliver=True)
+        with_explicit_false = chain_pass(
+            self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+            matte_model="birefnet", deliver=True, deliver_only=False)
+        self.assertEqual(with_default, with_explicit_false)
 
     def test_discord_closes_response_and_swallows_transport_errors(self):
         notifier = DiscordNotifier(Path("."))

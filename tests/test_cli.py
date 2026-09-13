@@ -73,6 +73,20 @@ class CliTest(unittest.TestCase):
         self.assertEqual(kwargs["seeds"], [1, 2, 3, 4])
         self.assertEqual(kwargs["size"], 1024)
         self.assertEqual(kwargs["pad"], 1.0)
+        self.assertIsNone(kwargs["model"])
+
+    @patch.object(cli, "repair")
+    @patch.object(cli, "ChimeraClient")
+    def test_repair_model_flag_dispatches_without_network(
+            self, chimera_class, run_repair):
+        cli.main(["repair", "gen-1", "--model", "anima"])
+        kwargs = run_repair.call_args.kwargs
+        self.assertEqual(kwargs["model"], "anima")
+
+    def test_repair_unknown_model_is_rejected_by_argparse(self):
+        with redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                cli.main(["repair", "gen-1", "--model", "nope"])
 
     @patch.object(cli, "finalize")
     @patch.object(cli, "ChimeraClient")
@@ -100,6 +114,34 @@ class CliTest(unittest.TestCase):
         self.assertEqual(kwargs["repair_denoise"], 0.6)
         self.assertEqual(kwargs["repair_pad"], 1.0)
         self.assertEqual(kwargs["repair_size"], 1024)
+        self.assertEqual(kwargs["keep_regions"], [])
+        self.assertEqual(kwargs["keep_strength"], 0.25)
+
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_sketch_redraw_dispatches_without_network(
+            self, chimera_class, run_finalize):
+        cli.main(["finalize", "gen-1", "--sketch-redraw", "cinema"])
+        args, kwargs = run_finalize.call_args
+        self.assertEqual(kwargs["sketch_redraw"], "cinema")
+
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_sketch_redraw_defaults_to_none(self, chimera_class, run_finalize):
+        cli.main(["finalize", "gen-1"])
+        args, kwargs = run_finalize.call_args
+        self.assertIsNone(kwargs["sketch_redraw"])
+
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_keep_region_flags_dispatch_without_network(
+            self, chimera_class, run_finalize):
+        cli.main(["finalize", "gen-1", "--keep-region", "0.3,0.58,0.85,0.8",
+                  "--keep-region", "0.0,0.84,0.65,1.0", "--keep-strength", "0.45"])
+        args, kwargs = run_finalize.call_args
+        self.assertEqual(kwargs["keep_regions"],
+                         [[0.3, 0.58, 0.85, 0.8], [0.0, 0.84, 0.65, 1.0]])
+        self.assertEqual(kwargs["keep_strength"], 0.45)
 
     @patch.object(cli, "fetch_source")
     @patch.object(cli, "finalize")

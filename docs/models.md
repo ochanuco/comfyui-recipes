@@ -57,6 +57,8 @@ Whole-folder copies of a Civitai model converted to diffusers by John6666.
 | `checkpoints/miaomiaoPixel_vPred11.safetensors` | 6.46 GB | MiaoMiao Pixel / V-Pred_1.1 | [1180112/2316419](https://civitai.com/models/1180112?modelVersionId=2316419) |
 | `checkpoints/novaAnimeXL_ilV170.safetensors` | 6.46 GB | Nova Anime XL / IL V17.0 | [376130/2741698](https://civitai.com/models/376130?modelVersionId=2741698) |
 | `loras/add-micro-details-ill-v6.safetensors` | 218 MB | Add Micro Details - Concept (Illustrious \| Pony \| NoobAI) / v6.0_Illustrious | [1377820/2832991](https://civitai.com/models/1377820?modelVersionId=2832991) |
+| `loras/anima-handdrawn-feel-chosen.safetensors` | 175 MB | 手绘质感增强/Hand-drawn feel, trigger `Hand-drawn feel` / v2.0 anima | [2529114/3267407](https://civitai.com/models/2529114?modelVersionId=3267407) |
+| `loras/anima-sketch-style-chosen.safetensors` | 175 MB | 草稿线条风格/sketch style, trigger `sketch style` / v2.0 anima | [2061990/3218039](https://civitai.com/models/2061990?modelVersionId=3218039) |
 | `loras/detail-slider-ill.safetensors` | 8 MB | Detail Slider LoRA \| Illustrious-XL / v1.0 - Initial Release | [1001945/1122976](https://civitai.com/models/1001945?modelVersionId=1122976) |
 | `loras/detailed-perfection-ill.safetensors` | 435 MB | Detailed Perfection style (Hands + Feet + Face + Body + All in one) XL + F1D + SD1.5 + Pony + Illu + zit + zib / Detailed Illu v0.9 | [411088/1506333](https://civitai.com/models/411088?modelVersionId=1506333) |
 | `loras/feet-xl-ill.safetensors` | 435 MB | Feet XL + SD 1.5 + F1D + Pony + Illustrious + zit / Feet Illu v0.1 | [200251/1464471](https://civitai.com/models/200251?modelVersionId=1464471) |

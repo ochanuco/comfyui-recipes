@@ -25,7 +25,9 @@ from ..application.work import (
     resolve_dial,
     work,
 )
+from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
+from ..domain.repair.models import MODELS
 from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.poses import POSES
@@ -136,6 +138,11 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser = commands.add_parser("finalize", help="deliver one picked render")
     finalize_parser.add_argument("generation_id")
     finalize_parser.add_argument("--denoise", type=_number_or_word)
+    finalize_parser.add_argument(
+        "--deliver-only", action="store_true",
+        help="skip the redraw and run only the delivery tail (matte, repin/"
+             "skin/recolor, backdrop and stroke) over the picked picture's "
+             "own pixels; mutually exclusive with every redraw-shaping flag")
     finalize_parser.add_argument("--handdrawn", action="store_true")
     finalize_parser.add_argument(
         "--repin", action="store_true", help="repin the delivery's palette")
@@ -169,6 +176,11 @@ def parser() -> argparse.ArgumentParser:
         "--finalizer", metavar="MODEL",
         help="DiffusersLoader model_path that redraws instead of the base "
              "pass's own checkpoint")
+    finalize_parser.add_argument(
+        "--sketch-redraw", metavar="POSE",
+        help="on an anima base, redraw with the yukari-sketch look for POSE "
+             "(that pose's own prompt, LoRA and sampler) instead of the "
+             "anima recipe's own rough-style redraw")
     finalize_parser.add_argument(
         "--keep-scene", action="store_true",
         help="deliver the redraw uncut, background and all")
@@ -227,6 +239,15 @@ def parser() -> argparse.ArgumentParser:
         const=DEFAULT_PART_LORA_WEIGHT, metavar="WEIGHT",
         help="load each repaired part's own LoRA (Feet XL / Hands XL) inside "
              "the repair crop, at this strength; off by default")
+    finalize_parser.add_argument(
+        "--keep-region", dest="keep_regions", action="append",
+        metavar="X0,Y0,X1,Y1",
+        help="fractional rectangle [0..1], in the redraw's own frame, "
+             "shielded from the redraw under a soft noise mask; repeatable")
+    finalize_parser.add_argument(
+        "--keep-strength", type=float, default=0.25, metavar="STRENGTH",
+        help="how much the redraw still touches a --keep-region, 0 < s < 1; "
+             "lower keeps more of the source pixels")
 
     repair_parser = commands.add_parser(
         "repair", help="masked local redraw of hands/feet on an existing generation")
@@ -252,6 +273,18 @@ def parser() -> argparse.ArgumentParser:
         metavar="WEIGHT",
         help="load each repaired part's own LoRA (Feet XL / Hands XL) inside "
              "the crop, at this strength; off by default")
+    repair_parser.add_argument(
+        "--model", choices=sorted(MODELS),
+        help="sample the crop on this checkpoint instead of the source's own; "
+             "skips the part LoRA chain, which is Illustrious-only")
+    repair_parser.add_argument(
+        "--control", choices=sorted(CONTROL_MODELS), metavar="SIGNAL",
+        help="route the crop's conditioning through this ControlNet signal; "
+             "off by default")
+    repair_parser.add_argument(
+        "--control-strength", type=float, default=DEFAULT_CONTROL_STRENGTH,
+        metavar="STRENGTH",
+        help="the ControlNet's own strength, used only with --control")
 
     masked_redraw_parser = commands.add_parser(
         "masked_redraw", help="masked local redraw of a caller-given region")
@@ -431,6 +464,8 @@ def main(argv: list[str] | None = None) -> None:
                         if args.repair else None)
         repair_regions = [[float(value) for value in region.split(",")]
                           for region in (args.repair_regions or [])]
+        keep_regions = [[float(value) for value in region.split(",")]
+                       for region in (args.keep_regions or [])]
         context, _batch, dial_values = _resolve_word_args(
             chimera, args.generation_id, "finalize",
             {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
@@ -444,6 +479,7 @@ def main(argv: list[str] | None = None) -> None:
                  size=args.size,
                  latent_route=args.latent_route,
                  finalizer=args.finalizer,
+                 sketch_redraw=args.sketch_redraw,
                  toe_guard=dial_values["toe_guard"],
                  backdrop=args.backdrop,
                  upscale=args.upscale,
@@ -456,6 +492,9 @@ def main(argv: list[str] | None = None) -> None:
                  repair_pad=args.repair_pad,
                  repair_size=args.repair_size,
                  repair_lora=dial_values["repair_lora"],
+                 keep_regions=keep_regions,
+                 keep_strength=args.keep_strength,
+                 deliver_only=args.deliver_only,
                  context=context)
         return
     if args.command == "catalog":
@@ -478,7 +517,8 @@ def main(argv: list[str] | None = None) -> None:
             {key: getattr(args, key) for key in REPAIR_DIAL_KEYS})
         repair(args.generation_id, services, parts=parts, regions=regions,
               denoise=dial_values["denoise"], seeds=seeds, size=args.size,
-              pad=args.pad, lora=dial_values["lora"],
+              pad=args.pad, lora=dial_values["lora"], model=args.model,
+              control=args.control, control_strength=args.control_strength,
               context=context, batch=batch)
         return
     if args.command == "masked_redraw":

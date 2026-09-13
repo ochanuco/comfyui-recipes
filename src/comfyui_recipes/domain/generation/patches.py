@@ -17,6 +17,7 @@ NUMBER_TARGETS = ("render.cfg", "render.steps", "render.width",
                   "render.layerdiffuse_weight", "render.lora_strength")
 STRING_TARGETS = ("render.model", "render.sampler", "render.scheduler",
                   "render.layerdiffuse_config")
+LORAS_TARGETS = ("render.loras",)
 LAYERDIFFUSE_CONFIGS = ("SDXL, Attention Injection", "SDXL, Conv Injection")
 TEXT_OPS = ("append", "prepend", "replace", "remove")
 _KNOWN_KEYS = frozenset({"target", "op", "value", "old", "reason"})
@@ -37,7 +38,7 @@ NUMBER_CONSTRAINTS = {
 class Patch:
     target: str
     op: str
-    value: str | float | int | None
+    value: str | float | int | tuple[tuple[str, float], ...] | None
     old: str | None
     reason: str
 
@@ -122,6 +123,32 @@ def _parse_string_patch(patch: dict, target: str) -> Patch:
     return Patch(target, op, value, None, reason)
 
 
+def _parse_loras_patch(patch: dict, target: str) -> Patch:
+    op = patch.get("op")
+    if op != "set":
+        _fail(target, f"op must be 'set' for {target!r}, got {op!r}")
+    reason = _require_str(patch, "reason", target)
+    value = patch.get("value")
+    if not isinstance(value, list) or not value:
+        _fail(target, "value must be a non-empty list of [name, strength] pairs")
+    parsed = []
+    for pair in value:
+        if not isinstance(pair, list) or len(pair) != 2:
+            _fail(target, f"each entry must be [name, strength], got {pair!r}")
+        name, strength = pair
+        if (not isinstance(name, str) or not name
+                or not name.endswith(".safetensors")):
+            _fail(target,
+                  "lora name must be a non-empty string ending in "
+                  f".safetensors, got {name!r}")
+        if isinstance(strength, bool) or not isinstance(strength, (int, float)):
+            _fail(target, f"lora strength must be a number, got {strength!r}")
+        if not (0 <= strength <= 2):
+            _fail(target, f"lora strength must be between 0 and 2, got {strength!r}")
+        parsed.append((name, float(strength)))
+    return Patch(target, op, tuple(parsed), None, reason)
+
+
 def parse_patches(raw: object,
                   dials: Mapping[str, Mapping[str, float]] | None = None) -> tuple[Patch, ...]:
     """`dials` is the source recipe's `dials.patches` vocabulary (target ->
@@ -151,9 +178,11 @@ def parse_patches(raw: object,
             patches.append(_parse_number_patch(patch, target, dials))
         elif target in STRING_TARGETS:
             patches.append(_parse_string_patch(patch, target))
+        elif target in LORAS_TARGETS:
+            patches.append(_parse_loras_patch(patch, target))
         else:
             allowed = (TEXT_TARGETS + (PART_TARGET_PREFIX + "<part>",)
-                      + NUMBER_TARGETS + STRING_TARGETS)
+                      + NUMBER_TARGETS + STRING_TARGETS + LORAS_TARGETS)
             _fail(target, f"unknown target, must be one of {allowed}")
     return tuple(patches)
 
@@ -242,6 +271,8 @@ def _apply_one(spec: RenderSpec, patch: Patch) -> RenderSpec:
         strength = float(patch.value)
         loras = tuple((name, strength) for name, _ in spec.loras)
         return replace(spec, loras=loras)
+    if patch.target == "render.loras":
+        return replace(spec, loras=patch.value)
     hires = replace(spec.hires, denoise=float(patch.value))
     return replace(spec, hires=hires)
 

@@ -106,25 +106,34 @@ def down2(pixels: np.ndarray) -> np.ndarray:
         height // 2, 2, width // 2, 2, *pixels.shape[2:]).mean(axis=(1, 3))
 
 
+def local_backdrop(pixels: np.ndarray, figure: np.ndarray,
+                   band: int) -> np.ndarray:
+    """The backdrop colour read locally, from well outside `figure`.
+
+    A normalised Gaussian blur of the pixels the matte puts well outside the
+    figure, because a bigger redraw shades the backdrop toward the figure and
+    a single global sample would claim that shading as figure.
+    """
+    outside = ~ndimage.binary_dilation(figure, iterations=band * 2)
+    sigma = band * 4
+    weight = ndimage.gaussian_filter(outside.astype(float), sigma)
+    return np.stack(
+        [ndimage.gaussian_filter(pixels[..., c] * outside, sigma)
+         for c in range(3)], axis=-1) / np.maximum(weight, 1e-6)[..., None]
+
+
 def refine_matte(pixels: np.ndarray, figure: np.ndarray, band: int,
                  tolerance: int) -> np.ndarray:
     """Retrace the matte's edge by colour, `band` pixels either side of it.
 
     The matte model loses the thin strands and the hard threshold then
     cuts what it kept into stubs; the redraw's flat backdrop makes the colour
-    test exact there. The backdrop is read locally -- a normalised blur of
-    the pixels the matte puts well outside the figure -- because a bigger
-    redraw shades it toward the figure. Islands smaller than band*band are
-    the backdrop's own grain and go.
+    test exact there, against `local_backdrop`'s own read of it. Islands
+    smaller than band*band are the backdrop's own grain and go.
     """
     if band < 1:
         return figure
-    outside = ~ndimage.binary_dilation(figure, iterations=band * 2)
-    sigma = band * 4
-    weight = ndimage.gaussian_filter(outside.astype(float), sigma)
-    local = np.stack(
-        [ndimage.gaussian_filter(pixels[..., c] * outside, sigma)
-         for c in range(3)], axis=-1) / np.maximum(weight, 1e-6)[..., None]
+    local = local_backdrop(pixels, figure, band)
     edge = (ndimage.binary_dilation(figure, iterations=band)
             & ~ndimage.binary_erosion(figure, iterations=band))
     refined = figure.copy()
@@ -134,6 +143,68 @@ def refine_matte(pixels: np.ndarray, figure: np.ndarray, band: int,
         return refined
     sizes = ndimage.sum(refined, labels, range(1, count + 1))
     return np.isin(labels, 1 + np.nonzero(sizes >= band * band)[0])
+
+
+def keyed_coverage(pixels: np.ndarray, figure: np.ndarray, local: np.ndarray,
+                   band: int, tolerance: int) -> np.ndarray:
+    """Figure coverage as a ramp on the figure's outermost pixel ring.
+
+    1 inside the ring-eroded figure, 0 outside the figure entirely; the ring
+    itself ramps by each pixel's own colour distance from the local
+    backdrop, reaching 1 at `delivery_style.KEY_EDGE_RAMP` tolerances out.
+    """
+    if band < 1:
+        return figure.astype(float)
+    inside = ndimage.binary_erosion(
+        figure, iterations=delivery_style.KEY_EDGE_RING_PX)
+    distance = np.abs(pixels - local).max(axis=2)
+    ramp = np.clip(distance / (delivery_style.KEY_EDGE_RAMP * tolerance), 0.0, 1.0)
+    coverage = np.where(inside, 1.0, ramp)
+    coverage[~figure] = 0.0
+    return coverage
+
+
+def unpremultiply(pixels: np.ndarray, local: np.ndarray,
+                  coverage: np.ndarray) -> np.ndarray:
+    """Solve for the figure's own colour under a fractional edge coverage.
+
+    Where 0 < coverage < 1 the pixel is figure blended into the local
+    backdrop at that ratio; dividing the blend's departure from the backdrop
+    by coverage recovers the figure colour the blend was mixed from.
+    """
+    soft = (coverage > 0) & (coverage < 1)
+    safe = np.where(soft, coverage, 1.0)[..., None]
+    solved = np.clip(local + (pixels - local) / safe, 0, 255)
+    return np.where(soft[..., None], solved, pixels)
+
+
+def _key_channels(key: np.ndarray) -> tuple[int, list[int]]:
+    """`key`'s dominant channel index and the other two, in channel order."""
+    dominant = int(np.argmax(key))
+    return dominant, [channel for channel in range(3) if channel != dominant]
+
+
+def _key_excess(key: np.ndarray) -> float:
+    dominant, others = _key_channels(key)
+    return float(key[dominant] - max(key[others[0]], key[others[1]]))
+
+
+def despill(pixels: np.ndarray, figure: np.ndarray, key: np.ndarray) -> np.ndarray:
+    """Remove a chromatic key colour's dominant channel from `figure`.
+
+    A no-op unless `key` is a chromatic key: its dominant channel has to
+    clear the larger of the other two by `delivery_style.KEY_DESPILL_MIN_EXCESS`.
+    Where it does, every figure pixel's dominant channel is capped to the
+    larger of its other two channels, the standard despill.
+    """
+    if _key_excess(key) < delivery_style.KEY_DESPILL_MIN_EXCESS:
+        return pixels
+    dominant, others = _key_channels(key)
+    capped = np.maximum(pixels[..., others[0]], pixels[..., others[1]])
+    result = pixels.copy()
+    result[..., dominant] = np.where(
+        figure, np.minimum(pixels[..., dominant], capped), pixels[..., dominant])
+    return result
 
 
 def stroke_alpha(mask: np.ndarray, gap: float, width: float,
@@ -369,23 +440,31 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
 
     The matte is the authority on the silhouette. Colour cannot be: repin
     moves the figure's own colours, and the pale hair lands inside the
-    backdrop's tolerance once it has.
+    backdrop's tolerance once it has. The matte's own edge band gets a soft,
+    colour-distance coverage instead of a binary one, its figure pixels
+    un-premultiplied against the local backdrop; a chromatic raw backdrop
+    (a green screen) also gets despilled from the whole figure.
     """
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
     figure = np.array(Image.open(io.BytesIO(matte)).convert("L")) > 127
     height, width = px.shape[:2]
-    figure = refine_matte(
-        px, figure,
-        int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100),
-        delivery_style.MATTE_EDGE_TOLERANCE)
+    band = int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100)
+    tolerance = delivery_style.MATTE_EDGE_TOLERANCE
+    figure = refine_matte(px, figure, band, tolerance)
+    local = local_backdrop(px, figure, band)
+    coverage = keyed_coverage(px, figure, local, band, tolerance)
+    key = _corner_seed(px)
+    px = despill(unpremultiply(px, local, coverage), figure, key)
     backdrop_rgb = backdrops.render(backdrop, height, width)
-    composite = sticker(px, figure, figure.astype(float), backdrop_rgb, light)
+    composite = sticker(px, figure, coverage, backdrop_rgb, light)
     white_w, purple_w = _band_widths(height, width)
 
+    keyed = _key_excess(key) >= delivery_style.KEY_DESPILL_MIN_EXCESS
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
     tag = (f"clean-w{white_w:.0f}-p{purple_w:.0f}"
-          + _backdrop_tag_suffix(backdrop) + _cut_tag_suffix())
+          + _backdrop_tag_suffix(backdrop) + _cut_tag_suffix()
+          + ("-key" if keyed else ""))
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 

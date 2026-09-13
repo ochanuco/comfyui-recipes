@@ -202,6 +202,16 @@ MATTE_EDGE_TOLERANCE = 20
 MATTE_SOFT_SUPPORT = 8
 MATTE_SOFT_CERTAIN = 200
 
+# A raw backdrop counts as a chromatic key when its dominant channel exceeds
+# the larger of the other two by at least this.
+KEY_DESPILL_MIN_EXCESS = 24
+# The figure's outermost ring, in pixels, whose coverage ramps by colour
+# distance from the local backdrop instead of being 1.
+KEY_EDGE_RING_PX = 1
+# Coverage in that ring reaches 1 at this multiple of MATTE_EDGE_TOLERANCE
+# of colour distance from the local backdrop.
+KEY_EDGE_RAMP = 2.0
+
 # finalize's masked refine, the denoise a 2048 print's touch-up runs at.
 FINALIZE_DENOISE = 0.45
 

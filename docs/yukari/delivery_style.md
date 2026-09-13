@@ -190,6 +190,30 @@ Measured flat renders sit under 10, gradient failures at 40+ (2026-08-28
 white-outline sweep; confirmed by `cmfpby` at 41.1), so the bound (`25.0`)
 splits them mid-gap.
 
+## MATTE_EDGE_BAND_PCT / MATTE_EDGE_TOLERANCE
+
+The band either side of `refine_matte`'s edge, as a share of the longest
+side (`0.6`): inside it a pixel is figure when it differs from the locally
+read backdrop by more than `MATTE_EDGE_TOLERANCE` (`20`) on any channel.
+
+## KEY_EDGE_RING_PX / KEY_EDGE_RAMP / KEY_DESPILL_MIN_EXCESS
+
+The keyed edge `clean_background` applies on top of `refine_matte`'s band.
+Only the figure's outermost `KEY_EDGE_RING_PX` (`1`) pixels are soft:
+inside that ring coverage is 1, outside the figure it is 0, and on the ring
+itself it ramps by each pixel's own colour distance from the local backdrop
+-- `keyed_coverage` -- reaching 1 at `KEY_EDGE_RAMP` (`2.0`) times
+`MATTE_EDGE_TOLERANCE`. The ring is one pixel because the pale hair and the
+paper-white skin sit within two tolerances of a grey backdrop, so a ramp
+across the whole band would thin them. Where that coverage is fractional, `unpremultiply`
+solves the figure's own colour back out of its blend with the local
+backdrop, rather than leaving the blend in. `despill` then reads the raw's
+own backdrop colour (`_corner_seed`) as a key: if its dominant channel
+clears the larger of the other two by at least `KEY_DESPILL_MIN_EXCESS`
+(`24`), that channel is capped to the larger of the other two on every
+figure pixel. On a flat grey backdrop neither the excess check nor the
+ramp typically fires past 1, so only the edge softening changes.
+
 ## FINALIZE_DENOISE
 
 `0.45`, the denoise `finalize`'s masked refine runs at for a 2048 print's

@@ -38,6 +38,7 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "backdrop", "upscale", "lora_strength", "deliver_size", "stroke_light",
     "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
     "repair_lora", "keep_regions", "keep_strength", "sketch_redraw",
+    "deliver_only",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
@@ -605,6 +606,7 @@ def finalize_arguments(options: Mapping,
         "keep_regions": keep_regions,
         "keep_strength": keep_strength,
         "sketch_redraw": sketch_redraw,
+        "deliver_only": boolean("deliver_only"),
     }
 
 

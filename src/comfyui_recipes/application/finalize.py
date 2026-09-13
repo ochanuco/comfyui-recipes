@@ -81,7 +81,26 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              repair_lora: float | None = None,
              keep_regions: Sequence[Sequence[float]] = (),
              keep_strength: float = 0.25,
+             deliver_only: bool = False,
              context: dict | None = None) -> dict:
+    if deliver_only:
+        conflicts = [name for name, present in (
+            ("denoise", denoise is not None),
+            ("size", size is not None),
+            ("latent_route", latent_route is not None),
+            ("finalizer", finalizer is not None),
+            ("lora_strength", lora_strength is not None),
+            ("sketch_redraw", sketch_redraw is not None),
+            ("handdrawn", handdrawn),
+            ("toe_guard", toe_guard is not None),
+            ("repair", bool(repair)),
+            ("repair_regions", bool(repair_regions)),
+            ("keep_regions", bool(keep_regions)),
+            ("upscale", upscale is not None),
+        ) if present]
+        if conflicts:
+            raise SystemExit(
+                "deliver_only cannot combine with " + ", ".join(conflicts))
     if context is None:
         context = services.management.request(
             "GET", f"/api/v1/generations/{generation_id}/context")
@@ -112,6 +131,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     # it, since the redraw itself moves the silhouette.
     is_layerdiffuse = any(node.get("class_type") == "LayeredDiffusionApply"
                           for node in base.values())
+    if deliver_only and is_layerdiffuse:
+        raise SystemExit("deliver_only does not support a layerdiffuse base")
     if sketch_redraw is not None and not is_anima:
         raise SystemExit("sketch_redraw needs an anima base")
     is_anima_sketch_redraw = is_anima and sketch_redraw is not None
@@ -144,6 +165,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     caller_latent_route = latent_route
     if latent_route is None:
         latent_route = is_sketch and sketch_delivery_style.FINALIZE_LATENT_ROUTE
+    if deliver_only:
+        latent_route = False
     if transparent is None:
         transparent = False if backdrop else (
             is_sketch_style and sketch_delivery_style.FINALIZE_TRANSPARENT)
@@ -223,7 +246,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     if repair_requested:
         staged_source = services.comfyui.upload_image(
             f"{staged_prefix}-source.png", picked)
-    if is_repaired_raw or skin_applied:
+    if is_repaired_raw or skin_applied or deliver_only:
         source_image = staged_source or services.comfyui.upload_image(
             f"{staged_prefix or prefix}-source.png", picked)
     keep_region_list = [list(region) for region in keep_regions]
@@ -278,6 +301,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             redraw_lora=redraw_lora,
             deliver_size=deliver_size,
             stroke_light=stroke_light,
+            deliver_only=deliver_only,
             canvas=services.image_size(picked))
 
     repair_mask_png = None
@@ -366,9 +390,10 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         "recipe": "yukari",
         "parameters": {"kind": "hires-chain",
                        "base_generation": generation_id,
-                       "size": size, "denoise": denoise,
+                       **({"deliver_only": True} if deliver_only else {}),
+                       **({} if deliver_only else {"size": size, "denoise": denoise}),
                        **({"route": "latent"} if latent_route else {}),
-                       **({"finalizer": loader} if loader else {}),
+                       **({"finalizer": loader} if loader and not deliver_only else {}),
                        **({"sketch_redraw": sketch_redraw}
                           if sketch_redraw is not None else {}),
                        "repin": repin_applied,

@@ -898,6 +898,107 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(
             (scale["inputs"]["width"], scale["inputs"]["height"]), (2048, 2048))
 
+    def test_chain_pass_deliver_only_requires_source_image(self):
+        with self.assertRaisesRegex(ValueError, "deliver_only requires source_image"):
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                      deliver_only=True, matte_model="birefnet")
+
+    def test_chain_pass_deliver_only_requires_matte_model(self):
+        with self.assertRaisesRegex(ValueError, "deliver_only requires matte_model"):
+            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                      deliver_only=True, source_image="picked.png")
+
+    def test_chain_pass_deliver_only_builds_a_self_contained_delivery_chain(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet")
+        forbidden = {"KSampler", "VAEEncode", "VAEDecode", "DiffusersLoader"}
+        self.assertFalse(
+            any(node.get("class_type") in forbidden for node in graph.values()))
+        load = next(node for node in graph.values()
+                   if node.get("class_type") == "LoadImage")
+        self.assertEqual(load["inputs"]["image"], "picked.png")
+        load_id = next(key for key, node in graph.items() if node is load)
+        raw_save = next(node for node in graph.values()
+                        if node.get("class_type") == "SaveImage"
+                        and node["inputs"]["filename_prefix"] == "fin")
+        self.assertEqual(raw_save["inputs"]["images"], [load_id, 0])
+        remove = next(node for node in graph.values()
+                     if node.get("class_type") == "RemoveBackground")
+        self.assertEqual(remove["inputs"]["image"], [load_id, 0])
+        remove_id = next(key for key, node in graph.items() if node is remove)
+        matte_save = next(node for node in graph.values()
+                          if node.get("class_type") == "SaveImage"
+                          and node["inputs"]["filename_prefix"] == "fin" + MATTE_SUFFIX)
+        self.assertIsNotNone(matte_save)
+        deliver_node = next(node for node in graph.values()
+                            if node.get("class_type") == "YukariDeliver")
+        self.assertEqual(deliver_node["inputs"]["image"], [load_id, 0])
+        self.assertEqual(deliver_node["inputs"]["matte"], [remove_id, 0])
+        deliver_id = next(key for key, node in graph.items() if node is deliver_node)
+        delivered_save = next(node for node in graph.values()
+                              if node.get("class_type") == "SaveImage"
+                              and node["inputs"]["filename_prefix"] == "fin" + DELIVERED_SUFFIX)
+        self.assertEqual(delivered_save["inputs"]["images"], [deliver_id, 0])
+
+    def test_chain_pass_deliver_only_ignores_the_bases_own_nodes(self):
+        # _deliver_base() carries a KSampler/DiffusersLoader/VAEDecode of its
+        # own; deliver_only must not copy any of it into the result.
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet")
+        self.assertNotIn({"class_type": "DiffusersLoader", "inputs": {}}, graph.values())
+
+    def test_chain_pass_deliver_only_applies_deliver_size(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(1000, 2000),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet", deliver_size=1000)
+        scale = next(node for node in graph.values()
+                    if node.get("class_type") == "ImageScale")
+        self.assertEqual((scale["inputs"]["width"], scale["inputs"]["height"]), (500, 1000))
+        delivered_save = next(node for node in graph.values()
+                              if node.get("class_type") == "SaveImage"
+                              and node["inputs"]["filename_prefix"] == "fin" + DELIVERED_SUFFIX)
+        scale_id = next(key for key, node in graph.items() if node is scale)
+        self.assertEqual(delivered_save["inputs"]["images"], [scale_id, 0])
+
+    def test_chain_pass_deliver_only_omits_scale_below_deliver_size(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(1000, 2000),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet", deliver_size=4000)
+        self.assertFalse(
+            any(node.get("class_type") == "ImageScale" for node in graph.values()))
+
+    def test_chain_pass_deliver_only_chains_skin_before_delivery(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet", skin=True)
+        loads = [node for node in graph.values() if node.get("class_type") == "LoadImage"]
+        self.assertEqual(len(loads), 2)
+        skin_node = next(node for node in graph.values()
+                         if node.get("class_type") == "YukariRepinSkin")
+        deliver_node = next(node for node in graph.values()
+                            if node.get("class_type") == "YukariDeliver")
+        skin_id = next(key for key, node in graph.items() if node is skin_node)
+        self.assertEqual(deliver_node["inputs"]["image"], [skin_id, 0])
+
+    def test_chain_pass_deliver_only_recolor_wins_over_repin(self):
+        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+                           deliver_only=True, source_image="picked.png",
+                           matte_model="birefnet", repin=True, recolor=True)
+        self.assertFalse(
+            any(node.get("class_type") == "YukariRepin" for node in graph.values()))
+        self.assertTrue(
+            any(node.get("class_type") == "YukariRecolor" for node in graph.values()))
+
+    def test_chain_pass_deliver_only_absent_is_a_byte_identical_no_op(self):
+        with_default = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
+                                  canvas=(832, 1664), matte_model="birefnet", deliver=True)
+        with_explicit_false = chain_pass(
+            self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
+            matte_model="birefnet", deliver=True, deliver_only=False)
+        self.assertEqual(with_default, with_explicit_false)
+
     def test_discord_closes_response_and_swallows_transport_errors(self):
         notifier = DiscordNotifier(Path("."))
         response = MagicMock()

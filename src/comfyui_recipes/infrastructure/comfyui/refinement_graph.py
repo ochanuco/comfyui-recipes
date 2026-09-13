@@ -21,6 +21,83 @@ def sizes(width: int, height: int, longest_side: int) -> tuple[int, int]:
             round(longest_side * height / longest / 8) * 8)
 
 
+def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
+                        skin: bool, repin: bool, recolor: bool,
+                        keep_legwear: float | None, keep_scene: bool,
+                        transparent: bool, backdrop: str | None,
+                        stroke_light: str | None, deliver_size: int | None,
+                        canvas: tuple[int, int]) -> dict:
+    # A self-contained graph: nothing here depends on the base pass that
+    # produced source_image, so it carries none of that pass's own nodes.
+    graph: dict = {}
+    cursor = 1
+
+    def allocate() -> str:
+        nonlocal cursor
+        node_id = str(cursor)
+        cursor += 1
+        return node_id
+
+    load_id = allocate()
+    graph[load_id] = {"class_type": "LoadImage", "inputs": {"image": source_image}}
+    image_ref = [load_id, 0]
+    # A raw output alongside the matte and the delivered one, same three-way
+    # split finalize() classifies every other route by -- here it is the
+    # picked picture's own pixels, unresampled.
+    raw_save = allocate()
+    graph[raw_save] = {"class_type": "SaveImage", "inputs": {
+        "images": image_ref, "filename_prefix": prefix}}
+    bg_loader = allocate()
+    graph[bg_loader] = {"class_type": "LoadBackgroundRemovalModel", "inputs": {
+        "bg_removal_name": matte_model}}
+    remove = allocate()
+    graph[remove] = {"class_type": "RemoveBackground", "inputs": {
+        "bg_removal_model": [bg_loader, 0], "image": image_ref}}
+    to_image = allocate()
+    graph[to_image] = {"class_type": "MaskToImage", "inputs": {"mask": [remove, 0]}}
+    matte_save = allocate()
+    graph[matte_save] = {"class_type": "SaveImage", "inputs": {
+        "images": [to_image, 0], "filename_prefix": prefix + MATTE_SUFFIX}}
+    if skin:
+        load_source = allocate()
+        graph[load_source] = {"class_type": "LoadImage", "inputs": {"image": source_image}}
+        repin_skin_id = allocate()
+        graph[repin_skin_id] = {"class_type": "YukariRepinSkin", "inputs": {
+            "image": image_ref, "source": [load_source, 0]}}
+        image_ref = [repin_skin_id, 0]
+    if recolor:
+        recolor_id = allocate()
+        graph[recolor_id] = {"class_type": "YukariRecolor", "inputs": {"image": image_ref}}
+        image_ref = [recolor_id, 0]
+    elif repin:
+        repin_id = allocate()
+        graph[repin_id] = {"class_type": "YukariRepin", "inputs": {
+            "image": image_ref,
+            "keep_legwear": keep_legwear is not None,
+            "keep_legwear_cut": keep_legwear if keep_legwear is not None else 0.62}}
+        image_ref = [repin_id, 0]
+    deliver_id = allocate()
+    graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
+        "image": image_ref, "matte": [remove, 0], "keep_scene": keep_scene,
+        "transparent": transparent, "stroke_light": stroke_light or "",
+        "backdrop": backdrop or ""}}
+    delivered_ref = [deliver_id, 0]
+    width, height = canvas
+    longest = max(width, height)
+    if deliver_size is not None and deliver_size < longest:
+        target = (round(width * deliver_size / longest),
+                 round(height * deliver_size / longest))
+        deliver_scale = allocate()
+        graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {
+            "image": delivered_ref, "upscale_method": "lanczos",
+            "width": target[0], "height": target[1], "crop": "disabled"}}
+        delivered_ref = [deliver_scale, 0]
+    save_delivered = allocate()
+    graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
+        "images": delivered_ref, "filename_prefix": prefix + DELIVERED_SUFFIX}}
+    return graph
+
+
 def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                prompt: tuple[str, str] | None = None,
                matte_model: str | None = None,
@@ -38,6 +115,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                upscale: str = "bicubic",
                deliver_size: int | None = None,
                stroke_light: str | None = None,
+               deliver_only: bool = False,
                canvas: tuple[int, int]) -> dict:
     if upscale not in ("bicubic", "nearest-exact", "bilinear", "lanczos"):
         raise ValueError(f"unsupported upscale method: {upscale!r}")
@@ -54,6 +132,16 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         raise ValueError(
             "base graph has unsupported non-numeric node IDs: "
             + ", ".join(map(repr, unsupported)))
+    if deliver_only:
+        if not source_image:
+            raise ValueError("deliver_only requires source_image")
+        if not matte_model:
+            raise ValueError("deliver_only requires matte_model")
+        return _deliver_only_graph(
+            source_image, matte_model, prefix, skin=skin, repin=repin,
+            recolor=recolor, keep_legwear=keep_legwear, keep_scene=keep_scene,
+            transparent=transparent, backdrop=backdrop,
+            stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas)
     graph = json.loads(json.dumps(base))
     roles = base_roles(graph)
     if latent_route and roles.stitched:

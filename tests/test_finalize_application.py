@@ -886,6 +886,141 @@ class FinalizeApplicationTest(unittest.TestCase):
             self.assertIs(calls[-1]["transparent"], sketch_delivery_style.FINALIZE_TRANSPARENT)
 
 
+class FinalizeDeliverOnlyTest(unittest.TestCase):
+    def test_reaches_chain_pass_with_matte_model_and_the_staged_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            comfy = ComfyFake()
+            services = base_services(
+                directory, chain_pass=recording_chain_pass, comfyui=comfy)
+            finalize("gen-id", services, deliver_only=True)
+            self.assertIs(calls[-1]["deliver_only"], True)
+            self.assertEqual(calls[-1]["matte_model"], delivery_style.MATTE_MODEL)
+            self.assertEqual(comfy.uploaded, [("fin-gen-id-source.png", b"picked")])
+            self.assertEqual(
+                calls[-1]["source_image"], "uploaded-fin-gen-id-source.png")
+
+    def test_repin_skin_recolor_and_keep_legwear_still_reach_chain_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, deliver_only=True, apply_repin=True,
+                     keep_legwear=0.5)
+            self.assertIs(calls[-1]["repin"], True)
+            self.assertEqual(calls[-1]["keep_legwear"], 0.5)
+
+    def test_rejects_a_layerdiffuse_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            with self.assertRaisesRegex(SystemExit, "layerdiffuse"):
+                finalize("gen-id", services, deliver_only=True)
+
+    def test_cannot_combine_with_denoise(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "denoise"):
+                finalize("gen-id", services, deliver_only=True, denoise=0.5)
+
+    def test_cannot_combine_with_size(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "size"):
+                finalize("gen-id", services, deliver_only=True, size=2048)
+
+    def test_cannot_combine_with_latent_route(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "latent_route"):
+                finalize("gen-id", services, deliver_only=True, latent_route=True)
+
+    def test_cannot_combine_with_finalizer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "finalizer"):
+                finalize("gen-id", services, deliver_only=True, finalizer="m")
+
+    def test_cannot_combine_with_lora_strength(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "lora_strength"):
+                finalize("gen-id", services, deliver_only=True, lora_strength=1.0)
+
+    def test_cannot_combine_with_sketch_redraw(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "sketch_redraw"):
+                finalize("gen-id", services, deliver_only=True, sketch_redraw="bust")
+
+    def test_cannot_combine_with_handdrawn(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "handdrawn"):
+                finalize("gen-id", services, deliver_only=True, handdrawn=True)
+
+    def test_cannot_combine_with_toe_guard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "toe_guard"):
+                finalize("gen-id", services, deliver_only=True, toe_guard=0.5)
+
+    def test_cannot_combine_with_repair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "repair"):
+                finalize("gen-id", services, deliver_only=True, repair=["hands"])
+
+    def test_cannot_combine_with_repair_regions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "repair_regions"):
+                finalize("gen-id", services, deliver_only=True,
+                         repair_regions=[[0.0, 0.0, 0.1, 0.1]])
+
+    def test_cannot_combine_with_keep_regions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "keep_regions"):
+                finalize("gen-id", services, deliver_only=True,
+                         keep_regions=[[0.0, 0.0, 0.1, 0.1]])
+
+    def test_cannot_combine_with_upscale(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "upscale"):
+                finalize("gen-id", services, deliver_only=True, upscale="lanczos")
+
+    def test_batch_parameters_record_deliver_only_and_omit_redraw_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services, deliver_only=True)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertIs(parameters["deliver_only"], True)
+            self.assertNotIn("size", parameters)
+            self.assertNotIn("denoise", parameters)
+            self.assertNotIn("route", parameters)
+            self.assertNotIn("finalizer", parameters)
+
+    def test_batch_parameters_omit_deliver_only_when_not_requested(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertNotIn("deliver_only", parameters)
+            self.assertIn("size", parameters)
+            self.assertIn("denoise", parameters)
+
+
 # A minimal redraw graph `redraw_canvas` (not faked -- it is not injectable)
 # can trace on its own: KSampler <- EmptyLatentImage, VAEDecode <- KSampler.
 REDRAW_GRAPH = {

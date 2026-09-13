@@ -138,6 +138,11 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser = commands.add_parser("finalize", help="deliver one picked render")
     finalize_parser.add_argument("generation_id")
     finalize_parser.add_argument("--denoise", type=_number_or_word)
+    finalize_parser.add_argument(
+        "--deliver-only", action="store_true",
+        help="skip the redraw and run only the delivery tail (matte, repin/"
+             "skin/recolor, backdrop and stroke) over the picked picture's "
+             "own pixels; mutually exclusive with every redraw-shaping flag")
     finalize_parser.add_argument("--handdrawn", action="store_true")
     finalize_parser.add_argument(
         "--repin", action="store_true", help="repin the delivery's palette")
@@ -489,6 +494,7 @@ def main(argv: list[str] | None = None) -> None:
                  repair_lora=dial_values["repair_lora"],
                  keep_regions=keep_regions,
                  keep_strength=args.keep_strength,
+                 deliver_only=args.deliver_only,
                  context=context)
         return
     if args.command == "catalog":

@@ -302,7 +302,15 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "repair": None, "repair_regions": [], "repair_denoise": 0.6,
             "repair_pad": 1.0, "repair_size": 1024, "repair_lora": None,
             "keep_regions": [], "keep_strength": 0.25, "sketch_redraw": None,
+            "deliver_only": False,
         })
+
+    def test_deliver_only_true_is_validated_as_a_boolean(self):
+        self.assertIs(finalize_arguments({"deliver_only": True})["deliver_only"], True)
+
+    def test_deliver_only_rejects_a_non_boolean(self):
+        with self.assertRaisesRegex(ValueError, "deliver_only"):
+            finalize_arguments({"deliver_only": "yes"})
 
     def test_backdrop_null_passes_through(self):
         self.assertIsNone(finalize_arguments({})["backdrop"])

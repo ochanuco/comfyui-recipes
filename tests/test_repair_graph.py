@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
@@ -400,6 +401,96 @@ class RepairGraphLorasTest(unittest.TestCase):
         self.assertEqual(sample["inputs"]["model"], [second_id, 0])
         positive_node = graph[sample["inputs"]["positive"][0]]
         self.assertEqual(positive_node["inputs"]["clip"], [second_id, 1])
+
+
+class RerollHooksTest(unittest.TestCase):
+    def _sampler(self, graph):
+        return next(node for node in graph.values()
+                    if node["class_type"] == "KSampler"
+                    and node["inputs"]["denoise"] == 0.6)
+
+    def test_model_hook_reroutes_model_clip_vae_and_sampler_settings(self):
+        seen = {}
+
+        def swap(graph, allocate, refs):
+            seen["positive"] = refs.positive
+            loader = allocate()
+            graph[loader] = {"class_type": "UNETLoader", "inputs": {
+                "unet_name": "other.safetensors"}}
+            return replace(refs, model=[loader, 0], positive_clip=[loader, 1],
+                           negative_clip=[loader, 1], vae=[loader, 2],
+                           sampler={"steps": 12, "cfg": 3.5})
+
+        graph = repair_graph(
+            RAW, image_name="src.png", mask_name="mask.png",
+            positive="p", negative="n", seed=99, denoise=0.6, size=1024,
+            prefix="rep-abc-s99", loras=[("feet-xl-ill.safetensors", 0.8)],
+            model_hooks=[swap])
+        self.assertIsNone(seen["positive"])
+        loader_id = next(key for key, node in graph.items()
+                         if node["class_type"] == "UNETLoader")
+        sample = self._sampler(graph)
+        self.assertEqual(sample["inputs"]["model"], [loader_id, 0])
+        self.assertEqual(sample["inputs"]["steps"], 12)
+        self.assertEqual(sample["inputs"]["cfg"], 3.5)
+        self.assertEqual(sample["inputs"]["seed"], 99)
+        self.assertEqual(sample["inputs"]["denoise"], 0.6)
+        for key in ("positive", "negative"):
+            self.assertEqual(graph[sample["inputs"][key][0]]["inputs"]["clip"],
+                             [loader_id, 1])
+        encode = graph[graph[sample["inputs"]["latent_image"][0]]
+                       ["inputs"]["samples"][0]]
+        self.assertEqual(encode["inputs"]["vae"], [loader_id, 2])
+        decode = next(node for node in graph.values()
+                      if node["class_type"] == "VAEDecode"
+                      and node["inputs"]["samples"][0] in graph
+                      and graph[node["inputs"]["samples"][0]] is sample)
+        self.assertEqual(decode["inputs"]["vae"], [loader_id, 2])
+
+    def test_conditioning_hook_sees_text_encodes_and_reroutes_them(self):
+        seen = {}
+
+        def control(graph, allocate, refs):
+            seen["refs"] = refs
+            apply = allocate()
+            graph[apply] = {"class_type": "ControlNetApplyAdvanced", "inputs": {
+                "positive": refs.positive, "negative": refs.negative,
+                "image": refs.cropped_image}}
+            return replace(refs, positive=[apply, 0], negative=[apply, 1])
+
+        graph = repair_graph(
+            RAW, image_name="src.png", mask_name="mask.png",
+            positive="p", negative="n", seed=99, denoise=0.6, size=1024,
+            prefix="rep-abc-s99", conditioning_hooks=[control])
+        refs = seen["refs"]
+        self.assertEqual(graph[refs.positive[0]]["inputs"]["text"], "p")
+        self.assertEqual(graph[refs.negative[0]]["inputs"]["text"], "n")
+        self.assertEqual(graph[refs.cropped_image[0]]["class_type"],
+                         "InpaintCropImproved")
+        apply_id = next(key for key, node in graph.items()
+                        if node["class_type"] == "ControlNetApplyAdvanced")
+        sample = self._sampler(graph)
+        self.assertEqual(sample["inputs"]["positive"], [apply_id, 0])
+        self.assertEqual(sample["inputs"]["negative"], [apply_id, 1])
+
+    def test_hooks_reach_masked_redraw_and_splice_repair(self):
+        calls = []
+
+        def note(graph, allocate, refs):
+            calls.append(refs)
+            return refs
+
+        masked_redraw_graph(
+            RAW, image_name="src.png", mask_name="mask.png", positive="p",
+            negative="n", seed=1, denoise=0.45, mask_padding=0,
+            mask_feather=20, size=512, prefix="mrd",
+            model_hooks=[note], conditioning_hooks=[note])
+        splice_repair(
+            FINALIZE, mask_name="mask.png", positive="p", negative="n",
+            denoise=0.6, size=1024, model_hooks=[note], conditioning_hooks=[note])
+        self.assertEqual(len(calls), 4)
+        self.assertIsNone(calls[0].positive)
+        self.assertIsNotNone(calls[1].positive)
 
 
 class SpliceRepairLorasTest(unittest.TestCase):

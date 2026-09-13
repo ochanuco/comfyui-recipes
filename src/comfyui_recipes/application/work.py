@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Protocol
 from urllib.parse import quote
 
+from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
+from ..domain.repair.models import MODELS
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.dials import DIALS as _YUKARI_DIALS
 from ..domain.yukari.recipe import TOE_GUARD
@@ -35,11 +37,13 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
     "backdrop", "upscale", "lora_strength", "deliver_size", "stroke_light",
     "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
-    "repair_lora",
+    "repair_lora", "keep_regions", "keep_strength", "sketch_redraw",
+    "deliver_only",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
-    "parts", "regions", "denoise", "seeds", "size", "pad", "lora",
+    "parts", "regions", "denoise", "seeds", "size", "pad", "lora", "model",
+    "control", "control_strength",
 })
 
 _KNOWN_MASKED_REDRAW_OPTIONS = frozenset({
@@ -161,6 +165,14 @@ def _pad_argument(value: object, *, key: str = "pad") -> float:
     return float(value)
 
 
+def _keep_strength_argument(value: object, *, key: str = "keep_strength") -> float:
+    if not (isinstance(value, (int, float)) and not isinstance(value, bool)):
+        raise ValueError(f"{key} must be a number, got {type(value).__name__}")
+    if not (0 < value < 1):
+        raise ValueError(f"{key} must be > 0 and < 1, got {value!r}")
+    return float(value)
+
+
 def _crop_size_argument(value: object, *, key: str = "size") -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError(f"{key} must be an integer, got {type(value).__name__}")
@@ -183,6 +195,33 @@ def _part_lora_argument(value: object, *, key: str = "lora") -> float | None:
         return float(value)
     raise ValueError(
         f"{key} must be null, true or a number, got {type(value).__name__}")
+
+
+def _model_argument(value: object, *, key: str = "model") -> str | None:
+    if value is None:
+        return None
+    if value not in MODELS:
+        valid = ", ".join(repr(word) for word in sorted(MODELS))
+        raise ValueError(f"{key} must be null or one of {valid}, got {value!r}")
+    return value
+
+
+def _control_argument(value: object, *, key: str = "control") -> str | None:
+    if value is None:
+        return None
+    if value not in CONTROL_MODELS:
+        valid = ", ".join(repr(word) for word in sorted(CONTROL_MODELS))
+        raise ValueError(f"{key} must be null or one of {valid}, got {value!r}")
+    return value
+
+
+def _control_strength_argument(value: object, *,
+                               key: str = "control_strength") -> float:
+    if not (isinstance(value, (int, float)) and not isinstance(value, bool)):
+        raise ValueError(f"{key} must be a number, got {type(value).__name__}")
+    if not (0 < value <= 2):
+        raise ValueError(f"{key} must be > 0 and <= 2, got {value!r}")
+    return float(value)
 
 
 class Management(Protocol):
@@ -530,6 +569,15 @@ def finalize_arguments(options: Mapping,
     repair_lora = _part_lora_argument(
         resolve_dial("repair_lora", options.get("repair_lora"), dials),
         key="repair_lora")
+    keep_regions = _regions_argument(
+        options.get("keep_regions", []), key="keep_regions")
+    keep_strength = _keep_strength_argument(options.get("keep_strength", 0.25))
+
+    sketch_redraw = options.get("sketch_redraw")
+    if sketch_redraw is not None and not (
+            isinstance(sketch_redraw, str) and sketch_redraw):
+        raise ValueError(
+            f"sketch_redraw must be null or a non-empty string, got {sketch_redraw!r}")
 
     return {
         "denoise": float(denoise) if denoise is not None else None,
@@ -555,6 +603,10 @@ def finalize_arguments(options: Mapping,
         "repair_pad": repair_pad,
         "repair_size": repair_size,
         "repair_lora": repair_lora,
+        "keep_regions": keep_regions,
+        "keep_strength": keep_strength,
+        "sketch_redraw": sketch_redraw,
+        "deliver_only": boolean("deliver_only"),
     }
 
 
@@ -592,10 +644,15 @@ def repair_arguments(options: Mapping,
     size = _crop_size_argument(options.get("size", 1024))
     pad = _pad_argument(options.get("pad", 1.0))
     lora = _part_lora_argument(resolve_dial("lora", options.get("lora"), dials))
+    model = _model_argument(options.get("model"))
+    control = _control_argument(options.get("control"))
+    control_strength = _control_strength_argument(
+        options.get("control_strength", DEFAULT_CONTROL_STRENGTH))
 
     return {
         "parts": parts, "regions": parsed_regions, "denoise": denoise,
-        "seeds": seeds, "size": size, "pad": pad, "lora": lora,
+        "seeds": seeds, "size": size, "pad": pad, "lora": lora, "model": model,
+        "control": control, "control_strength": control_strength,
     }
 
 

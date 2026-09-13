@@ -21,6 +21,83 @@ def sizes(width: int, height: int, longest_side: int) -> tuple[int, int]:
             round(longest_side * height / longest / 8) * 8)
 
 
+def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
+                        skin: bool, repin: bool, recolor: bool,
+                        keep_legwear: float | None, keep_scene: bool,
+                        transparent: bool, backdrop: str | None,
+                        stroke_light: str | None, deliver_size: int | None,
+                        canvas: tuple[int, int]) -> dict:
+    # A self-contained graph: nothing here depends on the base pass that
+    # produced source_image, so it carries none of that pass's own nodes.
+    graph: dict = {}
+    cursor = 1
+
+    def allocate() -> str:
+        nonlocal cursor
+        node_id = str(cursor)
+        cursor += 1
+        return node_id
+
+    load_id = allocate()
+    graph[load_id] = {"class_type": "LoadImage", "inputs": {"image": source_image}}
+    image_ref = [load_id, 0]
+    # A raw output alongside the matte and the delivered one, same three-way
+    # split finalize() classifies every other route by -- here it is the
+    # picked picture's own pixels, unresampled.
+    raw_save = allocate()
+    graph[raw_save] = {"class_type": "SaveImage", "inputs": {
+        "images": image_ref, "filename_prefix": prefix}}
+    bg_loader = allocate()
+    graph[bg_loader] = {"class_type": "LoadBackgroundRemovalModel", "inputs": {
+        "bg_removal_name": matte_model}}
+    remove = allocate()
+    graph[remove] = {"class_type": "RemoveBackground", "inputs": {
+        "bg_removal_model": [bg_loader, 0], "image": image_ref}}
+    to_image = allocate()
+    graph[to_image] = {"class_type": "MaskToImage", "inputs": {"mask": [remove, 0]}}
+    matte_save = allocate()
+    graph[matte_save] = {"class_type": "SaveImage", "inputs": {
+        "images": [to_image, 0], "filename_prefix": prefix + MATTE_SUFFIX}}
+    if skin:
+        load_source = allocate()
+        graph[load_source] = {"class_type": "LoadImage", "inputs": {"image": source_image}}
+        repin_skin_id = allocate()
+        graph[repin_skin_id] = {"class_type": "YukariRepinSkin", "inputs": {
+            "image": image_ref, "source": [load_source, 0]}}
+        image_ref = [repin_skin_id, 0]
+    if recolor:
+        recolor_id = allocate()
+        graph[recolor_id] = {"class_type": "YukariRecolor", "inputs": {"image": image_ref}}
+        image_ref = [recolor_id, 0]
+    elif repin:
+        repin_id = allocate()
+        graph[repin_id] = {"class_type": "YukariRepin", "inputs": {
+            "image": image_ref,
+            "keep_legwear": keep_legwear is not None,
+            "keep_legwear_cut": keep_legwear if keep_legwear is not None else 0.62}}
+        image_ref = [repin_id, 0]
+    deliver_id = allocate()
+    graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
+        "image": image_ref, "matte": [remove, 0], "keep_scene": keep_scene,
+        "transparent": transparent, "stroke_light": stroke_light or "",
+        "backdrop": backdrop or ""}}
+    delivered_ref = [deliver_id, 0]
+    width, height = canvas
+    longest = max(width, height)
+    if deliver_size is not None and deliver_size < longest:
+        target = (round(width * deliver_size / longest),
+                 round(height * deliver_size / longest))
+        deliver_scale = allocate()
+        graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {
+            "image": delivered_ref, "upscale_method": "lanczos",
+            "width": target[0], "height": target[1], "crop": "disabled"}}
+        delivered_ref = [deliver_scale, 0]
+    save_delivered = allocate()
+    graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
+        "images": delivered_ref, "filename_prefix": prefix + DELIVERED_SUFFIX}}
+    return graph
+
+
 def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                prompt: tuple[str, str] | None = None,
                matte_model: str | None = None,
@@ -31,12 +108,14 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                skin: bool = False, repin: bool = False, recolor: bool = False,
                keep_legwear: float | None = None, keep_scene: bool = False,
                source_image: str | None = None,
+               keep_mask_image: str | None = None,
                deliver: bool = False, transparent: bool = False,
                compose: bool = False, backdrop: str | None = None,
                redraw_lora: tuple[str, float, float] | None = None,
                upscale: str = "bicubic",
                deliver_size: int | None = None,
                stroke_light: str | None = None,
+               deliver_only: bool = False,
                canvas: tuple[int, int]) -> dict:
     if upscale not in ("bicubic", "nearest-exact", "bilinear", "lanczos"):
         raise ValueError(f"unsupported upscale method: {upscale!r}")
@@ -53,6 +132,16 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         raise ValueError(
             "base graph has unsupported non-numeric node IDs: "
             + ", ".join(map(repr, unsupported)))
+    if deliver_only:
+        if not source_image:
+            raise ValueError("deliver_only requires source_image")
+        if not matte_model:
+            raise ValueError("deliver_only requires matte_model")
+        return _deliver_only_graph(
+            source_image, matte_model, prefix, skin=skin, repin=repin,
+            recolor=recolor, keep_legwear=keep_legwear, keep_scene=keep_scene,
+            transparent=transparent, backdrop=backdrop,
+            stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas)
     graph = json.loads(json.dumps(base))
     roles = base_roles(graph)
     if latent_route and roles.stitched:
@@ -131,11 +220,11 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     if deliver_size is not None and deliver_size < longest:
         deliver_target = (round(width * deliver_size / longest),
                           round(height * deliver_size / longest))
-    # Two routes to the bigger latent, and they do not draw the same picture.
-    # Pixel space is faithful; the latent route leaves a staircase on hard
-    # contours that the redraw turns into visible stroke, which is the hand in
-    # the line this delivery is judged on.
-    if latent_route and not compose:
+    # Several routes to the bigger latent, and they do not draw the same
+    # picture. Pixel space is faithful; the latent route leaves a staircase
+    # on hard contours that the redraw turns into visible stroke, which is
+    # the hand in the line this delivery is judged on.
+    if latent_route and not compose and not source_image:
         graph[scale] = {"class_type": "LatentUpscale", "inputs": {
             "samples": [roles.sampler_id, 0], "upscale_method": "bicubic",
             "width": width, "height": height, "crop": "disabled"}}
@@ -143,6 +232,18 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     elif compose and latent_route:
         graph[encode] = {"class_type": "VAEEncode", "inputs": {
             "pixels": [compose_id, 0], "vae": vae_ref}}
+        graph[scale] = {"class_type": "LatentUpscale", "inputs": {
+            "samples": [encode, 0], "upscale_method": "bicubic",
+            "width": width, "height": height, "crop": "disabled"}}
+        latent_in = [scale, 0]
+    elif latent_route and source_image:
+        # A source image outside the base graph (a repaired raw's own
+        # picture) replaces the base sampler's latent as the thing upscaled.
+        source_load_id = str(next_id + 13)
+        graph[source_load_id] = {"class_type": "LoadImage", "inputs": {
+            "image": source_image}}
+        graph[encode] = {"class_type": "VAEEncode", "inputs": {
+            "pixels": [source_load_id, 0], "vae": vae_ref}}
         graph[scale] = {"class_type": "LatentUpscale", "inputs": {
             "samples": [encode, 0], "upscale_method": "bicubic",
             "width": width, "height": height, "crop": "disabled"}}
@@ -157,6 +258,17 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         graph[encode] = {"class_type": "VAEEncode", "inputs": {
             "pixels": [scale, 0], "vae": vae_ref}}
         latent_in = [encode, 0]
+    if keep_mask_image is not None:
+        keep_load_id = str(next_id + 14)
+        graph[keep_load_id] = {"class_type": "LoadImage", "inputs": {
+            "image": keep_mask_image}}
+        keep_to_mask_id = str(next_id + 15)
+        graph[keep_to_mask_id] = {"class_type": "ImageToMask", "inputs": {
+            "image": [keep_load_id, 0], "channel": "red"}}
+        keep_noise_mask_id = str(next_id + 16)
+        graph[keep_noise_mask_id] = {"class_type": "SetLatentNoiseMask", "inputs": {
+            "samples": latent_in, "mask": [keep_to_mask_id, 0]}}
+        latent_in = [keep_noise_mask_id, 0]
     # Steps, cfg and seed are the base pass's own: a checkpoint that was tuned
     # at a different cfg must be redrawn the way it was drawn. The sampler is
     # the base pass's own too, unless the caller overrides it.

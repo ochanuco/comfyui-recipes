@@ -16,17 +16,28 @@ from ..domain.yukari.recipe import refinement_prompt
 from ..domain.yukari_anima import delivery_style as anima_delivery_style
 from ..domain.yukari_anima.recipe import refinement_prompt as anima_refinement_prompt
 from ..domain.yukari_sketch import delivery_style as sketch_delivery_style
+from ..domain.yukari_sketch.prompt_style import CFG as SKETCH_CFG
 from ..domain.yukari_sketch.prompt_style import LORA as SKETCH_LORA
+from ..domain.yukari_sketch.prompt_style import STEPS as SKETCH_STEPS
+from ..domain.yukari_sketch.recipe import negative as sketch_negative
+from ..domain.yukari_sketch.recipe import positive as sketch_positive
 from ..domain.yukari_sketch.recipe import refinement_prompt as sketch_refinement_prompt
 from ..infrastructure.comfyui.base_graph import base_roles
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
-from ..infrastructure.comfyui.refinement_graph import DELIVERED_SUFFIX, MATTE_SUFFIX
+from ..infrastructure.comfyui.refinement_graph import DELIVERED_SUFFIX, MATTE_SUFFIX, sizes
 from ..infrastructure.comfyui.repair_graph import redraw_canvas, splice_repair
 from ..infrastructure.imaging.delivery import image_size
-from ..infrastructure.imaging.masks import mask_bbox_fraction, render_mask_png
+from ..infrastructure.imaging.masks import (
+    mask_bbox_fraction,
+    render_mask_png,
+    render_soft_mask_png,
+)
 
 # The delivery redraw's longest side.
 FINALIZE_SIZE = 2560
+
+# `render_soft_mask_png`'s feather, as a share of the redraw canvas' longest side.
+KEEP_FEATHER_FRACTION = 0.03
 
 
 @dataclass(frozen=True)
@@ -55,6 +66,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              toe_guard: float | None = None,
              size: int | None = None, latent_route: bool | None = None,
              finalizer: str | None = None,
+             sketch_redraw: str | None = None,
              key_prefix: str | None = None,
              backdrop: str | None = None,
              upscale: str | None = None,
@@ -67,12 +79,45 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              repair_pad: float = 1.0,
              repair_size: int = 1024,
              repair_lora: float | None = None,
+             keep_regions: Sequence[Sequence[float]] = (),
+             keep_strength: float = 0.25,
+             deliver_only: bool = False,
              context: dict | None = None) -> dict:
+    if deliver_only:
+        conflicts = [name for name, present in (
+            ("denoise", denoise is not None),
+            ("size", size is not None),
+            ("latent_route", latent_route is not None),
+            ("finalizer", finalizer is not None),
+            ("lora_strength", lora_strength is not None),
+            ("sketch_redraw", sketch_redraw is not None),
+            ("handdrawn", handdrawn),
+            ("toe_guard", toe_guard is not None),
+            ("repair", bool(repair)),
+            ("repair_regions", bool(repair_regions)),
+            ("keep_regions", bool(keep_regions)),
+            ("upscale", upscale is not None),
+        ) if present]
+        if conflicts:
+            raise SystemExit(
+                "deliver_only cannot combine with " + ", ".join(conflicts))
     if context is None:
         context = services.management.request(
             "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
-    base = services.graph_from_png(picked)
+    source_batch = services.management.request(
+        "GET", f"/api/v1/batches/{context['batch']['id']}")
+    source_kind = (source_batch.get("parameters") or {}).get("kind")
+    is_repaired_raw = source_kind in ("repair", "masked_redraw")
+    if is_repaired_raw:
+        base_generation_id = source_batch["parameters"]["base_generation"]
+        base_record = services.management.request(
+            "GET", f"/api/v1/generations/{base_generation_id}")
+        base = ((base_record.get("comfy_job") or {}).get("graph")
+                or services.graph_from_png(
+                    services.management.fetch_generation_image(base_generation_id)))
+    else:
+        base = services.graph_from_png(picked)
     roles = base_roles(base)
     # A LoraLoader in the base graph marks a sketch render; a UNETLoader
     # (checked only once sketch is ruled out) marks an anima render -- a
@@ -86,33 +131,45 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     # it, since the redraw itself moves the silhouette.
     is_layerdiffuse = any(node.get("class_type") == "LayeredDiffusionApply"
                           for node in base.values())
-    if lora_strength is not None and not is_sketch:
+    if deliver_only and is_layerdiffuse:
+        raise SystemExit("deliver_only does not support a layerdiffuse base")
+    if sketch_redraw is not None and not is_anima:
+        raise SystemExit("sketch_redraw needs an anima base")
+    is_anima_sketch_redraw = is_anima and sketch_redraw is not None
+    # An anima base asked for the sketch redraw takes the same delivery
+    # defaults (denoise, size, transparent cutout) as a real yukari-sketch
+    # base -- it is the same look, drawn from a different base recipe.
+    is_sketch_style = is_sketch or is_anima_sketch_redraw
+    if lora_strength is not None and not is_sketch_style:
         raise SystemExit("lora_strength needs a recipe with a LoRA")
     if apply_recolor and is_sketch:
         raise SystemExit("recolor asserts the lap-look palette and strips a "
                          "yukari-sketch render's own; use repin or nothing")
     redraw_lora = None
-    if is_sketch and (is_layerdiffuse or lora_strength is not None):
+    if ((is_sketch and (is_layerdiffuse or lora_strength is not None))
+            or is_anima_sketch_redraw):
         strength = SKETCH_LORA[1] if lora_strength is None else lora_strength
         redraw_lora = (SKETCH_LORA[0], strength, strength)
     if denoise is None:
         denoise = (sketch_delivery_style.FINALIZE_DENOISE_LAYERDIFFUSE
                    if is_sketch and is_layerdiffuse
-                   else sketch_delivery_style.FINALIZE_DENOISE if is_sketch
+                   else sketch_delivery_style.FINALIZE_DENOISE if is_sketch_style
                    else anima_delivery_style.FINALIZE_DENOISE if is_anima
                    else delivery_style.FINALIZE_DENOISE)
     if size is None:
-        size = (sketch_delivery_style.FINALIZE_SIZE if is_sketch
+        size = (sketch_delivery_style.FINALIZE_SIZE if is_sketch_style
                 else anima_delivery_style.FINALIZE_SIZE if is_anima
                 else FINALIZE_SIZE)
     if deliver_size is None:
-        deliver_size = sketch_delivery_style.DELIVER_SIZE if is_sketch else None
+        deliver_size = sketch_delivery_style.DELIVER_SIZE if is_sketch_style else None
     caller_latent_route = latent_route
     if latent_route is None:
         latent_route = is_sketch and sketch_delivery_style.FINALIZE_LATENT_ROUTE
+    if deliver_only:
+        latent_route = False
     if transparent is None:
         transparent = False if backdrop else (
-            is_sketch and sketch_delivery_style.FINALIZE_TRANSPARENT)
+            is_sketch_style and sketch_delivery_style.FINALIZE_TRANSPARENT)
     if keep_scene:
         transparent = False
     if is_layerdiffuse:
@@ -137,6 +194,10 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         # picture -- the pixel route is the only correct one, so a caller's
         # explicit opt-in does not survive here.
         latent_route = False
+    if is_repaired_raw and (is_layerdiffuse or not latent_route):
+        raise SystemExit(
+            "finalizing a repaired raw needs the latent route: pass "
+            "latent_route on a recipe whose base is not layerdiffuse")
     seed = base[roles.sampler_id]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"
     base_prompt = PromptPair(
@@ -148,6 +209,12 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         sampler = sketch_delivery_style.FINALIZE_SAMPLER
         loader = None
         sampling = None
+    elif is_anima_sketch_redraw:
+        prompt = PromptPair(sketch_positive(sketch_redraw),
+                            sketch_negative(sketch_redraw))
+        sampler = sketch_delivery_style.FINALIZE_SAMPLER
+        loader = finalizer or anima_delivery_style.FINALIZE_MODEL
+        sampling = (SKETCH_STEPS, SKETCH_CFG)
     elif is_anima:
         prompt = anima_refinement_prompt(base_prompt)
         sampler = anima_delivery_style.FINALIZE_SAMPLER
@@ -172,15 +239,26 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     # One staged name per run, shared by skin and repair: a second upload of
     # the same picked bytes buys nothing, and ComfyUI would report a cached
     # node's pose text for nothing if the pose pass reused a stale name.
-    staged_prefix = f"{prefix}-{uuid.uuid4().hex[:8]}" if repair_requested else None
+    staged_prefix = (f"{prefix}-{uuid.uuid4().hex[:8]}"
+                     if repair_requested or is_repaired_raw else None)
     source_image = None
     staged_source = None
     if repair_requested:
         staged_source = services.comfyui.upload_image(
             f"{staged_prefix}-source.png", picked)
-    if skin_applied:
+    if is_repaired_raw or skin_applied or deliver_only:
         source_image = staged_source or services.comfyui.upload_image(
-            f"{prefix}-source.png", picked)
+            f"{staged_prefix or prefix}-source.png", picked)
+    keep_region_list = [list(region) for region in keep_regions]
+    keep_mask_image = None
+    if keep_region_list:
+        redraw_width, redraw_height = sizes(*services.image_size(picked), size)
+        keep_rects = rects_from_fractions(keep_region_list, redraw_width, redraw_height)
+        feather = round(KEEP_FEATHER_FRACTION * max(redraw_width, redraw_height))
+        keep_mask_png = render_soft_mask_png(
+            redraw_width, redraw_height, keep_rects, keep_strength, feather)
+        keep_mask_image = services.comfyui.upload_image(
+            f"{prefix}-keep-mask.png", keep_mask_png)
     if is_layerdiffuse:
         graph = services.chain_pass(
             base, size, denoise, prefix,
@@ -196,6 +274,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             backdrop=backdrop,
             upscale=upscale or "bicubic",
             redraw_lora=redraw_lora,
+            keep_mask_image=keep_mask_image,
             deliver_size=deliver_size,
             stroke_light=stroke_light,
             canvas=services.image_size(picked))
@@ -215,12 +294,14 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             keep_legwear=keep_legwear,
             keep_scene=keep_scene,
             source_image=source_image,
+            keep_mask_image=keep_mask_image,
             transparent=transparent,
             backdrop=backdrop,
             upscale=upscale or "bicubic",
             redraw_lora=redraw_lora,
             deliver_size=deliver_size,
             stroke_light=stroke_light,
+            deliver_only=deliver_only,
             canvas=services.image_size(picked))
 
     repair_mask_png = None
@@ -309,9 +390,12 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         "recipe": "yukari",
         "parameters": {"kind": "hires-chain",
                        "base_generation": generation_id,
-                       "size": size, "denoise": denoise,
+                       **({"deliver_only": True} if deliver_only else {}),
+                       **({} if deliver_only else {"size": size, "denoise": denoise}),
                        **({"route": "latent"} if latent_route else {}),
-                       **({"finalizer": loader} if loader else {}),
+                       **({"finalizer": loader} if loader and not deliver_only else {}),
+                       **({"sketch_redraw": sketch_redraw}
+                          if sketch_redraw is not None else {}),
                        "repin": repin_applied,
                        "skin": skin_applied,
                        **({"recolor": True} if recolor_applied else {}),
@@ -335,6 +419,9 @@ def finalize(generation_id: str, services: FinalizeServices, *,
                               "size": repair_size, "lora": repair_lora,
                               "mask_bbox": list(repair_mask_bbox)}}
                           if repair_requested else {}),
+                       **({"keep_regions": keep_region_list,
+                           "keep_strength": keep_strength}
+                          if keep_region_list else {}),
                        **({"finish": "handdrawn"} if handdrawn else {})},
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": generation_id,

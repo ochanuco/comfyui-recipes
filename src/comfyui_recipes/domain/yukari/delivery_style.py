@@ -105,7 +105,14 @@ PALETTE_WINDOWS = (
      "sat_light": 50.4, "sat_mid": 45.1},
     {"name": "skin", "hue": (0.0, 48.0), "hue_target": 17.8,
      "sat_light": 45.0, "sat_mid": 75.0},
+    {"name": "cyan", "hue": (115.0, 140.0), "hue_target": 128.0,
+     "sat_light": 50.4, "sat_mid": 45.1},
 )
+
+# The windows `repin` compresses and hue-eases, by name into PALETTE_WINDOWS.
+REPIN_CHROMA_WINDOWS = ("purple", "cyan")
+# The window `repin_skin_png` / `skin_mask` read skin from.
+REPIN_SKIN_WINDOW = "skin"
 
 # Where the skin is. The 2048 redraw re-decides it and lands it in the
 # purple window, so the region cannot be read off the redraw -- it is read
@@ -139,6 +146,8 @@ REPIN_LIGHT = (28.0, 0.25)   # V >= FIGURE_LIGHT_V
 REPIN_MID = (60.0, 0.15)     # midtones inside the purple window
 REPIN_DARK = (29.0, 0.08)    # V < 80, any hue
 REPIN_WARM_EXEMPT = (0.0, 48.0)
+# Hue ranges the dark band leaves alone.
+REPIN_DARK_EXEMPT = (REPIN_WARM_EXEMPT, (115.0, 140.0))
 
 # Accents -- the iris and the hair pins -- sit far above any field's
 # saturation (iris ~211 vs skirt ~130), so a ramp over this S range lets

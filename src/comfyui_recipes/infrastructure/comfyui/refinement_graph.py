@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 
 from ...domain.yukari.delivery_style import STROKE_LIGHTS
 from ..imaging import backdrops
@@ -13,12 +14,34 @@ from .base_graph import base_roles
 MATTE_SUFFIX = "-matte"
 # The delivered composite: background cut, white band, purple stroke.
 DELIVERED_SUFFIX = "-delivered"
+# A matte_model of this form names a ComfyUI-RMBG model instead of a core
+# background-removal model file.
+RMBG_MATTE_PREFIX = "rmbg:"
 
 
 def sizes(width: int, height: int, longest_side: int) -> tuple[int, int]:
     longest = max(width, height)
     return (round(longest_side * width / longest / 8) * 8,
             round(longest_side * height / longest / 8) * 8)
+
+
+def _matte_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
+                 matte_model: str) -> list:
+    if matte_model.startswith(RMBG_MATTE_PREFIX):
+        node_id = allocate()
+        graph[node_id] = {"class_type": "BiRefNetRMBG", "inputs": {
+            "image": image_ref, "model": matte_model[len(RMBG_MATTE_PREFIX):],
+            "sensitivity": 1.0, "mask_blur": 0, "mask_offset": 0,
+            "invert_output": False, "refine_foreground": False,
+            "background": "Alpha", "background_color": "#222222"}}
+        return [node_id, 1]
+    bg_loader = allocate()
+    graph[bg_loader] = {"class_type": "LoadBackgroundRemovalModel", "inputs": {
+        "bg_removal_name": matte_model}}
+    remove = allocate()
+    graph[remove] = {"class_type": "RemoveBackground", "inputs": {
+        "bg_removal_model": [bg_loader, 0], "image": image_ref}}
+    return [remove, 0]
 
 
 def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
@@ -47,14 +70,9 @@ def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
     raw_save = allocate()
     graph[raw_save] = {"class_type": "SaveImage", "inputs": {
         "images": image_ref, "filename_prefix": prefix}}
-    bg_loader = allocate()
-    graph[bg_loader] = {"class_type": "LoadBackgroundRemovalModel", "inputs": {
-        "bg_removal_name": matte_model}}
-    remove = allocate()
-    graph[remove] = {"class_type": "RemoveBackground", "inputs": {
-        "bg_removal_model": [bg_loader, 0], "image": image_ref}}
+    matte_ref = _matte_nodes(graph, allocate, image_ref, matte_model)
     to_image = allocate()
-    graph[to_image] = {"class_type": "MaskToImage", "inputs": {"mask": [remove, 0]}}
+    graph[to_image] = {"class_type": "MaskToImage", "inputs": {"mask": matte_ref}}
     matte_save = allocate()
     graph[matte_save] = {"class_type": "SaveImage", "inputs": {
         "images": [to_image, 0], "filename_prefix": prefix + MATTE_SUFFIX}}
@@ -78,7 +96,7 @@ def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
         image_ref = [repin_id, 0]
     deliver_id = allocate()
     graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
-        "image": image_ref, "matte": [remove, 0], "keep_scene": keep_scene,
+        "image": image_ref, "matte": matte_ref, "keep_scene": keep_scene,
         "transparent": transparent, "stroke_light": stroke_light or "",
         "backdrop": backdrop or ""}}
     delivered_ref = [deliver_id, 0]
@@ -306,14 +324,19 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     if deliver and not matte_model and not compose:
         raise ValueError("deliver requires matte_model")
     if matte_model:
-        bg_loader, remove, to_image, save = (
-            str(next_id + offset) for offset in range(6, 10))
-        graph[bg_loader] = {"class_type": "LoadBackgroundRemovalModel", "inputs": {
-            "bg_removal_name": matte_model}}
-        graph[remove] = {"class_type": "RemoveBackground", "inputs": {
-            "bg_removal_model": [bg_loader, 0], "image": [decode, 0]}}
+        cursor = next_id + 6
+
+        def allocate() -> str:
+            nonlocal cursor
+            node_id = str(cursor)
+            cursor += 1
+            return node_id
+
+        matte_ref = _matte_nodes(graph, allocate, [decode, 0], matte_model)
+        to_image = allocate()
         graph[to_image] = {"class_type": "MaskToImage", "inputs": {
-            "mask": [remove, 0]}}
+            "mask": matte_ref}}
+        save = allocate()
         graph[save] = {"class_type": "SaveImage", "inputs": {
             "images": [to_image, 0], "filename_prefix": prefix + MATTE_SUFFIX}}
         if deliver:
@@ -354,7 +377,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                 image_ref = [repin_id, 0]
             deliver_id = allocate()
             graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
-                "image": image_ref, "matte": [remove, 0],
+                "image": image_ref, "matte": matte_ref,
                 "keep_scene": keep_scene, "transparent": transparent,
                 "stroke_light": stroke_light or "", "backdrop": backdrop or ""}}
             delivered_ref = [deliver_id, 0]

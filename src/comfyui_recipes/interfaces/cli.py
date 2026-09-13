@@ -248,6 +248,11 @@ def parser() -> argparse.ArgumentParser:
         "--keep-strength", type=float, default=0.25, metavar="STRENGTH",
         help="how much the redraw still touches a --keep-region, 0 < s < 1; "
              "lower keeps more of the source pixels")
+    finalize_parser.add_argument(
+        "--matte-model", default=None,
+        help="matte source for the delivery: a core background-removal "
+             "model file, or rmbg:<model> for ComfyUI-RMBG's BiRefNetRMBG "
+             "node")
 
     repair_parser = commands.add_parser(
         "repair", help="masked local redraw of hands/feet on an existing generation")
@@ -495,6 +500,7 @@ def main(argv: list[str] | None = None) -> None:
                  keep_regions=keep_regions,
                  keep_strength=args.keep_strength,
                  deliver_only=args.deliver_only,
+                 matte_model=args.matte_model,
                  context=context)
         return
     if args.command == "catalog":

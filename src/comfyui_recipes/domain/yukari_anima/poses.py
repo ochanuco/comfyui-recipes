@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompt_style import STYLE
+
 
 @dataclass(frozen=True)
 class Pose:
@@ -15,6 +17,10 @@ class Pose:
     costume: str
     negative: str = ""
     canvas: tuple[int, int] | None = None
+    legwear: bool = True
+    body: str | None = None
+    style: str | None = None
+    loras: tuple[tuple[str, float], ...] = ()
 
 
 POSES = {
@@ -99,4 +105,18 @@ POSES = {
                "(thighs:1.1), "),
         expression="doya", costume="outing",
         negative="(sitting:1.3), (cowboy shot:1.2), (upper body:1.2), "),
+    "bust": Pose(
+        action=("(portrait:1.5), (head and shoulders:1.4), "
+                "(upper body:1.35), (face focus:1.3), "),
+        mood="",
+        gesture="(looking at viewer:1.2), ",
+        scene="(from front:1.2), ",
+        expression="smile", costume="standard",
+        negative=("(sitting:1.3), (wavy mouth:1.4), (:3:1.3), (pout:1.3), "
+                  "(pursed lips:1.3), (puckered lips:1.2), "),
+        canvas=(1280, 1280),
+        legwear=False,
+        body="(mature female:1.3), (adult:1.2), adult proportions, pale skin, ",
+        style="(sketch style:1.2), " + STYLE,
+        loras=(("anima-sketch-style-chosen.safetensors", 0.8),)),
 }

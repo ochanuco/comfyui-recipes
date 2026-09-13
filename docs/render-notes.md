@@ -11481,3 +11481,13 @@ re-decides the props and the face, and that is a different picture, not a
 cleaner one. `FINALIZE_DENOISE` for `yukari_sketch` is 0.55 again; 0.8
 stays available per request (`"denoise": 0.8`) for a bust-up without
 props. The observation is on chimera against `m06tnf`.
+
+## repin's cyan accent window
+
+`PALETTE_WINDOWS` carries a `cyan` window (hue 115-140 on PIL's 0-255 scale,
+target 128, purple's own saturation knees), exempt from the dark band
+alongside warm skin shadows. A cyan inner-hair colour ships pale like the
+hair, the same as purple, and keeps its shadows cyan instead of losing them
+to the dark band's grey. The observation renders are chimera `c1hawd`
+(raw), `xwmafu` (repin) and `h0bjhg` (no repin), seed 7 of the Anima bust.
+`delivery_fingerprint` moved: `05d1d128bebf30e1` -> `f92752a11db808ef`.

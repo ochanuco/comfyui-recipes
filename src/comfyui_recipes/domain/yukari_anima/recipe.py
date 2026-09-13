@@ -10,7 +10,7 @@ from __future__ import annotations
 from ..generation.models import PromptPair, RenderSpec
 from ..generation.prompt_lint import tags as prompt_tags
 from ..yukari.prompt_style import DOT_BAN, HAND_BAN, SHADE_BAN
-from .costumes import COSTUMES
+from .costumes import COSTUMES, HOODED_COSTUMES, LEGWEAR
 from .delivery_style import PAINT_BAN, ROUGH_BAN, ROUGH_STYLE
 from .expressions import EXPRESSIONS
 from .poses import POSES
@@ -26,6 +26,7 @@ from .prompt_style import (
     GRADIENT_BAN,
     HATCH_BAN,
     HEIGHT,
+    HOOD_BAN,
     IDENTITY,
     MODEL,
     NEGATIVE_TAIL,
@@ -33,6 +34,7 @@ from .prompt_style import (
     QUALITY,
     SAMPLER,
     SCHEDULER,
+    SCORE_BAN,
     SHINE_BAN,
     STEPS,
     STYLE,
@@ -48,13 +50,13 @@ PART_NAMES = ("quality", "identity", "pose", "mouth", "mood", "eyes",
               "gesture", "costume", "scene", "body", "background", "face",
               "style")
 
-# The identity vocabulary this recipe can carry, at bare-tag level. Anima's
-# costumes (roomwear, outing) never carry a cardigan/hood, so those two names
-# are not in the vocabulary -- `identity_tags()` only ever has hair, sidelock,
-# eye colour, ornament and eye-shape to find.
+# The identity vocabulary this recipe can carry, at bare-tag level: hair,
+# sidelock, eye colour, ornament, eye-shape, and the `standard` costume's
+# cardigan/hood.
 IDENTITY_TAG_NAMES = frozenset({
     "light purple hair", "short hair with long locks", "very long sidelocks",
     "purple eyes", "hair ornament", "tareme", "jitome",
+    "black hooded cardigan", "rabbit hood",
 })
 
 
@@ -62,10 +64,12 @@ def positive_parts(pose: str, costume: str | None = None,
                    expression: str | None = None) -> tuple[tuple[str, str], ...]:
     p = POSES[pose]
     e = EXPRESSIONS[expression if expression is not None else p.expression]
-    costume_block = COSTUMES[costume if costume is not None else p.costume]
+    c = costume if costume is not None else p.costume
+    costume_block = COSTUMES[c] + (LEGWEAR[c] if p.legwear else "")
     values = (QUALITY, CHARACTER + IDENTITY, p.action, e.mouth, p.mood,
-              e.eyes, p.gesture, costume_block, p.scene, BODY, BACKGROUND,
-              FACE, STYLE)
+              e.eyes, p.gesture, costume_block, p.scene,
+              p.body if p.body is not None else BODY, BACKGROUND,
+              FACE, p.style if p.style is not None else STYLE)
     return tuple(zip(PART_NAMES, values))
 
 
@@ -83,10 +87,12 @@ def negative(pose: str, costume: str | None = None,
             expression: str | None = None) -> str:
     p = POSES[pose]
     _ = EXPRESSIONS[expression if expression is not None else p.expression]
-    _ = COSTUMES[costume if costume is not None else p.costume]
+    c = costume if costume is not None else p.costume
+    _ = COSTUMES[c]
+    hood_ban = "" if c in HOODED_COSTUMES else HOOD_BAN
     return (DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
             + p.negative + SHINE_BAN + HATCH_BAN + GRADIENT_BAN
-            + NEGATIVE_TAIL + PROPORTION_BAN)
+            + NEGATIVE_TAIL + hood_ban + SCORE_BAN + PROPORTION_BAN)
 
 
 def refinement_prompt(base: PromptPair) -> PromptPair:
@@ -117,4 +123,4 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
         positive_parts=parts,
         width=width, height=height, seed=seed, steps=STEPS, cfg=CFG,
         sampler_name=SAMPLER, scheduler=SCHEDULER, denoise=1.0,
-        filename_prefix=prefix, hires=None)
+        filename_prefix=prefix, hires=None, loras=POSES[pose].loras)

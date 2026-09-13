@@ -41,8 +41,9 @@ GRADIENT_BAN = "(gradient:1.5), (soft shading:1.5), "
 NEGATIVE_TAIL = ("(sparkling eyes:1.4), (glitter:1.3), "
                   "(multiple highlights:1.3), (gradient eyes:1.2), "
                   "(speed lines:1.45), (motion lines:1.4), "
-                  "(emphasis lines:1.4), (hood:1.3), (cardigan:1.3), "
-                  "score_1, score_2, score_3")
+                  "(emphasis lines:1.4), ")
+HOOD_BAN = "(hood:1.3), (cardigan:1.3), "
+SCORE_BAN = "score_1, score_2, score_3"
 PROPORTION_BAN = (", (fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3), "
                   "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)")
 

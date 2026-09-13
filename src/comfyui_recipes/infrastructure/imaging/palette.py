@@ -19,9 +19,9 @@ from .delivery import background_mask, enclosed_mask
 from ...domain.yukari.delivery_style import (
     ACCENT_KEEP, ACCENT_RAMP, ACCENT_VALUE_RAMP, BACKDROP_SPREAD_MAX, BG_SAT_MAX,
     FIGURE_LIGHT_SAT_TARGET, FIGURE_LIGHT_V, FIGURE_MIDTONE_V,
-    FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX, PALETTE_WINDOWS, REPIN_DARK,
-    REPIN_LIGHT, REPIN_MID, REPIN_WARM_EXEMPT, SAT_BAND,
-    SKIN_PIN_BLEND, SKIN_PIN_MIN_AREA, SKIN_PIN_MIN_SHARE,
+    FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX, PALETTE_WINDOWS, REPIN_CHROMA_WINDOWS,
+    REPIN_DARK, REPIN_DARK_EXEMPT, REPIN_LIGHT, REPIN_MID, REPIN_SKIN_WINDOW,
+    SAT_BAND, SKIN_PIN_BLEND, SKIN_PIN_MIN_AREA, SKIN_PIN_MIN_SHARE,
     SKIN_SOURCE_S_MAX, SKIN_SOURCE_S_MIN, SKIN_SOURCE_V_MIN,
 )
 
@@ -41,6 +41,10 @@ def window_w(H, lo, hi, feather=10.0):
 def band_w(V, feather=30.0):
     w = smoothstep((V - (FIGURE_LIGHT_V - feather)) / (2 * feather))
     return w, 1.0 - w
+
+
+def palette_window(name: str) -> dict:
+    return next(w for w in PALETTE_WINDOWS if w["name"] == name)
 
 
 def figure_mask(im: np.ndarray) -> np.ndarray:
@@ -100,14 +104,26 @@ def repin(im: np.ndarray,
     w_base = fig * smoothstep((S - 10) / 20) * (1 - keep)
     wl, _ = band_w(V)
     wd = smoothstep((90 - V) / 30)
-    lo, hi = PALETTE_WINDOWS[0]["hue"]
-    w_chroma = window_w(H, lo, hi) * w_base * (1 - wd)
-    w_dark = w_base * wd * (1 - window_w(H, *REPIN_WARM_EXEMPT))
     target_c = wl * compress(REPIN_LIGHT) + (1 - wl) * compress(REPIN_MID)
     target_d = compress(REPIN_DARK)
-    new_S = S + w_chroma * (target_c - S) + w_dark * (target_d - S)
-    ease = w_chroma * H_TARGET_BLEND * (1 - accent)
-    new_H = H * (1 - ease) + PALETTE_WINDOWS[0]["hue_target"] * ease
+
+    s_delta = np.zeros_like(S)
+    ease_sum = np.zeros_like(H)
+    ease_target = np.zeros_like(H)
+    for name in REPIN_CHROMA_WINDOWS:
+        window = palette_window(name)
+        w_chroma_i = window_w(H, *window["hue"]) * w_base * (1 - wd)
+        s_delta = s_delta + w_chroma_i * (target_c - S)
+        ease_i = w_chroma_i * H_TARGET_BLEND * (1 - accent)
+        ease_sum = ease_sum + ease_i
+        ease_target = ease_target + ease_i * window["hue_target"]
+
+    w_dark = w_base * wd
+    for lo, hi in REPIN_DARK_EXEMPT:
+        w_dark = w_dark * (1 - window_w(H, lo, hi))
+
+    new_S = S + s_delta + w_dark * (target_d - S)
+    new_H = H * (1 - ease_sum) + ease_target
 
     moved = np.abs(new_S - S) > 2
     report = [f"compressed {moved.mean() * 100:.1f}% of frame "
@@ -127,7 +143,7 @@ def skin_mask(source: np.ndarray) -> np.ndarray:
     closed mouth region pins them to the cheek's hue.
     """
     hsv = np.array(Image.fromarray(source).convert("HSV")).astype(float)
-    lo, hi = PALETTE_WINDOWS[1]["hue"]
+    lo, hi = palette_window(REPIN_SKIN_WINDOW)["hue"]
     mask = ((hsv[..., 0] >= lo) & (hsv[..., 0] <= hi)
             & (hsv[..., 1] > SKIN_SOURCE_S_MIN)
             & (hsv[..., 2] >= SKIN_SOURCE_V_MIN)
@@ -152,11 +168,11 @@ def repin_skin_png(source: bytes, data: bytes) -> tuple[bytes, list[str]]:
                       f"{mask.mean() * 100:.1f}% of the frame"]
     src_hsv = np.array(Image.fromarray(src).convert("HSV")).astype(float)
     field = smoothstep((SKIN_SOURCE_S_MAX - src_hsv[..., 1]) / 20.0)
+    window = palette_window(REPIN_SKIN_WINDOW)
     alpha = (ndimage.gaussian_filter(mask.astype(float), 3) * field
-             * window_w(src_hsv[..., 0], *PALETTE_WINDOWS[1]["hue"])
+             * window_w(src_hsv[..., 0], *window["hue"])
              * SKIN_PIN_BLEND)
 
-    window = PALETTE_WINDOWS[1]
     hsv = np.array(im.convert("HSV")).astype(float)
     wl, wm = band_w(hsv[..., 2])
     target_s = wl * window["sat_light"] + wm * window["sat_mid"]

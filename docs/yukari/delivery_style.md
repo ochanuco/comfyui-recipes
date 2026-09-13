@@ -190,6 +190,19 @@ Measured flat renders sit under 10, gradient failures at 40+ (2026-08-28
 white-outline sweep; confirmed by `cmfpby` at 41.1), so the bound (`25.0`)
 splits them mid-gap.
 
+## MATTE_MODEL
+
+The worker-side matte that cuts the figure out: `rmbg:BiRefNet-general`,
+ComfyUI-RMBG's `BiRefNetRMBG` node with its general BiRefNet weights. A
+bare file name selects the core `LoadBackgroundRemovalModel` checkpoint
+instead; `finalize --matte-model` overrides either per call. Chosen on the
+green-screen bust `tiikcs` against the core `birefnet.safetensors` and the
+RMBG `BiRefNet-HR`, `BiRefNet-HR-matting` and `BiRefNet_toonout` weights:
+`BiRefNet-general` cuts the enclosed gaps under the chin like the core
+model (IoU 0.998) with the fewest fragments (3 components), where
+`BiRefNet-HR` fills those gaps as figure and `HR-matting` splits the edge
+into 35 fragments.
+
 ## MATTE_EDGE_BAND_PCT / MATTE_EDGE_TOLERANCE
 
 The band either side of `refine_matte`'s edge, as a share of the longest

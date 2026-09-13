@@ -160,6 +160,24 @@ Chosen over a uniform S scale by eye across `stand`/`lounge`/`lap`
 purple mid drift 0.18 against skin mid drift 0.37 on the same render --
 which one global factor can only average.
 
+Three windows: `purple` (hue 170-225, target 191) for the hair and dress,
+`skin` (hue 0-48, target 17.8) read by `repin_skin_png` / `skin_mask`, and
+`cyan` (hue 115-140, target 128, the purple saturation targets) for a bright
+cyan accent -- inner hair, an iris -- that would otherwise pass `repin`
+untouched. `palette_window(name)` looks a window up by its `name` entry.
+
+`repin` compresses and hue-eases the windows named in `REPIN_CHROMA_WINDOWS`
+(`purple`, `cyan`); each contributes its own hue-weighted share of the shared
+per-V-band saturation target and eases hue toward its own `hue_target`. The
+windows do not overlap -- `cyan` tops out at 150, `purple` starts at 160, ten
+clear of each other's ten-unit feather -- so one window's correction never
+leaks into another's hue band.
+
+The dark band (`REPIN_DARK`) crushes saturation on every hue except the
+ranges in `REPIN_DARK_EXEMPT`: `REPIN_WARM_EXEMPT` (skin shadows) and the
+`cyan` window's own hue range, so a dark cyan shadow stays cyan instead of
+going grey.
+
 ## BACKDROP_SPREAD_MAX
 
 The backdrop flatness screen, on the RAW render's corner brightness spread.

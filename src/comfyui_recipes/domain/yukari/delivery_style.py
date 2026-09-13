@@ -188,8 +188,10 @@ CUT_BACKDROP_MARGIN = 0.5
 
 # The worker-side model that cuts the figure out. The silhouette has to come
 # from something other than colour, because repin moves the figure's colours
-# into the backdrop's tolerance before the delivery ever sees them.
-MATTE_MODEL = "birefnet.safetensors"
+# into the backdrop's tolerance before the delivery ever sees them. A
+# `rmbg:` name selects a ComfyUI-RMBG model (refinement_graph.RMBG_MATTE_PREFIX);
+# a bare file name is a core LoadBackgroundRemovalModel checkpoint.
+MATTE_MODEL = "rmbg:BiRefNet-general"
 # The band either side of the matte's edge, as a share of the longest side,
 # inside which a pixel is figure when it differs from the backdrop by more
 # than MATTE_EDGE_TOLERANCE on any channel.

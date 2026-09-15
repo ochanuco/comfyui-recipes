@@ -19,9 +19,9 @@ uv run comfy-recipes work                                        # serve the que
 The request contract is schema version 1. `generation.recipe` must be
 `yukari`, `yukari-anima` or `yukari-sketch`, and `generation.parameters.pose`
 is required. `costume` is optional for all three; `hires` and `denoise` are
-yukari-only, and `expression` is anima-only -- `yukari-anima` and
-`yukari-sketch` both reject `hires`/`denoise` (neither has a second pass),
-and `yukari-sketch` rejects `expression` too (it has no expression records).
+accepted by `yukari` and `yukari-anima` (each has a second pass) and
+rejected by `yukari-sketch` (it has none); `expression` is anima-only --
+`yukari-sketch` rejects it too (it has no expression records).
 A `semantic.summary` is required so each render has evaluation context
 before it is ingested. State is kept beside the request as
 `<request>.state.json`; retain it to resume safely after a crash. A recorded

@@ -77,7 +77,7 @@ KNOWN_PARAMETERS = frozenset(
 # Read by validate_request and by the published catalog.
 RECIPE_REJECTED_PARAMETERS: dict[str, frozenset[str]] = {
     "yukari": frozenset({"expression"}),
-    "yukari-anima": frozenset({"hires", "denoise", "layerdiffuse"}),
+    "yukari-anima": frozenset({"layerdiffuse"}),
     "yukari-sketch": frozenset({"hires", "denoise", "expression"}),
 }
 

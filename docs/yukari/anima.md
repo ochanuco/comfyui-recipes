@@ -158,6 +158,10 @@ and prefixes `ROUGH_BAN + PAINT_BAN + HAND_BAN + SHADE_BAN + DOT_BAN`
 (`HAND_BAN`, `SHADE_BAN` and `DOT_BAN` are the same redraw guards `yukari`
 uses, imported from `yukari.prompt_style`).
 
+The catalog publishes `delivery_style.py`'s `FINALIZE_DEFAULTS` --
+`deliver_only: true, repin: false` -- as chimera's GUI's finalize form
+defaults for this recipe.
+
 ## Requesting it
 
 ```json

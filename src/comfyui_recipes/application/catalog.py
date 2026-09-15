@@ -21,6 +21,7 @@ from ..domain.yukari.poses import POSE_RECORDS
 from ..domain.yukari.recipe import identity_tags as yukari_identity_tags
 from ..domain.yukari.recipe import render_spec as yukari_render_spec
 from ..domain.yukari_anima.costumes import COSTUMES as ANIMA_COSTUMES
+from ..domain.yukari_anima.delivery_style import FINALIZE_DEFAULTS as ANIMA_FINALIZE_DEFAULTS
 from ..domain.yukari_anima.dials import DIALS as ANIMA_DIALS
 from ..domain.yukari_anima.expressions import EXPRESSIONS as ANIMA_EXPRESSIONS
 from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
@@ -74,6 +75,7 @@ def _yukari_recipe() -> dict:
         "parts": [],
         "identity_tags": sorted(yukari_identity_tags(sorted(POSE_RECORDS)[0], "default")),
         "dials": YUKARI_DIALS,
+        "finalize": {"defaults": {}},
     }
 
 
@@ -106,6 +108,7 @@ def _sketch_recipe() -> dict:
                  sketch_render_spec(sorted(SKETCH_POSES)[0], _SEED, _PREFIX).positive_parts],
         "identity_tags": sorted(sketch_identity_tags(sorted(SKETCH_POSES)[0], "default")),
         "dials": SKETCH_DIALS,
+        "finalize": {"defaults": {}},
     }
 
 
@@ -138,6 +141,7 @@ def _anima_recipe() -> dict:
                  anima_render_spec(sorted(ANIMA_POSES)[0], _SEED, _PREFIX).positive_parts],
         "identity_tags": sorted(anima_identity_tags(sorted(ANIMA_POSES)[0])),
         "dials": ANIMA_DIALS,
+        "finalize": {"defaults": ANIMA_FINALIZE_DEFAULTS},
     }
 
 

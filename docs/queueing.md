@@ -146,6 +146,12 @@ uv run comfy-recipes catalog --publish       # print it, then PUT and print the 
 the catalog once at startup, best-effort: a publish failure is logged and
 does not stop the worker from serving. Pass `--no-catalog` to skip it.
 
+Each recipe entry also carries `finalize.defaults`, the value set chimera's
+GUI presets a finalize form with when the generation it is finalizing came
+from a batch on that recipe; the worker itself never reads it, so an option
+the request omits still falls back to the worker's own default regardless of
+what the catalog published.
+
 ## Named dials
 
 Each catalog recipe entry carries a `dials` object -- up to three scopes

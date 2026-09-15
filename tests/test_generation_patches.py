@@ -15,6 +15,7 @@ from comfyui_recipes.domain.generation.patches import (
     parse_patches,
 )
 from comfyui_recipes.domain.yukari.recipe import render_spec
+from comfyui_recipes.domain.yukari_anima.dials import DIALS as ANIMA_DIALS
 from comfyui_recipes.domain.yukari_anima.recipe import render_spec as anima_render_spec
 from comfyui_recipes.domain.yukari_sketch.recipe import render_spec as sketch_render_spec
 from comfyui_recipes.infrastructure.comfyui import anima_graph
@@ -225,6 +226,22 @@ class ParsePatchesTest(unittest.TestCase):
             parse_patches([_patch(
                 target="render.lora_strength", op="set", value="blown_out",
                 reason="r")], dials)
+
+    def test_anima_render_width_word_resolves_through_its_own_dials(self):
+        dials = ANIMA_DIALS["patches"]
+        parsed = parse_patches([_patch(
+            target="render.width", op="set", value="full",
+            reason="r")], dials)
+        self.assertEqual(parsed[0], Patch("render.width", "set", 1280,
+                                          None, "r"))
+
+    def test_anima_render_width_word_applies_to_an_anima_spec(self):
+        spec = anima_render_spec("stand", 42, "p")
+        patches = parse_patches([_patch(
+            target="render.width", op="set", value="full",
+            reason="r")], ANIMA_DIALS["patches"])
+        result = apply_patches(spec, patches)
+        self.assertEqual(result.width, 1280)
 
     def test_loras_accepts_a_list_of_name_strength_pairs(self):
         parsed = parse_patches([_patch(

@@ -237,13 +237,14 @@ class DialsTest(unittest.TestCase):
                 self.assertIn("dials", recipe)
                 self.assertLessEqual(set(recipe["dials"]), set(_DIAL_SCOPE_KEYS))
 
-    def test_sketch_is_the_only_recipe_with_repair_or_patches_dials(self):
+    def test_sketch_is_the_only_recipe_with_repair_dials(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
         self.assertEqual(set(by_name["yukari-sketch"]["dials"]),
                          {"finalize", "repair", "patches"})
-        for recipe_name in ("yukari", "yukari-anima"):
-            self.assertEqual(set(by_name[recipe_name]["dials"]), {"finalize"})
+        self.assertEqual(set(by_name["yukari-anima"]["dials"]),
+                         {"finalize", "patches"})
+        self.assertEqual(set(by_name["yukari"]["dials"]), {"finalize"})
 
     def test_dial_keys_are_real_option_keys_of_their_scope(self):
         catalog = build_catalog(GIT)

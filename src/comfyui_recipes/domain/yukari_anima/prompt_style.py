@@ -48,8 +48,9 @@ PROPORTION_BAN = (", (fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3
                   "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)")
 
 MODEL = "hassakuAnima_v13.safetensors"
-WIDTH, HEIGHT = 1280, 2048
+WIDTH, HEIGHT = 1024, 1640
 STEPS = 25
 CFG = 3.5
 SAMPLER = "er_sde"
 SCHEDULER = "normal"
+HIRES_DENOISE = 0.4

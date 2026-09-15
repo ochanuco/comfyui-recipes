@@ -1,13 +1,14 @@
 """The interpreter: pose, costume and expression records into a prompt pair.
 
-Anima has no second pass, so unlike `yukari.recipe` there is no pass-2
-splicing here -- `render_spec` refuses `hires`/`denoise` outright rather
-than silently ignoring them.
+A hires pass mirrors `yukari.recipe`'s: `hires` is a target longest side,
+the second-pass canvas is computed proportionally from the pose's own
+canvas, and the first pass's prompts carry over unchanged
+(`HiresSpec.positive` is `None`, `HiresSpec.negative` is the base negative).
 """
 
 from __future__ import annotations
 
-from ..generation.models import PromptPair, RenderSpec
+from ..generation.models import HiresSpec, PromptPair, RenderSpec
 from ..generation.prompt_lint import tags as prompt_tags
 from ..yukari.prompt_style import DOT_BAN, HAND_BAN, SHADE_BAN
 from .costumes import COSTUMES, HOODED_COSTUMES, LEGWEAR
@@ -26,6 +27,7 @@ from .prompt_style import (
     GRADIENT_BAN,
     HATCH_BAN,
     HEIGHT,
+    HIRES_DENOISE,
     HOOD_BAN,
     IDENTITY,
     MODEL,
@@ -110,18 +112,31 @@ def refinement_prompt(base: PromptPair) -> PromptPair:
 def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
                 denoise: float | None = None, costume: str | None = None,
                 expression: str | None = None) -> RenderSpec:
-    if hires:
-        raise ValueError("yukari-anima has no second pass -- hires must be 0")
-    if denoise is not None:
-        raise ValueError(
-            "yukari-anima has no second pass -- denoise must be None")
+    if not hires and denoise is not None:
+        raise ValueError("yukari-anima denoise needs hires")
     width, height = POSES[pose].canvas or (WIDTH, HEIGHT)
     parts = positive_parts(pose, costume, expression)
+    base_negative = negative(pose, costume, expression)
+    hires_spec = None
+    if hires:
+        longest = max(width, height)
+        hires_width = round(hires * width / longest / 8) * 8
+        hires_height = round(hires * height / longest / 8) * 8
+        if hires_width < 8 or hires_height < 8:
+            raise ValueError(
+                "hires dimensions must both be at least 8 pixels, got "
+                f"{hires_width}x{hires_height}")
+        hires_spec = HiresSpec(
+            width=hires_width,
+            height=hires_height,
+            denoise=HIRES_DENOISE if denoise is None else denoise,
+            positive=None,
+            negative=base_negative,
+        )
     return RenderSpec(
         model_path=MODEL,
-        prompts=PromptPair("".join(text for _, text in parts),
-                           negative(pose, costume, expression)),
+        prompts=PromptPair("".join(text for _, text in parts), base_negative),
         positive_parts=parts,
         width=width, height=height, seed=seed, steps=STEPS, cfg=CFG,
         sampler_name=SAMPLER, scheduler=SCHEDULER, denoise=1.0,
-        filename_prefix=prefix, hires=None, loras=POSES[pose].loras)
+        filename_prefix=prefix, hires=hires_spec, loras=POSES[pose].loras)

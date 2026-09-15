@@ -9,8 +9,6 @@ VAE_NAME = "qwen_image_vae.safetensors"
 
 
 def build_graph(spec: RenderSpec) -> dict[str, dict]:
-    if spec.hires is not None:
-        raise ValueError("yukari-anima has no second pass -- spec.hires must be None")
     graph = {
         "1": {"class_type": "UNETLoader", "inputs": {
             "unet_name": spec.model_path, "weight_dtype": "default"}},
@@ -33,9 +31,9 @@ def build_graph(spec: RenderSpec) -> dict[str, dict]:
         "9": {"class_type": "SaveImage", "inputs": {
             "images": ["8", 0], "filename_prefix": spec.filename_prefix}},
     }
+    loader_id = 10
     if spec.loras:
         model_ref = ["1", 0]
-        loader_id = 10
         for lora_name, weight in spec.loras:
             node_id = str(loader_id)
             graph[node_id] = {"class_type": "LoraLoaderModelOnly", "inputs": {
@@ -44,4 +42,18 @@ def build_graph(spec: RenderSpec) -> dict[str, dict]:
             model_ref = [node_id, 0]
             loader_id += 1
         graph["3"]["inputs"]["model"] = model_ref
+    if spec.hires is not None:
+        model_ref = graph["3"]["inputs"]["model"]
+        upscale_id, sampler_id = str(loader_id), str(loader_id + 1)
+        graph[upscale_id] = {"class_type": "LatentUpscale", "inputs": {
+            "samples": ["3", 0], "upscale_method": "bicubic",
+            "width": spec.hires.width, "height": spec.hires.height,
+            "crop": "disabled"}}
+        graph[sampler_id] = {"class_type": "KSampler", "inputs": {
+            "model": model_ref, "positive": ["6", 0], "negative": ["7", 0],
+            "latent_image": [upscale_id, 0], "seed": spec.seed,
+            "steps": spec.steps, "cfg": spec.cfg,
+            "sampler_name": spec.sampler_name, "scheduler": spec.scheduler,
+            "denoise": spec.hires.denoise}}
+        graph["8"]["inputs"]["samples"] = [sampler_id, 0]
     return graph

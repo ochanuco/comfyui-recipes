@@ -16,6 +16,7 @@ from ..domain.generation.patches import (
     TEXT_TARGETS,
 )
 from ..domain.yukari.costumes import COSTUMES as YUKARI_COSTUMES
+from ..domain.yukari.delivery_style import FINALIZE_DEFAULTS as YUKARI_FINALIZE_DEFAULTS
 from ..domain.yukari.dials import DIALS as YUKARI_DIALS
 from ..domain.yukari.poses import POSE_RECORDS
 from ..domain.yukari.recipe import identity_tags as yukari_identity_tags
@@ -28,6 +29,7 @@ from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
 from ..domain.yukari_anima.recipe import identity_tags as anima_identity_tags
 from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
 from ..domain.yukari_sketch.costumes import COSTUMES as SKETCH_COSTUMES
+from ..domain.yukari_sketch.delivery_style import FINALIZE_DEFAULTS as SKETCH_FINALIZE_DEFAULTS
 from ..domain.yukari_sketch.dials import DIALS as SKETCH_DIALS
 from ..domain.yukari_sketch.poses import POSES as SKETCH_POSES
 from ..domain.yukari_sketch.recipe import departures as sketch_departures
@@ -75,7 +77,7 @@ def _yukari_recipe() -> dict:
         "parts": [],
         "identity_tags": sorted(yukari_identity_tags(sorted(POSE_RECORDS)[0], "default")),
         "dials": YUKARI_DIALS,
-        "finalize": {"defaults": {}},
+        "finalize": {"defaults": YUKARI_FINALIZE_DEFAULTS},
     }
 
 
@@ -108,7 +110,7 @@ def _sketch_recipe() -> dict:
                  sketch_render_spec(sorted(SKETCH_POSES)[0], _SEED, _PREFIX).positive_parts],
         "identity_tags": sorted(sketch_identity_tags(sorted(SKETCH_POSES)[0], "default")),
         "dials": SKETCH_DIALS,
-        "finalize": {"defaults": {}},
+        "finalize": {"defaults": SKETCH_FINALIZE_DEFAULTS},
     }
 
 

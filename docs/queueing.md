@@ -152,7 +152,8 @@ Each recipe entry also carries `finalize.defaults`, the value set chimera's
 GUI presets a finalize form with when the generation it is finalizing came
 from a batch on that recipe; the worker itself never reads it, so an option
 the request omits still falls back to the worker's own default regardless of
-what the catalog published.
+what the catalog published. Every recipe publishes `stroke_light: "n"`, and
+yukari-anima additionally publishes `deliver_only: true, repin: false`.
 
 ## Named dials
 

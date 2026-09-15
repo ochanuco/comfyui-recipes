@@ -220,6 +220,8 @@ FINALIZE_DENOISE = 0.45
 # The delivery redraw's own sampler (sampler_name, scheduler).
 FINALIZE_SAMPLER = ("euler", "normal")
 
+FINALIZE_DEFAULTS = {"stroke_light": "n"}
+
 # Lineart-preserving recolour (infrastructure/imaging/recolor.py). Where
 # repin nudges the render's own saturation, recolor asserts a material's
 # colour outright and can therefore fix value too -- a washed-out black that

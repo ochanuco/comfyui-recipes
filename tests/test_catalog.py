@@ -285,6 +285,36 @@ class DialsTest(unittest.TestCase):
                                     options)
 
 
+class FinalizeDefaultsTest(unittest.TestCase):
+    def test_every_recipe_publishes_a_finalize_defaults_dict(self):
+        catalog = build_catalog(GIT)
+        for recipe in catalog["recipes"]:
+            with self.subTest(recipe=recipe["name"]):
+                self.assertIsInstance(recipe["finalize"]["defaults"], dict)
+
+    def test_finalize_default_keys_are_known_finalize_options(self):
+        catalog = build_catalog(GIT)
+        for recipe in catalog["recipes"]:
+            for key in recipe["finalize"]["defaults"]:
+                with self.subTest(recipe=recipe["name"], key=key):
+                    self.assertIn(key, _KNOWN_FINALIZE_OPTIONS)
+
+    def test_finalize_default_values_satisfy_the_real_validator(self):
+        catalog = build_catalog(GIT)
+        for recipe in catalog["recipes"]:
+            defaults = recipe["finalize"]["defaults"]
+            with self.subTest(recipe=recipe["name"]):
+                finalize_arguments(defaults)
+
+    def test_yukari_anima_defaults_to_deliver_only_without_repin(self):
+        catalog = build_catalog(GIT)
+        by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
+        self.assertEqual(by_name["yukari-anima"]["finalize"]["defaults"],
+                         {"deliver_only": True, "repin": False})
+        self.assertEqual(by_name["yukari"]["finalize"]["defaults"], {})
+        self.assertEqual(by_name["yukari-sketch"]["finalize"]["defaults"], {})
+
+
 class PublishCatalogTest(unittest.TestCase):
     def test_puts_the_given_document_to_the_branchs_catalog_path(self):
         calls = []

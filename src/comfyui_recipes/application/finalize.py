@@ -441,6 +441,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     services.management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "completed"})
     uploads = ([(image["filename"], raw)] if single_output
+              else [(delivered_name, delivered)] if deliver_only
               else [(image["filename"], raw), (delivered_name, delivered)])
     ids, urls = [], []
     for index, (name, data) in enumerate(uploads):
@@ -453,9 +454,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         urls.append(rendered["canonical_url"])
         services.emit(f"{name} -> {rendered['canonical_url']}")
     if not single_output:
-        # The matte is the silhouette of the raw redraw, not of the delivered
-        # composite, so it hangs off generation 0. Storing it is what lets the
-        # cutout be redone later without re-running the 2048 pass.
+        # The matte hangs off the first ingested generation: the raw redraw
+        # when there is one, otherwise the delivered picture.
         services.management.request(
             "POST", f"/api/v1/generations/{ids[0]}/assets",
             multipart=({"role": "mask"}, "file", matte_name, matte, "image/png"))

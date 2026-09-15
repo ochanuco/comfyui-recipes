@@ -84,7 +84,9 @@ each a `SystemExit` if combined. `repin`, `recolor`, `skin`, `keep_legwear`,
 `backdrop`, `transparent`/`opaque`, `keep_scene`, `stroke_light`,
 `deliver_size` and `matte_model` still apply. The recorded batch parameters
 carry `deliver_only: true` and omit `size`/`denoise`/`route`/`finalizer`,
-since no redraw ran to give those a meaning.
+since no redraw ran to give those a meaning. A deliver_only finalize records
+a single generation, the delivered picture, with the matte stored as its
+`mask` asset.
 
 `matte_model` (`--matte-model`) picks the figure MASK's source: a core
 background-removal model file (the recipe's own default), or

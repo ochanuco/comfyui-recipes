@@ -905,6 +905,26 @@ class FinalizeDeliverOnlyTest(unittest.TestCase):
             self.assertEqual(
                 calls[-1]["source_image"], "uploaded-fin-gen-id-source.png")
 
+    def test_ingests_only_the_delivered_picture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            result = finalize("gen-id", services, deliver_only=True)
+            generation_calls = [
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1].endswith("/generations")]
+            self.assertEqual(len(generation_calls), 1)
+            self.assertEqual(generation_calls[0][3][2], "out-delivered.png")
+            self.assertEqual(generation_calls[0][3][3], b"delivered-bytes")
+            self.assertEqual(result["generation_ids"], ["generation"])
+            asset_call = next(
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1].endswith("/assets"))
+            self.assertEqual(asset_call[1], "/api/v1/generations/generation/assets")
+            metadata, field, filename, data, content_type = asset_call[3]
+            self.assertEqual(metadata, {"role": "mask"})
+            self.assertEqual(filename, "out-matte.png")
+            self.assertEqual(data, b"matte-bytes")
+
     def test_matte_model_overrides_the_recipes_default(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []

@@ -6,7 +6,7 @@
 A second Yukari recipe, built for the `hassakuAnima_v13.safetensors`
 checkpoint (`src/comfyui_recipes/domain/yukari_anima/`). It shares no code
 with `yukari` -- the two checkpoints do not share a prompt vocabulary or a
-graph shape -- and has no second pass.
+graph shape -- but has a hires second pass that mirrors `yukari`'s.
 
 ## Fixed vs. variable
 
@@ -56,7 +56,7 @@ The variable part is three small record sets:
   `0.8`) via `loras`.
 
 A pose may carry its own `canvas`; `render_spec` uses it in place of the
-default `1280x2048`.
+default `1024x1640`.
 
 ## Assembly order
 
@@ -97,9 +97,22 @@ expression is a `KeyError`.
 ## Render constants
 
 Fixed in `prompt_style.py`: `MODEL = "hassakuAnima_v13.safetensors"`,
-canvas `1280x2048`, `steps=25`, `cfg=3.5`, sampler `er_sde`, scheduler
-`normal`, denoise `1.0`. There is no hires pass -- `render_spec` raises
-`ValueError` if `hires` or `denoise` is requested.
+canvas `1024x1640`, `steps=25`, `cfg=3.5`, sampler `er_sde`, scheduler
+`normal`, denoise `1.0`.
+
+### Hires pass
+
+`hires` is the target longest side in pixels, same convention as
+`yukari.recipe`. The second-pass canvas is computed proportionally from
+the pose's own first-pass canvas -- `1024x1640` becomes `1280x2048` at
+`hires=2048` -- and rounded to a multiple of 8; `render_spec` raises
+`ValueError` if either dimension would come out below 8. The second pass
+is a `LatentUpscale` (bicubic) into a second `KSampler` on the same
+UNET/LoRA chain, with the same prompts as the first pass: anima has no
+pass-2 positive/negative records of its own, so `HiresSpec.positive` is
+always `None` and `HiresSpec.negative` is always the base negative.
+`denoise` defaults to `HIRES_DENOISE = 0.4`; passing `denoise` without
+`hires` is a `ValueError`.
 
 The graph builder (`infrastructure/comfyui/anima_graph.py`) wires a
 `UNETLoader` + `CLIPLoader` + `VAELoader` triple (`qwen_3_06b_base` /
@@ -108,7 +121,10 @@ KSampler is node `"3"` and the tail is a `VAEDecode` feeding `SaveImage`,
 the same shape `refinement_graph.chain_pass` reads off any base graph.
 `render_spec` passes the pose's own `loras` straight through; each pair
 chains a `LoraLoaderModelOnly` node off the `UNETLoader` (or the previous
-LoRA), in order.
+LoRA), in order, starting at node id `"10"`. The hires `LatentUpscale` and
+second `KSampler` are appended after that chain, continuing the same id
+counter -- so a pose with one LoRA gets hires nodes `"11"`/`"12"`, and a
+pose with none gets `"10"`/`"11"`.
 
 ## Finalize defaults
 
@@ -152,8 +168,14 @@ uses, imported from `yukari.prompt_style`).
 ```
 
 `pose` is required; `costume` and `expression` are optional and fall back
-to the pose's own. `hires` and `denoise` are rejected for this recipe --
-see [queueing.md](../queueing.md).
+to the pose's own. `hires` and `denoise` are accepted for this recipe --
+`hires` is the target longest side of the second pass, `denoise` overrides
+`HIRES_DENOISE` and needs `hires` set -- see [queueing.md](../queueing.md).
+
+`domain/yukari_anima/dials.py` publishes `render.width`/`render.height` as
+words for `generation.patches` -- `draft` (`1024`/`1640`, the default
+canvas) and `full` (`1280`/`2048`); `docs/queueing.md`'s "Named dials"
+section covers the resolution rule shared by every recipe.
 
 ```bash
 uv run comfy-recipes anima prompt --pose coffee --json

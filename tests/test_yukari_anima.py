@@ -328,7 +328,7 @@ class RenderSpecTest(unittest.TestCase):
     def test_render_spec_fields(self):
         spec = render_spec("coffee", 42, "p")
         self.assertEqual(spec.model_path, ps.MODEL)
-        self.assertEqual((spec.width, spec.height), (1280, 2048))
+        self.assertEqual((spec.width, spec.height), (1024, 1640))
         self.assertEqual(spec.steps, 25)
 
     def test_pose_canvas_overrides_the_default(self):
@@ -342,13 +342,29 @@ class RenderSpecTest(unittest.TestCase):
         self.assertEqual(spec.scheduler, "normal")
         self.assertIsNone(spec.hires)
 
-    def test_hires_is_rejected(self):
-        with self.assertRaises(ValueError):
-            render_spec("coffee", 42, "p", hires=2048)
+    def test_hires_computes_a_proportional_second_pass(self):
+        spec = render_spec("stand", 42, "p", hires=2048)
+        self.assertEqual(spec.hires.width, 1280)
+        self.assertEqual(spec.hires.height, 2048)
+        self.assertEqual(spec.hires.denoise, ps.HIRES_DENOISE)
+        self.assertIsNone(spec.hires.positive)
+        self.assertEqual(spec.hires.negative, spec.prompts.negative)
 
-    def test_denoise_override_is_rejected(self):
+    def test_hires_denoise_override(self):
+        spec = render_spec("stand", 42, "p", hires=2048, denoise=0.35)
+        self.assertEqual(spec.hires.denoise, 0.35)
+
+    def test_denoise_without_hires_is_rejected(self):
         with self.assertRaises(ValueError):
             render_spec("coffee", 42, "p", denoise=0.5)
+
+    def test_hires_on_wide_canvas_pose(self):
+        spec = render_spec("sofa", 7, "p", hires=2048)
+        self.assertEqual((spec.hires.width, spec.hires.height), (2048, 1280))
+
+    def test_hires_on_square_canvas_pose(self):
+        spec = render_spec("bust", 7, "p", hires=2048)
+        self.assertEqual((spec.hires.width, spec.hires.height), (2048, 2048))
 
     def test_bust_render_spec_canvas_and_loras(self):
         spec = render_spec("bust", 7, "p")
@@ -416,6 +432,36 @@ class GraphTest(unittest.TestCase):
                          "anima-handdrawn-feel-chosen.safetensors")
         self.assertEqual(graph["3"]["inputs"]["model"], ["11", 0])
 
+    def test_hires_appends_a_latent_upscale_and_second_sampler(self):
+        spec = render_spec("stand", 42, "p", hires=2048)
+        graph = anima_graph.build_graph(spec)
+        self.assertEqual(graph["10"]["class_type"], "LatentUpscale")
+        self.assertEqual(graph["10"]["inputs"], {
+            "samples": ["3", 0], "upscale_method": "bicubic",
+            "width": spec.hires.width, "height": spec.hires.height,
+            "crop": "disabled"})
+        self.assertEqual(graph["11"]["class_type"], "KSampler")
+        self.assertEqual(graph["11"]["inputs"]["model"],
+                         graph["3"]["inputs"]["model"])
+        self.assertEqual(graph["11"]["inputs"]["positive"], ["6", 0])
+        self.assertEqual(graph["11"]["inputs"]["negative"], ["7", 0])
+        self.assertEqual(graph["11"]["inputs"]["latent_image"], ["10", 0])
+        self.assertEqual(graph["11"]["inputs"]["denoise"], spec.hires.denoise)
+        self.assertEqual(graph["8"]["inputs"]["samples"], ["11", 0])
+        self.assertEqual(graph["9"]["inputs"]["images"], ["8", 0])
+
+    def test_hires_with_a_lora_pose_does_not_collide_ids(self):
+        spec = render_spec("bust", 7, "p", hires=2048)
+        graph = anima_graph.build_graph(spec)
+        self.assertEqual(graph["10"]["class_type"], "LoraLoaderModelOnly")
+        self.assertEqual(graph["11"]["class_type"], "LatentUpscale")
+        self.assertEqual(graph["12"]["class_type"], "KSampler")
+        self.assertEqual(graph["3"]["inputs"]["model"], ["10", 0])
+        self.assertEqual(graph["12"]["inputs"]["model"], ["10", 0])
+        self.assertEqual(graph["11"]["inputs"]["width"], spec.hires.width)
+        self.assertEqual(graph["11"]["inputs"]["height"], spec.hires.height)
+        self.assertEqual(graph["8"]["inputs"]["samples"], ["12", 0])
+
     def test_chain_pass_accepts_the_built_graph(self):
         spec = render_spec("coffee", 42, "p")
         base = anima_graph.build_graph(spec)
@@ -441,17 +487,16 @@ class ValidateRequestTest(unittest.TestCase):
     def test_yukari_anima_is_accepted(self):
         validate_request(self._request())
 
-    def test_hires_is_rejected_for_yukari_anima(self):
+    def test_hires_is_accepted_for_yukari_anima(self):
         request = self._request()
         request["generation"]["parameters"]["hires"] = 2048
-        with self.assertRaises(SystemExit):
-            validate_request(request)
+        validate_request(request)  # must not raise
 
-    def test_denoise_is_rejected_for_yukari_anima(self):
+    def test_denoise_is_accepted_for_yukari_anima(self):
         request = self._request()
+        request["generation"]["parameters"]["hires"] = 2048
         request["generation"]["parameters"]["denoise"] = 0.5
-        with self.assertRaises(SystemExit):
-            validate_request(request)
+        validate_request(request)  # must not raise
 
     def test_layerdiffuse_is_rejected_for_yukari_anima(self):
         request = self._request()

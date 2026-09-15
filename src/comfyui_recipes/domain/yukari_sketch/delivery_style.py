@@ -19,3 +19,5 @@ FINALIZE_SAMPLER = ("euler", "normal")
 FINALIZE_LATENT_ROUTE = True
 # Deliverables are cutouts; the flat-backdrop composite's binary edge aliases.
 FINALIZE_TRANSPARENT = True
+
+FINALIZE_DEFAULTS = {"stroke_light": "n"}

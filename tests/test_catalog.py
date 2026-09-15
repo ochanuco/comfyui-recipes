@@ -310,9 +310,9 @@ class FinalizeDefaultsTest(unittest.TestCase):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
         self.assertEqual(by_name["yukari-anima"]["finalize"]["defaults"],
-                         {"deliver_only": True, "repin": False})
-        self.assertEqual(by_name["yukari"]["finalize"]["defaults"], {})
-        self.assertEqual(by_name["yukari-sketch"]["finalize"]["defaults"], {})
+                         {"deliver_only": True, "repin": False, "stroke_light": "n"})
+        self.assertEqual(by_name["yukari"]["finalize"]["defaults"], {"stroke_light": "n"})
+        self.assertEqual(by_name["yukari-sketch"]["finalize"]["defaults"], {"stroke_light": "n"})
 
 
 class PublishCatalogTest(unittest.TestCase):

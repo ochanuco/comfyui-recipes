@@ -54,7 +54,21 @@ flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
 `stroke_light`, `repair`, `repair_regions`, `repair_denoise`, `repair_pad`,
 `repair_size`, `repair_lora`, `sketch_redraw`, `deliver_only`, `matte_model`)
 with the same
-defaults `comfy-recipes finalize` has when a flag is omitted. A `repair` row's payload is
+defaults `comfy-recipes finalize` has when a flag is omitted, except for
+`backdrop`, `stroke_light`, `repin` and `deliver_only`: an omitted key there
+resolves on the worker to the base's own recipe default (the same
+`finalize.defaults` the catalog publishes, below) instead of to
+`finalize()`'s own null/false default, so an MCP/AI caller that never names
+these four gets the same delivery the WebUI gets by sending
+`finalize.defaults` explicitly. `deliver_only` only takes its recipe default
+when none of the redraw-shaping options above (`denoise`, `size`, `route`,
+`finalizer`, `lora_strength`, `sketch_redraw`, `handdrawn`, `toe_guard`,
+`repair`/`repair_regions`, `keep_regions`, `upscale`) is present in the same
+request; if any of them is present, an omitted `deliver_only` resolves to
+`false` instead. An explicit `null` on `backdrop` or `stroke_light` keeps
+today's meaning regardless -- `stroke_light: null` is the uniform rim,
+`backdrop: null` is no backdrop -- only an *absent* key now falls back to
+the recipe default. A `repair` row's payload is
 `{"generation_id", "options":
 {...}}` too; see [Repair](#repair) below for its options. A `masked_redraw`
 row's payload is the same shape again; see
@@ -150,10 +164,12 @@ does not stop the worker from serving. Pass `--no-catalog` to skip it.
 
 Each recipe entry also carries `finalize.defaults`, the value set chimera's
 GUI presets a finalize form with when the generation it is finalizing came
-from a batch on that recipe; the worker itself never reads it, so an option
-the request omits still falls back to the worker's own default regardless of
-what the catalog published. Every recipe publishes `stroke_light: "n"`, and
-yukari-anima additionally publishes `deliver_only: true, repin: false`.
+from a batch on that recipe, and the same value the worker itself now
+resolves an omitted `backdrop`/`stroke_light`/`repin`/`deliver_only` request
+option to (see above), so the WebUI and an MCP/AI caller that omits these
+options agree on the delivery. Every recipe publishes `stroke_light: "n"`
+and `backdrop: "stripes"`, and yukari-anima additionally publishes
+`deliver_only: true, repin: false`.
 
 ## Named dials
 

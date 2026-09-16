@@ -24,7 +24,7 @@ from ..domain.yukari_anima.dials import DIALS as _ANIMA_DIALS
 from ..domain.yukari_sketch.dials import DIALS as _SKETCH_DIALS
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
 from .catalog import publish_catalog as publish_catalog_document
-from .finalize import FinalizeServices, finalize
+from .finalize import RECIPE_DEFAULT, FinalizeServices, finalize
 from .generate import GenerateServices, generate, request_file_path
 from .masked_redraw import MaskedRedrawServices, masked_redraw
 from .repair import RepairServices, repair
@@ -467,6 +467,14 @@ def finalize_arguments(options: Mapping,
             raise ValueError(f"{key} must be a boolean, got {type(value).__name__}")
         return value
 
+    def defaultable_boolean(key: str) -> bool | object:
+        if key not in options:
+            return RECIPE_DEFAULT
+        value = options[key]
+        if not isinstance(value, bool):
+            raise ValueError(f"{key} must be a boolean, got {type(value).__name__}")
+        return value
+
     def number(key: str) -> float | int | None:
         value = resolve_dial(key, options.get(key), dials)
         if value is None or (isinstance(value, (int, float))
@@ -525,15 +533,19 @@ def finalize_arguments(options: Mapping,
         raise ValueError(
             f"transparent must be null or a boolean, got {type(transparent).__name__}")
 
-    backdrop = options.get("backdrop")
-    if backdrop is not None:
-        if not isinstance(backdrop, str):
-            raise ValueError(
-                f"backdrop must be null or a string, got {type(backdrop).__name__}")
-        if not is_backdrop(backdrop):
-            names = ", ".join(repr(key) for key in sorted(PATTERNS))
-            raise ValueError(
-                f"backdrop must be null, a #RRGGBB colour or one of {names}, got {backdrop!r}")
+    if "backdrop" not in options:
+        backdrop = RECIPE_DEFAULT
+    else:
+        backdrop = options["backdrop"]
+        if backdrop is not None:
+            if not isinstance(backdrop, str):
+                raise ValueError(
+                    f"backdrop must be null or a string, got {type(backdrop).__name__}")
+            if not is_backdrop(backdrop):
+                names = ", ".join(repr(key) for key in sorted(PATTERNS))
+                raise ValueError(
+                    f"backdrop must be null, a #RRGGBB colour or one of {names}, "
+                    f"got {backdrop!r}")
 
     upscale = options.get("upscale")
     if upscale is not None and upscale not in (
@@ -550,10 +562,14 @@ def finalize_arguments(options: Mapping,
     if lora_strength is not None and not (0 <= lora_strength <= 2):
         raise ValueError(f"lora_strength must be between 0 and 2, got {lora_strength!r}")
 
-    stroke_light = options.get("stroke_light")
-    if stroke_light is not None and stroke_light not in STROKE_LIGHTS:
-        valid = ", ".join(repr(key) for key in sorted(STROKE_LIGHTS))
-        raise ValueError(f"stroke_light must be null or one of {valid}, got {stroke_light!r}")
+    if "stroke_light" not in options:
+        stroke_light = RECIPE_DEFAULT
+    else:
+        stroke_light = options["stroke_light"]
+        if stroke_light is not None and stroke_light not in STROKE_LIGHTS:
+            valid = ", ".join(repr(key) for key in sorted(STROKE_LIGHTS))
+            raise ValueError(
+                f"stroke_light must be null or one of {valid}, got {stroke_light!r}")
 
     repair_raw = options.get("repair")
     repair = (None if repair_raw is None
@@ -582,7 +598,7 @@ def finalize_arguments(options: Mapping,
     return {
         "denoise": float(denoise) if denoise is not None else None,
         "handdrawn": boolean("handdrawn"),
-        "apply_repin": boolean("repin"),
+        "apply_repin": defaultable_boolean("repin"),
         "apply_skin": boolean("skin"),
         "apply_recolor": boolean("recolor"),
         "keep_legwear": float(keep_legwear) if keep_legwear is not None else None,
@@ -606,7 +622,7 @@ def finalize_arguments(options: Mapping,
         "keep_regions": keep_regions,
         "keep_strength": keep_strength,
         "sketch_redraw": sketch_redraw,
-        "deliver_only": boolean("deliver_only"),
+        "deliver_only": defaultable_boolean("deliver_only"),
     }
 
 

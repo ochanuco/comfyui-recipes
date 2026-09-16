@@ -9,7 +9,8 @@ FINALIZE_SAMPLER = ("dpmpp_2m", "karras")
 FINALIZE_STEPS = 30
 FINALIZE_CFG = 5.0
 
-FINALIZE_DEFAULTS = {"deliver_only": True, "repin": False, "stroke_light": "n"}
+FINALIZE_DEFAULTS = {"deliver_only": True, "repin": False, "stroke_light": "n",
+                     "backdrop": "stripes"}
 
 # Replaces `STYLE`, the tail of the positive, for the redraw. `STYLE` is
 # hassakuAnima's own flat/cel-shaded finish; the redraw is a different

@@ -46,6 +46,7 @@ from ..domain.yukari_sketch.recipe import plain_request as sketch_plain_request
 from ..domain.yukari_sketch.recipe import positive as sketch_positive
 from ..infrastructure.chimera.client import ChimeraClient
 from ..infrastructure.comfyui.client import ComfyUIClient
+from ..infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.repository import discover_repository, git_metadata
 from .agent import (
@@ -200,7 +201,7 @@ def parser() -> argparse.ArgumentParser:
         help="keep the asserted legwear verbatim through repin; the value is "
              "the width share the legs stay left of (default 0.62)")
     finalize_parser.add_argument(
-        "--backdrop", metavar="#RRGGBB|stripes",
+        "--backdrop", metavar="#RRGGBB|" + "|".join(BACKDROP_PATTERNS),
         help="backdrop under the sticker -- a colour or a named pattern; "
              "setting it delivers opaque instead of the transparent cutout")
     finalize_parser.add_argument(

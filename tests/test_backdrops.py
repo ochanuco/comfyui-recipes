@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import io
 import unittest
 
 import numpy as np
+from PIL import Image
 
 from comfyui_recipes.domain.yukari import delivery_style
 from comfyui_recipes.infrastructure.imaging.backdrops import (
@@ -10,8 +12,14 @@ from comfyui_recipes.infrastructure.imaging.backdrops import (
     is_backdrop,
     render,
     stripes,
+    thumbnail,
 )
 from comfyui_recipes.infrastructure.imaging.delivery import parse_color
+
+PATTERN_NAMES = (
+    "stripes", "dots", "gingham", "moons", "halftone", "sunburst",
+    "chevron", "checker",
+)
 
 
 class StripesTest(unittest.TestCase):
@@ -61,8 +69,55 @@ class IsBackdropTest(unittest.TestCase):
     def test_an_unknown_name_is_invalid(self):
         self.assertFalse(is_backdrop("plaid"))
 
-    def test_patterns_registry_holds_stripes(self):
-        self.assertEqual(set(PATTERNS), {"stripes"})
+    def test_patterns_registry_holds_every_name_in_display_order(self):
+        self.assertEqual(tuple(PATTERNS), PATTERN_NAMES)
+
+
+class EveryPatternTest(unittest.TestCase):
+    def test_shape_and_range(self):
+        for name in PATTERN_NAMES:
+            with self.subTest(name=name):
+                img = PATTERNS[name](64, 48)
+                self.assertEqual(img.shape, (64, 48, 3))
+                self.assertTrue((img >= 0).all())
+                self.assertTrue((img <= 255).all())
+
+    def test_deterministic(self):
+        for name in PATTERN_NAMES:
+            with self.subTest(name=name):
+                np.testing.assert_array_equal(
+                    PATTERNS[name](40, 40), PATTERNS[name](40, 40))
+
+    def test_not_flat(self):
+        for name in PATTERN_NAMES:
+            with self.subTest(name=name):
+                img = PATTERNS[name](64, 64)
+                self.assertGreater(float(img.std()), 0.0)
+
+
+class BackdropLabelsTest(unittest.TestCase):
+    def test_every_pattern_has_a_label(self):
+        self.assertEqual(set(delivery_style.BACKDROP_LABELS), set(PATTERNS))
+
+    def test_labels_are_non_empty_strings(self):
+        for name, label in delivery_style.BACKDROP_LABELS.items():
+            with self.subTest(name=name):
+                self.assertIsInstance(label, str)
+                self.assertTrue(label)
+
+
+class ThumbnailTest(unittest.TestCase):
+    def test_every_pattern_has_a_120x192_png_thumbnail(self):
+        for name in PATTERN_NAMES:
+            with self.subTest(name=name):
+                data = thumbnail(name)
+                self.assertIsInstance(data, bytes)
+                image = Image.open(io.BytesIO(data))
+                self.assertEqual(image.format, "PNG")
+                self.assertEqual(image.size, (120, 192))
+
+    def test_deterministic(self):
+        self.assertEqual(thumbnail("stripes"), thumbnail("stripes"))
 
 
 if __name__ == "__main__":

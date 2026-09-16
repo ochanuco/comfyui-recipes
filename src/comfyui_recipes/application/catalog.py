@@ -4,6 +4,7 @@ serves, published to chimera under the worker's branch.
 
 from __future__ import annotations
 
+import base64
 from datetime import datetime, timezone
 from typing import Protocol
 
@@ -16,6 +17,7 @@ from ..domain.generation.patches import (
     TEXT_TARGETS,
 )
 from ..domain.yukari.costumes import COSTUMES as YUKARI_COSTUMES
+from ..domain.yukari.delivery_style import BACKDROP_LABELS
 from ..domain.yukari.delivery_style import FINALIZE_DEFAULTS as YUKARI_FINALIZE_DEFAULTS
 from ..domain.yukari.dials import DIALS as YUKARI_DIALS
 from ..domain.yukari.poses import POSE_RECORDS
@@ -36,6 +38,8 @@ from ..domain.yukari_sketch.recipe import departures as sketch_departures
 from ..domain.yukari_sketch.recipe import identity_tags as sketch_identity_tags
 from ..domain.yukari_sketch.recipe import render_spec as sketch_render_spec
 from ..domain.yukari_sketch.recipe import resolved_face as sketch_resolved_face
+from ..infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
+from ..infrastructure.imaging.backdrops import thumbnail as backdrop_thumbnail
 from .generate import KNOWN_PARAMETERS, RECIPE_REJECTED_PARAMETERS
 
 SCHEMA_VERSION = 1
@@ -181,6 +185,18 @@ def _patches_block() -> dict:
     }
 
 
+def _backdrops_block() -> list[dict]:
+    return [
+        {
+            "name": name,
+            "label": BACKDROP_LABELS[name],
+            "thumbnail": ("data:image/png;base64,"
+                         + base64.b64encode(backdrop_thumbnail(name)).decode("ascii")),
+        }
+        for name in BACKDROP_PATTERNS
+    ]
+
+
 def build_catalog(git: dict) -> dict:
     """The catalog document for this worker checkout. Pure -- no I/O."""
     return {
@@ -191,6 +207,7 @@ def build_catalog(git: dict) -> dict:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "recipes": [_yukari_recipe(), _anima_recipe(), _sketch_recipe()],
         "patches": _patches_block(),
+        "backdrops": _backdrops_block(),
     }
 
 

@@ -6,8 +6,12 @@ network socket.
 
 from __future__ import annotations
 
+import base64
+import io
 import re
 import unittest
+
+from PIL import Image
 
 from comfyui_recipes.application.catalog import build_catalog, publish_catalog
 from comfyui_recipes.application.generate import validate_request
@@ -23,6 +27,8 @@ from comfyui_recipes.domain.generation.patches import (
     TEXT_TARGETS,
     parse_patches,
 )
+from comfyui_recipes.domain.yukari.delivery_style import BACKDROP_LABELS
+from comfyui_recipes.infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
 
 GIT = {"commit": "abc123", "branch": "dev/catalog-publish", "dirty": False}
 
@@ -317,6 +323,22 @@ class FinalizeDefaultsTest(unittest.TestCase):
                          {"stroke_light": "n", "backdrop": "stripes"})
         self.assertEqual(by_name["yukari-sketch"]["finalize"]["defaults"],
                          {"stroke_light": "n", "backdrop": "stripes"})
+
+
+class BackdropsBlockTest(unittest.TestCase):
+    def test_lists_every_pattern_in_registry_order_with_name_label_and_thumbnail(self):
+        catalog = build_catalog(GIT)
+        backdrops = catalog["backdrops"]
+        self.assertEqual([entry["name"] for entry in backdrops], list(BACKDROP_PATTERNS))
+        for entry in backdrops:
+            with self.subTest(name=entry["name"]):
+                self.assertEqual(set(entry), {"name", "label", "thumbnail"})
+                self.assertEqual(entry["label"], BACKDROP_LABELS[entry["name"]])
+                self.assertTrue(entry["thumbnail"].startswith("data:image/png;base64,"))
+                raw = base64.b64decode(entry["thumbnail"].split(",", 1)[1])
+                image = Image.open(io.BytesIO(raw))
+                self.assertEqual(image.format, "PNG")
+                self.assertEqual(image.size, (120, 192))
 
 
 class PublishCatalogTest(unittest.TestCase):

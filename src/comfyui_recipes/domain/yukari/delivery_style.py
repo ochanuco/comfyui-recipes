@@ -65,6 +65,75 @@ STRIPES_BURST = 0.6
 STRIPES_BURST_CENTER = (0.5, 0.55)
 STRIPES_BURST_REACH = 0.75
 
+# `dots`: white polka dots on lavender, alternating row offset. Lengths are
+# shares of the longest side.
+DOTS_CELL = 0.11
+DOTS_RADIUS_SHARE = 0.28  # share of DOTS_CELL
+DOTS_EDGE_SOFT = 0.004
+
+# `gingham`: two translucent lavender bands, darker where they cross.
+GINGHAM_CELL = 0.10
+GINGHAM_BAND_SHARE = 0.25  # share of GINGHAM_CELL
+GINGHAM_BAND_ALPHA = 0.6
+GINGHAM_EDGE_SOFT = 0.004
+
+# `moons`: small white crescents on a staggered lattice, the stripes burst
+# behind at reduced strength.
+MOONS_CELL = 0.12
+MOONS_RADIUS = 0.028
+MOONS_HOLE_RADIUS = 0.026
+MOONS_HOLE_OFFSET = (0.012, 0.006)
+MOONS_BURST = 0.35
+
+# `halftone`: white dots growing toward the lower-left, a faint white
+# crescent behind. `HALFTONE_GRADIENT_SPAN` sets how far the growth runs
+# before clamping.
+HALFTONE_CELL = 0.045
+HALFTONE_GRADIENT_SPAN = 1.3
+HALFTONE_RADIUS_MIN = 0.08     # share of HALFTONE_CELL
+HALFTONE_RADIUS_GROWTH = 0.34  # share of HALFTONE_CELL, added by the gradient
+HALFTONE_EDGE_SOFT = 0.0015
+HALFTONE_DOT_ALPHA = 0.75
+HALFTONE_CRESCENT_CENTER = (0.62, 0.3)
+HALFTONE_CRESCENT_RADIUS = 0.34
+HALFTONE_CRESCENT_HOLE_OFFSET = (0.12, 0.06)
+HALFTONE_CRESCENT_HOLE_RADIUS = 0.32
+HALFTONE_CRESCENT_ALPHA = 0.55
+
+# `sunburst`: wide alternating wedges, its own centre (matches the stripes
+# burst by eye, not by dependency) and wedge count.
+SUNBURST_CENTER = (0.5, 0.55)
+SUNBURST_WEDGES = 12
+SUNBURST_EDGE_SOFT = 0.01
+
+# `chevron`: horizontal zigzag bands.
+CHEVRON_PERIOD = 0.14
+CHEVRON_AMPLITUDE = 0.035
+CHEVRON_PITCH = 0.1
+CHEVRON_EDGE_SOFT = 0.01
+
+# `checker`: diagonal checkerboard, the stripes burst behind at reduced
+# strength.
+CHECKER_CELL = 0.09
+CHECKER_BURST = 0.35
+
+# The catalog thumbnail every backdrop publishes alongside its label.
+BACKDROP_THUMBNAIL_WIDTH = 120
+BACKDROP_THUMBNAIL_HEIGHT = 192
+
+# Japanese labels for the chimera WebUI's backdrop picker, keyed by
+# `backdrops.PATTERNS` name.
+BACKDROP_LABELS = {
+    "stripes": "斜めストライプ",
+    "dots": "水玉",
+    "gingham": "ギンガムチェック",
+    "moons": "三日月",
+    "halftone": "網点と月",
+    "sunburst": "放射",
+    "chevron": "ジグザグ",
+    "checker": "斜め市松",
+}
+
 # The acceptance band, from measured approved work. A pass is not approval
 # -- the human still judges -- but a FAIL never goes forward. The frame mean
 # moves with the figure's share of the canvas, so the upper bound is only an

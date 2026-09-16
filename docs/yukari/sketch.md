@@ -193,8 +193,10 @@ follow the usual `-matte`/`-delivered` `SaveImage` shape, with the
 `backdrop`, `keep_scene`, or `transparent: false` selects the legacy path
 instead: the composed-and-redrawn picture (bands and backdrop both baked
 in) is the whole delivered picture, and nothing cuts it. The `backdrop`
-request option (`--backdrop` on the CLI, a `#RRGGBB` hex colour or the named
-pattern `stripes`) overrides the composite's backdrop on either path; unset,
+request option (`--backdrop` on the CLI, a `#RRGGBB` hex colour or a named
+pattern -- `infrastructure/imaging/backdrops.PATTERNS`, published in the
+catalog's `backdrops` block) overrides the composite's backdrop on either
+path; unset,
 it is the delivery's own flat default, and giving one forces the legacy
 path since `YukariCutBackdrop` only means something against a flat colour.
 The `upscale` request option (`--upscale` on the CLI: `bicubic`,

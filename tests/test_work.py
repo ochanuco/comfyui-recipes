@@ -14,6 +14,7 @@ import time
 import unittest
 from pathlib import Path
 
+from comfyui_recipes.application.finalize import RECIPE_DEFAULT
 from comfyui_recipes.application.generate import GenerateServices
 from comfyui_recipes.application.work import (
     Heartbeat,
@@ -292,18 +293,30 @@ class FinalizeArgumentsTest(unittest.TestCase):
     def test_defaults_are_false_and_null(self):
         arguments = finalize_arguments({})
         self.assertEqual(arguments, {
-            "denoise": None, "handdrawn": False, "apply_repin": False,
+            "denoise": None, "handdrawn": False, "apply_repin": RECIPE_DEFAULT,
             "apply_skin": False, "apply_recolor": False, "keep_legwear": None,
             "toe_guard": None, "size": None, "deliver_size": None,
             "latent_route": None,
             "finalizer": None, "keep_scene": False, "transparent": None,
-            "backdrop": None, "upscale": None, "lora_strength": None,
-            "stroke_light": None,
+            "backdrop": RECIPE_DEFAULT, "upscale": None, "lora_strength": None,
+            "stroke_light": RECIPE_DEFAULT,
             "repair": None, "repair_regions": [], "repair_denoise": 0.6,
             "repair_pad": 1.0, "repair_size": 1024, "repair_lora": None,
             "keep_regions": [], "keep_strength": 0.25, "sketch_redraw": None,
-            "deliver_only": False,
+            "deliver_only": RECIPE_DEFAULT,
         })
+
+    def test_repin_absent_resolves_to_the_recipe_default_sentinel(self):
+        self.assertIs(finalize_arguments({})["apply_repin"], RECIPE_DEFAULT)
+
+    def test_repin_present_false_passes_through(self):
+        self.assertIs(finalize_arguments({"repin": False})["apply_repin"], False)
+
+    def test_deliver_only_absent_resolves_to_the_recipe_default_sentinel(self):
+        self.assertIs(finalize_arguments({})["deliver_only"], RECIPE_DEFAULT)
+
+    def test_deliver_only_present_false_passes_through(self):
+        self.assertIs(finalize_arguments({"deliver_only": False})["deliver_only"], False)
 
     def test_deliver_only_true_is_validated_as_a_boolean(self):
         self.assertIs(finalize_arguments({"deliver_only": True})["deliver_only"], True)
@@ -312,8 +325,11 @@ class FinalizeArgumentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "deliver_only"):
             finalize_arguments({"deliver_only": "yes"})
 
-    def test_backdrop_null_passes_through(self):
-        self.assertIsNone(finalize_arguments({})["backdrop"])
+    def test_backdrop_absent_resolves_to_the_recipe_default_sentinel(self):
+        self.assertIs(finalize_arguments({})["backdrop"], RECIPE_DEFAULT)
+
+    def test_backdrop_explicit_null_passes_through(self):
+        self.assertIsNone(finalize_arguments({"backdrop": None})["backdrop"])
 
     def test_backdrop_hex_colour_passes_through(self):
         self.assertEqual(
@@ -365,8 +381,11 @@ class FinalizeArgumentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lora_strength"):
             finalize_arguments({"lora_strength": True})
 
-    def test_stroke_light_null_passes_through(self):
-        self.assertIsNone(finalize_arguments({})["stroke_light"])
+    def test_stroke_light_absent_resolves_to_the_recipe_default_sentinel(self):
+        self.assertIs(finalize_arguments({})["stroke_light"], RECIPE_DEFAULT)
+
+    def test_stroke_light_explicit_null_passes_through(self):
+        self.assertIsNone(finalize_arguments({"stroke_light": None})["stroke_light"])
 
     def test_stroke_light_a_known_key_passes_through(self):
         self.assertEqual(

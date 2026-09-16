@@ -16,7 +16,7 @@ import unittest
 from dataclasses import replace as dataclass_replace
 from pathlib import Path
 
-from comfyui_recipes.application.finalize import FinalizeServices, finalize
+from comfyui_recipes.application.finalize import RECIPE_DEFAULT, FinalizeServices, finalize
 from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.repair.prompt import PART_TAGS
 from comfyui_recipes.domain.yukari import delivery_style
@@ -884,6 +884,72 @@ class FinalizeApplicationTest(unittest.TestCase):
                 graph_from_png=lambda data: SKETCH_GRAPH)
             finalize("gen-id", services)
             self.assertIs(calls[-1]["transparent"], sketch_delivery_style.FINALIZE_TRANSPARENT)
+
+
+class FinalizeRecipeDefaultTest(unittest.TestCase):
+    def test_anima_base_with_recipe_defaults_takes_the_deliver_only_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, graph_from_png=lambda data: copy.deepcopy(ANIMA_GRAPH))
+            finalize("gen-id", services, deliver_only=RECIPE_DEFAULT,
+                     apply_repin=RECIPE_DEFAULT, stroke_light=RECIPE_DEFAULT,
+                     backdrop=RECIPE_DEFAULT)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertIs(parameters["deliver_only"], True)
+            self.assertIs(parameters["repin"], False)
+            self.assertEqual(parameters["stroke_light"], "n")
+            self.assertEqual(parameters["backdrop"], "stripes")
+
+    def test_anima_base_with_denoise_given_resolves_deliver_only_false(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: copy.deepcopy(ANIMA_GRAPH))
+            finalize("gen-id", services, denoise=0.5, deliver_only=RECIPE_DEFAULT)
+            self.assertIs(calls[-1]["deliver_only"], False)
+
+    def test_yukari_base_with_recipe_defaults_resolves_stroke_and_backdrop(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services, deliver_only=RECIPE_DEFAULT,
+                     apply_repin=RECIPE_DEFAULT, stroke_light=RECIPE_DEFAULT,
+                     backdrop=RECIPE_DEFAULT)
+            parameters = batch_call(services)[2]["parameters"]
+            self.assertEqual(parameters["stroke_light"], "n")
+            self.assertEqual(parameters["backdrop"], "stripes")
+
+    def test_explicit_stroke_light_none_reaches_chain_pass_as_none(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(directory, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, stroke_light=None)
+            self.assertIsNone(calls[-1]["stroke_light"])
+
+    def test_transparent_true_resolves_a_recipe_default_backdrop_to_none(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            finalize("gen-id", services, transparent=True, backdrop=RECIPE_DEFAULT)
+            self.assertIsNone(calls[-1]["backdrop"])
+            self.assertIs(calls[-1]["transparent"], True)
 
 
 class FinalizeDeliverOnlyTest(unittest.TestCase):

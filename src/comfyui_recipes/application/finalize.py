@@ -39,6 +39,10 @@ FINALIZE_SIZE = 2560
 # `render_soft_mask_png`'s feather, as a share of the redraw canvas' longest side.
 KEEP_FEATHER_FRACTION = 0.03
 
+# Passed for apply_repin/backdrop/stroke_light/deliver_only to mean "use the
+# base recipe's own FINALIZE_DEFAULTS value".
+RECIPE_DEFAULT = object()
+
 
 @dataclass(frozen=True)
 class FinalizeServices:
@@ -58,7 +62,7 @@ class FinalizeServices:
 
 def finalize(generation_id: str, services: FinalizeServices, *,
              denoise: float | None = None, handdrawn: bool = False,
-             apply_repin: bool = False, apply_skin: bool = False,
+             apply_repin: bool | object = False, apply_skin: bool = False,
              apply_recolor: bool = False,
              keep_legwear: float | None = None,
              keep_scene: bool = False,
@@ -68,11 +72,11 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              finalizer: str | None = None,
              sketch_redraw: str | None = None,
              key_prefix: str | None = None,
-             backdrop: str | None = None,
+             backdrop: str | None | object = None,
              upscale: str | None = None,
              lora_strength: float | None = None,
              deliver_size: int | None = None,
-             stroke_light: str | None = None,
+             stroke_light: str | None | object = None,
              repair: Sequence[str] | None = None,
              repair_regions: Sequence[Sequence[float]] = (),
              repair_denoise: float = 0.6,
@@ -81,27 +85,9 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              repair_lora: float | None = None,
              keep_regions: Sequence[Sequence[float]] = (),
              keep_strength: float = 0.25,
-             deliver_only: bool = False,
+             deliver_only: bool | object = False,
              matte_model: str | None = None,
              context: dict | None = None) -> dict:
-    if deliver_only:
-        conflicts = [name for name, present in (
-            ("denoise", denoise is not None),
-            ("size", size is not None),
-            ("latent_route", latent_route is not None),
-            ("finalizer", finalizer is not None),
-            ("lora_strength", lora_strength is not None),
-            ("sketch_redraw", sketch_redraw is not None),
-            ("handdrawn", handdrawn),
-            ("toe_guard", toe_guard is not None),
-            ("repair", bool(repair)),
-            ("repair_regions", bool(repair_regions)),
-            ("keep_regions", bool(keep_regions)),
-            ("upscale", upscale is not None),
-        ) if present]
-        if conflicts:
-            raise SystemExit(
-                "deliver_only cannot combine with " + ", ".join(conflicts))
     if context is None:
         context = services.management.request(
             "GET", f"/api/v1/generations/{generation_id}/context")
@@ -132,8 +118,6 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     # it, since the redraw itself moves the silhouette.
     is_layerdiffuse = any(node.get("class_type") == "LayeredDiffusionApply"
                           for node in base.values())
-    if deliver_only and is_layerdiffuse:
-        raise SystemExit("deliver_only does not support a layerdiffuse base")
     if sketch_redraw is not None and not is_anima:
         raise SystemExit("sketch_redraw needs an anima base")
     is_anima_sketch_redraw = is_anima and sketch_redraw is not None
@@ -141,6 +125,40 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     # defaults (denoise, size, transparent cutout) as a real yukari-sketch
     # base -- it is the same look, drawn from a different base recipe.
     is_sketch_style = is_sketch or is_anima_sketch_redraw
+
+    redraw_shaping_conflicts = [name for name, present in (
+        ("denoise", denoise is not None),
+        ("size", size is not None),
+        ("latent_route", latent_route is not None),
+        ("finalizer", finalizer is not None),
+        ("lora_strength", lora_strength is not None),
+        ("sketch_redraw", sketch_redraw is not None),
+        ("handdrawn", handdrawn),
+        ("toe_guard", toe_guard is not None),
+        ("repair", bool(repair)),
+        ("repair_regions", bool(repair_regions)),
+        ("keep_regions", bool(keep_regions)),
+        ("upscale", upscale is not None),
+    ) if present]
+    recipe_defaults = (anima_delivery_style.FINALIZE_DEFAULTS if is_anima
+                       else sketch_delivery_style.FINALIZE_DEFAULTS if is_sketch_style
+                       else delivery_style.FINALIZE_DEFAULTS)
+    if deliver_only is RECIPE_DEFAULT:
+        deliver_only = (recipe_defaults.get("deliver_only", False)
+                        if not redraw_shaping_conflicts else False)
+    if apply_repin is RECIPE_DEFAULT:
+        apply_repin = recipe_defaults.get("repin", False)
+    if stroke_light is RECIPE_DEFAULT:
+        stroke_light = recipe_defaults.get("stroke_light")
+    if backdrop is RECIPE_DEFAULT:
+        backdrop = None if transparent is True else recipe_defaults.get("backdrop")
+
+    if deliver_only and redraw_shaping_conflicts:
+        raise SystemExit(
+            "deliver_only cannot combine with " + ", ".join(redraw_shaping_conflicts))
+    if deliver_only and is_layerdiffuse:
+        raise SystemExit("deliver_only does not support a layerdiffuse base")
+
     if lora_strength is not None and not is_sketch_style:
         raise SystemExit("lora_strength needs a recipe with a LoRA")
     if apply_recolor and is_sketch:

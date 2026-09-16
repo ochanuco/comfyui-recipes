@@ -20,4 +20,4 @@ FINALIZE_LATENT_ROUTE = True
 # Deliverables are cutouts; the flat-backdrop composite's binary edge aliases.
 FINALIZE_TRANSPARENT = True
 
-FINALIZE_DEFAULTS = {"stroke_light": "n"}
+FINALIZE_DEFAULTS = {"stroke_light": "n", "backdrop": "stripes"}

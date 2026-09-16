@@ -220,7 +220,7 @@ FINALIZE_DENOISE = 0.45
 # The delivery redraw's own sampler (sampler_name, scheduler).
 FINALIZE_SAMPLER = ("euler", "normal")
 
-FINALIZE_DEFAULTS = {"stroke_light": "n"}
+FINALIZE_DEFAULTS = {"stroke_light": "n", "backdrop": "stripes"}
 
 # Lineart-preserving recolour (infrastructure/imaging/recolor.py). Where
 # repin nudges the render's own saturation, recolor asserts a material's

@@ -149,7 +149,11 @@ mirrors `domain/generation/patches.py`'s
 constraints, and the closed string enums -- plus `text.part_target`
 (`"prompt.positive.<part>"`) and an `overrides` block documenting
 `identity_override`, so an agent with no shell can compose
-`generation.patches` from the catalog alone.
+`generation.patches` from the catalog alone. A top-level `backdrops` array
+lists every named `finalize --backdrop` pattern in display order --
+`{"name", "label", "thumbnail"}`, the label in Japanese and the thumbnail a
+`data:image/png;base64,...` PNG of the pattern alone at 120x192 -- for the
+WebUI's backdrop picker.
 
 ```bash
 uv run comfy-recipes catalog                # print the document

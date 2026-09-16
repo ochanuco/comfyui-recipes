@@ -65,6 +65,113 @@ STRIPES_BURST = 0.6
 STRIPES_BURST_CENTER = (0.5, 0.55)
 STRIPES_BURST_REACH = 0.75
 
+# Shared accents beyond the stripes triad: pink for the ear/sticker/ornament
+# motifs, "deep" for the pencil and paper-cut motifs -- lavender pulled toward
+# the purple stroke rather than a fourth free-standing hex, so it tracks
+# either colour if they move.
+BACKDROP_PINK = "#f4c9dc"
+BACKDROP_DEEP_LAVENDER_SHARE = 0.82
+BACKDROP_DEEP_STROKE_SHARE = 0.18
+
+# `waveform`: VOICEROID-style voice-meter bars, loud behind the figure and
+# quiet at the edges. Lengths are shares of the longest side.
+WAVEFORM_ROW_HEIGHT = 0.13
+WAVEFORM_PITCH = 0.018
+WAVEFORM_BAR = 0.009
+WAVEFORM_CENTER_SPREAD = 0.35
+WAVEFORM_AMP_MIN = 0.008
+WAVEFORM_AMP_GAIN = 0.052
+WAVEFORM_EDGE_SOFT = 0.0015
+
+# `ears`: rabbit-hood ears on a staggered lattice, pink inner ear, alternating
+# lean. Lengths are shares of the longest side.
+EARS_CELL = 0.13
+EARS_LEAN = 0.18
+EARS_TILT = 0.1
+EARS_OFFSET_X = 0.011
+EARS_OFFSET_Y = 0.004
+EARS_OUTER_RX = 0.0085
+EARS_OUTER_RY = 0.04
+EARS_INNER_RX = 0.0042
+EARS_INNER_RY = 0.028
+EARS_INNER_OFFSET_Y = 0.006
+EARS_INNER_ALPHA = 0.55
+EARS_EDGE_SOFT = 0.0015
+
+# `phases`: rows of moon phases waxing and waning across the canvas, every
+# disc outlined.
+PHASES_CELL_X = 0.105
+PHASES_CELL_Y = 0.125
+PHASES_RADIUS = 0.03
+PHASES_RING_WIDTH = 0.0016
+PHASES_RING_ALPHA = 0.45
+PHASES_EDGE_SOFT = 0.0015
+
+# `hatching`: two diagonal pencil layers, noised for a hand-drawn wobble and
+# broken into dashed patches rather than solid lines.
+HATCHING_LAYERS = (
+    {"direction": (1, -1), "colour": "lavender", "alpha": 0.9, "threshold": 0.42},
+    {"direction": (1, 1), "colour": "deep", "alpha": 0.55, "threshold": 0.6},
+)
+HATCHING_PITCH = 0.011
+HATCHING_LINE_HALF_WIDTH = 0.0024
+HATCHING_LINE_EDGE_SOFT = 0.0012
+HATCHING_WOBBLE_CELLS = 40
+HATCHING_WOBBLE_SEED = 10
+HATCHING_WOBBLE_AMPLITUDE = 0.006
+HATCHING_DASH_FREQ = 90
+HATCHING_DASH_STROKE_FREQ = 2.7
+HATCHING_DASH_BIAS = 0.55
+HATCHING_DASH_EDGE_SOFT = 0.3
+HATCHING_PATCH_CELLS = 6
+HATCHING_PATCH_SEED = 20
+HATCHING_PATCH_EDGE_SOFT = 0.04
+
+# `torn`: hand-cut paper layers behind the figure, white paper edges like the
+# delivery's own rim.
+TORN_CENTER = (0.5, 0.55)
+TORN_SEED = 7
+TORN_LAYERS = (
+    (1.05, "lavender"), (0.8, "light"), (0.6, "lavender"),
+    (0.42, "light"), (0.26, "lavender"),
+)
+TORN_VERTICES = 13
+TORN_JITTER = 0.16
+TORN_PAPER_LIP = 0.008
+TORN_EDGE_SOFT = 0.002
+
+# `stickers`: scattered crescents, sparkles and hood ears, seeded and sparse.
+STICKERS_SEED = 3
+STICKERS_CELL = 0.1
+STICKERS_JITTER = 0.03
+STICKERS_SCALE_RANGE = (0.8, 1.2)
+STICKERS_ANGLE_RANGE = (-0.6, 0.6)
+STICKERS_PINK_CHANCE = 0.15
+STICKERS_MOTIF_RADIUS_SHARE = 0.05
+STICKERS_EDGE_SOFT = 0.0015
+STICKERS_MOON_RADIUS = 0.022
+STICKERS_MOON_BITE_SHARE = 0.9
+STICKERS_MOON_BITE_OFFSET = (0.45, 0.2)
+STICKERS_SPARKLE_RADIUS = 0.026
+STICKERS_SPARKLE_SCALE = 0.08
+STICKERS_SPARKLE_EDGE_SOFT = 0.0012
+STICKERS_EAR_TILT = 0.1
+STICKERS_EAR_OFFSET = 0.009
+STICKERS_EAR_RX = 0.007
+STICKERS_EAR_RY = 0.032
+
+# `ornament`: Yukari's hair ornament, a ringed disc with a small satellite, as
+# a lattice motif.
+ORNAMENT_CELL = 0.15
+ORNAMENT_RIM_RADIUS = 0.026
+ORNAMENT_RIM_ALPHA = 0.9
+ORNAMENT_RING_RADIUS = 0.018
+ORNAMENT_CENTER_RADIUS = 0.012
+ORNAMENT_HUB_ALPHA = 0.8
+ORNAMENT_SATELLITE_OFFSET = (0.024, -0.022)
+ORNAMENT_SATELLITE_HUB_RADIUS = 0.006
+ORNAMENT_EDGE_SOFT = 0.0015
+
 # `dots`: white polka dots on lavender, alternating row offset. Lengths are
 # shares of the longest side.
 DOTS_CELL = 0.11
@@ -125,6 +232,13 @@ BACKDROP_THUMBNAIL_HEIGHT = 192
 # `backdrops.PATTERNS` name.
 BACKDROP_LABELS = {
     "stripes": "斜めストライプ",
+    "waveform": "音声波形",
+    "ears": "うさ耳",
+    "phases": "月の満ち欠け",
+    "hatching": "鉛筆ハッチング",
+    "torn": "切り紙",
+    "stickers": "ステッカー",
+    "ornament": "髪飾り",
     "dots": "水玉",
     "gingham": "ギンガムチェック",
     "moons": "三日月",

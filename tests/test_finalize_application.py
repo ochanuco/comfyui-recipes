@@ -1743,6 +1743,28 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "latent route"):
                 finalize("gen-id", services)
 
+    def test_repaired_raw_delivers_its_own_pixels_without_a_redraw(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            comfy = ComfyFake()
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-3"},
+                generation_records={"raw-3": {"comfy_job": {"graph": ANIMA_GRAPH}}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass,
+                comfyui=comfy)
+            finalize("gen-id", services, deliver_only=True)
+            self.assertIs(calls[-1]["deliver_only"], True)
+            self.assertIs(calls[-1]["latent_route"], False)
+            staged = [name for name, data in comfy.uploaded if data == b"picked"]
+            self.assertEqual(len(staged), 1)
+            self.assertEqual(calls[-1]["source_image"], f"uploaded-{staged[0]}")
+
     def test_repaired_raw_on_a_layerdiffuse_base_is_rejected_even_with_latent_route(self):
         with tempfile.TemporaryDirectory() as directory:
             management = ManagementFake(

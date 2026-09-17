@@ -44,29 +44,26 @@ def _matte_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
     return [remove, 0]
 
 
-def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
-                        skin: bool, repin: bool, recolor: bool,
-                        keep_legwear: float | None, keep_scene: bool,
-                        transparent: bool, backdrop: str | None,
-                        stroke_light: str | None, deliver_size: int | None,
-                        canvas: tuple[int, int]) -> dict:
-    # A self-contained graph: nothing here depends on the base pass that
-    # produced source_image, so it carries none of that pass's own nodes.
-    graph: dict = {}
-    cursor = 1
+def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list,
+                       matte_model: str, prefix: str, *, skin: bool, repin: bool,
+                       recolor: bool, keep_legwear: float | None, keep_scene: bool,
+                       transparent: bool, backdrop: str | None,
+                       stroke_light: str | None, deliver_size: int | None,
+                       canvas: tuple[int, int],
+                       source_image: str | None = None) -> list:
+    """Appends the deliver-only chain onto `graph` (mutated): a raw SaveImage
+    of `image_ref` as-is, a matte, optional skin/recolor/repin, YukariDeliver
+    and an optional deliver_size scale. Returns the delivered picture's ref.
 
-    def allocate() -> str:
-        nonlocal cursor
-        node_id = str(cursor)
-        cursor += 1
-        return node_id
-
-    load_id = allocate()
-    graph[load_id] = {"class_type": "LoadImage", "inputs": {"image": source_image}}
-    image_ref = [load_id, 0]
+    `image_ref` is delivered without any redraw of its own -- a plain
+    picked picture's `LoadImage` output, or a repair's own crop/stitch
+    output, run through the same tail either way. `source_image` is the
+    unedited picture `skin` reads its original tones from, loaded fresh
+    since `image_ref` may already be someone else's redraw or stitch by the
+    time this runs.
+    """
     # A raw output alongside the matte and the delivered one, same three-way
-    # split finalize() classifies every other route by -- here it is the
-    # picked picture's own pixels, unresampled.
+    # split finalize() classifies every other route by.
     raw_save = allocate()
     graph[raw_save] = {"class_type": "SaveImage", "inputs": {
         "images": image_ref, "filename_prefix": prefix}}
@@ -113,6 +110,34 @@ def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
     save_delivered = allocate()
     graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
         "images": delivered_ref, "filename_prefix": prefix + DELIVERED_SUFFIX}}
+    return delivered_ref
+
+
+def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
+                        skin: bool, repin: bool, recolor: bool,
+                        keep_legwear: float | None, keep_scene: bool,
+                        transparent: bool, backdrop: str | None,
+                        stroke_light: str | None, deliver_size: int | None,
+                        canvas: tuple[int, int]) -> dict:
+    # A self-contained graph: nothing here depends on the base pass that
+    # produced source_image, so it carries none of that pass's own nodes.
+    graph: dict = {}
+    cursor = 1
+
+    def allocate() -> str:
+        nonlocal cursor
+        node_id = str(cursor)
+        cursor += 1
+        return node_id
+
+    load_id = allocate()
+    graph[load_id] = {"class_type": "LoadImage", "inputs": {"image": source_image}}
+    _deliver_only_tail(
+        graph, allocate, [load_id, 0], matte_model, prefix,
+        skin=skin, repin=repin, recolor=recolor, keep_legwear=keep_legwear,
+        keep_scene=keep_scene, transparent=transparent, backdrop=backdrop,
+        stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas,
+        source_image=source_image)
     return graph
 
 

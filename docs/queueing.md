@@ -52,8 +52,8 @@ case `comfy-recipes generate` does. A `finalize` row's payload is
 flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
 `size`, `deliver_size`, `handdrawn`, `skin`, `toe_guard`, `keep_scene`,
 `stroke_light`, `repair`, `repair_regions`, `repair_denoise`, `repair_pad`,
-`repair_size`, `repair_lora`, `sketch_redraw`, `deliver_only`, `matte_model`)
-with the same
+`repair_size`, `repair_lora`, `repair_seeds`, `sketch_redraw`, `deliver_only`,
+`matte_model`) with the same
 defaults `comfy-recipes finalize` has when a flag is omitted, except for
 `backdrop`, `stroke_light`, `repin` and `deliver_only`: an omitted key there
 resolves on the worker to the base's own recipe default (the same
@@ -63,9 +63,12 @@ these four gets the same delivery the WebUI gets by sending
 `finalize.defaults` explicitly. `deliver_only` only takes its recipe default
 when none of the redraw-shaping options above (`denoise`, `size`, `route`,
 `finalizer`, `lora_strength`, `sketch_redraw`, `handdrawn`, `toe_guard`,
-`repair`/`repair_regions`, `keep_regions`, `upscale`) is present in the same
-request; if any of them is present, an omitted `deliver_only` resolves to
-`false` instead. An explicit `null` on `backdrop` or `stroke_light` keeps
+`keep_regions`, `upscale`) is present in the same request; if any of them is
+present, an omitted `deliver_only` resolves to `false` instead. `repair` and
+`repair_regions` are not redraw-shaping options for this purpose -- a
+request that carries only those (plus a recipe whose own default is
+`deliver_only: true`, such as yukari-anima) still takes the deliver_only
+path. An explicit `null` on `backdrop` or `stroke_light` keeps
 today's meaning regardless -- `stroke_light: null` is the uniform rim,
 `backdrop: null` is no backdrop -- only an *absent* key now falls back to
 the recipe default. A `repair` row's payload is
@@ -91,16 +94,39 @@ default and delivers an opaque sticker on that backdrop instead.
 picture's own pixels go straight through the matte, the optional
 repin/skin/recolor, and the backdrop/stroke delivery tail, at the picked
 picture's own canvas size. It works on any base except layerdiffuse, and is
-mutually exclusive with every flag that shapes a redraw -- `denoise`, `size`,
-`route`, `finalizer`, `lora_strength`, `sketch_redraw`, `handdrawn`,
-`toe_guard`, `repair`/`repair_regions`, `keep_regions` and `upscale` --
-each a `SystemExit` if combined. `repin`, `recolor`, `skin`, `keep_legwear`,
-`backdrop`, `transparent`/`opaque`, `keep_scene`, `stroke_light`,
-`deliver_size` and `matte_model` still apply. The recorded batch parameters
-carry `deliver_only: true` and omit `size`/`denoise`/`route`/`finalizer`,
-since no redraw ran to give those a meaning. A deliver_only finalize records
-a single generation, the delivered picture, with the matte stored as its
-`mask` asset.
+mutually exclusive with every flag that shapes a whole-canvas redraw --
+`denoise`, `size`, `route`, `finalizer`, `lora_strength`, `sketch_redraw`,
+`handdrawn`, `toe_guard`, `keep_regions` and `upscale` -- each a `SystemExit`
+if combined. `repin`, `recolor`, `skin`, `keep_legwear`, `backdrop`,
+`transparent`/`opaque`, `keep_scene`, `stroke_light`, `deliver_size` and
+`matte_model` still apply. The recorded batch parameters carry
+`deliver_only: true` and omit `size`/`denoise`/`route`/`finalizer`, since no
+redraw ran to give those a meaning. A deliver_only finalize with neither
+`repair` nor `repair_regions` records a single generation, the delivered
+picture, with the matte stored as its `mask` asset.
+
+`repair`/`repair_regions` combine with `deliver_only`, unlike every other
+redraw-shaping flag above: instead of a whole-canvas redraw, each of
+`repair_seeds` (`--repair-seeds N`, an integer `1..8`, default `4`) seeds
+`1..N` runs the same masked crop/resample/stitch reroll the standalone
+[repair](#repair) request does -- on the source generation's own model,
+LoRA and prompt -- and feeds that seed's stitched picture into the same
+deliver-only tail (matte, repin/skin/recolor, `YukariDeliver`,
+`deliver_size` scale) in the one ComfyUI submission, instead of queueing a
+second `repair` request against the delivered result. `repair_size`, when
+omitted, is `1536` if the picked picture's long side is at least `2048`,
+otherwise `1024`. The request is recorded as a single `kind: "repair"`
+batch (not `hires-chain`) with one job per seed, each carrying the seed's
+raw repaired generation, its delivered generation and its own repair mask
+asset -- the same shape a standalone `repair` request records, plus the
+delivery options used (`deliver_only`, `repin`, `recolor`, `skin`,
+`backdrop`, `stroke_light`, `transparent`, `deliver_size`, `matte_model`).
+`repair_lora` is silently skipped when the source recipe is yukari-anima,
+the same way the standalone `repair` request skips it for an anima source
+-- the part LoRA chain is Illustrious-only. `repair_seeds` on a request
+that omits `deliver_only` is a `SystemExit`; a redraw finalize's own
+`repair`/`repair_regions` (`deliver_only` absent or `false`) is unchanged,
+still one seed spliced into the redraw's own submission.
 
 `matte_model` (`--matte-model`) picks the figure MASK's source: a core
 background-removal model file (the recipe's own default), or
@@ -172,8 +198,8 @@ from a batch on that recipe, and the same value the worker itself now
 resolves an omitted `backdrop`/`stroke_light`/`repin`/`deliver_only` request
 option to (see above), so the WebUI and an MCP/AI caller that omits these
 options agree on the delivery. Every recipe publishes `stroke_light: "n"`
-and `backdrop: "stripes"`, and yukari-anima additionally publishes
-`deliver_only: true, repin: false`.
+and `backdrop: "stripes"`, except yukari-anima, which additionally publishes
+`deliver_only: true, repin: true` and overrides `backdrop` to `"dots"`.
 
 ## Named dials
 
@@ -224,6 +250,12 @@ ComfyUI submission, instead of queueing a second `repair` request against
 the finalized result. Pose detection runs on the raw pick, and the
 resulting regions are scaled into the redraw's own (larger) canvas before
 the mask is rendered.
+
+Combined with `--deliver-only` (or a recipe whose own default is
+`deliver_only: true`), `--repair`/`--repair-region` instead take
+`--repair-seeds N` and route through this same repair use case, recorded as
+a `kind: "repair"` batch rather than spliced into a redraw -- see
+`deliver_only` under "Queue worker" above.
 
 ```bash
 uv run comfy-recipes repair <generation_id> \

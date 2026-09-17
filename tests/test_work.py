@@ -301,7 +301,8 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "backdrop": RECIPE_DEFAULT, "upscale": None, "lora_strength": None,
             "stroke_light": RECIPE_DEFAULT,
             "repair": None, "repair_regions": [], "repair_denoise": 0.6,
-            "repair_pad": 1.0, "repair_size": 1024, "repair_lora": None,
+            "repair_pad": 1.0, "repair_size": None, "repair_lora": None,
+            "repair_seeds": None,
             "keep_regions": [], "keep_strength": 0.25, "sketch_redraw": None,
             "deliver_only": RECIPE_DEFAULT,
         })
@@ -494,7 +495,29 @@ class FinalizeArgumentsTest(unittest.TestCase):
             finalize_arguments({"repair_pad": 4})
 
     def test_repair_size_default(self):
-        self.assertEqual(finalize_arguments({})["repair_size"], 1024)
+        # `None` (the option omitted) reaches finalize() as its own "caller
+        # omitted this" sentinel -- see repair_seeds below for the analogous
+        # case.
+        self.assertIsNone(finalize_arguments({})["repair_size"])
+
+    def test_repair_seeds_default(self):
+        self.assertIsNone(finalize_arguments({})["repair_seeds"])
+
+    def test_repair_seeds_out_of_range_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "repair_seeds"):
+            finalize_arguments({"repair_seeds": 9})
+        with self.assertRaisesRegex(ValueError, "repair_seeds"):
+            finalize_arguments({"repair_seeds": 0})
+
+    def test_repair_seeds_accepts_the_full_range(self):
+        for value in (1, 8):
+            with self.subTest(value=value):
+                self.assertEqual(
+                    finalize_arguments({"repair_seeds": value})["repair_seeds"], value)
+
+    def test_repair_seeds_must_be_an_integer(self):
+        with self.assertRaisesRegex(ValueError, "repair_seeds"):
+            finalize_arguments({"repair_seeds": 2.5})
 
     def test_repair_size_not_a_multiple_of_8_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "repair_size"):

@@ -11,11 +11,13 @@ from ..domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import part_loras
 from ..domain.repair.prompt import repair_prompt
 from ..domain.repair.regions import rects_from_fractions, regions_from_pose
+from ..domain.yukari import delivery_style
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
 from ..infrastructure.comfyui.repair_controlnet import control_hook
 from ..infrastructure.comfyui.repair_graph import (
     DELIVERED_SUFFIX,
     MATTE_SUFFIX,
+    deliver_only_repair_graph,
     repair_graph,
     source_prompts,
 )
@@ -36,6 +38,7 @@ class RepairServices:
     emit: Callable[[str], None] = print
     pose_graph: Callable[..., dict] = pose_graph
     repair_graph: Callable[..., dict] = repair_graph
+    deliver_repair_graph: Callable[..., dict] = deliver_only_repair_graph
 
 
 def _source_short(generations: Sequence[Mapping], generation_id: str) -> str:
@@ -69,6 +72,12 @@ def repair(generation_id: str, services: RepairServices, *,
           model: str | None = None,
           control: str | None = None,
           control_strength: float = DEFAULT_CONTROL_STRENGTH,
+          deliver_only: bool = False,
+          matte_model: str | None = None,
+          repin: bool = False, recolor: bool = False, skin: bool = False,
+          backdrop: str | None = None, stroke_light: str | None = None,
+          transparent: bool = False, deliver_size: int | None = None,
+          graph_generation_id: str | None = None,
           key_prefix: str | None = None,
           context: dict | None = None, batch: dict | None = None) -> dict:
     if context is None:
@@ -82,12 +91,27 @@ def repair(generation_id: str, services: RepairServices, *,
     prefix = f"rep-{source_short}"
 
     picked = services.management.fetch_generation_image(source_id)
+    # `graph_generation_id` lets a caller that already knows better -- a
+    # finalize of a repaired raw, which must draw its reroll's prompt from
+    # the original generation rather than the repair-emphasized text baked
+    # into its own graph -- name a different generation's graph, while the
+    # picture cropped stays `source_id`'s own.
+    graph_id = graph_generation_id or source_id
     # The job graph is what ran; the PNG prompt can be a cached older submission's.
     record = services.management.request(
-        "GET", f"/api/v1/generations/{source_id}")
-    source_graph = ((record.get("comfy_job") or {}).get("graph")
-                    or services.graph_from_png(picked))
+        "GET", f"/api/v1/generations/{graph_id}")
+    if graph_id == source_id:
+        source_graph = (record.get("comfy_job") or {}).get("graph") or services.graph_from_png(picked)
+    else:
+        source_graph = ((record.get("comfy_job") or {}).get("graph")
+                        or services.graph_from_png(
+                            services.management.fetch_generation_image(graph_id)))
     width, height = services.image_size(picked)
+    # The part LoRA chain (Feet XL / Hands XL) is trained for the
+    # Illustrious checkpoint only; a UNETLoader marks an anima source.
+    is_anima_source = any(node.get("class_type") == "UNETLoader"
+                          for node in source_graph.values())
+    resolved_matte_model = matte_model or delivery_style.MATTE_MODEL
 
     # A fresh staged name per run: ComfyUI reports a cached node's pose text
     # for nothing, so the pose pass must not hit the cache.
@@ -114,7 +138,7 @@ def repair(generation_id: str, services: RepairServices, *,
 
     base_positive, base_negative = source_prompts(source_graph)
     positive = repair_prompt(base_positive, parts)
-    loras = () if model else part_loras(parts, lora)
+    loras = () if (model or is_anima_source) else part_loras(parts, lora)
     model_hooks = [anima_model_hook(model)] if model else ()
 
     conditioning_hooks = []
@@ -144,6 +168,13 @@ def repair(generation_id: str, services: RepairServices, *,
             "control_strength": control_strength if control else None,
             "seeds": list(seeds),
             "mask_bbox": list(mask_bbox),
+            **({"deliver_only": True, "repin": repin, "recolor": recolor,
+                "skin": skin, "matte_model": resolved_matte_model,
+                **({"backdrop": backdrop} if backdrop else {}),
+                **({"stroke_light": stroke_light} if stroke_light is not None else {}),
+                **({"transparent": True} if transparent else {}),
+                **({"deliver_size": deliver_size} if deliver_size is not None else {})}
+               if deliver_only else {}),
         },
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": source_id,
@@ -160,11 +191,22 @@ def repair(generation_id: str, services: RepairServices, *,
     last_raw_filename, last_raw = None, None
     for index, seed in enumerate(seeds):
         job_prefix = f"{prefix}-s{seed}"
-        graph = services.repair_graph(
-            source_graph, image_name=staged_source, mask_name=staged_mask,
-            positive=positive, negative=base_negative, seed=seed,
-            denoise=denoise, size=size, prefix=job_prefix, loras=loras,
-            model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
+        if deliver_only:
+            graph = services.deliver_repair_graph(
+                source_graph, image_name=staged_source, mask_name=staged_mask,
+                positive=positive, negative=base_negative, seed=seed,
+                denoise=denoise, size=size, prefix=job_prefix,
+                matte_model=resolved_matte_model, skin=skin, repin=repin,
+                recolor=recolor, transparent=transparent, backdrop=backdrop,
+                stroke_light=stroke_light, deliver_size=deliver_size,
+                canvas=(width, height), loras=loras, model_hooks=model_hooks,
+                conditioning_hooks=conditioning_hooks)
+        else:
+            graph = services.repair_graph(
+                source_graph, image_name=staged_source, mask_name=staged_mask,
+                positive=positive, negative=base_negative, seed=seed,
+                denoise=denoise, size=size, prefix=job_prefix, loras=loras,
+                model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
         prompt_id = services.comfyui.submit(graph)
         services.emit(f"{job_prefix} {prompt_id}")
         outputs = services.comfyui.wait_for(prompt_id)

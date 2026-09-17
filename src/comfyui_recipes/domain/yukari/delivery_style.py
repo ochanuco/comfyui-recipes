@@ -386,6 +386,14 @@ MATTE_EDGE_TOLERANCE = 20
 # fails the tolerance test, and the figure's own light passages pass it.
 MATTE_SOFT_SUPPORT = 8
 MATTE_SOFT_CERTAIN = 200
+# A cast shadow the figure throws on the floor is cut off the silhouette
+# where it reaches the outside: a grey pixel (channel spread under CHROMA)
+# darker than the local backdrop by between the two DARK bounds. The
+# figure's own blacks are darker than the far bound, and a pixel the matte
+# model was certain of (> MATTE_SOFT_CERTAIN) is never cut.
+SHADOW_CHROMA = 14
+SHADOW_DARK_NEAR = 8
+SHADOW_DARK_FAR = 90
 
 # A raw backdrop counts as a chromatic key when its dominant channel exceeds
 # the larger of the other two by at least this.

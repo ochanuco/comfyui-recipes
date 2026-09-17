@@ -27,6 +27,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     keyed_coverage,
     parse_color,
     refine_matte,
+    shadow_cut,
     stroke_alpha,
     transparent,
     unpremultiply,
@@ -152,6 +153,20 @@ class DeliveryTest(unittest.TestCase):
         # right up to the soft matte's edge.
         np.testing.assert_array_equal(arr[512, 640], (255, 255, 255))
         np.testing.assert_array_equal(arr[512, 638], (40, 40, 40))
+
+    def test_shadow_cut_drops_the_cast_shadow_the_matte_kept_and_no_more(self):
+        pixels = np.full((1024, 1024, 3), (218, 214, 218), dtype=np.uint8)
+        pixels[256:640, 256:640] = (40, 40, 40)
+        pixels[400:500, 300:340] = (170, 170, 170)   # a grey patch inside
+        pixels[640:680, 256:640] = (180, 178, 180)   # a cast shadow under it
+        soft = np.zeros((1024, 1024), dtype=np.uint8)
+        soft[256:640, 256:640] = 255
+        soft[640:680, 256:640] = 180                  # the model kept the shadow
+        figure = soft > 127
+        cut = shadow_cut(pixels.astype(float), figure, soft, 6)
+        self.assertFalse(cut[640:680, 256:640].any())
+        self.assertTrue(cut[400:500, 300:340].all())
+        self.assertTrue(cut[256:640, 256:640].all())
 
     def test_clean_background_band_widths_derive_from_longest_side_and_each_other(self):
         pixels = np.full((30, 50, 3), (210, 230, 235), dtype=np.uint8)

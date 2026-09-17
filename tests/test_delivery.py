@@ -140,6 +140,19 @@ class DeliveryTest(unittest.TestCase):
         self.assertEqual(Image.open(io.BytesIO(cleaned)).size, (32, 32))
         self.assertRegex(tag, r"^clean-w\d+-p\d+-cut0\.5$")
 
+    def test_clean_background_keeps_the_retrace_inside_the_soft_matte(self):
+        pixels = np.full((1024, 1024, 3), (218, 214, 218), dtype=np.uint8)
+        pixels[256:768, 256:640] = (40, 40, 40)
+        pixels[256:768, 640:656] = (180, 178, 180)  # a cast shadow on the floor
+        soft = np.zeros((1024, 1024), dtype=np.uint8)
+        soft[256:768, 256:640] = 255
+        cleaned, _ = clean_background(png(pixels), png(soft))
+        arr = np.array(Image.open(io.BytesIO(cleaned)))
+        # The shadow is band, not figure: the white band paints over it
+        # right up to the soft matte's edge.
+        np.testing.assert_array_equal(arr[512, 640], (255, 255, 255))
+        np.testing.assert_array_equal(arr[512, 638], (40, 40, 40))
+
     def test_clean_background_band_widths_derive_from_longest_side_and_each_other(self):
         pixels = np.full((30, 50, 3), (210, 230, 235), dtype=np.uint8)
         pixels[8:24, 15:35] = (20, 20, 20)

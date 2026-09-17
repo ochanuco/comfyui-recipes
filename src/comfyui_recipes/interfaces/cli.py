@@ -233,13 +233,20 @@ def parser() -> argparse.ArgumentParser:
         "--repair-pad", type=float, default=1.0,
         help="multiplier on the repair's auto-detected region radius")
     finalize_parser.add_argument(
-        "--repair-size", type=int, default=1024, metavar="LONGEST",
-        help="the repair crop's target long side")
+        "--repair-size", type=int, default=None, metavar="LONGEST",
+        help="the repair crop's target long side; defaults to 1536 when "
+             "combined with --deliver-only on a picture whose long side is "
+             "at least 2048, else 1024")
     finalize_parser.add_argument(
         "--repair-lora", type=_number_or_word, nargs="?",
         const=DEFAULT_PART_LORA_WEIGHT, metavar="WEIGHT",
         help="load each repaired part's own LoRA (Feet XL / Hands XL) inside "
              "the repair crop, at this strength; off by default")
+    finalize_parser.add_argument(
+        "--repair-seeds", type=int, default=None, metavar="N",
+        help="with --deliver-only: one delivered candidate per seed 1..N "
+             "(default 4, 1..8), each its own masked reroll of --repair/"
+             "--repair-region instead of one spliced into a redraw")
     finalize_parser.add_argument(
         "--keep-region", dest="keep_regions", action="append",
         metavar="X0,Y0,X1,Y1",
@@ -498,6 +505,7 @@ def main(argv: list[str] | None = None) -> None:
                  repair_pad=args.repair_pad,
                  repair_size=args.repair_size,
                  repair_lora=dial_values["repair_lora"],
+                 repair_seeds=args.repair_seeds,
                  keep_regions=keep_regions,
                  keep_strength=args.keep_strength,
                  deliver_only=args.deliver_only,

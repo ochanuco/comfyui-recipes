@@ -17,8 +17,9 @@ from comfyui_recipes.infrastructure.imaging.backdrops import (
 from comfyui_recipes.infrastructure.imaging.delivery import parse_color
 
 PATTERN_NAMES = (
-    "stripes", "dots", "gingham", "moons", "halftone", "sunburst",
-    "chevron", "checker",
+    "stripes", "waveform", "ears", "phases", "hatching", "torn",
+    "stickers", "ornament", "dots", "gingham", "moons", "halftone",
+    "sunburst", "chevron", "checker",
 )
 
 

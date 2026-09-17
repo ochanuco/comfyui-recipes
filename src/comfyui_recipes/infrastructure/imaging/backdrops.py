@@ -41,6 +41,35 @@ def _flat(height: int, width: int, colour: np.ndarray) -> np.ndarray:
     return np.broadcast_to(colour, (height, width, 3)).astype(float).copy()
 
 
+def _deep() -> np.ndarray:
+    """Lavender pulled toward the purple stroke, for the pencil/paper motifs."""
+    from .delivery import parse_color
+
+    base, _light, _white = _palette()
+    stroke = np.array(parse_color(delivery_style.STROKE), dtype=float)
+    return (base * delivery_style.BACKDROP_DEEP_LAVENDER_SHARE
+           + stroke * delivery_style.BACKDROP_DEEP_STROKE_SHARE)
+
+
+def _pink() -> np.ndarray:
+    """The pink accent shared by the ear/sticker/ornament motifs."""
+    from .delivery import parse_color
+
+    return np.array(parse_color(delivery_style.BACKDROP_PINK), dtype=float)
+
+
+def _value_noise(x: np.ndarray, y: np.ndarray, cells: int, seed: int) -> np.ndarray:
+    """Smoothstep-interpolated value noise on a `cells`x`cells` seeded lattice."""
+    lattice = np.random.default_rng(seed).random((cells + 3, cells + 3))
+    u, v = x * cells, y * cells
+    i, j = np.floor(u).astype(int), np.floor(v).astype(int)
+    fu, fv = u - i, v - j
+    fu, fv = fu * fu * (3 - 2 * fu), fv * fv * (3 - 2 * fv)
+    a, b = lattice[j, i], lattice[j, i + 1]
+    c, d = lattice[j + 1, i], lattice[j + 1, i + 1]
+    return (a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv
+
+
 def _burst(img: np.ndarray, x: np.ndarray, y: np.ndarray, strength: float) -> np.ndarray:
     """White radial burst in stripes' own geometry, blended in at `strength`."""
     cx = x.max() * delivery_style.STRIPES_BURST_CENTER[0]
@@ -67,6 +96,228 @@ def stripes(height: int, width: int) -> np.ndarray:
           + base[None, None, :] * stripe[..., None])
 
     img = _burst(img, x, y, delivery_style.STRIPES_BURST)
+    return np.clip(img, 0, 255)
+
+
+def waveform(height: int, width: int) -> np.ndarray:
+    """Voice-meter bars, loud behind the figure, quiet toward the edges."""
+    x, y = _grid(height, width)
+    base, light, _white = _palette()
+    img = _flat(height, width, base)
+    row_h = delivery_style.WAVEFORM_ROW_HEIGHT
+    pitch = delivery_style.WAVEFORM_PITCH
+    bar = delivery_style.WAVEFORM_BAR
+    row = np.floor(y / row_h)
+    cy = (row + 0.5) * row_h
+    i = np.floor(x / pitch)
+    bx = (x % pitch) - pitch / 2
+    s = np.abs(0.6 * np.sin(i * 0.37 + row * 1.3) + 0.4 * np.sin(i * 0.113 + row * 2.1))
+    centre = np.exp(-((x - x.max() / 2) / delivery_style.WAVEFORM_CENTER_SPREAD) ** 2)
+    amp = (delivery_style.WAVEFORM_AMP_MIN
+          + delivery_style.WAVEFORM_AMP_GAIN * s * (0.3 + 0.7 * centre))
+    half = np.maximum(amp - bar / 2, 0)
+    d = np.hypot(bx, np.maximum(np.abs(y - cy) - half, 0)) - bar / 2
+    img = _paint(img, light, _edge(-d, delivery_style.WAVEFORM_EDGE_SOFT))
+    return np.clip(img, 0, 255)
+
+
+def ears(height: int, width: int) -> np.ndarray:
+    """Rabbit-hood ears on a staggered lattice, pink inner ear, alternating lean."""
+    x, y = _grid(height, width)
+    base, light, _white = _palette()
+    pink = _pink()
+    img = _flat(height, width, base)
+    cell = delivery_style.EARS_CELL
+    row = np.floor(y / cell)
+    col = np.floor((x + cell / 2 * (row % 2)) / cell)
+    gx = ((x + cell / 2 * (row % 2)) % cell) - cell / 2
+    gy = (y % cell) - cell / 2
+    lean = np.where((row + col) % 2 == 0, 1.0, -1.0) * delivery_style.EARS_LEAN
+    for side in (-1, 1):
+        ang = side * delivery_style.EARS_TILT + lean
+        ox = gx - side * delivery_style.EARS_OFFSET_X
+        oy = gy + delivery_style.EARS_OFFSET_Y
+        u = ox * np.cos(ang) + oy * np.sin(ang)
+        v = -ox * np.sin(ang) + oy * np.cos(ang)
+        outer = np.sqrt((u / delivery_style.EARS_OUTER_RX) ** 2
+                        + (v / delivery_style.EARS_OUTER_RY) ** 2)
+        inner = np.sqrt((u / delivery_style.EARS_INNER_RX) ** 2
+                        + ((v - delivery_style.EARS_INNER_OFFSET_Y)
+                           / delivery_style.EARS_INNER_RY) ** 2)
+        img = _paint(img, light, _edge((1 - outer) * delivery_style.EARS_OUTER_RX,
+                                       delivery_style.EARS_EDGE_SOFT))
+        img = _paint(img, pink, delivery_style.EARS_INNER_ALPHA
+                     * _edge((1 - inner) * delivery_style.EARS_INNER_RX,
+                            delivery_style.EARS_EDGE_SOFT))
+    return np.clip(img, 0, 255)
+
+
+def phases(height: int, width: int) -> np.ndarray:
+    """Rows of moon phases waxing and waning across the canvas, discs outlined."""
+    x, y = _grid(height, width)
+    base, light, white = _palette()
+    img = _flat(height, width, base)
+    cellx = delivery_style.PHASES_CELL_X
+    celly = delivery_style.PHASES_CELL_Y
+    r = delivery_style.PHASES_RADIUS
+    row = np.floor(y / celly)
+    col = np.floor((x + cellx / 2 * (row % 2)) / cellx)
+    gx = ((x + cellx / 2 * (row % 2)) % cellx) - cellx / 2
+    gy = (y % celly) - celly / 2
+    k = (col + row * 3) % 8
+    shift = r * 2 * np.abs(k / 4 - 1)
+    shift = np.where(k < 4, shift, -shift)
+    disc = _edge(r - np.hypot(gx, gy), delivery_style.PHASES_EDGE_SOFT)
+    shadow = _edge(r - np.hypot(gx - shift, gy), delivery_style.PHASES_EDGE_SOFT)
+    lit = disc * (1 - shadow)
+    lit = np.where(k == 4, disc, lit)
+    ring = _edge(delivery_style.PHASES_RING_WIDTH - np.abs(np.hypot(gx, gy) - r),
+                delivery_style.PHASES_EDGE_SOFT)
+    img = _paint(img, white, delivery_style.PHASES_RING_ALPHA * ring)
+    img = _paint(img, light, lit)
+    return np.clip(img, 0, 255)
+
+
+def hatching(height: int, width: int) -> np.ndarray:
+    """Hand-drawn pencil hatching in dashed patches, echoing the sketch line."""
+    x, y = _grid(height, width)
+    lavender, light, _white = _palette()
+    deep = _deep()
+    colours = {"lavender": lavender, "deep": deep}
+    img = _flat(height, width, light)
+    pitch = delivery_style.HATCHING_PITCH
+    for k, layer in enumerate(delivery_style.HATCHING_LAYERS):
+        dx, dy = layer["direction"]
+        p = (x * dx + y * dy) / np.sqrt(2)
+        q = (x * dy - y * dx) / np.sqrt(2)
+        wobble = ((_value_noise(x, y, delivery_style.HATCHING_WOBBLE_CELLS,
+                                delivery_style.HATCHING_WOBBLE_SEED + k) - 0.5)
+                 * delivery_style.HATCHING_WOBBLE_AMPLITUDE)
+        line = _edge(delivery_style.HATCHING_LINE_HALF_WIDTH
+                     - np.abs(((p + wobble) % pitch) - pitch / 2),
+                     delivery_style.HATCHING_LINE_EDGE_SOFT)
+        stroke_id = np.floor((p + wobble) / pitch)
+        dash = _edge(np.sin(q * delivery_style.HATCHING_DASH_FREQ
+                            + stroke_id * delivery_style.HATCHING_DASH_STROKE_FREQ)
+                    + delivery_style.HATCHING_DASH_BIAS,
+                    delivery_style.HATCHING_DASH_EDGE_SOFT)
+        patch = _edge(_value_noise(x, y, delivery_style.HATCHING_PATCH_CELLS,
+                                   delivery_style.HATCHING_PATCH_SEED + k)
+                     - layer["threshold"], delivery_style.HATCHING_PATCH_EDGE_SOFT)
+        img = _paint(img, colours[layer["colour"]], layer["alpha"] * line * dash * patch)
+    return np.clip(img, 0, 255)
+
+
+def torn(height: int, width: int) -> np.ndarray:
+    """Hand-cut paper layers behind the figure, white paper edges like the rim."""
+    x, y = _grid(height, width)
+    base, light, white = _palette()
+    deep = _deep()
+    img = _flat(height, width, deep)
+    cx = x.max() * delivery_style.TORN_CENTER[0]
+    cy = y.max() * delivery_style.TORN_CENTER[1]
+    d = np.hypot(x - cx, y - cy)
+    ang = np.arctan2(y - cy, x - cx)
+    rng = np.random.default_rng(delivery_style.TORN_SEED)
+    colours = {"lavender": base, "light": light}
+    n = delivery_style.TORN_VERTICES
+    for radius, colour_name in delivery_style.TORN_LAYERS:
+        colour = colours[colour_name]
+        verts = radius * (1 + rng.uniform(-delivery_style.TORN_JITTER,
+                                          delivery_style.TORN_JITTER, n))
+        verts = np.append(verts, verts[0])
+        t = (ang + np.pi) / (2 * np.pi) * n
+        i = np.floor(t).astype(int) % n
+        f = t - np.floor(t)
+        rr = verts[i] * (1 - f) + verts[i + 1] * f
+        img = _paint(img, white, _edge(rr + delivery_style.TORN_PAPER_LIP - d,
+                                       delivery_style.TORN_EDGE_SOFT))
+        img = _paint(img, colour, _edge(rr - d, delivery_style.TORN_EDGE_SOFT))
+    return np.clip(img, 0, 255)
+
+
+def stickers(height: int, width: int) -> np.ndarray:
+    """Scattered crescents, sparkles and hood ears, seeded, sparse."""
+    x, y = _grid(height, width)
+    base, light, _white = _palette()
+    pink = _pink()
+    img = _flat(height, width, base)
+    rng = np.random.default_rng(delivery_style.STICKERS_SEED)
+    longest = max(height, width)
+    cell = delivery_style.STICKERS_CELL
+    jitter = delivery_style.STICKERS_JITTER
+    scale_lo, scale_hi = delivery_style.STICKERS_SCALE_RANGE
+    angle_lo, angle_hi = delivery_style.STICKERS_ANGLE_RANGE
+    radius = int(delivery_style.STICKERS_MOTIF_RADIUS_SHARE * longest)
+    soft = delivery_style.STICKERS_EDGE_SOFT
+    for gy0 in np.arange(0, y.max() + cell, cell):
+        for gx0 in np.arange(0, x.max() + cell, cell):
+            px = gx0 + cell / 2 + rng.uniform(-jitter, jitter)
+            py = gy0 + cell / 2 + rng.uniform(-jitter, jitter)
+            kind = rng.integers(0, 3)
+            s = rng.uniform(scale_lo, scale_hi)
+            ang = rng.uniform(angle_lo, angle_hi)
+            colour = pink if rng.random() < delivery_style.STICKERS_PINK_CHANCE else light
+            cxp, cyp = int(px * longest), int(py * longest)
+            y0, y1 = max(cyp - radius, 0), min(cyp + radius, height)
+            x0, x1 = max(cxp - radius, 0), min(cxp + radius, width)
+            if y0 >= y1 or x0 >= x1:
+                continue
+            lx, ly = x[y0:y1, x0:x1] - px, y[y0:y1, x0:x1] - py
+            u = lx * np.cos(ang) + ly * np.sin(ang)
+            v = -lx * np.sin(ang) + ly * np.cos(ang)
+            if kind == 0:
+                r = delivery_style.STICKERS_MOON_RADIUS * s
+                bite_dx = delivery_style.STICKERS_MOON_BITE_OFFSET[0] * r
+                bite_dy = delivery_style.STICKERS_MOON_BITE_OFFSET[1] * r
+                t = (_edge(r - np.hypot(u, v), soft)
+                    * (1 - _edge(r * delivery_style.STICKERS_MOON_BITE_SHARE
+                                - np.hypot(u - bite_dx, v - bite_dy), soft)))
+            elif kind == 1:
+                r = delivery_style.STICKERS_SPARKLE_RADIUS * s
+                t = _edge((np.sqrt(r) - (np.sqrt(np.abs(u)) + np.sqrt(np.abs(v))))
+                         * delivery_style.STICKERS_SPARKLE_SCALE,
+                         delivery_style.STICKERS_SPARKLE_EDGE_SOFT)
+            else:
+                t = np.zeros_like(u)
+                for side in (-1, 1):
+                    a2 = side * delivery_style.STICKERS_EAR_TILT
+                    ox = u - side * delivery_style.STICKERS_EAR_OFFSET * s
+                    oy = v
+                    uu = ox * np.cos(a2) + oy * np.sin(a2)
+                    vv = -ox * np.sin(a2) + oy * np.cos(a2)
+                    t = np.maximum(t, _edge(
+                        (1 - np.sqrt((uu / (delivery_style.STICKERS_EAR_RX * s)) ** 2
+                                    + (vv / (delivery_style.STICKERS_EAR_RY * s)) ** 2))
+                        * delivery_style.STICKERS_EAR_RX * s, soft))
+            img[y0:y1, x0:x1] = _paint(img[y0:y1, x0:x1], colour, t)
+    return np.clip(img, 0, 255)
+
+
+def ornament(height: int, width: int) -> np.ndarray:
+    """Yukari's hair ornament, ringed disc with a small satellite, as a lattice motif."""
+    x, y = _grid(height, width)
+    base, light, _white = _palette()
+    deep = _deep()
+    pink = _pink()
+    img = _flat(height, width, base)
+    cell = delivery_style.ORNAMENT_CELL
+    row = np.floor(y / cell)
+    gx = ((x + cell / 2 * (row % 2)) % cell) - cell / 2
+    gy = (y % cell) - cell / 2
+    big = np.hypot(gx, gy)
+    off_x, off_y = delivery_style.ORNAMENT_SATELLITE_OFFSET
+    sat = np.hypot(gx - off_x, gy - off_y)
+    soft = delivery_style.ORNAMENT_EDGE_SOFT
+    img = _paint(img, deep, delivery_style.ORNAMENT_RIM_ALPHA
+                * _edge(delivery_style.ORNAMENT_RIM_RADIUS - big, soft))
+    img = _paint(img, light, _edge(delivery_style.ORNAMENT_RING_RADIUS - big, soft))
+    img = _paint(img, pink, delivery_style.ORNAMENT_HUB_ALPHA
+                * _edge(delivery_style.ORNAMENT_CENTER_RADIUS - big, soft))
+    img = _paint(img, deep, delivery_style.ORNAMENT_RIM_ALPHA
+                * _edge(delivery_style.ORNAMENT_CENTER_RADIUS - sat, soft))
+    img = _paint(img, pink, delivery_style.ORNAMENT_HUB_ALPHA
+                * _edge(delivery_style.ORNAMENT_SATELLITE_HUB_RADIUS - sat, soft))
     return np.clip(img, 0, 255)
 
 
@@ -176,6 +427,13 @@ def checker(height: int, width: int) -> np.ndarray:
 
 PATTERNS = {
     "stripes": stripes,
+    "waveform": waveform,
+    "ears": ears,
+    "phases": phases,
+    "hatching": hatching,
+    "torn": torn,
+    "stickers": stickers,
+    "ornament": ornament,
     "dots": dots,
     "gingham": gingham,
     "moons": moons,

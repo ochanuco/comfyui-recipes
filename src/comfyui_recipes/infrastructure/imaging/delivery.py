@@ -145,6 +145,46 @@ def refine_matte(pixels: np.ndarray, figure: np.ndarray, band: int,
     return np.isin(labels, 1 + np.nonzero(sizes >= band * band)[0])
 
 
+def soft_clamped(figure: np.ndarray, soft: np.ndarray) -> np.ndarray:
+    """`refine_matte`'s figure, bounded by the matte model's own soft output.
+
+    The colour retrace may only add a pixel the model gave any coverage and
+    may not drop one it was sure of: a cast shadow drawn against the figure
+    fails the colour test as backdrop, and the figure's own light passages
+    pass it as figure.
+    """
+    return ((figure & (soft > delivery_style.MATTE_SOFT_SUPPORT))
+            | (soft > delivery_style.MATTE_SOFT_CERTAIN))
+
+
+def shadow_cut(pixels: np.ndarray, figure: np.ndarray, soft: np.ndarray,
+               band: int) -> np.ndarray:
+    """`figure` without the cast shadow it throws on the backdrop.
+
+    The matte model reads the floor shadow under a heel or inside a curl of
+    hair as figure. A shadow pixel is grey and moderately darker than the
+    local backdrop (`delivery_style.SHADOW_*`), not one the model was certain
+    of, and connected to the outside through other shadow pixels, so the
+    figure's own greys stay. Islands the cut severs go with it.
+    """
+    if band < 1:
+        return figure
+    local = local_backdrop(pixels, figure, band)
+    darker = local.mean(axis=2) - pixels.mean(axis=2)
+    shadow = ((pixels.max(axis=2) - pixels.min(axis=2) < delivery_style.SHADOW_CHROMA)
+              & (darker > delivery_style.SHADOW_DARK_NEAR)
+              & (darker < delivery_style.SHADOW_DARK_FAR)
+              & (soft <= delivery_style.MATTE_SOFT_CERTAIN))
+    outside = ~figure
+    reaching = ndimage.binary_propagation(outside, mask=outside | shadow)
+    cut = figure & ~(shadow & reaching)
+    labels, count = ndimage.label(cut)
+    if not count:
+        return cut
+    sizes = ndimage.sum(cut, labels, range(1, count + 1))
+    return np.isin(labels, 1 + np.nonzero(sizes >= band * band)[0])
+
+
 def keyed_coverage(pixels: np.ndarray, figure: np.ndarray, local: np.ndarray,
                    band: int, tolerance: int) -> np.ndarray:
     """Figure coverage as a ramp on the figure's outermost pixel ring.
@@ -443,17 +483,20 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
 
     The matte is the authority on the silhouette. Colour cannot be: repin
     moves the figure's own colours, and the pale hair lands inside the
-    backdrop's tolerance once it has. The matte's own edge band gets a soft,
-    colour-distance coverage instead of a binary one, its figure pixels
-    un-premultiplied against the local backdrop; a chromatic raw backdrop
-    (a green screen) also gets despilled from the whole figure.
+    backdrop's tolerance once it has. The refined matte is clamped to the
+    soft matte's support (`soft_clamped`) and loses the cast shadow the
+    model kept (`shadow_cut`). The matte's own edge band gets a
+    soft, colour-distance coverage instead of a binary one, its figure
+    pixels un-premultiplied against the local backdrop; a chromatic raw
+    backdrop (a green screen) also gets despilled from the whole figure.
     """
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
-    figure = np.array(Image.open(io.BytesIO(matte)).convert("L")) > 127
+    soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
     height, width = px.shape[:2]
     band = int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100)
     tolerance = delivery_style.MATTE_EDGE_TOLERANCE
-    figure = refine_matte(px, figure, band, tolerance)
+    figure = soft_clamped(refine_matte(px, soft > 127, band, tolerance), soft)
+    figure = shadow_cut(px, figure, soft, band)
     local = local_backdrop(px, figure, band)
     coverage = keyed_coverage(px, figure, local, band, tolerance)
     key = _corner_seed(px)
@@ -545,10 +588,9 @@ def transparent(data: bytes, matte: bytes,
                 light: str | None = None) -> tuple[bytes, str]:
     """Cut the figure out and frame it with the sticker bands on alpha 0.
 
-    The refined matte is the authority on the silhouette, same as
-    `clean_background`, but clamped to the soft birefnet matte's support:
-    the colour retrace on its own claims the backdrop's shading as figure
-    and cuts holes in the figure's light passages. It gets a sub-pixel ramp
+    The refined matte, clamped to the soft matte's support and without the
+    cast shadow, is the authority on the silhouette, same as
+    `clean_background`. It gets a sub-pixel ramp
     of its own so the strands it retraced keep their coverage, and the soft
     matte only adds coverage inside the 1-px ring around it. The white and
     purple bands are the same as `clean_background`'s; outside them the
@@ -557,12 +599,10 @@ def transparent(data: bytes, matte: bytes,
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(np.uint8)
     soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
     height, width = px.shape[:2]
+    band = int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100)
     figure = refine_matte(
-        px.astype(float), soft > 127,
-        int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100),
-        delivery_style.MATTE_EDGE_TOLERANCE)
-    figure = ((figure & (soft > delivery_style.MATTE_SOFT_SUPPORT))
-              | (soft > delivery_style.MATTE_SOFT_CERTAIN))
+        px.astype(float), soft > 127, band, delivery_style.MATTE_EDGE_TOLERANCE)
+    figure = shadow_cut(px.astype(float), soft_clamped(figure, soft), soft, band)
 
     halo = ndimage.binary_dilation(figure, iterations=1)
     ramp = ndimage.gaussian_filter(figure.astype(float), 0.6)

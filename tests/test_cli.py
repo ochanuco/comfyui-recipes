@@ -95,7 +95,7 @@ class CliTest(unittest.TestCase):
         cli.main(["finalize", "gen-1", "--repair", "hands, feet",
                   "--repair-region", "0.1,0.2,0.3,0.4",
                   "--repair-denoise", "0.7", "--repair-pad", "1.5",
-                  "--repair-size", "768"])
+                  "--repair-size", "768", "--repair-seeds", "2"])
         args, kwargs = run_finalize.call_args
         self.assertEqual(args[0], "gen-1")
         self.assertEqual(kwargs["repair"], ["hands", "feet"])
@@ -103,6 +103,7 @@ class CliTest(unittest.TestCase):
         self.assertEqual(kwargs["repair_denoise"], 0.7)
         self.assertEqual(kwargs["repair_pad"], 1.5)
         self.assertEqual(kwargs["repair_size"], 768)
+        self.assertEqual(kwargs["repair_seeds"], 2)
 
     @patch.object(cli, "finalize")
     @patch.object(cli, "ChimeraClient")
@@ -113,7 +114,8 @@ class CliTest(unittest.TestCase):
         self.assertEqual(kwargs["repair_regions"], [])
         self.assertEqual(kwargs["repair_denoise"], 0.6)
         self.assertEqual(kwargs["repair_pad"], 1.0)
-        self.assertEqual(kwargs["repair_size"], 1024)
+        self.assertIsNone(kwargs["repair_size"])
+        self.assertIsNone(kwargs["repair_seeds"])
         self.assertEqual(kwargs["keep_regions"], [])
         self.assertEqual(kwargs["keep_strength"], 0.25)
 

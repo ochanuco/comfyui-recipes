@@ -37,8 +37,8 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
     "backdrop", "upscale", "lora_strength", "deliver_size", "stroke_light",
     "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
-    "repair_lora", "keep_regions", "keep_strength", "sketch_redraw",
-    "deliver_only",
+    "repair_lora", "repair_seeds", "keep_regions", "keep_strength",
+    "sketch_redraw", "deliver_only",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
@@ -178,6 +178,14 @@ def _crop_size_argument(value: object, *, key: str = "size") -> int:
         raise ValueError(f"{key} must be an integer, got {type(value).__name__}")
     if value < 256 or value % 8 != 0:
         raise ValueError(f"{key} must be a multiple of 8, at least 256, got {value!r}")
+    return value
+
+
+def _repair_seeds_argument(value: object, *, key: str = "repair_seeds") -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{key} must be an integer, got {type(value).__name__}")
+    if not (1 <= value <= 8):
+        raise ValueError(f"{key} must be between 1 and 8, got {value!r}")
     return value
 
 
@@ -580,11 +588,16 @@ def finalize_arguments(options: Mapping,
         resolve_dial("repair_denoise", options.get("repair_denoise", 0.6), dials),
         key="repair_denoise")
     repair_pad = _pad_argument(options.get("repair_pad", 1.0), key="repair_pad")
-    repair_size = _crop_size_argument(
-        options.get("repair_size", 1024), key="repair_size")
+    # `None` (an absent key) reaches finalize() as its own "caller omitted
+    # this" sentinel, which on the deliver_only + repair_seeds path resolves
+    # to 1536/1024 by the picked picture's own size rather than a fixed 1024.
+    repair_size = (_crop_size_argument(options["repair_size"], key="repair_size")
+                  if "repair_size" in options else None)
     repair_lora = _part_lora_argument(
         resolve_dial("repair_lora", options.get("repair_lora"), dials),
         key="repair_lora")
+    repair_seeds = (_repair_seeds_argument(options["repair_seeds"], key="repair_seeds")
+                    if "repair_seeds" in options else None)
     keep_regions = _regions_argument(
         options.get("keep_regions", []), key="keep_regions")
     keep_strength = _keep_strength_argument(options.get("keep_strength", 0.25))
@@ -619,6 +632,7 @@ def finalize_arguments(options: Mapping,
         "repair_pad": repair_pad,
         "repair_size": repair_size,
         "repair_lora": repair_lora,
+        "repair_seeds": repair_seeds,
         "keep_regions": keep_regions,
         "keep_strength": keep_strength,
         "sketch_redraw": sketch_redraw,

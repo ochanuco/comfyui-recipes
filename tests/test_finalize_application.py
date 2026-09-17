@@ -896,9 +896,9 @@ class FinalizeRecipeDefaultTest(unittest.TestCase):
                      backdrop=RECIPE_DEFAULT)
             parameters = batch_call(services)[2]["parameters"]
             self.assertIs(parameters["deliver_only"], True)
-            self.assertIs(parameters["repin"], False)
+            self.assertIs(parameters["repin"], True)
             self.assertEqual(parameters["stroke_light"], "n")
-            self.assertEqual(parameters["backdrop"], "stripes")
+            self.assertEqual(parameters["backdrop"], "dots")
 
     def test_anima_base_with_denoise_given_resolves_deliver_only_false(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1072,19 +1072,6 @@ class FinalizeDeliverOnlyTest(unittest.TestCase):
             services = base_services(directory)
             with self.assertRaisesRegex(SystemExit, "toe_guard"):
                 finalize("gen-id", services, deliver_only=True, toe_guard=0.5)
-
-    def test_cannot_combine_with_repair(self):
-        with tempfile.TemporaryDirectory() as directory:
-            services = base_services(directory)
-            with self.assertRaisesRegex(SystemExit, "repair"):
-                finalize("gen-id", services, deliver_only=True, repair=["hands"])
-
-    def test_cannot_combine_with_repair_regions(self):
-        with tempfile.TemporaryDirectory() as directory:
-            services = base_services(directory)
-            with self.assertRaisesRegex(SystemExit, "repair_regions"):
-                finalize("gen-id", services, deliver_only=True,
-                         repair_regions=[[0.0, 0.0, 0.1, 0.1]])
 
     def test_cannot_combine_with_keep_regions(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1887,6 +1874,230 @@ class KeepRegionsTest(unittest.TestCase):
                 graph_from_png=lambda data: copy.deepcopy(LAYERDIFFUSE_SKETCH_GRAPH))
             finalize("gen-id", services, keep_regions=[[0.1, 0.1, 0.4, 0.4]])
             self.assertIsNotNone(calls[-1]["keep_mask_image"])
+
+
+class FinalizeDeliverOnlyRepairRoutingTest(unittest.TestCase):
+    """deliver_only + repair/repair_regions routes into the repair use case
+    instead of the redraw's own splice -- these tests fake `repair_use_case`
+    to check what finalize() asks it to do without running a real reroll.
+    """
+
+    def _recorder(self, result=None):
+        calls = []
+
+        def fake_repair_use_case(generation_id, repair_services, **kwargs):
+            calls.append((generation_id, kwargs))
+            return result or {"batch_id": "repair-batch-id", "generation_ids": ["g1", "g2"]}
+
+        return calls, fake_repair_use_case
+
+    def test_repair_parts_routes_with_a_delivery_spec(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls, fake = self._recorder()
+            services = base_services(directory, repair_use_case=fake)
+            result = finalize("gen-id", services, deliver_only=True,
+                             repair=["feet"], repair_lora=0.8)
+            self.assertEqual(len(calls), 1)
+            generation_id, kwargs = calls[0]
+            self.assertEqual(generation_id, "gen-id")
+            self.assertEqual(kwargs["parts"], ["feet"])
+            self.assertEqual(kwargs["regions"], [])
+            self.assertEqual(kwargs["seeds"], [1, 2, 3, 4])
+            self.assertEqual(kwargs["size"], 1024)
+            self.assertEqual(kwargs["pad"], 1.0)
+            self.assertEqual(kwargs["denoise"], 0.6)
+            self.assertEqual(kwargs["lora"], 0.8)
+            self.assertIs(kwargs["deliver_only"], True)
+            self.assertEqual(kwargs["matte_model"], delivery_style.MATTE_MODEL)
+            self.assertIs(kwargs["repin"], False)
+            self.assertIs(kwargs["recolor"], False)
+            self.assertIs(kwargs["skin"], False)
+            self.assertIsNone(kwargs["backdrop"])
+            self.assertIsNone(kwargs["graph_generation_id"])
+            self.assertEqual(
+                result, {"batch_id": "repair-batch-id", "generation_ids": ["g1", "g2"]})
+
+    def test_repair_regions_alone_also_routes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls, fake = self._recorder()
+            services = base_services(directory, repair_use_case=fake)
+            finalize("gen-id", services, deliver_only=True,
+                     repair_regions=[[0.0, 0.0, 0.1, 0.1]])
+            _generation_id, kwargs = calls[0]
+            self.assertEqual(kwargs["parts"], [])
+            self.assertEqual(kwargs["regions"], [[0.0, 0.0, 0.1, 0.1]])
+
+    def test_repair_seeds_controls_the_seed_count(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls, fake = self._recorder()
+            services = base_services(directory, repair_use_case=fake)
+            finalize("gen-id", services, deliver_only=True, repair=["feet"],
+                     repair_seeds=2)
+            _generation_id, kwargs = calls[0]
+            self.assertEqual(kwargs["seeds"], [1, 2])
+
+    def test_repair_seeds_out_of_range_raises(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _calls, fake = self._recorder()
+            services = base_services(directory, repair_use_case=fake)
+            with self.assertRaisesRegex(SystemExit, "repair_seeds"):
+                finalize("gen-id", services, deliver_only=True, repair=["feet"],
+                         repair_seeds=9)
+
+    def test_repair_seeds_without_deliver_only_raises(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            with self.assertRaisesRegex(SystemExit, "repair_seeds"):
+                finalize("gen-id", services, repair_seeds=2)
+
+    def test_repair_seeds_without_repair_requested_is_not_routed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls, fake = self._recorder()
+            services = base_services(directory, repair_use_case=fake)
+            finalize("gen-id", services, deliver_only=True, repair_seeds=2)
+            self.assertEqual(calls, [])
+
+    def test_repair_size_defaults_to_1536_for_a_large_picture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls, fake = self._recorder()
+            services = base_services(
+                directory, repair_use_case=fake, image_size=lambda data: (1200, 2400))
+            finalize("gen-id", services, deliver_only=True, repair=["feet"])
+            self.assertEqual(calls[0][1]["size"], 1536)
+
+    def test_repair_size_defaults_to_1024_for_a_small_picture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls, fake = self._recorder()
+            services = base_services(
+                directory, repair_use_case=fake, image_size=lambda data: (800, 1000))
+            finalize("gen-id", services, deliver_only=True, repair=["feet"])
+            self.assertEqual(calls[0][1]["size"], 1024)
+
+    def test_explicit_repair_size_overrides_the_heuristic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls, fake = self._recorder()
+            services = base_services(
+                directory, repair_use_case=fake, image_size=lambda data: (1200, 2400))
+            finalize("gen-id", services, deliver_only=True, repair=["feet"],
+                     repair_size=768)
+            self.assertEqual(calls[0][1]["size"], 768)
+
+    def test_delivery_options_reach_the_repair_use_case(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls, fake = self._recorder()
+            services = base_services(directory, repair_use_case=fake)
+            finalize("gen-id", services, deliver_only=True, repair=["feet"],
+                     apply_repin=True, backdrop="stripes", stroke_light="ne",
+                     transparent=True, deliver_size=1536,
+                     matte_model="rmbg:BiRefNet-HR")
+            _generation_id, kwargs = calls[0]
+            self.assertIs(kwargs["repin"], True)
+            self.assertEqual(kwargs["backdrop"], "stripes")
+            self.assertEqual(kwargs["stroke_light"], "ne")
+            self.assertIs(kwargs["transparent"], True)
+            self.assertEqual(kwargs["deliver_size"], 1536)
+            self.assertEqual(kwargs["matte_model"], "rmbg:BiRefNet-HR")
+
+    def test_anima_recipe_default_routes_deliver_only_with_repair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls, fake = self._recorder()
+            services = base_services(
+                directory, repair_use_case=fake,
+                graph_from_png=lambda data: copy.deepcopy(ANIMA_GRAPH))
+            finalize("gen-id", services, deliver_only=RECIPE_DEFAULT,
+                     repair=["feet"])
+            self.assertEqual(len(calls), 1)
+            self.assertIs(calls[0][1]["deliver_only"], True)
+
+    def test_is_repaired_raw_passes_the_base_generation_as_graph_generation_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls, fake = self._recorder()
+            management = ManagementFake(
+                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                generation_records={"raw-1": {"comfy_job": {"graph": SKETCH_GRAPH}}})
+            services = base_services(
+                directory, management=management, repair_use_case=fake)
+            finalize("gen-id", services, deliver_only=True, repair=["feet"])
+            self.assertEqual(calls[0][1]["graph_generation_id"], "raw-1")
+
+    def test_rejects_a_layerdiffuse_base_even_with_repair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _calls, fake = self._recorder()
+            services = base_services(
+                directory, repair_use_case=fake,
+                graph_from_png=lambda data: LAYERDIFFUSE_SKETCH_GRAPH)
+            with self.assertRaisesRegex(SystemExit, "layerdiffuse"):
+                finalize("gen-id", services, deliver_only=True, repair=["feet"])
+
+
+class FinalizeDeliverOnlyRepairEndToEndTest(unittest.TestCase):
+    """The real `repair()` use case wired through finalize(), building actual
+    ComfyUI graphs and chimera records -- no fakes on the repair side.
+    """
+
+    def test_builds_one_submission_per_seed_with_the_deliver_tail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake()
+            services = base_services(
+                directory, comfyui=comfy,
+                graph_from_png=lambda data: copy.deepcopy(REDRAW_GRAPH),
+                image_size=lambda data: (800, 1000))
+            result = finalize("gen-id", services, deliver_only=True,
+                             repair=["feet"], repair_seeds=2)
+            # submitted[0] is the pose pass; submitted[1:] are the per-seed graphs.
+            self.assertEqual(len(comfy.submitted), 3)
+            for graph in comfy.submitted[1:]:
+                class_types = {node.get("class_type") for node in graph.values()}
+                self.assertIn("InpaintCropImproved", class_types)
+                self.assertIn("KSampler", class_types)
+                self.assertIn("InpaintStitchImproved", class_types)
+                self.assertIn("YukariDeliver", class_types)
+            self.assertEqual(len(result["generation_ids"]), 4)
+
+    def test_records_a_repair_kind_batch_with_raw_and_delivered_per_seed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake()
+            services = base_services(
+                directory, comfyui=comfy,
+                graph_from_png=lambda data: copy.deepcopy(REDRAW_GRAPH),
+                image_size=lambda data: (800, 1000))
+            finalize("gen-id", services, deliver_only=True, repair=["feet"],
+                     repair_seeds=2)
+            batch_calls = [call for call in services.management.calls
+                          if call[0] == "POST" and call[1] == "/api/v1/batches"]
+            self.assertEqual(len(batch_calls), 1)
+            parameters = batch_calls[0][2]["parameters"]
+            self.assertEqual(parameters["kind"], "repair")
+            self.assertEqual(parameters["base_generation"], "gen-id")
+            self.assertIs(parameters["deliver_only"], True)
+            self.assertEqual(parameters["matte_model"], delivery_style.MATTE_MODEL)
+            generation_posts = [call for call in services.management.calls
+                                if call[0] == "POST" and call[1].endswith("/generations")]
+            self.assertEqual(len(generation_posts), 4)
+
+    def test_anima_source_skips_the_part_lora_chain(self):
+        with tempfile.TemporaryDirectory() as directory:
+            anima_source_graph = copy.deepcopy(REDRAW_GRAPH)
+            anima_source_graph["49"] = {"class_type": "UNETLoader", "inputs": {}}
+            comfy = RepairComfyFake()
+            services = base_services(
+                directory, comfyui=comfy, graph_from_png=lambda data: anima_source_graph,
+                image_size=lambda data: (800, 1000))
+            finalize("gen-id", services, deliver_only=True, repair=["feet"],
+                     repair_lora=0.8, repair_seeds=1)
+            seed_graph = comfy.submitted[-1]
+            self.assertFalse(any(
+                node.get("class_type") == "LoraLoader" for node in seed_graph.values()))
+
+    def test_no_repair_region_found_raises(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = RepairComfyFake(pose_outputs=_pose_outputs(found=False))
+            services = base_services(
+                directory, comfyui=comfy,
+                graph_from_png=lambda data: copy.deepcopy(REDRAW_GRAPH),
+                image_size=lambda data: (800, 1000))
+            with self.assertRaises(SystemExit):
+                finalize("gen-id", services, deliver_only=True, repair=["feet"])
 
 
 if __name__ == "__main__":

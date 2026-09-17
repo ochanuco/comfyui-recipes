@@ -32,6 +32,8 @@ from ..infrastructure.imaging.masks import (
     render_mask_png,
     render_soft_mask_png,
 )
+from .repair import RepairServices
+from .repair import repair as repair_use_case
 
 # The delivery redraw's longest side.
 FINALIZE_SIZE = 2560
@@ -58,6 +60,10 @@ class FinalizeServices:
     pose_graph: Callable[..., dict] = pose_graph
     splice_repair: Callable[..., dict] = splice_repair
     image_size: Callable[[bytes], tuple[int, int]] = image_size
+    # deliver_only + repair/repair_regions routes through the repair use
+    # case instead of the redraw's own splice -- same masked reroll, and the
+    # same batch/job/generation recording repair() already does.
+    repair_use_case: Callable[..., dict] = repair_use_case
 
 
 def finalize(generation_id: str, services: FinalizeServices, *,
@@ -81,8 +87,9 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              repair_regions: Sequence[Sequence[float]] = (),
              repair_denoise: float = 0.6,
              repair_pad: float = 1.0,
-             repair_size: int = 1024,
+             repair_size: int | None = None,
              repair_lora: float | None = None,
+             repair_seeds: int | None = None,
              keep_regions: Sequence[Sequence[float]] = (),
              keep_strength: float = 0.25,
              deliver_only: bool | object = False,
@@ -135,8 +142,6 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         ("sketch_redraw", sketch_redraw is not None),
         ("handdrawn", handdrawn),
         ("toe_guard", toe_guard is not None),
-        ("repair", bool(repair)),
-        ("repair_regions", bool(repair_regions)),
         ("keep_regions", bool(keep_regions)),
         ("upscale", upscale is not None),
     ) if present]
@@ -255,6 +260,38 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     repair_parts = list(repair) if repair else []
     repair_region_list = [list(region) for region in repair_regions]
     repair_requested = bool(repair_parts) or bool(repair_region_list)
+    if repair_seeds is not None and not deliver_only:
+        raise SystemExit("repair_seeds needs deliver_only")
+    if deliver_only and repair_requested:
+        # deliver_only skips the redraw entirely, so there is no whole-canvas
+        # sampler for `splice_repair` to splice into -- route through the
+        # repair use case instead, once per seed, with a delivery spec so it
+        # hangs the same deliver-only tail off each seed's own stitched crop.
+        seeds_count = repair_seeds if repair_seeds is not None else 4
+        if not (1 <= seeds_count <= 8):
+            raise SystemExit("repair_seeds must be between 1 and 8")
+        if repair_size is None:
+            long_side = max(services.image_size(picked))
+            repair_size = 1536 if long_side >= 2048 else 1024
+        repair_services = RepairServices(
+            management=services.management, comfyui=services.comfyui,
+            graph_from_png=services.graph_from_png, image_size=services.image_size,
+            git_metadata=services.git_metadata, notifier=services.notifier,
+            output_root=services.output_root, emit=services.emit,
+            pose_graph=services.pose_graph)
+        return services.repair_use_case(
+            generation_id, repair_services, parts=repair_parts,
+            regions=repair_region_list, denoise=repair_denoise,
+            seeds=list(range(1, seeds_count + 1)), size=repair_size,
+            pad=repair_pad, lora=repair_lora, deliver_only=True,
+            matte_model=matte_model or delivery_style.MATTE_MODEL,
+            repin=repin_applied, recolor=recolor_applied, skin=skin_applied,
+            backdrop=backdrop, stroke_light=stroke_light, transparent=transparent,
+            deliver_size=deliver_size,
+            graph_generation_id=base_generation_id if is_repaired_raw else None,
+            key_prefix=key_prefix, context=context, batch=source_batch)
+    if repair_size is None:
+        repair_size = 1024
     # One staged name per run, shared by skin and repair: a second upload of
     # the same picked bytes buys nothing, and ComfyUI would report a cached
     # node's pose text for nothing if the pose pass reused a stale name.

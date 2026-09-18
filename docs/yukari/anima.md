@@ -148,7 +148,9 @@ The redraw runs through a different checkpoint, `hassaku-il-v22`
 that `DiffusersLoader` node and reroutes the redraw's model, CLIP and both
 VAEs (encode and decode) through it, re-encoding the base prompts on its
 CLIP. `--finalizer MODEL` overrides `FINALIZE_MODEL` with a different
-checkpoint.
+checkpoint: a name ending in `.safetensors` loads from `models/checkpoints`
+through `CheckpointLoaderSimple`, anything else is a `models/diffusers`
+folder.
 
 `domain/yukari_anima/recipe.py`'s `refinement_prompt` builds the redraw
 prompt: the positive replaces `STYLE`, hassakuAnima's flat/cel-shaded tail,

@@ -337,6 +337,38 @@ class AdapterTest(unittest.TestCase):
         for key in ("3", "4", "5", "6", "7"):
             self.assertEqual(graph[key], original[key])
 
+    def test_chain_pass_loads_a_single_file_loader_as_a_checkpoint(self):
+        base = {
+            "3": {"class_type": "KSampler",
+                  "inputs": {"model": ["1", 0], "seed": 7, "steps": 25,
+                             "cfg": 3.5, "positive": ["6", 0], "negative": ["7", 0]}},
+            "4": {"class_type": "VAELoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                  "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode",
+                  "inputs": {"clip": ["2", 0], "text": "p"}},
+            "7": {"class_type": "CLIPTextEncode",
+                  "inputs": {"clip": ["2", 0], "text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["3", 0], "vae": ["4", 0]}},
+            "9": {"class_type": "SaveImage",
+                  "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+        }
+        original = json.loads(json.dumps(base))
+        graph = chain_pass(base, 2048, 0.75, "fin", loader="animagine-xl-4.0-opt.safetensors",
+                           canvas=(832, 1664))
+        loader_id = "20"
+        self.assertEqual(graph[loader_id],
+                         {"class_type": "CheckpointLoaderSimple",
+                          "inputs": {"ckpt_name": "animagine-xl-4.0-opt.safetensors"}})
+        self.assertEqual(graph["12"]["inputs"]["model"], [loader_id, 0])
+        self.assertEqual(graph["14"]["inputs"]["clip"], [loader_id, 1])
+        self.assertEqual(graph["15"]["inputs"]["clip"], [loader_id, 1])
+        self.assertEqual(graph["11"]["inputs"]["vae"], [loader_id, 2])
+        self.assertEqual(graph["13"]["inputs"]["vae"], [loader_id, 2])
+        for key in ("3", "4", "5", "6", "7"):
+            self.assertEqual(graph[key], original[key])
+
     def test_chain_pass_sampling_override_sets_steps_and_cfg(self):
         base = {
             "3": {"class_type": "KSampler",

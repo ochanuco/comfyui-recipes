@@ -3,6 +3,14 @@
 Read this before the first tool call. It is the stuff that is not in the code
 and costs a session an hour to rediscover.
 
+## What this repository makes
+
+Pictures of Yuzuki Yukari that are **hand-drawn in look, leg-forward in
+composition, in tights**. Those four -- the drawn look, the legs, the tights,
+the character -- are the user's whole requirement; a model, a LoRA or a
+pipeline stage is kept for as long as it serves them and swapped when
+something serves them better.
+
 ## What you are working on
 
 The recipe and the worker behind chimera. `comfy-recipes` is the executor

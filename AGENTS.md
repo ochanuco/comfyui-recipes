@@ -14,9 +14,33 @@ from this Mac. A session here drives rounds through chimera's MCP (see
 the exact prompt can be inspected with `get_catalog_pose` on the MCP or
 `comfy-recipes <recipe> prompt` locally.
 
+## The pipeline is two stages, and it is the user's
+
+1. **Anima draws.** A new picture starts on `yukari-anima`
+   (hassakuAnima_v13): composition, proportion and hands obey the prompt
+   there. Its line reads as AI, which is what stage 2 is for.
+2. **Illustrious redraws.** `finalize` sends the pick through
+   hassaku-il-v22 at 2560, denoise 0.55
+   (`yukari_anima/delivery_style.py`); the drawn look comes from this pass.
+   It is the recipe default: the WebUI button and an option-less
+   `finalize_generation` both redraw.
+
+`deliver_only` (cut out the raw, no redraw) is a per-request choice the user
+names. A defect in the redraw is fixed inside stage 2 -- `denoise`,
+`keep_regions`, `repair` -- with the stage kept.
+
+Which model draws, which model redraws, and whether finalize redraws at all
+are the user's decisions. To change one: ask, then change the recipe default
+and this section in the same PR.
+
+Start stage 1 by deriving from a `yukari-anima` generation the user rated
+good, so its patches come along; the recipe's plain `stand` still wears the
+pre-official costume.
+
 Three recipes are live, all under `src/comfyui_recipes/domain/`:
 
-- `yukari/` — the original Illustrious recipe (hassaku-il-v22 through
+- `yukari/` — the original Illustrious recipe, kept for its pose
+  vocabulary and the shared blocks (hassaku-il-v22 through
   `DiffusersLoader`), `scripts/yukari_recipe.py` as its compatibility facade.
   `prompt_style.py` and `delivery_style.py` (the author identity),
   `costumes.py` (the wardrobe), `poses.py` (one record per pose),
@@ -24,11 +48,12 @@ Three recipes are live, all under `src/comfyui_recipes/domain/`:
   (the `Pose`/`Edit` dataclasses). A new pose is one `POSES` entry plus one
   `POSE_RECORDS` entry in `poses.py`, nothing else. Its style block and
   texture bans are what the sketch recipe exists to remove.
-- `yukari_anima/` — hassakuAnima_v13. Composition and proportion obey natural
-  language here, but the picture reads as AI whatever the prompt does
-  (`docs/render-notes.md`, the A/B rounds of 2026-09-05). Kept for its pose
-  vocabulary; not the delivery path.
-- `yukari_sketch/` — the current delivery path. hassaku-il-v22 with the
+- `yukari_anima/` — stage 1 of the pipeline above, and the owner of its
+  stage-2 redraw settings (`delivery_style.py`). `docs/yukari/anima.md` is
+  the description.
+- `yukari_sketch/` — the Illustrious-only path the looks `cinema` through
+  `bath` were delivered on; kept so they can be reproduced and derived from.
+  hassaku-il-v22 with the
   linaqruf sketch LoRA on a minimal prompt (no style block, no texture bans,
   a moderate proportion block, simple grey background) and a latent-route
   2560 redraw at denoise 0.55. `docs/yukari/sketch.md` is the description;

@@ -159,7 +159,7 @@ and prefixes `ROUGH_BAN + PAINT_BAN + HAND_BAN + SHADE_BAN + DOT_BAN`
 uses, imported from `yukari.prompt_style`).
 
 The catalog publishes `delivery_style.py`'s `FINALIZE_DEFAULTS` --
-`deliver_only: true, repin: true, stroke_light: "n", backdrop: "dots"` -- as
+`deliver_only: false, repin: true, stroke_light: "n", backdrop: "dots"` -- as
 chimera's GUI's finalize form defaults for this recipe.
 
 ## Requesting it

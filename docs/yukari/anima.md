@@ -128,15 +128,16 @@ pose with none gets `"10"`/`"11"`.
 
 ## Finalize defaults
 
-`delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.55`,
+`delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.4`,
 `FINALIZE_MODEL = "hassaku-il-v22"`, `FINALIZE_SAMPLER = ("dpmpp_2m",
 "karras")`, `FINALIZE_STEPS = 30`, `FINALIZE_CFG = 5.0`.
 `application/finalize.py` picks these over yukari's own defaults by
 inspecting the base graph it fetched: a `UNETLoader` node means an anima
 base, and its finalize constants apply; anything else keeps the yukari
-defaults. `--denoise`/`--size` still override either way. `0.55` holds the
-figure apart from dark furniture it touches; `--denoise 0.75` is the rougher
-pencil for a figure standing alone on a plain ground.
+defaults. `--denoise`/`--size` still override either way. `0.4` is the strength a
+base drawn with the sketch-style LoRA keeps its flat colour and small
+details at; `0.55` and up adds gloss to the legwear and re-decides buttons
+and ornaments on such a base.
 
 `--keep-scene` delivers the redraw uncut, background and all, instead of
 the die-cut sticker; the matte is still rendered and stored.

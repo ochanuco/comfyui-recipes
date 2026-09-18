@@ -20,7 +20,7 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
    (hassakuAnima_v13): composition, proportion and hands obey the prompt
    there. Its line reads as AI, which is what stage 2 is for.
 2. **Illustrious redraws.** `finalize` sends the pick through
-   hassaku-il-v22 at 2560, denoise 0.55
+   hassaku-il-v22 at 2560, denoise 0.4
    (`yukari_anima/delivery_style.py`); the drawn look comes from this pass.
    It is the recipe default: the WebUI button and an option-less
    `finalize_generation` both redraw.

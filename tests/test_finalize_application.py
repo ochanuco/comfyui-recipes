@@ -15,6 +15,7 @@ import tempfile
 import unittest
 from dataclasses import replace as dataclass_replace
 from pathlib import Path
+from unittest import mock
 
 from comfyui_recipes.application.finalize import RECIPE_DEFAULT, FinalizeServices, finalize
 from comfyui_recipes.domain.generation.models import PromptPair
@@ -887,18 +888,27 @@ class FinalizeApplicationTest(unittest.TestCase):
 
 
 class FinalizeRecipeDefaultTest(unittest.TestCase):
-    def test_anima_base_with_recipe_defaults_takes_the_deliver_only_path(self):
+    def test_anima_base_with_recipe_defaults_takes_the_il_redraw_path(self):
         with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((size, denoise, kwargs))
+                return {}
+
             services = base_services(
-                directory, graph_from_png=lambda data: copy.deepcopy(ANIMA_GRAPH))
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: copy.deepcopy(ANIMA_GRAPH))
             finalize("gen-id", services, deliver_only=RECIPE_DEFAULT,
                      apply_repin=RECIPE_DEFAULT, stroke_light=RECIPE_DEFAULT,
                      backdrop=RECIPE_DEFAULT)
-            parameters = batch_call(services)[2]["parameters"]
-            self.assertIs(parameters["deliver_only"], True)
-            self.assertIs(parameters["repin"], True)
-            self.assertEqual(parameters["stroke_light"], "n")
-            self.assertEqual(parameters["backdrop"], "dots")
+            size, denoise, kwargs = calls[-1]
+            self.assertIs(kwargs["deliver_only"], False)
+            self.assertEqual(size, anima_delivery_style.FINALIZE_SIZE)
+            self.assertEqual(denoise, anima_delivery_style.FINALIZE_DENOISE)
+            self.assertEqual(kwargs["loader"], anima_delivery_style.FINALIZE_MODEL)
+            self.assertEqual(kwargs["stroke_light"], "n")
+            self.assertEqual(kwargs["backdrop"], "dots")
 
     def test_anima_base_with_denoise_given_resolves_deliver_only_false(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1998,8 +2008,9 @@ class FinalizeDeliverOnlyRepairRoutingTest(unittest.TestCase):
             self.assertEqual(kwargs["deliver_size"], 1536)
             self.assertEqual(kwargs["matte_model"], "rmbg:BiRefNet-HR")
 
-    def test_anima_recipe_default_routes_deliver_only_with_repair(self):
-        with tempfile.TemporaryDirectory() as directory:
+    def test_a_recipe_default_of_deliver_only_routes_it_with_repair(self):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.dict(
+                anima_delivery_style.FINALIZE_DEFAULTS, {"deliver_only": True}):
             calls, fake = self._recorder()
             services = base_services(
                 directory, repair_use_case=fake,

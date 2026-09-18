@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 FINALIZE_SIZE = 2560
-FINALIZE_DENOISE = 0.55
+FINALIZE_DENOISE = 0.4
 FINALIZE_MODEL = "hassaku-il-v22"
 FINALIZE_SAMPLER = ("dpmpp_2m", "karras")
 FINALIZE_STEPS = 30

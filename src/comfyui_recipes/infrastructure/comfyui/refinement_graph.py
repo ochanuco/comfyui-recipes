@@ -230,8 +230,12 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         # A different checkpoint redraws: its own model, CLIP and VAE, with the
         # base prompts re-encoded through its CLIP.
         loader_id = str(next_id + 10)
-        graph[loader_id] = {"class_type": "DiffusersLoader",
-                            "inputs": {"model_path": loader}}
+        if loader.endswith(".safetensors"):
+            graph[loader_id] = {"class_type": "CheckpointLoaderSimple",
+                                "inputs": {"ckpt_name": loader}}
+        else:
+            graph[loader_id] = {"class_type": "DiffusersLoader",
+                                "inputs": {"model_path": loader}}
         model_ref, clip_ref, vae_ref = (
             [loader_id, 0], [loader_id, 1], [loader_id, 2])
         if prompt is None:

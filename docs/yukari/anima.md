@@ -134,10 +134,10 @@ pose with none gets `"10"`/`"11"`.
 `application/finalize.py` picks these over yukari's own defaults by
 inspecting the base graph it fetched: a `UNETLoader` node means an anima
 base, and its finalize constants apply; anything else keeps the yukari
-defaults. `--denoise`/`--size` still override either way. `0.4` is the strength a
-base drawn with the sketch-style LoRA keeps its flat colour and small
-details at; `0.55` and up adds gloss to the legwear and re-decides buttons
-and ornaments on such a base.
+defaults. `--denoise`/`--size` still override either way. `0.4` is the strength the user picked on bases drawn with no style LoRA,
+over `0.55`, `0.75` and `0.9`; on a base that carries the sketch-style LoRA,
+`0.55` and up adds gloss to the legwear and re-decides buttons and
+ornaments.
 
 `--keep-scene` delivers the redraw uncut, background and all, instead of
 the die-cut sticker; the matte is still rendered and stored.
@@ -148,7 +148,9 @@ The redraw runs through a different checkpoint, `hassaku-il-v22`
 that `DiffusersLoader` node and reroutes the redraw's model, CLIP and both
 VAEs (encode and decode) through it, re-encoding the base prompts on its
 CLIP. `--finalizer MODEL` overrides `FINALIZE_MODEL` with a different
-checkpoint.
+checkpoint: a name ending in `.safetensors` loads from `models/checkpoints`
+through `CheckpointLoaderSimple`, anything else is a `models/diffusers`
+folder.
 
 `domain/yukari_anima/recipe.py`'s `refinement_prompt` builds the redraw
 prompt: the positive replaces `STYLE`, hassakuAnima's flat/cel-shaded tail,

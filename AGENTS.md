@@ -17,8 +17,10 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
 ## The pipeline is two stages, and it is the user's
 
 1. **Anima draws.** A new picture starts on `yukari-anima`
-   (hassakuAnima_v13): composition, proportion and hands obey the prompt
-   there. Its line reads as AI, which is what stage 2 is for.
+   (hassakuAnima_v13) with no style LoRA: composition, proportion and hands
+   obey the prompt there. Its line reads as AI, which is what stage 2 is
+   for -- a base that already carries a drawn line leaves the redraw
+   nothing to add.
 2. **Illustrious redraws.** `finalize` sends the pick through
    hassaku-il-v22 at 2560, denoise 0.4
    (`yukari_anima/delivery_style.py`); the drawn look comes from this pass.
@@ -35,7 +37,10 @@ and this section in the same PR.
 
 Start stage 1 by deriving from a `yukari-anima` generation the user rated
 good, so its patches come along; the recipe's plain `stand` still wears the
-pre-official costume.
+pre-official costume. Where those patches load
+`anima-sketch-style-chosen.safetensors`, append `render.loras` at strength
+`0` (the patch rejects an empty list) and remove `(sketch style:1.2), ` from
+`prompt.positive.style`.
 
 Three recipes are live, all under `src/comfyui_recipes/domain/`:
 

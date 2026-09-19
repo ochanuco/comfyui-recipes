@@ -218,10 +218,9 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         # picture -- the pixel route is the only correct one, so a caller's
         # explicit opt-in does not survive here.
         latent_route = False
-    if is_repaired_raw and not deliver_only and (is_layerdiffuse or not latent_route):
+    if is_repaired_raw and not deliver_only and is_layerdiffuse:
         raise SystemExit(
-            "finalizing a repaired raw needs the latent route: pass "
-            "latent_route on a recipe whose base is not layerdiffuse")
+            "finalizing a repaired raw is not supported on a layerdiffuse base")
     seed = base[roles.sampler_id]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"
     base_prompt = PromptPair(
@@ -358,6 +357,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             deliver_size=deliver_size,
             stroke_light=stroke_light,
             deliver_only=deliver_only,
+            redraw_from_source=is_repaired_raw and not latent_route,
             canvas=services.image_size(picked))
 
     repair_mask_png = None

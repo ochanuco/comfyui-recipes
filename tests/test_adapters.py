@@ -245,6 +245,70 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(graph["12"]["inputs"]["latent_image"], ["11", 0])
         self.assertEqual(graph["9"]["inputs"]["images"], ["13", 0])
 
+    def test_chain_pass_redraw_from_source_loads_the_uploaded_picture(self):
+        base = {
+            "3": {"class_type": "KSampler",
+                  "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
+            "4": {"class_type": "DiffusersLoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                  "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+            "9": {"class_type": "SaveImage",
+                  "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+        }
+        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664),
+                           source_image="mrd-source.png", redraw_from_source=True)
+        load = graph["23"]
+        self.assertEqual(load, {"class_type": "LoadImage",
+                                "inputs": {"image": "mrd-source.png"}})
+        scale = graph["10"]
+        self.assertEqual(scale["inputs"]["image"], ["23", 0])
+
+    def test_chain_pass_without_redraw_from_source_uses_the_base_saveimage(self):
+        base = {
+            "3": {"class_type": "KSampler",
+                  "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
+            "4": {"class_type": "DiffusersLoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                  "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+            "9": {"class_type": "SaveImage",
+                  "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+        }
+        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664),
+                           source_image="mrd-source.png")
+        scale = graph["10"]
+        self.assertEqual(scale["inputs"]["image"], ["8", 0])
+        self.assertNotIn("23", graph)
+
+    def test_chain_pass_redraw_from_source_requires_source_image(self):
+        base = {
+            "3": {"class_type": "KSampler",
+                  "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
+            "4": {"class_type": "DiffusersLoader", "inputs": {}},
+            "5": {"class_type": "EmptyLatentImage",
+                  "inputs": {"width": 832, "height": 1664}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+            "8": {"class_type": "VAEDecode",
+                  "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+            "9": {"class_type": "SaveImage",
+                  "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
+        }
+        with self.assertRaisesRegex(ValueError, "requires source_image"):
+            chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664), redraw_from_source=True)
+
+    def test_chain_pass_redraw_from_source_rejects_compose(self):
+        with self.assertRaisesRegex(ValueError, "cannot be combined with compose"):
+            chain_pass({}, 2048, 0.45, "fin", canvas=(832, 1664),
+                       source_image="mrd-source.png", redraw_from_source=True, compose=True)
+
     def test_chain_pass_pixel_route_honours_the_upscale_method(self):
         base = {
             "3": {"class_type": "KSampler",

@@ -12,9 +12,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
+import numpy as np
+from PIL import Image
+
 from comfyui_recipes.domain.yukari_sketch.recipe import render_spec as sketch_render_spec
 from comfyui_recipes.infrastructure.chimera.client import ChimeraClient
-from comfyui_recipes.infrastructure.comfyui.client import ComfyUIClient
+from comfyui_recipes.infrastructure.comfyui.client import ComfyUIClient, as_png
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import (
     DELIVERED_SUFFIX, MATTE_SUFFIX, chain_pass,
 )
@@ -24,6 +27,16 @@ from comfyui_recipes.infrastructure.persistence.run_state import JsonRunState
 
 
 class AdapterTest(unittest.TestCase):
+    def test_upload_source_is_png_with_the_same_pixels(self):
+        rgba = np.random.default_rng(0).integers(0, 256, (16, 12, 4), dtype=np.uint8)
+        webp = io.BytesIO()
+        Image.fromarray(rgba, "RGBA").save(webp, "WEBP", lossless=True, exact=True)
+        png = as_png(webp.getvalue())
+        image = Image.open(io.BytesIO(png))
+        self.assertEqual((image.format, image.mode), ("PNG", "RGBA"))
+        self.assertTrue(np.array_equal(np.array(image), rgba))
+        self.assertIs(as_png(png), png)
+
     @unittest.skipUnless(os.name == "posix", "POSIX permission bits")
     def test_chimera_cache_permissions_are_restricted(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -195,7 +208,7 @@ class AdapterTest(unittest.TestCase):
             {"name": "fin-source.png", "type": "input"}).encode()
         response.__enter__.return_value = response
         with patch("urllib.request.urlopen", return_value=response) as urlopen:
-            name = client.upload_image("fin-source.png", b"png-bytes")
+            name = client.upload_image("fin-source.png", b"\x89PNG\r\n\x1a\npng-bytes")
         self.assertEqual(name, "fin-source.png")
         request = urlopen.call_args[0][0]
         self.assertEqual(request.full_url, "http://example.invalid/upload/image")

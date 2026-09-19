@@ -1650,6 +1650,41 @@ class MaskedRedrawBaseTest(unittest.TestCase):
                       latent_route=True, canvas=(1024, 1024))
 
 
+class PlainSourceResolutionTest(unittest.TestCase):
+    def test_base_graph_comes_from_the_job_record_over_the_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(base)
+                return {}
+
+            def no_png_metadata(data):
+                raise AssertionError("graph read from the image")
+
+            management = ManagementFake(
+                generation_records={"gen-id": {"comfy_job": {"graph": SKETCH_GRAPH}}})
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass,
+                graph_from_png=no_png_metadata)
+            finalize("gen-id", services)
+            self.assertEqual(calls[-1], SKETCH_GRAPH)
+
+    def test_base_graph_falls_back_to_the_image_without_a_job_graph(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(base)
+                return {}
+
+            services = base_services(
+                directory, chain_pass=recording_chain_pass,
+                graph_from_png=lambda data: SKETCH_GRAPH)
+            finalize("gen-id", services)
+            self.assertEqual(calls[-1], SKETCH_GRAPH)
+
+
 class RepairedRawSourceResolutionTest(unittest.TestCase):
     def test_repair_batch_resolves_base_from_the_base_generation(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -24,4 +24,8 @@ EXPRESSIONS = {
         mouth="(closed mouth:1.2), (light smile:1.25), ",
         eyes=("(tareme:1.2), (jitome:1.4), (half-closed eyes:1.2), "
               "(confident:1.18), ")),
+    "gao": Expression(
+        mouth="(open mouth:1.35), (fang:1.3), ",
+        eyes=("(tareme:1.2), (jitome:1.4), (half-closed eyes:1.2), "
+              "(confident:1.18), ")),
 }

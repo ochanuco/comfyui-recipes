@@ -312,12 +312,12 @@ class FinalizeDefaultsTest(unittest.TestCase):
             with self.subTest(recipe=recipe["name"]):
                 finalize_arguments(defaults)
 
-    def test_yukari_anima_defaults_to_the_il_redraw_with_repin(self):
+    def test_yukari_anima_defaults_to_deliver_only_with_repin(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
         self.assertEqual(
             by_name["yukari-anima"]["finalize"]["defaults"],
-            {"deliver_only": False, "repin": True, "stroke_light": "n",
+            {"deliver_only": True, "repin": True, "stroke_light": "n",
              "backdrop": "dots"})
         self.assertEqual(by_name["yukari"]["finalize"]["defaults"],
                          {"stroke_light": "n", "backdrop": "stripes"})

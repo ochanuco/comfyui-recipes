@@ -9,7 +9,8 @@ positive prompt, so it carries no trailing comma.
 from __future__ import annotations
 
 QUALITY = "masterpiece, best quality, score_7, 1girl, solo, "
-CHARACTER = "yuzuki yukari, vocaloid, voiceroid, (@ixy:0.7), "
+CHARACTER = ("yuzuki yukari, vocaloid, voiceroid, @ixy, @oshiki hitoshi, "
+             "@yoshikawa hideaki, ")
 IDENTITY = ("light purple hair, short hair with long locks, very long "
             "sidelocks, purple eyes, hair ornament, ")
 BODY = ("(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), "
@@ -47,7 +48,7 @@ SCORE_BAN = "score_1, score_2, score_3"
 PROPORTION_BAN = (", (fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3), "
                   "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)")
 
-MODEL = "hassakuAnima_v13.safetensors"
+MODEL = "anima_baseV10.safetensors"
 WIDTH, HEIGHT = 1024, 1640
 STEPS = 25
 CFG = 3.5

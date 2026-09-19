@@ -302,10 +302,11 @@ whose batch's `parameters.kind` is `repair` or `masked_redraw` reads its
 recipe, loaders, prompts, seed, sampler and LoRA from that batch's
 `parameters.base_generation` instead of from the picked Generation's own
 graph -- the picked Generation's own picture (the repaired pixels) is still
-what gets redrawn. This only works on the latent route (the sketch default,
-or an explicit `--latent-route`/`latent_route: true`); a non-latent-route
-recipe or a layerdiffuse base is rejected, since the pixel route has no seam
-yet for a source image outside the base graph.
+what gets redrawn. On the latent route (the sketch default, or an explicit
+`--latent-route`/`latent_route: true`) the repaired picture replaces the base
+sampler's latent; on the pixel route (the anima default) the repaired
+picture is loaded and scaled in its place. A layerdiffuse base is rejected
+either way, since its compose path has no source-image input.
 
 **Shielding a region from the finalize redraw**: `finalize`'s `keep_regions`
 (`--keep-region x0,y0,x1,y1`, repeatable; `keep_regions` in a queued finalize

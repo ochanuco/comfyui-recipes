@@ -48,10 +48,10 @@ SCORE_BAN = "score_1, score_2, score_3"
 PROPORTION_BAN = (", (fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3), "
                   "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)")
 
-MODEL = "anima_baseV10.safetensors"
+MODEL = "anima-turbo-v1.1.safetensors"
 WIDTH, HEIGHT = 1024, 1640
-STEPS = 25
-CFG = 3.5
-SAMPLER = "er_sde"
+STEPS = 10
+CFG = 2.0
+SAMPLER = "euler"
 SCHEDULER = "normal"
 HIRES_DENOISE = 0.4

@@ -602,7 +602,8 @@ class FinalizeApplicationTest(unittest.TestCase):
             redraw_sampler = next(
                 node["inputs"] for node in graph.values()
                 if node.get("class_type") == "KSampler"
-                and node["inputs"]["sampler_name"] == "euler")
+                and node["inputs"]["sampler_name"] == "euler"
+                and node["inputs"]["denoise"] < 1)
             self.assertEqual(redraw_sampler["scheduler"], "normal")
             self.assertEqual(redraw_sampler["denoise"], sketch_delivery_style.FINALIZE_DENOISE)
             positive_id = redraw_sampler["positive"][0]

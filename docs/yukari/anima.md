@@ -3,8 +3,8 @@
 > Yuzuki Yukari belongs to her original creators and rights holders -- see
 > [Derivative work](../../README.md#derivative-work) in the README.
 
-A second Yukari recipe, built for the base Anima checkpoint,
-`anima_baseV10.safetensors` (`src/comfyui_recipes/domain/yukari_anima/`). It shares no code
+A second Yukari recipe, built for the Anima Turbo checkpoint,
+`anima-turbo-v1.1.safetensors` (circlestone-labs/Anima on Hugging Face) (`src/comfyui_recipes/domain/yukari_anima/`). It shares no code
 with `yukari` -- the two checkpoints do not share a prompt vocabulary or a
 graph shape -- but has a hires second pass that mirrors `yukari`'s.
 
@@ -96,9 +96,14 @@ expression is a `KeyError`.
 
 ## Render constants
 
-Fixed in `prompt_style.py`: `MODEL = "anima_baseV10.safetensors"`,
-canvas `1024x1640`, `steps=25`, `cfg=3.5`, sampler `er_sde`, scheduler
-`normal`, denoise `1.0`.
+Fixed in `prompt_style.py`: `MODEL = "anima-turbo-v1.1.safetensors"`,
+canvas `1024x1640`, `steps=10`, `cfg=2.0`, sampler `euler`, scheduler
+`normal`, denoise `1.0`. Turbo is the distilled Anima: about 33 s a render
+against 75-85 s for the base model at `steps=25`/`cfg=3.5`/`er_sde`. Its
+card recommends `cfg=1`, but at `1` the negative prompt does nothing -- the
+shine, shadow and mouth bans all stop working -- so `2.0` keeps them in
+play; the base model is `anima_baseV10.safetensors` through a
+`render.model` patch.
 
 ### Hires pass
 

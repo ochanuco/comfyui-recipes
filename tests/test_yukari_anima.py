@@ -25,7 +25,7 @@ from comfyui_recipes.interfaces import cli
 
 COFFEE_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@ixy:0.7), light purple hair, short hair with long "
+    "vocaloid, voiceroid, @ixy, @oshiki hitoshi, @yoshikawa hideaki, light purple hair, short hair with long "
     "locks, very long sidelocks, purple eyes, hair ornament, (drinking:1.3), "
     "(iced coffee:1.4), (plastic cup:1.45), (clear cup:1.2), (drinking "
     "straw:1.4), (holding cup:1.35), (straw in mouth:1.25), (unamused:1.3), "
@@ -63,7 +63,7 @@ COFFEE_NEGATIVE = (
 
 AMAE_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@ixy:0.7), light purple hair, short hair with long "
+    "vocaloid, voiceroid, @ixy, @oshiki hitoshi, @yoshikawa hideaki, light purple hair, short hair with long "
     "locks, very long sidelocks, purple eyes, hair ornament, (smug:1.35), "
     "(doyagao:1.25), (pleading:1.15), (tareme:1.3), (half-closed eyes:1.3), "
     "(unamused:1.15), (head tilt:1.2), (leaning forward:1.3), (looking at "
@@ -87,7 +87,7 @@ AMAE_NEGATIVE = COFFEE_NEGATIVE.replace(
 
 STAND_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@ixy:0.7), light purple hair, short hair with long "
+    "vocaloid, voiceroid, @ixy, @oshiki hitoshi, @yoshikawa hideaki, light purple hair, short hair with long "
     "locks, very long sidelocks, purple eyes, hair ornament, (standing:1.5), "
     "(own hands together:1.3), (hands up:1.2), (arched back:1.15), "
     "(smug:1.35), (doyagao:1.25), (tareme:1.3), (half-closed eyes:1.3), "
@@ -125,7 +125,7 @@ STAND_NEGATIVE = (
 
 BUST_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@ixy:0.7), light purple hair, short hair with long "
+    "vocaloid, voiceroid, @ixy, @oshiki hitoshi, @yoshikawa hideaki, light purple hair, short hair with long "
     "locks, very long sidelocks, purple eyes, hair ornament, (portrait:1.5), "
     "(head and shoulders:1.4), (upper body:1.35), (face focus:1.3), (closed "
     "mouth:1.2), (light smile:1.25), (tareme:1.2), (jitome:1.4), "
@@ -135,7 +135,7 @@ BUST_POSITIVE = (
     "wrists:1.15), hood down, (from front:1.2), (mature female:1.3), "
     "(adult:1.2), adult proportions, simple background, (green "
     "background:1.3), (large eyes:1.4), (round face:1.3), (tareme:1.2), (thick "
-    "eyelashes:1.3), (sketch style:1.2), (flat color:1.7), (anime "
+    "eyelashes:1.3), (flat color:1.7), (anime "
     "coloring:1.4), (cel shading:1.2), (limited palette:1.6), (few "
     "colors:1.3), (matte:1.5), (minimal shading:1.2), (flat shadow:1.2), "
     "(thin lineart:1.3), (simple lines:1.3), (minimal lines:1.2), (black "
@@ -165,7 +165,7 @@ BUST_NEGATIVE_TAG_SOURCE = (
 
 REDRAW_STAND_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@ixy:0.7), light purple hair, short hair with long "
+    "vocaloid, voiceroid, @ixy, @oshiki hitoshi, @yoshikawa hideaki, light purple hair, short hair with long "
     "locks, very long sidelocks, purple eyes, hair ornament, (standing:1.5), "
     "(own hands together:1.3), (hands up:1.2), (arched back:1.15), "
     "(smug:1.35), (doyagao:1.25), (tareme:1.3), (half-closed eyes:1.3), "
@@ -369,8 +369,7 @@ class RenderSpecTest(unittest.TestCase):
     def test_bust_render_spec_canvas_and_loras(self):
         spec = render_spec("bust", 7, "p")
         self.assertEqual((spec.width, spec.height), (1280, 1280))
-        self.assertEqual(
-            spec.loras, (("anima-sketch-style-chosen.safetensors", 0.8),))
+        self.assertEqual(spec.loras, ())
 
     def test_other_poses_render_spec_loras_stay_empty(self):
         for pose in POSES:
@@ -451,7 +450,8 @@ class GraphTest(unittest.TestCase):
         self.assertEqual(graph["9"]["inputs"]["images"], ["8", 0])
 
     def test_hires_with_a_lora_pose_does_not_collide_ids(self):
-        spec = render_spec("bust", 7, "p", hires=2048)
+        spec = replace(render_spec("bust", 7, "p", hires=2048),
+                       loras=(("anima-sketch-style-chosen.safetensors", 0.8),))
         graph = anima_graph.build_graph(spec)
         self.assertEqual(graph["10"]["class_type"], "LoraLoaderModelOnly")
         self.assertEqual(graph["11"]["class_type"], "LatentUpscale")

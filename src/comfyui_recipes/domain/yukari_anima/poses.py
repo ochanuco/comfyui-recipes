@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .prompt_style import STYLE
-
 
 @dataclass(frozen=True)
 class Pose:
@@ -118,7 +116,5 @@ POSES = {
         canvas=(1280, 1280),
         legwear=False,
         body="(mature female:1.3), (adult:1.2), adult proportions, ",
-        style="(sketch style:1.2), " + STYLE,
-        background="simple background, (green background:1.3), ",
-        loras=(("anima-sketch-style-chosen.safetensors", 0.8),)),
+        background="simple background, (green background:1.3), "),
 }

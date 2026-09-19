@@ -103,15 +103,15 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         "GET", f"/api/v1/batches/{context['batch']['id']}")
     source_kind = (source_batch.get("parameters") or {}).get("kind")
     is_repaired_raw = source_kind in ("repair", "masked_redraw")
-    if is_repaired_raw:
-        base_generation_id = source_batch["parameters"]["base_generation"]
-        base_record = services.management.request(
-            "GET", f"/api/v1/generations/{base_generation_id}")
-        base = ((base_record.get("comfy_job") or {}).get("graph")
-                or services.graph_from_png(
-                    services.management.fetch_generation_image(base_generation_id)))
-    else:
-        base = services.graph_from_png(picked)
+    base_generation_id = (source_batch["parameters"]["base_generation"]
+                          if is_repaired_raw else generation_id)
+    base_record = services.management.request(
+        "GET", f"/api/v1/generations/{base_generation_id}")
+    base = (base_record.get("comfy_job") or {}).get("graph")
+    if base is None:
+        base = services.graph_from_png(
+            services.management.fetch_generation_image(base_generation_id)
+            if is_repaired_raw else picked)
     roles = base_roles(base)
     # A LoraLoader in the base graph marks a sketch render; a UNETLoader
     # (checked only once sketch is ruled out) marks an anima render -- a

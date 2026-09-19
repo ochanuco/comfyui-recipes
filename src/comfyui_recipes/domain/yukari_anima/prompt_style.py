@@ -16,7 +16,7 @@ IDENTITY = ("light purple hair, short hair with long locks, very long "
 BODY = ("(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), "
         "(soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), "
         "adult proportions, long torso, seven heads tall, ")
-BACKGROUND = "simple background, grey background, "
+BACKGROUND = "simple background, (green background:1.3), "
 FACE = ("(large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), "
         "(thick eyelashes:1.3), ")
 STYLE = "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"

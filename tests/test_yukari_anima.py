@@ -37,7 +37,7 @@ COFFEE_POSITIVE = (
     "(standing:1.2), (cowboy shot:1.3), (thighs:1.2), (mature female:1.3), "
     "(adult:1.2), (wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), "
     "(long legs:1.35), (narrow waist:1.25), adult proportions, long torso, "
-    "seven heads tall, simple background, grey background, (large eyes:1.6), (big eyes:1.3), "
+    "seven heads tall, simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), "
     "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (flat color:1.3),"
     " (sketch:1.3), (traditional media:1.2)"
 )
@@ -71,8 +71,8 @@ AMAE_POSITIVE = (
     " (street:1.1), (day:1.1), (standing:1.2), (cowboy shot:1.3), "
     "(thighs:1.2), (mature female:1.3), (adult:1.2), (wide hips:1.2), (thick "
     "thighs:1.2), (soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), "
-    "adult proportions, long torso, seven heads tall, simple background, grey"
-    " background, (large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), (thick "
+    "adult proportions, long torso, seven heads tall, simple background,"
+    " (green background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), (thick "
     "eyelashes:1.3), (flat color:1.3), (sketch:1.3), (traditional media:1.2)"
 )
 
@@ -92,7 +92,7 @@ STAND_POSITIVE = (
     "body:1.45), (wide shot:1.3), (thighs:1.1), (mature female:1.3), "
     "(adult:1.2), (wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), "
     "(long legs:1.35), (narrow waist:1.25), adult proportions, long torso, "
-    "seven heads tall, simple background, grey background, (large eyes:1.6), (big eyes:1.3), "
+    "seven heads tall, simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), "
     "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (flat color:1.3),"
     " (sketch:1.3), (traditional media:1.2)"
 )
@@ -163,7 +163,7 @@ GAO_POSITIVE = (
     "shot:1.35), (thighs:1.2), (mature female:1.3), (adult:1.2), (wide "
     "hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
     "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
-    "simple background, grey background, (large eyes:1.6), (big eyes:1.3), "
+    "simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), "
     "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (flat "
     "color:1.3), (sketch:1.3), (traditional media:1.2)"
 )
@@ -198,7 +198,7 @@ REDRAW_STAND_POSITIVE = (
     "shot:1.3), (thighs:1.1), (mature female:1.3), (adult:1.2), (wide "
     "hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
     "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
-    "simple background, grey background, (large eyes:1.6), (big eyes:1.3), (round face:1.3), "
+    "simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), "
     "(tareme:1.2), (thick eyelashes:1.3), (sketch:1.45), (rough sketch:1.4), "
     "rough lines, sketchy lines, pencil sketch, (unfinished:1.2), "
     "construction lines, (colored pencil (medium):1.2), (soft shading:1.1)"

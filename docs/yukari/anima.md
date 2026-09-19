@@ -14,7 +14,10 @@ graph shape -- but has a hires second pass that mirrors `yukari`'s.
 `CHARACTER` (the series tags plus three artist tags at full weight --
 `@ixy, @oshiki hitoshi, @yoshikawa hideaki`; on `hassakuAnima_v13` no
 artist tag moved the line or fill, on the base Anima they do, and a tag
-weighted below `1.0` barely registers), `IDENTITY`, `BODY`, `BACKGROUND`, `FACE`, `STYLE` (positive),
+weighted below `1.0` barely registers), `IDENTITY`, `BODY`, `BACKGROUND`, `FACE`, `STYLE` (positive:
+`flat color`, `sketch` and `traditional media` -- `flat color` and
+`sketch` together draw a hatched line into the shadows that neither does
+alone; the earlier thirteen-tag flat/cel block turned the skin paper-white),
 and the negative bans (`DIGIT_BAN` through `PROPORTION_BAN`). `BODY`
 carries the mature-female build: adult proportions, wide hips, thick and
 soft thighs, long legs, a narrow waist, and seven heads tall.
@@ -75,7 +78,7 @@ Negative:
 ```
 DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
 + pose.negative
-+ SHINE_BAN + HATCH_BAN + GRADIENT_BAN
++ SHINE_BAN + GRADIENT_BAN
 + NEGATIVE_TAIL + (HOOD_BAN unless costume in HOODED_COSTUMES) + SCORE_BAN
 + PROPORTION_BAN
 ```
@@ -158,9 +161,9 @@ through `CheckpointLoaderSimple`, anything else is a `models/diffusers`
 folder.
 
 `domain/yukari_anima/recipe.py`'s `refinement_prompt` builds the redraw
-prompt: the positive replaces `STYLE`, the recipe's flat/cel-shaded tail,
+prompt: the positive replaces `STYLE`, the recipe's style tail,
 with `ROUGH_STYLE`, aiming the IL checkpoint at a rough, unfinished line
-instead. The negative drops `HATCH_BAN`, `DETAIL_BAN`, `GRADIENT_BAN` and
+instead. The negative drops `DETAIL_BAN`, `GRADIENT_BAN` and
 `COLORED_LINE_BAN` -- bans against a look the redraw is now asking for --
 and prefixes `ROUGH_BAN + PAINT_BAN + HAND_BAN + SHADE_BAN + DOT_BAN`
 (`HAND_BAN`, `SHADE_BAN` and `DOT_BAN` are the same redraw guards `yukari`

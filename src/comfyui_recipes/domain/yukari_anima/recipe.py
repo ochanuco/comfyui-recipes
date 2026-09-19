@@ -25,7 +25,6 @@ from .prompt_style import (
     DIGIT_BAN,
     FACE,
     GRADIENT_BAN,
-    HATCH_BAN,
     HEIGHT,
     HIRES_DENOISE,
     HOOD_BAN,
@@ -94,14 +93,14 @@ def negative(pose: str, costume: str | None = None,
     _ = COSTUMES[c]
     hood_ban = "" if c in HOODED_COSTUMES else HOOD_BAN
     return (DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
-            + p.negative + SHINE_BAN + HATCH_BAN + GRADIENT_BAN
+            + p.negative + SHINE_BAN + GRADIENT_BAN
             + NEGATIVE_TAIL + hood_ban + SCORE_BAN + PROPORTION_BAN)
 
 
 def refinement_prompt(base: PromptPair) -> PromptPair:
     """Build the anima-specific prompt used by the delivery redraw."""
     negative = base.negative
-    for ban in (HATCH_BAN, DETAIL_BAN, GRADIENT_BAN, COLORED_LINE_BAN):
+    for ban in (DETAIL_BAN, GRADIENT_BAN, COLORED_LINE_BAN):
         negative = negative.replace(ban, "")
     return PromptPair(
         base.positive.replace(STYLE, ROUGH_STYLE),

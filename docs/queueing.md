@@ -67,8 +67,8 @@ when none of the redraw-shaping options above (`denoise`, `size`, `route`,
 present, an omitted `deliver_only` resolves to `false` instead. `repair` and
 `repair_regions` are not redraw-shaping options for this purpose -- a
 request that carries only those (plus a recipe whose own default is
-`deliver_only: true`; no recipe publishes one today) still takes the
-deliver_only path. An explicit `null` on `backdrop` or `stroke_light` keeps
+`deliver_only: true`, such as yukari-anima) still takes the deliver_only
+path. An explicit `null` on `backdrop` or `stroke_light` keeps
 today's meaning regardless -- `stroke_light: null` is the uniform rim,
 `backdrop: null` is no backdrop -- only an *absent* key now falls back to
 the recipe default. A `repair` row's payload is
@@ -199,7 +199,7 @@ resolves an omitted `backdrop`/`stroke_light`/`repin`/`deliver_only` request
 option to (see above), so the WebUI and an MCP/AI caller that omits these
 options agree on the delivery. Every recipe publishes `stroke_light: "n"`
 and `backdrop: "stripes"`, except yukari-anima, which additionally publishes
-`deliver_only: false, repin: true` and overrides `backdrop` to `"dots"`.
+`deliver_only: true, repin: true` and overrides `backdrop` to `"dots"`.
 
 ## Named dials
 

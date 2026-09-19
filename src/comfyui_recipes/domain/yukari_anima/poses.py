@@ -117,4 +117,13 @@ POSES = {
         legwear=False,
         body="(mature female:1.3), (adult:1.2), adult proportions, ",
         background="simple background, (green background:1.3), "),
+    "gao": Pose(
+        action=("(claw pose:1.45), (gao:1.2), (hands up:1.25), "
+                "(standing:1.3), (leaning forward:1.15), "),
+        mood="",
+        gesture="(looking at viewer:1.2), ",
+        scene="(from front:1.3), (cowboy shot:1.35), (thighs:1.2), ",
+        expression="gao", costume="standard",
+        negative=("(sitting:1.3), (upper body:1.2), "
+                  "(ribbed legwear:1.3), (vertical-striped legwear:1.3), ")),
 }

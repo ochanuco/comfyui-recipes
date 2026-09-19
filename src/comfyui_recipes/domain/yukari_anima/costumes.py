@@ -16,8 +16,8 @@ COSTUMES = {
 LEGWEAR = {
     "roomwear": "",
     "outing": "(black pantyhose:1.5), (opaque pantyhose:1.4), ",
-    "standard": ("(black pantyhose:1.3), (pale purple pantyhose:1.15), "
-                 "(gradient legwear:1.2), "),
+    "standard": ("(black pantyhose:1.5), (opaque pantyhose:1.3), "
+                 "(gradient legwear:1.2), (purple gradient:1.1), "),
 }
 
 # Costumes whose garments include a hood or cardigan; `recipe.negative`

@@ -115,8 +115,7 @@ POSES = {
                   "(pursed lips:1.3), (puckered lips:1.2), "),
         canvas=(1280, 1280),
         legwear=False,
-        body="(mature female:1.3), (adult:1.2), adult proportions, ",
-        background="simple background, (green background:1.3), "),
+        body="(mature female:1.3), (adult:1.2), adult proportions, "),
     "gao": Pose(
         action=("(claw pose:1.45), (gao:1.2), (hands up:1.25), "
                 "(standing:1.3), (leaning forward:1.15), "),

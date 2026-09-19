@@ -17,7 +17,10 @@ below `1.0` still registers, `0.85` on `oshiki hitoshi` keeps the thick
 black line, and `0.5` on `yoshikawa hideaki` keeps the face from
 elongating and the eyes from shrinking while still suppressing the
 handwritten text `oshiki hitoshi` brings alone), `IDENTITY`, `BODY`,
-`BACKGROUND`, `FACE`, `STYLE` (positive:
+`BACKGROUND` (`simple background, (green background:1.3)` -- every pose
+draws on the green screen, the key colour `clean_background` despills; the
+earlier grey default sat too close to the paper-white skin for the matte
+edge), `FACE`, `STYLE` (positive:
 `flat color`, `sketch` and `traditional media` -- `flat color` and
 `sketch` together draw a hatched line into the shadows that neither does
 alone; the earlier thirteen-tag flat/cel block turned the skin paper-white),
@@ -57,9 +60,8 @@ The variable part is three small record sets:
   straw in the other.
 - `bust`: expression `smile`, costume `standard`, canvas `1280x1280`.
   Head-and-shoulders portrait, looking at viewer. Drops the costume's
-  legwear (`legwear=False`), overrides `body` to a bare adult-proportions
-  block with no leg tags, and overrides `background` to a green screen
-  (`(green background:1.3)`, the key colour `clean_background` despills).
+  legwear (`legwear=False`) and overrides `body` to a bare adult-proportions
+  block with no leg tags.
 - `gao`: expression `gao`, costume `standard`. A claw pose with an open,
   fanged mouth, leaning forward with hands up, cowboy shot from the front.
 

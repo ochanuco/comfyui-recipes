@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import time
@@ -9,6 +10,20 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+
+from PIL import Image
+
+
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def as_png(data: bytes) -> bytes:
+    # LoadImage decodes through PyAV, which reads WebP via YUV and shifts pixels.
+    if data.startswith(PNG_SIGNATURE):
+        return data
+    output = io.BytesIO()
+    Image.open(io.BytesIO(data)).save(output, "PNG")
+    return output.getvalue()
 
 
 def images_of(history_entry: dict) -> list[dict]:
@@ -95,7 +110,7 @@ class ComfyUIClient:
         body = b"".join([
             f'--{boundary}\r\nContent-Disposition: form-data; name="image"; '
             f'filename="{name}"\r\nContent-Type: image/png\r\n\r\n'.encode(),
-            data,
+            as_png(data),
             f'\r\n--{boundary}\r\nContent-Disposition: form-data; '
             f'name="overwrite"\r\n\r\ntrue\r\n'
             f'--{boundary}--\r\n'.encode(),

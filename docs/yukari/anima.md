@@ -3,15 +3,18 @@
 > Yuzuki Yukari belongs to her original creators and rights holders -- see
 > [Derivative work](../../README.md#derivative-work) in the README.
 
-A second Yukari recipe, built for the `hassakuAnima_v13.safetensors`
-checkpoint (`src/comfyui_recipes/domain/yukari_anima/`). It shares no code
+A second Yukari recipe, built for the base Anima checkpoint,
+`anima_baseV10.safetensors` (`src/comfyui_recipes/domain/yukari_anima/`). It shares no code
 with `yukari` -- the two checkpoints do not share a prompt vocabulary or a
 graph shape -- but has a hires second pass that mirrors `yukari`'s.
 
 ## Fixed vs. variable
 
 `prompt_style.py` holds the blocks every pose wears: `QUALITY`,
-`CHARACTER`, `IDENTITY`, `BODY`, `BACKGROUND`, `FACE`, `STYLE` (positive),
+`CHARACTER` (the series tags plus three artist tags at full weight --
+`@ixy, @oshiki hitoshi, @yoshikawa hideaki`; on `hassakuAnima_v13` no
+artist tag moved the line or fill, on the base Anima they do, and a tag
+weighted below `1.0` barely registers), `IDENTITY`, `BODY`, `BACKGROUND`, `FACE`, `STYLE` (positive),
 and the negative bans (`DIGIT_BAN` through `PROPORTION_BAN`). `BODY`
 carries the mature-female build: adult proportions, wide hips, thick and
 soft thighs, long legs, a narrow waist, and seven heads tall.
@@ -49,11 +52,8 @@ The variable part is three small record sets:
 - `bust`: expression `smile`, costume `standard`, canvas `1280x1280`.
   Head-and-shoulders portrait, looking at viewer. Drops the costume's
   legwear (`legwear=False`), overrides `body` to a bare adult-proportions
-  block with no leg tags, overrides `background` to a green screen
-  (`(green background:1.3)`, the key colour `clean_background` despills),
-  prefixes `STYLE` with the sketch-style LoRA's trigger tag via `style`,
-  and loads that LoRA (`anima-sketch-style-chosen.safetensors`, weight
-  `0.8`) via `loras`.
+  block with no leg tags, and overrides `background` to a green screen
+  (`(green background:1.3)`, the key colour `clean_background` despills).
 
 A pose may carry its own `canvas`; `render_spec` uses it in place of the
 default `1024x1640`.
@@ -96,7 +96,7 @@ expression is a `KeyError`.
 
 ## Render constants
 
-Fixed in `prompt_style.py`: `MODEL = "hassakuAnima_v13.safetensors"`,
+Fixed in `prompt_style.py`: `MODEL = "anima_baseV10.safetensors"`,
 canvas `1024x1640`, `steps=25`, `cfg=3.5`, sampler `er_sde`, scheduler
 `normal`, denoise `1.0`.
 
@@ -143,8 +143,8 @@ ornaments.
 the die-cut sticker; the matte is still rendered and stored.
 
 The redraw runs through a different checkpoint, `hassaku-il-v22`
-(Illustrious, loaded through `DiffusersLoader`), rather than
-`hassakuAnima_v13`. `refinement_graph.chain_pass`'s `loader` argument adds
+(Illustrious, loaded through `DiffusersLoader`), rather than the
+stage-1 Anima checkpoint. `refinement_graph.chain_pass`'s `loader` argument adds
 that `DiffusersLoader` node and reroutes the redraw's model, CLIP and both
 VAEs (encode and decode) through it, re-encoding the base prompts on its
 CLIP. `--finalizer MODEL` overrides `FINALIZE_MODEL` with a different
@@ -153,7 +153,7 @@ through `CheckpointLoaderSimple`, anything else is a `models/diffusers`
 folder.
 
 `domain/yukari_anima/recipe.py`'s `refinement_prompt` builds the redraw
-prompt: the positive replaces `STYLE`, hassakuAnima's flat/cel-shaded tail,
+prompt: the positive replaces `STYLE`, the recipe's flat/cel-shaded tail,
 with `ROUGH_STYLE`, aiming the IL checkpoint at a rough, unfinished line
 instead. The negative drops `HATCH_BAN`, `DETAIL_BAN`, `GRADIENT_BAN` and
 `COLORED_LINE_BAN` -- bans against a look the redraw is now asking for --

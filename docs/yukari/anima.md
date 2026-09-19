@@ -11,10 +11,13 @@ graph shape -- but has a hires second pass that mirrors `yukari`'s.
 ## Fixed vs. variable
 
 `prompt_style.py` holds the blocks every pose wears: `QUALITY`,
-`CHARACTER` (the series tags plus three artist tags at full weight --
-`@ixy, @oshiki hitoshi, @yoshikawa hideaki`; on `hassakuAnima_v13` no
-artist tag moved the line or fill, on the base Anima they do, and a tag
-weighted below `1.0` barely registers), `IDENTITY`, `BODY`, `BACKGROUND`, `FACE`, `STYLE` (positive:
+`CHARACTER` (the series tags plus two weighted artist tags --
+`(@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5)`; on Anima Turbo a weight
+below `1.0` still registers, `0.85` on `oshiki hitoshi` keeps the thick
+black line, and `0.5` on `yoshikawa hideaki` keeps the face from
+elongating and the eyes from shrinking while still suppressing the
+handwritten text `oshiki hitoshi` brings alone), `IDENTITY`, `BODY`,
+`BACKGROUND`, `FACE`, `STYLE` (positive:
 `flat color`, `sketch` and `traditional media` -- `flat color` and
 `sketch` together draw a hatched line into the shadows that neither does
 alone; the earlier thirteen-tag flat/cel block turned the skin paper-white),
@@ -33,11 +36,11 @@ The variable part is three small record sets:
 - `costumes.py`: one garment tag block per costume (`roomwear`, `outing`,
   `standard`) and a matching `LEGWEAR` block per costume, layered on top
   of the garments when the pose's `legwear` is `True`. `standard` is a
-  black hooded cardigan, rabbit hood and purple dress; its `LEGWEAR` is a
-  pale-purple gradient tights. `HOODED_COSTUMES` names the costumes whose
-  garments already include a hood or cardigan (`standard`).
+  black hooded cardigan, rabbit hood and purple dress; its `LEGWEAR` is
+  black tights with a purple gradient. `HOODED_COSTUMES` names the
+  costumes whose garments already include a hood or cardigan (`standard`).
 - `expressions.py`: one `mouth`/`eyes` pair per expression (`resting`,
-  `sleepy`, `doya`, `smile`).
+  `sleepy`, `doya`, `smile`, `gao`).
 
 ## Poses
 
@@ -57,6 +60,8 @@ The variable part is three small record sets:
   legwear (`legwear=False`), overrides `body` to a bare adult-proportions
   block with no leg tags, and overrides `background` to a green screen
   (`(green background:1.3)`, the key colour `clean_background` despills).
+- `gao`: expression `gao`, costume `standard`. A claw pose with an open,
+  fanged mouth, leaning forward with hands up, cowboy shot from the front.
 
 A pose may carry its own `canvas`; `render_spec` uses it in place of the
 default `1024x1640`.

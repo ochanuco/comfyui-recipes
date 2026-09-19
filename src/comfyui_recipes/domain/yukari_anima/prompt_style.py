@@ -9,15 +9,15 @@ positive prompt, so it carries no trailing comma.
 from __future__ import annotations
 
 QUALITY = "masterpiece, best quality, score_7, 1girl, solo, "
-CHARACTER = ("yuzuki yukari, vocaloid, voiceroid, @ixy, @oshiki hitoshi, "
-             "@yoshikawa hideaki, ")
+CHARACTER = ("yuzuki yukari, vocaloid, voiceroid, (@oshiki hitoshi:0.85), "
+             "(@yoshikawa hideaki:0.5), ")
 IDENTITY = ("light purple hair, short hair with long locks, very long "
             "sidelocks, purple eyes, hair ornament, ")
 BODY = ("(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), "
         "(soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), "
         "adult proportions, long torso, seven heads tall, ")
 BACKGROUND = "simple background, grey background, "
-FACE = ("(large eyes:1.4), (round face:1.3), (tareme:1.2), "
+FACE = ("(large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), "
         "(thick eyelashes:1.3), ")
 STYLE = "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
 

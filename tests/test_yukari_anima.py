@@ -329,7 +329,7 @@ class RenderSpecTest(unittest.TestCase):
         spec = render_spec("coffee", 42, "p")
         self.assertEqual(spec.model_path, ps.MODEL)
         self.assertEqual((spec.width, spec.height), (1024, 1640))
-        self.assertEqual(spec.steps, 25)
+        self.assertEqual(spec.steps, 10)
 
     def test_pose_canvas_overrides_the_default(self):
         spec = render_spec("sofa", 7, "p")
@@ -337,8 +337,8 @@ class RenderSpecTest(unittest.TestCase):
 
     def test_render_spec_default_canvas(self):
         spec = render_spec("stand", 42, "p")
-        self.assertEqual(spec.cfg, 3.5)
-        self.assertEqual(spec.sampler_name, "er_sde")
+        self.assertEqual(spec.cfg, 2.0)
+        self.assertEqual(spec.sampler_name, "euler")
         self.assertEqual(spec.scheduler, "normal")
         self.assertIsNone(spec.hires)
 

@@ -1,4 +1,4 @@
-"""Yukari-anima recipe domain: the base Anima (anima_baseV10) checkpoint."""
+"""Yukari-anima recipe domain: the Anima Turbo (anima-turbo-v1.1) checkpoint."""
 
 from .costumes import COSTUMES
 from .expressions import EXPRESSIONS

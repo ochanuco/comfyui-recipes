@@ -24,8 +24,8 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
 
 ## The pipeline is two stages, and it is the user's
 
-1. **Anima draws.** A new picture starts on `yukari-anima` -- the base
-   Anima (`anima_baseV10`) with the artist tags `@ixy, @oshiki hitoshi,
+1. **Anima draws.** A new picture starts on `yukari-anima` -- Anima Turbo
+   (`anima-turbo-v1.1`, 10 steps, CFG 2) with the artist tags `@ixy, @oshiki hitoshi,
    @yoshikawa hideaki` at full weight and no style LoRA: composition,
    proportion and hands obey the prompt there, and the artist tags set the
    face and line.

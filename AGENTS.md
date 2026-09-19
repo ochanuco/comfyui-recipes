@@ -24,11 +24,11 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
 
 ## The pipeline is two stages, and it is the user's
 
-1. **Anima draws.** A new picture starts on `yukari-anima`
-   (hassakuAnima_v13) with no style LoRA: composition, proportion and hands
-   obey the prompt there. Its line reads as AI, which is what stage 2 is
-   for -- a base that already carries a drawn line leaves the redraw
-   nothing to add.
+1. **Anima draws.** A new picture starts on `yukari-anima` -- the base
+   Anima (`anima_baseV10`) with the artist tags `@ixy, @oshiki hitoshi,
+   @yoshikawa hideaki` at full weight and no style LoRA: composition,
+   proportion and hands obey the prompt there, and the artist tags set the
+   face and line.
 2. **Illustrious redraws.** `finalize` sends the pick through
    hassaku-il-v22 at 2560, denoise 0.4
    (`yukari_anima/delivery_style.py`); the drawn look comes from this pass.

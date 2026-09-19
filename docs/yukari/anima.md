@@ -175,8 +175,11 @@ and prefixes `ROUGH_BAN + PAINT_BAN + HAND_BAN + SHADE_BAN + DOT_BAN`
 uses, imported from `yukari.prompt_style`).
 
 The catalog publishes `delivery_style.py`'s `FINALIZE_DEFAULTS` --
-`deliver_only: false, repin: true, stroke_light: "n", backdrop: "dots"` -- as
-chimera's GUI's finalize form defaults for this recipe.
+`deliver_only: true, repin: true, stroke_light: "n", backdrop: "dots"` -- as
+chimera's GUI's finalize form defaults for this recipe: an option-less
+finalize cuts the matte, repins and delivers the Anima pick itself, and the
+redraw above is a per-request opt-in via `denoise`, `size`, `route` or
+another redraw-shaping option.
 
 ## Requesting it
 

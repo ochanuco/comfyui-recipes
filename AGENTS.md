@@ -29,15 +29,17 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
    `(@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5)` and no style LoRA:
    composition, proportion and hands obey the prompt there, and the artist
    tags set the face and line.
-2. **Illustrious redraws.** `finalize` sends the pick through
-   hassaku-il-v22 at 2560, denoise 0.4
-   (`yukari_anima/delivery_style.py`); the drawn look comes from this pass.
-   It is the recipe default: the WebUI button and an option-less
-   `finalize_generation` both redraw.
+2. **Finalize delivers the raw pick.** `finalize` cuts a matte, repins the
+   palette and composites the backdrop and purple stroke onto the Anima
+   pick itself -- no redraw. It is the recipe default
+   (`yukari_anima/delivery_style.py`): the WebUI button and an
+   option-less `finalize_generation` both deliver this way.
 
-`deliver_only` (cut out the raw, no redraw) is a per-request choice the user
-names. A defect in the redraw is fixed inside stage 2 -- `denoise`,
-`keep_regions`, `repair` -- with the stage kept.
+An Illustrious redraw (hassaku-il-v22 at 2560, denoise 0.4) is a
+per-request opt-in the user names -- naming `denoise`, `size`, `route` or
+any other redraw-shaping option turns it on for that request. A defect in
+a redraw is fixed inside that same pass -- `denoise`, `keep_regions`,
+`repair` -- with the stage kept.
 
 Which model draws, which model redraws, and whether finalize redraws at all
 are the user's decisions. To change one: ask, then change the recipe default

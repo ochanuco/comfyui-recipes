@@ -159,7 +159,12 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                deliver_size: int | None = None,
                stroke_light: str | None = None,
                deliver_only: bool = False,
+               redraw_from_source: bool = False,
                canvas: tuple[int, int]) -> dict:
+    if redraw_from_source and compose:
+        raise ValueError("redraw_from_source cannot be combined with compose")
+    if redraw_from_source and not source_image:
+        raise ValueError("redraw_from_source requires source_image")
     if upscale not in ("bicubic", "nearest-exact", "bilinear", "lanczos"):
         raise ValueError(f"unsupported upscale method: {upscale!r}")
     if stroke_light is not None and stroke_light not in STROKE_LIGHTS:
@@ -296,9 +301,17 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             "width": width, "height": height, "crop": "disabled"}}
         latent_in = [scale, 0]
     else:
-        # The composited backdrop only exists as pixels, so a plain compose
-        # redraw has to start from it, not from the RGBA.
-        image_ref = [compose_id, 0] if compose else graph[roles.save_id]["inputs"]["images"]
+        if redraw_from_source:
+            # A repaired raw's own uploaded picture, not the base graph's
+            # un-repaired SaveImage output.
+            source_load_id = str(next_id + 13)
+            graph[source_load_id] = {"class_type": "LoadImage", "inputs": {
+                "image": source_image}}
+            image_ref = [source_load_id, 0]
+        else:
+            # The composited backdrop only exists as pixels, so a plain
+            # compose redraw has to start from it, not from the RGBA.
+            image_ref = [compose_id, 0] if compose else graph[roles.save_id]["inputs"]["images"]
         graph[scale] = {"class_type": "ImageScale", "inputs": {
             "image": image_ref, "upscale_method": upscale,
             "width": width, "height": height, "crop": "disabled"}}

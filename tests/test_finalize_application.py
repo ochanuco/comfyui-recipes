@@ -1732,14 +1732,23 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
             base, _kwargs = calls[-1]
             self.assertEqual(base, SKETCH_GRAPH)
 
-    def test_repaired_raw_on_a_non_latent_route_recipe_is_rejected(self):
+    def test_repaired_raw_on_a_non_latent_route_recipe_redraws_from_source(self):
         with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
             management = ManagementFake(
                 batch_parameters={"kind": "repair", "base_generation": "raw-3"},
                 generation_records={"raw-3": {"comfy_job": {"graph": ANIMA_GRAPH}}})
-            services = base_services(directory, management=management)
-            with self.assertRaisesRegex(SystemExit, "latent route"):
-                finalize("gen-id", services)
+            services = base_services(
+                directory, management=management, chain_pass=recording_chain_pass)
+            finalize("gen-id", services)
+            self.assertIs(calls[-1]["redraw_from_source"], True)
+            self.assertIs(calls[-1]["latent_route"], False)
+            self.assertIsNotNone(calls[-1]["source_image"])
 
     def test_repaired_raw_delivers_its_own_pixels_without_a_redraw(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1770,7 +1779,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
                 generation_records={
                     "raw-4": {"comfy_job": {"graph": LAYERDIFFUSE_SKETCH_GRAPH}}})
             services = base_services(directory, management=management)
-            with self.assertRaisesRegex(SystemExit, "latent route"):
+            with self.assertRaisesRegex(SystemExit, "layerdiffuse base"):
                 finalize("gen-id", services, latent_route=True)
 
     def test_hires_chain_kind_is_not_treated_as_a_repaired_raw(self):

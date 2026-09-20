@@ -53,7 +53,9 @@ COFFEE_NEGATIVE = (
     "wash:1.3), (painterly:1.3), (gradient:1.5), (soft shading:1.5), "
     "(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
     "(gradient eyes:1.2), (speed lines:1.45), (motion lines:1.4), (emphasis "
-    "lines:1.4), (hood:1.3), (cardigan:1.3), score_1, score_2, score_3, "
+    "lines:1.4), (magenta:1.45), (pink legwear:1.45), (bright purple:1.35), "
+    "(vivid colors:1.3), (neon:1.3), (red:1.3), (maroon:1.35), (wine "
+    "red:1.3), (hood:1.3), (cardigan:1.3), score_1, score_2, score_3, "
     "(fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3), "
     "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)"
 )
@@ -108,7 +110,9 @@ STAND_NEGATIVE = (
     "wash:1.3), (painterly:1.3), (gradient:1.5), (soft shading:1.5), "
     "(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
     "(gradient eyes:1.2), (speed lines:1.45), (motion lines:1.4), (emphasis "
-    "lines:1.4), (hood:1.3), (cardigan:1.3), score_1, score_2, score_3, "
+    "lines:1.4), (magenta:1.45), (pink legwear:1.45), (bright purple:1.35), "
+    "(vivid colors:1.3), (neon:1.3), (red:1.3), (maroon:1.35), (wine "
+    "red:1.3), (hood:1.3), (cardigan:1.3), score_1, score_2, score_3, "
     "(fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3), "
     "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)"
 )
@@ -120,7 +124,8 @@ BUST_POSITIVE = (
     "eyes, hair ornament, (portrait:1.5), (head and shoulders:1.4), (upper "
     "body:1.35), (face focus:1.3), (closed mouth:1.2), (light smile:1.25), "
     "(tareme:1.2), (jitome:1.4), (half-closed eyes:1.2), (confident:1.18), "
-    "(looking at viewer:1.2), (black hooded cardigan:1.25), open cardigan, "
+    "(looking at viewer:1.2), (eggplant purple hooded cardigan:1.5), (dark "
+    "violet hoodie:1.25), open cardigan, "
     "(rabbit hood:1.3), long sleeves, drawstring, (purple dress:1.25), "
     "frills, (sleeves past wrists:1.15), hood down, (from front:1.2), (mature"
     " female:1.3), (adult:1.2), adult proportions, simple background, (green "
@@ -142,7 +147,10 @@ BUST_NEGATIVE_TAG_SOURCE = (
     "(watercolor:1.3), (ink wash:1.3), (painterly:1.3), (gradient:1.5), (soft"
     " shading:1.5), (sparkling eyes:1.4), (glitter:1.3), (multiple "
     "highlights:1.3), (gradient eyes:1.2), (speed lines:1.45), (motion "
-    "lines:1.4), (emphasis lines:1.4), score_1, score_2, score_3, (fat:1.35),"
+    "lines:1.4), (emphasis lines:1.4), (magenta:1.45), (pink legwear:1.45), "
+    "(bright purple:1.35), (vivid colors:1.3), (neon:1.3), (red:1.3), "
+    "(maroon:1.35), (wine red:1.3), (black jacket:1.35), (black clothes:1.3),"
+    " (black hoodie:1.35), score_1, score_2, score_3, (fat:1.35),"
     " (chubby:1.35), (short legs:1.35), (muscular:1.3), (toned:1.2), "
     "(child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2), (wavy mouth:1.4),"
     " (:3:1.3), (pout:1.3), (pursed lips:1.3), (puckered lips:1.2), "
@@ -155,10 +163,11 @@ GAO_POSITIVE = (
     "purple eyes, hair ornament, (claw pose:1.45), (gao:1.2), (hands "
     "up:1.25), (standing:1.3), (leaning forward:1.15), (open mouth:1.35), "
     "(fang:1.3), (tareme:1.2), (jitome:1.4), (half-closed eyes:1.2), "
-    "(confident:1.18), (looking at viewer:1.2), (black hooded "
-    "cardigan:1.25), open cardigan, (rabbit hood:1.3), long sleeves, "
+    "(confident:1.18), (looking at viewer:1.2), (eggplant purple hooded "
+    "cardigan:1.5), (dark violet hoodie:1.25), open cardigan, "
+    "(rabbit hood:1.3), long sleeves, "
     "drawstring, (purple dress:1.25), frills, (sleeves past wrists:1.15), "
-    "hood down, (black pantyhose:1.5), (opaque pantyhose:1.3), (gradient "
+    "hood down, (dark purple pantyhose:1.45), (opaque pantyhose:1.3), (gradient "
     "legwear:1.2), (purple gradient:1.1), (from front:1.3), (cowboy "
     "shot:1.35), (thighs:1.2), (mature female:1.3), (adult:1.2), (wide "
     "hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
@@ -180,7 +189,10 @@ GAO_NEGATIVE = (
     "wash:1.3), (painterly:1.3), (gradient:1.5), (soft shading:1.5), "
     "(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
     "(gradient eyes:1.2), (speed lines:1.45), (motion lines:1.4), (emphasis "
-    "lines:1.4), score_1, score_2, score_3, (fat:1.35), (chubby:1.35), "
+    "lines:1.4), (magenta:1.45), (pink legwear:1.45), (bright purple:1.35), "
+    "(vivid colors:1.3), (neon:1.3), (red:1.3), (maroon:1.35), (wine "
+    "red:1.3), (black jacket:1.35), (black clothes:1.3), (black hoodie:1.35),"
+    " score_1, score_2, score_3, (fat:1.35), (chubby:1.35), "
     "(short legs:1.35), (muscular:1.3), (toned:1.2), (child:1.3), "
     "(loli:1.3), (chibi:1.3), (aged down:1.2)"
 )
@@ -219,7 +231,9 @@ REDRAW_STAND_NEGATIVE = (
     "highlights:1.2), (watercolor:1.3), (ink wash:1.3), (painterly:1.3), "
     "(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
     "(gradient eyes:1.2), (speed lines:1.45), (motion lines:1.4), (emphasis "
-    "lines:1.4), (hood:1.3), (cardigan:1.3), score_1, score_2, score_3, "
+    "lines:1.4), (magenta:1.45), (pink legwear:1.45), (bright purple:1.35), "
+    "(vivid colors:1.3), (neon:1.3), (red:1.3), (maroon:1.35), (wine "
+    "red:1.3), (hood:1.3), (cardigan:1.3), score_1, score_2, score_3, "
     "(fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3), "
     "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)"
 )
@@ -256,7 +270,7 @@ class PromptTest(unittest.TestCase):
 
     def test_standard_costume_override_carries_the_gradient_legwear(self):
         text = positive("stand", costume="standard")
-        self.assertIn("(black pantyhose:1.5), (opaque pantyhose:1.3), "
+        self.assertIn("(dark purple pantyhose:1.45), (opaque pantyhose:1.3), "
                       "(gradient legwear:1.2), (purple gradient:1.1), ", text)
 
     def test_standard_costume_negative_drops_the_hood_ban(self):

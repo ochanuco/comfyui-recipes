@@ -23,6 +23,7 @@ from .prompt_style import (
     COLORED_LINE_BAN,
     DETAIL_BAN,
     DIGIT_BAN,
+    EYE_SHAPE,
     FACE,
     GARMENT_BLACK_BAN,
     GRADIENT_BAN,
@@ -70,7 +71,7 @@ def positive_parts(pose: str, costume: str | None = None,
     c = costume if costume is not None else p.costume
     costume_block = COSTUMES[c] + (LEGWEAR[c] if p.legwear else "")
     values = (QUALITY, CHARACTER + IDENTITY, p.action, e.mouth, p.mood,
-              e.eyes, p.gesture, costume_block, p.scene,
+              EYE_SHAPE + e.eyes, p.gesture, costume_block, p.scene,
               p.body if p.body is not None else BODY,
               p.background if p.background is not None else BACKGROUND,
               FACE, p.style if p.style is not None else STYLE)

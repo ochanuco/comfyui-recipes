@@ -185,6 +185,21 @@ def shadow_cut(pixels: np.ndarray, figure: np.ndarray, soft: np.ndarray,
     return np.isin(labels, 1 + np.nonzero(sizes >= band * band)[0])
 
 
+def enclosed_cut(pixels: np.ndarray, figure: np.ndarray,
+                 tolerance: int) -> np.ndarray:
+    """`figure` without the key-coloured pockets it encloses.
+
+    The matte model fills the gap a loop of hair closes around the backdrop
+    and is certain of it, so neither the edge retrace nor `soft_clamped`
+    reaches it. A no-op unless the raw backdrop (`_corner_seed`) is a green
+    key (`delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS`).
+    """
+    key = _corner_seed(pixels)
+    if key[1] - max(key[0], key[2]) < delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS:
+        return figure
+    return figure & ~enclosed_mask(pixels, ~figure, tolerance, seed=key)
+
+
 def keyed_coverage(pixels: np.ndarray, figure: np.ndarray, local: np.ndarray,
                    band: int, tolerance: int) -> np.ndarray:
     """Figure coverage as a ramp on the figure's outermost pixel ring.
@@ -497,6 +512,7 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     tolerance = delivery_style.MATTE_EDGE_TOLERANCE
     figure = soft_clamped(refine_matte(px, soft > 127, band, tolerance), soft)
     figure = shadow_cut(px, figure, soft, band)
+    figure = enclosed_cut(px, figure, tolerance)
     local = local_backdrop(px, figure, band)
     coverage = keyed_coverage(px, figure, local, band, tolerance)
     key = _corner_seed(px)
@@ -603,6 +619,10 @@ def transparent(data: bytes, matte: bytes,
     figure = refine_matte(
         px.astype(float), soft > 127, band, delivery_style.MATTE_EDGE_TOLERANCE)
     figure = shadow_cut(px.astype(float), soft_clamped(figure, soft), soft, band)
+    opened = enclosed_cut(
+        px.astype(float), figure, delivery_style.MATTE_EDGE_TOLERANCE)
+    soft = np.where(figure & ~opened, 0, soft)
+    figure = opened
 
     halo = ndimage.binary_dilation(figure, iterations=1)
     ramp = ndimage.gaussian_filter(figure.astype(float), 0.6)

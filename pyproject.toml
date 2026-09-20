@@ -23,3 +23,8 @@ where = ["src"]
 # Python Environment section of README.md.
 [tool.uv]
 managed = false
+
+# The tests for scripts/ import those modules by bare name, the way the CI
+# preflight runs them (PYTHONPATH=scripts).
+[tool.pytest.ini_options]
+pythonpath = ["scripts"]

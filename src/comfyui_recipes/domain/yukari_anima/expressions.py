@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompt_style import EYE_SHAPE, EYE_SHAPE_FLAT
+
 
 @dataclass(frozen=True)
 class Expression:
     mouth: str
     eyes: str
+    eye_shape: str = EYE_SHAPE
 
 
 EXPRESSIONS = {
@@ -22,8 +25,8 @@ EXPRESSIONS = {
         eyes="(half-closed eyes:1.3), (unamused:1.15), "),
     "smile": Expression(
         mouth="(closed mouth:1.2), (light smile:1.25), ",
-        eyes="(half-closed eyes:1.2), (confident:1.18), "),
+        eyes="(confident:1.18), ", eye_shape=EYE_SHAPE_FLAT),
     "gao": Expression(
         mouth="(open mouth:1.35), (fang:1.3), ",
-        eyes="(half-closed eyes:1.2), (confident:1.18), "),
+        eyes="(confident:1.18), ", eye_shape=EYE_SHAPE_FLAT),
 }

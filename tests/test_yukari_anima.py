@@ -123,7 +123,7 @@ BUST_POSITIVE = (
     "purple hair, short hair with long locks, very long sidelocks, purple "
     "eyes, hair ornament, (portrait:1.5), (head and shoulders:1.4), (upper "
     "body:1.35), (face focus:1.3), (closed mouth:1.2), (light smile:1.25), "
-    "(tareme:1.2), (jitome:1.4), (half-closed eyes:1.2), (confident:1.18), "
+    "(tareme:1.2), (jitome:1.8), (confident:1.18), "
     "(looking at viewer:1.2), (eggplant purple hooded cardigan:1.5), (dark "
     "violet hoodie:1.25), open cardigan, "
     "(rabbit hood:1.3), long sleeves, drawstring, (purple dress:1.25), "
@@ -162,7 +162,7 @@ GAO_POSITIVE = (
     "light purple hair, short hair with long locks, very long sidelocks, "
     "purple eyes, hair ornament, (claw pose:1.45), (gao:1.2), (hands "
     "up:1.25), (standing:1.3), (leaning forward:1.15), (open mouth:1.35), "
-    "(fang:1.3), (tareme:1.2), (jitome:1.4), (half-closed eyes:1.2), "
+    "(fang:1.3), (tareme:1.2), (jitome:1.8), "
     "(confident:1.18), (looking at viewer:1.2), (eggplant purple hooded "
     "cardigan:1.5), (dark violet hoodie:1.25), open cardigan, "
     "(rabbit hood:1.3), long sleeves, "
@@ -302,8 +302,16 @@ class PromptTest(unittest.TestCase):
         for expression in EXPRESSIONS:
             with self.subTest(expression=expression):
                 parts = dict(positive_parts("stand", expression=expression))
-                self.assertTrue(parts["eyes"].startswith(ps.EYE_SHAPE))
+                self.assertTrue(parts["eyes"].startswith(
+                    EXPRESSIONS[expression].eye_shape))
                 self.assertNotIn("jitome", parts["face"])
+
+    def test_flat_eye_shape_only_rides_expressions_without_half_closed_eyes(self):
+        for name, expression in EXPRESSIONS.items():
+            with self.subTest(expression=name):
+                self.assertEqual(
+                    expression.eye_shape == ps.EYE_SHAPE_FLAT,
+                    "half-closed eyes" not in expression.eyes)
 
     def test_gao_expression_shares_the_smile_eyes(self):
         self.assertEqual(EXPRESSIONS["gao"].eyes, EXPRESSIONS["smile"].eyes)

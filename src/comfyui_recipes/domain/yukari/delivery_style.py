@@ -395,6 +395,13 @@ SHADOW_CHROMA = 14
 SHADOW_DARK_NEAR = 8
 SHADOW_DARK_FAR = 90
 
+# Backdrop the figure encloses is cut out of the silhouette even where the
+# matte model was certain of it, but only on a green key: green has to be
+# the raw backdrop's dominant channel, by at least this. Nothing on the
+# figure is green, while its whites and pale hair sit inside
+# MATTE_EDGE_TOLERANCE of a grey or light blue backdrop.
+ENCLOSED_KEY_MIN_GREEN_EXCESS = 12
+
 # A raw backdrop counts as a chromatic key when its dominant channel exceeds
 # the larger of the other two by at least this.
 KEY_DESPILL_MIN_EXCESS = 24

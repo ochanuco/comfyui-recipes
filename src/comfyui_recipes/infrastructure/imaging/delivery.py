@@ -244,12 +244,25 @@ def _key_excess(key: np.ndarray) -> float:
     return float(key[dominant] - max(key[others[0]], key[others[1]]))
 
 
-def despill(pixels: np.ndarray, figure: np.ndarray, key: np.ndarray) -> np.ndarray:
-    """Remove the key colour's own chroma from every `figure` pixel.
+def figure_rim(figure: np.ndarray, band: int) -> np.ndarray:
+    """`figure`'s outermost `band` pixels, the only place the key can spill.
+
+    A drawn figure has no bounced light, so the key's tint exists only where
+    the edge blends into the backdrop. Despilling past that takes the key's
+    chroma out of the figure's own colours: a yellow-green key turns the
+    skin pink.
+    """
+    if band < 1:
+        return figure
+    return figure & ~ndimage.binary_erosion(figure, iterations=band)
+
+
+def despill(pixels: np.ndarray, region: np.ndarray, key: np.ndarray) -> np.ndarray:
+    """Remove the key colour's own chroma from every `region` pixel.
 
     A no-op unless `key` is a chromatic key: its dominant channel has to
     clear the larger of the other two by `delivery_style.KEY_DESPILL_MIN_EXCESS`.
-    Where it does, each figure pixel's chroma (its departure from its own
+    Where it does, each region pixel's chroma (its departure from its own
     grey) is projected onto the key's chroma direction and the positive part
     subtracted, so a teal key leaves neither green nor cyan behind; a single
     channel cap only strips the dominant channel and leaves the rest of the
@@ -262,7 +275,7 @@ def despill(pixels: np.ndarray, figure: np.ndarray, key: np.ndarray) -> np.ndarr
     chroma = pixels - pixels.mean(axis=2, keepdims=True)
     along = np.clip((chroma * direction).sum(axis=2), 0.0, None)
     cleared = np.clip(pixels - along[..., None] * direction, 0, 255)
-    return np.where(figure[..., None], cleared, pixels)
+    return np.where(region[..., None], cleared, pixels)
 
 
 def stroke_alpha(mask: np.ndarray, gap: float, width: float,
@@ -503,7 +516,7 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     model kept (`shadow_cut`). The matte's own edge band gets a
     soft, colour-distance coverage instead of a binary one, its figure
     pixels un-premultiplied against the local backdrop; a chromatic raw
-    backdrop (a green screen) also gets despilled from the whole figure.
+    backdrop (a green screen) also gets despilled from the figure's rim.
     """
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
     soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
@@ -516,7 +529,8 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     local = local_backdrop(px, figure, band)
     coverage = keyed_coverage(px, figure, local, band, tolerance)
     key = _corner_seed(px)
-    px = despill(unpremultiply(px, local, coverage), figure, key)
+    px = despill(unpremultiply(px, local, coverage),
+                 figure_rim(figure, band), key)
     backdrop_rgb = backdrops.render(backdrop, height, width)
     composite = sticker(px, figure, coverage, backdrop_rgb, light)
     white_w, purple_w = _band_widths(height, width)

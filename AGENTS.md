@@ -45,12 +45,22 @@ Which model draws, which model redraws, and whether finalize redraws at all
 are the user's decisions. To change one: ask, then change the recipe default
 and this section in the same PR.
 
-Start stage 1 by deriving from a `yukari-anima` generation the user rated
-good, so its patches come along; the recipe's plain `stand` still wears the
-pre-official costume. Where those patches load
-`anima-sketch-style-chosen.safetensors`, append `render.loras` at strength
-`0` (the patch rejects an empty list) and remove `(sketch style:1.2), ` from
-`prompt.positive.style`.
+A new picture starts from the recipe, not from yesterday's render. Render
+the pose at its defaults (`plain_render`, or `derive_request` with
+`replace_patches: true` and only the patches this request asks for) and
+build the round from there.
+
+Derive from an existing generation when the user is continuing that
+picture: they name the id, or this session already has it in context. Then
+the parent's patches come along on purpose, and only then. A patch carries
+the decision of the round that made it — a legwear rewrite, a ban, a
+canvas — so inheriting one silently applies a look nobody asked for this
+time. Read what comes along before you queue it.
+
+Where inherited patches load `anima-sketch-style-chosen.safetensors`,
+append `render.loras` at strength `0` (the patch rejects an empty list) and
+remove `(sketch style:1.2), ` from `prompt.positive.style`. The recipe's
+plain `stand` still wears the pre-official costume.
 
 Three recipes are live, all under `src/comfyui_recipes/domain/`:
 

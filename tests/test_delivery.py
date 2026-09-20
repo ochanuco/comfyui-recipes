@@ -23,6 +23,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     despill,
     down2,
     enclosed_cut,
+    figure_rim,
     graph_from_png,
     keep_scene,
     keyed_coverage,
@@ -519,7 +520,7 @@ class DeliveryTest(unittest.TestCase):
         np.testing.assert_array_equal(despill(pixels, figure, key), pixels)
 
     def test_despill_excess_below_minimum_is_a_no_op(self):
-        key = np.array((100.0, 77.0, 50.0))  # excess 23, one under KEY_DESPILL_MIN_EXCESS
+        key = np.array((100.0, 89.0, 50.0))  # excess 11, one under KEY_DESPILL_MIN_EXCESS
         figure = np.ones((2, 2), dtype=bool)
         pixels = np.array([[(10.0, 250.0, 5.0), (90.0, 200.0, 30.0)],
                            [(5.0, 5.0, 5.0), (255.0, 0.0, 0.0)]])
@@ -560,6 +561,26 @@ class DeliveryTest(unittest.TestCase):
             png(pixels), matte((height, width), box),
             backdrop=backdrop_hex, light="ne")
         self.assertRegex(light_tag, r"-key-light-ne$")
+
+    def test_figure_rim_is_the_outermost_band_and_the_whole_figure_without_one(self):
+        figure = np.zeros((64, 64), dtype=bool)
+        figure[16:48, 16:48] = True
+        rim = figure_rim(figure, 4)
+        self.assertTrue(rim[16:20, 16:48].all())
+        self.assertFalse(rim[20:44, 20:44].any())
+        np.testing.assert_array_equal(figure_rim(figure, 0), figure)
+
+    def test_clean_background_leaves_the_skin_inside_the_rim_on_a_yellow_green_key(self):
+        skin = (251, 222, 206)
+        pixels = np.full((1024, 1024, 3), (184, 210, 145), dtype=np.uint8)
+        pixels[256:768, 256:768] = skin
+        soft = np.zeros((1024, 1024), dtype=np.uint8)
+        soft[256:768, 256:768] = 255
+        cleaned, tag = clean_background(png(pixels), png(soft))
+        arr = np.array(Image.open(io.BytesIO(cleaned)))
+        self.assertTrue(tag.endswith("-key"))
+        np.testing.assert_array_equal(arr[512, 512], skin)
+        self.assertGreater(int(arr[512, 258, 2]), int(arr[512, 258, 1]))
 
     def test_clean_background_grey_backdrop_matches_the_old_arithmetic(self):
         height = width = 32

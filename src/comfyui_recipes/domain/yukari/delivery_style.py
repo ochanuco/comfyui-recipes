@@ -403,8 +403,9 @@ SHADOW_DARK_FAR = 90
 ENCLOSED_KEY_MIN_GREEN_EXCESS = 12
 
 # A raw backdrop counts as a chromatic key when its dominant channel exceeds
-# the larger of the other two by at least this.
-KEY_DESPILL_MIN_EXCESS = 24
+# the larger of the other two by at least this. The same pose's green lands
+# either side of 24 from seed to seed, so the bar sits under the palest one.
+KEY_DESPILL_MIN_EXCESS = 12
 # The figure's outermost ring, in pixels, whose coverage ramps by colour
 # distance from the local backdrop instead of being 1.
 KEY_EDGE_RING_PX = 1

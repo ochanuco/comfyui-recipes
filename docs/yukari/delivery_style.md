@@ -223,8 +223,17 @@ solves the figure's own colour back out of its blend with the local
 backdrop, rather than leaving the blend in. `despill` then reads the raw's
 own backdrop colour (`_corner_seed`) as a key: if its dominant channel
 clears the larger of the other two by at least `KEY_DESPILL_MIN_EXCESS`
-(`24`), every figure pixel's chroma is projected onto the key's chroma
-direction and the positive part subtracted. A projection rather than a
+(`12`), the chroma of every pixel in the figure's rim (`figure_rim`, the
+outermost `MATTE_EDGE_BAND_PCT` band) is projected onto the key's chroma
+direction and the positive part subtracted. Only the rim, because a drawn
+figure has no bounced light and the key's tint exists only where the edge
+blends into the backdrop: the bust's yellow-green key (`184, 210, 145`)
+points the same way as the skin's own yellow, and despilling the whole
+figure took the cheek from `251, 222, 206` to `249, 212, 216` (`9ks5sn`).
+The bar is `12` because the same pose's green lands on either side of 24
+from seed to seed (`kbc4ja` 23 after repin, `3iory6` 26), which left an
+olive fringe on the outline wherever it did not fire; the palest green on
+record is 16 (`p358wk`) and the grey backdrops stay under 6. A projection rather than a
 channel cap because the model draws `(green background:1.3)` as a teal
 (`86, 186, 155` on the bust canary), and capping green alone left a cyan
 rim two to three pixels wide around the whole silhouette (`qodxqz`). On a
@@ -249,8 +258,8 @@ figure is green, so a colour test cannot take figure there, while the
 figure's whites and pale hair sit inside the tolerance of a grey or light
 blue backdrop. The palest green backdrop on record has an excess of 16
 (`p358wk`, `204, 220, 182`); on the grey ones it is 0 or negative. The
-gate is separate from `KEY_DESPILL_MIN_EXCESS` because repin nudges
-`kbc4ja`'s backdrop from an excess of 24 to 23, under despill's own bar.
+gate is separate from `KEY_DESPILL_MIN_EXCESS` because despill takes any
+dominant channel as a key and this cut only a green one.
 
 ## FINALIZE_DENOISE
 

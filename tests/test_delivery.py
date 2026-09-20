@@ -22,6 +22,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     cut_backdrop,
     despill,
     down2,
+    enclosed_cut,
     graph_from_png,
     keep_scene,
     keyed_coverage,
@@ -167,6 +168,44 @@ class DeliveryTest(unittest.TestCase):
         self.assertFalse(cut[640:680, 256:640].any())
         self.assertTrue(cut[400:500, 300:340].all())
         self.assertTrue(cut[256:640, 256:640].all())
+
+    def test_enclosed_cut_drops_the_key_pocket_the_matte_was_certain_of(self):
+        pixels = np.full((256, 256, 3), (196, 220, 151), dtype=np.uint8)
+        pixels[64:192, 64:192] = (215, 200, 240)
+        pixels[100:120, 100:120] = (195, 218, 153)   # backdrop a loop of hair closes
+        pixels[150:153, 150:153] = (196, 220, 151)   # a speck under the minimum area
+        figure = np.zeros((256, 256), dtype=bool)
+        figure[64:192, 64:192] = True
+        cut = enclosed_cut(pixels.astype(float), figure, 20)
+        self.assertFalse(cut[100:120, 100:120].any())
+        self.assertTrue(cut[150:153, 150:153].all())
+        self.assertEqual(int((figure & ~cut).sum()), 400)
+
+    def test_enclosed_cut_is_a_no_op_unless_the_backdrop_is_a_green_key(self):
+        figure = np.zeros((256, 256), dtype=bool)
+        figure[64:192, 64:192] = True
+        for backdrop in ((218, 214, 218), (210, 230, 235)):
+            with self.subTest(backdrop=backdrop):
+                pixels = np.full((256, 256, 3), backdrop, dtype=np.uint8)
+                pixels[64:192, 64:192] = (40, 40, 40)
+                pixels[100:120, 100:120] = backdrop   # the figure's own pale passage
+                np.testing.assert_array_equal(
+                    enclosed_cut(pixels.astype(float), figure, 20), figure)
+
+    def test_clean_background_and_transparent_open_the_enclosed_key_pocket(self):
+        pixels = np.full((1024, 1024, 3), (196, 220, 151), dtype=np.uint8)
+        pixels[256:768, 256:768] = (215, 200, 240)
+        pixels[480:544, 480:544] = (196, 220, 151)
+        soft = np.zeros((1024, 1024), dtype=np.uint8)
+        soft[256:768, 256:768] = 255
+        cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
+        arr = np.array(Image.open(io.BytesIO(cleaned)))
+        self.assertFalse((np.abs(arr[480:544, 480:544].astype(int)
+                                 - (196, 220, 151)).max(axis=2) <= 20).any())
+        cut, _ = transparent(png(pixels), png(soft))
+        rgba = np.array(Image.open(io.BytesIO(cut)))
+        self.assertFalse((np.abs(rgba[480:544, 480:544, :3].astype(int)
+                                 - (196, 220, 151)).max(axis=2) <= 20).any())
 
     def test_clean_background_band_widths_derive_from_longest_side_and_each_other(self):
         pixels = np.full((30, 50, 3), (210, 230, 235), dtype=np.uint8)

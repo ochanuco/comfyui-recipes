@@ -24,6 +24,7 @@ from .prompt_style import (
     DETAIL_BAN,
     DIGIT_BAN,
     FACE,
+    GARMENT_BLACK_BAN,
     GRADIENT_BAN,
     HEIGHT,
     HIRES_DENOISE,
@@ -40,6 +41,7 @@ from .prompt_style import (
     STEPS,
     STYLE,
     THIN_BODY_BAN,
+    VIVID_BAN,
     WIDTH,
 )
 
@@ -57,7 +59,7 @@ PART_NAMES = ("quality", "identity", "pose", "mouth", "mood", "eyes",
 IDENTITY_TAG_NAMES = frozenset({
     "light purple hair", "short hair with long locks", "very long sidelocks",
     "purple eyes", "hair ornament", "tareme", "jitome",
-    "black hooded cardigan", "rabbit hood",
+    "eggplant purple hooded cardigan", "rabbit hood",
 })
 
 
@@ -92,9 +94,11 @@ def negative(pose: str, costume: str | None = None,
     c = costume if costume is not None else p.costume
     _ = COSTUMES[c]
     hood_ban = "" if c in HOODED_COSTUMES else HOOD_BAN
+    garment_black_ban = GARMENT_BLACK_BAN if c == "standard" else ""
     return (DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
             + p.negative + SHINE_BAN + GRADIENT_BAN
-            + NEGATIVE_TAIL + hood_ban + SCORE_BAN + PROPORTION_BAN)
+            + NEGATIVE_TAIL + VIVID_BAN + hood_ban + garment_black_ban
+            + SCORE_BAN + PROPORTION_BAN)
 
 
 def refinement_prompt(base: PromptPair) -> PromptPair:

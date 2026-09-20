@@ -231,6 +231,27 @@ rim two to three pixels wide around the whole silhouette (`qodxqz`). On a
 flat grey backdrop neither the excess check nor the ramp typically fires
 past 1, so only the edge softening changes.
 
+## ENCLOSED_KEY_MIN_GREEN_EXCESS
+
+`enclosed_cut` takes the backdrop the figure encloses back out of the
+silhouette, after `shadow_cut`, in both `clean_background` and
+`transparent`. BiRefNet fills the gap a loop of hair closes around the
+backdrop with a soft value of 255 (`kbc4ja`: four pockets, 922 pixels, the
+largest between the side hair and the twin tail), and the pipeline treats a
+pixel the model is certain of as figure, so the pocket was delivered in the
+raw's own green (`5dyllv`). The cut is `enclosed_mask` against the raw
+backdrop colour (`_corner_seed`) at `MATTE_EDGE_TOLERANCE`, regions of 16
+pixels and up.
+
+It only runs on a green key: green has to be the backdrop's dominant
+channel by at least `ENCLOSED_KEY_MIN_GREEN_EXCESS` (`12`). Nothing on the
+figure is green, so a colour test cannot take figure there, while the
+figure's whites and pale hair sit inside the tolerance of a grey or light
+blue backdrop. The palest green backdrop on record has an excess of 16
+(`p358wk`, `204, 220, 182`); on the grey ones it is 0 or negative. The
+gate is separate from `KEY_DESPILL_MIN_EXCESS` because repin nudges
+`kbc4ja`'s backdrop from an excess of 24 to 23, under despill's own bar.
+
 ## FINALIZE_DENOISE
 
 `0.45`, the denoise `finalize`'s masked refine runs at for a 2048 print's

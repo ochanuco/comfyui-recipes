@@ -38,7 +38,7 @@ COFFEE_POSITIVE = (
     "(adult:1.2), (wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), "
     "(long legs:1.35), (narrow waist:1.25), adult proportions, long torso, "
     "seven heads tall, simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), "
-    "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (flat color:1.3),"
+    "(round face:1.3), (tareme:1.2), (jitome:1.4), (thick eyelashes:1.3), (flat color:1.3),"
     " (sketch:1.3), (traditional media:1.2)"
 )
 
@@ -65,7 +65,7 @@ AMAE_POSITIVE = (
     "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), light "
     "purple hair, short hair with long locks, very long sidelocks, purple "
     "eyes, hair ornament, (smug:1.35), (doyagao:1.25), (pleading:1.15), "
-    "(tareme:1.3), (half-closed eyes:1.3), (unamused:1.15), (head tilt:1.2), "
+    "(half-closed eyes:1.3), (unamused:1.15), (head tilt:1.2), "
     "(leaning forward:1.3), (looking at viewer:1.3), (own hands "
     "clasped:1.25), (hands up:1.1), (oversized sweatshirt:1.35), (white "
     "sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), (black "
@@ -74,7 +74,7 @@ AMAE_POSITIVE = (
     "(thighs:1.2), (mature female:1.3), (adult:1.2), (wide hips:1.2), (thick "
     "thighs:1.2), (soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), "
     "adult proportions, long torso, seven heads tall, simple background,"
-    " (green background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), (thick "
+    " (green background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), (jitome:1.4), (thick "
     "eyelashes:1.3), (flat color:1.3), (sketch:1.3), (traditional media:1.2)"
 )
 
@@ -86,7 +86,7 @@ STAND_POSITIVE = (
     "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), light "
     "purple hair, short hair with long locks, very long sidelocks, purple "
     "eyes, hair ornament, (standing:1.5), (own hands together:1.3), (hands "
-    "up:1.2), (arched back:1.15), (smug:1.35), (doyagao:1.25), (tareme:1.3), "
+    "up:1.2), (arched back:1.15), (smug:1.35), (doyagao:1.25), "
     "(half-closed eyes:1.3), (unamused:1.15), (looking at viewer:1.2), "
     "(sneakers:1.3), (white sneakers:1.2), (oversized sweatshirt:1.35), "
     "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
@@ -95,7 +95,7 @@ STAND_POSITIVE = (
     "(adult:1.2), (wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), "
     "(long legs:1.35), (narrow waist:1.25), adult proportions, long torso, "
     "seven heads tall, simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), "
-    "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (flat color:1.3),"
+    "(round face:1.3), (tareme:1.2), (jitome:1.4), (thick eyelashes:1.3), (flat color:1.3),"
     " (sketch:1.3), (traditional media:1.2)"
 )
 
@@ -123,13 +123,13 @@ BUST_POSITIVE = (
     "purple hair, short hair with long locks, very long sidelocks, purple "
     "eyes, hair ornament, (portrait:1.5), (head and shoulders:1.4), (upper "
     "body:1.35), (face focus:1.3), (closed mouth:1.2), (light smile:1.25), "
-    "(tareme:1.2), (jitome:1.4), (half-closed eyes:1.2), (confident:1.18), "
+    "(half-closed eyes:1.2), (confident:1.18), "
     "(looking at viewer:1.2), (eggplant purple hooded cardigan:1.5), (dark "
     "violet hoodie:1.25), open cardigan, "
     "(rabbit hood:1.3), long sleeves, drawstring, (purple dress:1.25), "
     "frills, (sleeves past wrists:1.15), hood down, (from front:1.2), (mature"
     " female:1.3), (adult:1.2), adult proportions, simple background, (green "
-    "background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), "
+    "background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), (jitome:1.4), "
     "(thick eyelashes:1.3), (flat color:1.3), (sketch:1.3), (traditional "
     "media:1.2)"
 )
@@ -162,7 +162,7 @@ GAO_POSITIVE = (
     "light purple hair, short hair with long locks, very long sidelocks, "
     "purple eyes, hair ornament, (claw pose:1.45), (gao:1.2), (hands "
     "up:1.25), (standing:1.3), (leaning forward:1.15), (open mouth:1.35), "
-    "(fang:1.3), (tareme:1.2), (jitome:1.4), (half-closed eyes:1.2), "
+    "(fang:1.3), (half-closed eyes:1.2), "
     "(confident:1.18), (looking at viewer:1.2), (eggplant purple hooded "
     "cardigan:1.5), (dark violet hoodie:1.25), open cardigan, "
     "(rabbit hood:1.3), long sleeves, "
@@ -173,7 +173,7 @@ GAO_POSITIVE = (
     "hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
     "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
     "simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), "
-    "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (flat "
+    "(round face:1.3), (tareme:1.2), (jitome:1.4), (thick eyelashes:1.3), (flat "
     "color:1.3), (sketch:1.3), (traditional media:1.2)"
 )
 
@@ -202,7 +202,7 @@ REDRAW_STAND_POSITIVE = (
     "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), light purple hair, short hair with long "
     "locks, very long sidelocks, purple eyes, hair ornament, (standing:1.5), "
     "(own hands together:1.3), (hands up:1.2), (arched back:1.15), "
-    "(smug:1.35), (doyagao:1.25), (tareme:1.3), (half-closed eyes:1.3), "
+    "(smug:1.35), (doyagao:1.25), (half-closed eyes:1.3), "
     "(unamused:1.15), (looking at viewer:1.2), (sneakers:1.3), (white "
     "sneakers:1.2), (oversized sweatshirt:1.35), (white sweatshirt:1.2), "
     "(sleeves past wrists:1.25), (denim shorts:1.3), (black pantyhose:1.5), "
@@ -211,7 +211,7 @@ REDRAW_STAND_POSITIVE = (
     "hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
     "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
     "simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), "
-    "(tareme:1.2), (thick eyelashes:1.3), (sketch:1.45), (rough sketch:1.4), "
+    "(tareme:1.2), (jitome:1.4), (thick eyelashes:1.3), (sketch:1.45), (rough sketch:1.4), "
     "rough lines, sketchy lines, pencil sketch, (unfinished:1.2), "
     "construction lines, (colored pencil (medium):1.2), (soft shading:1.1)"
 )
@@ -288,7 +288,7 @@ class PromptTest(unittest.TestCase):
         default_text = positive("coffee")
         overridden = positive("coffee", expression="doya")
         self.assertNotEqual(default_text, overridden)
-        self.assertIn("(tareme:1.3), (half-closed eyes:1.3), (unamused:1.15), ",
+        self.assertIn("(half-closed eyes:1.3), (unamused:1.15), ",
                       overridden)
         self.assertNotIn("(unamused:1.3), (half-closed eyes:1.3), ", overridden)
 
@@ -324,12 +324,14 @@ class IdentityTagsTest(unittest.TestCase):
     EXPECTED = frozenset({
         "light purple hair", "short hair with long locks",
         "very long sidelocks", "purple eyes", "hair ornament", "tareme",
+        "jitome",
     })
 
     def test_identity_tags_are_pose_and_costume_independent(self):
-        # `tareme` rides in FACE, not in any expression's `e.eyes` -- present
-        # for every pose regardless of expression. No anima costume carries a
-        # cardigan/hood, so those two names never enter the set.
+        # `tareme` and `jitome` ride in FACE, not in any expression's
+        # `e.eyes` -- present for every pose regardless of expression. No
+        # anima costume carries a cardigan/hood, so those two names never
+        # enter the set.
         for pose in ("coffee", "brush", "amae", "stand"):
             with self.subTest(pose=pose):
                 self.assertEqual(identity_tags(pose), self.EXPECTED)

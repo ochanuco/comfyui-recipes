@@ -15,7 +15,7 @@ from PIL import Image
 
 from comfyui_recipes.application.catalog import build_catalog, publish_catalog
 from comfyui_recipes.application.generate import validate_request
-from comfyui_recipes.application.work import (
+from comfyui_recipes.application.request_options import (
     _KNOWN_FINALIZE_OPTIONS,
     _KNOWN_REPAIR_OPTIONS,
     finalize_arguments,

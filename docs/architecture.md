@@ -48,7 +48,7 @@ decides how those values are encoded as nodes and links.
 `yukari/` owns a `dials.py`: the named words (`{word: number}`) it
 publishes for its own finalize/repair/patch option values, referencing the
 same constants the recipe itself uses rather than duplicating a number.
-`application/work.py`
+`application/request_options.py`
 and `application/generate.py` resolve a request's word against the source
 generation's recipe; `application/catalog.py` publishes the vocabulary as
 each recipe's `dials` block.

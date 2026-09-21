@@ -15,15 +15,14 @@ from ..application.finalize import finalize
 from ..application.generate import generate
 from ..application.masked_redraw import masked_redraw
 from ..application.repair import repair
-from ..application.watch import WatchServices, watch
-from ..application.work import (
+from ..application.request_options import (
     FINALIZE_DIAL_KEYS,
     REPAIR_DIAL_KEYS,
     dials_scope,
-    fetch_source,
     resolve_dial,
-    work,
 )
+from ..application.watch import WatchServices, watch
+from ..application.work import fetch_source, work
 from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
@@ -284,9 +283,10 @@ def parser() -> argparse.ArgumentParser:
         help="text appended to the source's own positive prompt after the "
              "face/hair/framing drop")
     # A queued masked_redraw row's own `denoise` resolves a dial word the
-    # same as repair's (see dials_scope(recipe, "repair") in work.py); the
-    # CLI flag stays numeric-only here since masked_redraw is not one of the
-    # named-dial commands this branch's CLI support covers.
+    # same as repair's (see dials_scope(recipe, "repair") in
+    # request_options.py); the CLI flag stays numeric-only here since
+    # masked_redraw is not one of the named-dial commands this branch's CLI
+    # support covers.
     masked_redraw_parser.add_argument("--denoise", type=float, default=0.45)
     masked_redraw_parser.add_argument(
         "--mask-padding", type=int, default=0, metavar="PIXELS",

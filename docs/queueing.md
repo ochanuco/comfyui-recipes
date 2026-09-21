@@ -17,7 +17,7 @@ uv run comfy-recipes work                                        # serve the que
 ```
 
 The request contract is schema version 1. `generation.recipe` must be
-`yukari-anima`, and `generation.parameters.pose` is required. `costume` is
+`yukari`, and `generation.parameters.pose` is required. `costume` is
 optional, and so are `hires`/`denoise` (the recipe's second pass) and
 `expression`.
 A `semantic.summary` is required so each render has evaluation context
@@ -65,7 +65,7 @@ any of them is present, an omitted `deliver_only` resolves to `false`
 instead. `repair` and
 `repair_regions` are not redraw-shaping options for this purpose -- a
 request that carries only those (plus a recipe whose own default is
-`deliver_only: true`, such as yukari-anima) still takes the deliver_only
+`deliver_only: true`, such as yukari) still takes the deliver_only
 path. An explicit `null` on `backdrop` or `stroke_light` keeps
 today's meaning regardless -- `stroke_light: null` is the uniform rim,
 `backdrop: null` is no backdrop -- only an *absent* key now falls back to
@@ -109,7 +109,7 @@ raw repaired generation, its delivered generation and its own repair mask
 asset -- the same shape a standalone `repair` request records, plus the
 delivery options used (`deliver_only`, `repin`, `recolor`, `skin`,
 `backdrop`, `stroke_light`, `transparent`, `deliver_size`, `matte_model`).
-`repair_lora` is silently skipped when the source recipe is yukari-anima,
+`repair_lora` is silently skipped when the source recipe is yukari,
 the same way the standalone `repair` request skips it for an anima source
 -- the part LoRA chain is Illustrious-only. `repair_seeds` on a request
 that omits `deliver_only` is a `SystemExit`; a redraw finalize's own
@@ -146,7 +146,7 @@ Pass `--no-hub` to disable the socket and poll only.
 `comfy-recipes catalog` prints this worker's recipe vocabulary as one JSON
 document -- schema version 1, with `git_commit`/`git_branch`/`git_dirty`,
 `generated_at` (ISO 8601 UTC) and a `recipes` array (currently just
-`yukari-anima`). Each recipe entry has the checkpoint its
+`yukari`). Each recipe entry has the checkpoint its
 `render_spec` uses, a `parameters` block (`allowed`/`rejected` keys, agreeing
 with `generate.py`'s own per-recipe validation), its `costumes` and
 `expressions`, a `parts` list (the recipe's named positive-prompt parts in
@@ -183,7 +183,7 @@ GUI presets a finalize form with when the generation it is finalizing came
 from a batch on that recipe, and the same value the worker itself now
 resolves an omitted `backdrop`/`stroke_light`/`repin`/`deliver_only` request
 option to (see above), so the WebUI and an MCP/AI caller that omits these
-options agree on the delivery. `yukari-anima` publishes `stroke_light: "n"`,
+options agree on the delivery. `yukari` publishes `stroke_light: "n"`,
 `deliver_only: true, repin: true` and `backdrop: "dots"`.
 
 ## Named dials
@@ -207,7 +207,7 @@ number.
 ```
 
 resolves to `{"denoise": 0.4, "repin": true, "keep_legwear": 0.62}` on
-`yukari-anima`, and a finalize/repair/masked_redraw row's result gains
+`yukari`, and a finalize/repair/masked_redraw row's result gains
 `resolved_options` -- the request's own options, words and `true` replaced
 by what they resolved to, keys the request did not give omitted -- so a
 caller can read back what actually ran without re-deriving it from the
@@ -361,7 +361,7 @@ are `render.model`, `render.sampler` and `render.scheduler`, with op `set`
 only and a required non-empty string `value`. `render.loras`, op `set` only,
 replaces `spec.loras` outright: `value` is a non-empty list of `[name,
 strength]` pairs, `name` a non-empty string ending in `.safetensors` and
-`strength` a number with `0 <= strength <= 2`. On `yukari-anima` each pair
+`strength` a number with `0 <= strength <= 2`. On `yukari` each pair
 becomes a `LoraLoaderModelOnly` node chained from the `UNETLoader` into the
 `KSampler`'s model.
 
@@ -379,7 +379,7 @@ diffs in `generation.patches`.
 
 ```json
 "generation": {
-  "recipe": "yukari-anima",
+  "recipe": "yukari",
   "parameters": {"pose": "bust"},
   "patches": [
     {"target": "prompt.positive.body", "op": "replace",
@@ -450,8 +450,8 @@ uv run scripts/queue_img2img.py --ckpt-name your-model.safetensors \
 ## Yukari prompt inspection
 
 ```bash
-uv run comfy-recipes anima prompt --pose bust
-uv run comfy-recipes anima prompt --pose bust --costume standard --expression gao
+uv run comfy-recipes yukari prompt --pose bust
+uv run comfy-recipes yukari prompt --pose bust --costume standard --expression gao
 ```
 
 Prompt edits are ordered and fail loudly when their expected text is

@@ -18,7 +18,7 @@ from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
-from ..domain.yukari_anima.dials import DIALS as _ANIMA_DIALS
+from ..domain.yukari.dials import DIALS
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
 from .catalog import publish_catalog as publish_catalog_document
 from .finalize import RECIPE_DEFAULT, FinalizeServices, finalize
@@ -55,7 +55,7 @@ _MASKED_REDRAW_SEEDS_MAX = 16
 
 # `generation.recipe` -> its published `dials` block (see domain/*/dials.py).
 _RECIPE_DIALS = {
-    "yukari-anima": _ANIMA_DIALS,
+    "yukari": DIALS,
 }
 
 # The finalize/repair option keys a recipe may define dial words for -- kept

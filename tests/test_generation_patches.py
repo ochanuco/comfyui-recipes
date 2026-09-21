@@ -15,8 +15,8 @@ from comfyui_recipes.domain.generation.patches import (
     apply_patches,
     parse_patches,
 )
-from comfyui_recipes.domain.yukari_anima.dials import DIALS as ANIMA_DIALS
-from comfyui_recipes.domain.yukari_anima.recipe import render_spec as anima_render_spec
+from comfyui_recipes.domain.yukari.dials import DIALS as ANIMA_DIALS
+from comfyui_recipes.domain.yukari.recipe import render_spec as anima_render_spec
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 
 

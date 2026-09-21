@@ -18,8 +18,8 @@ src/comfyui_recipes/
 ├── application/         # generate, finalize and metadata workflows
 ├── domain/
 │   ├── generation/      # shared values and prompt checks
-│   ├── yukari/          # delivery identity (backdrop, stroke, acceptance band)
-│   └── yukari_anima/    # the recipe that draws: identity, costumes, poses, prompt edit order
+│   └── yukari/          # the recipe that draws (identity, costumes, poses, prompt edit
+│                        # order) and the delivery identity (backdrop, stroke, acceptance band)
 └── infrastructure/
     ├── chimera/         # Management API
     ├── comfyui/         # HTTP client and graph encoders
@@ -45,7 +45,7 @@ requests, open images, or know ComfyUI node ids.
 decides prompts, sampling parameters, sizes and filenames; the ComfyUI adapter
 decides how those values are encoded as nodes and links.
 
-`yukari_anima/` owns a `dials.py`: the named words (`{word: number}`) it
+`yukari/` owns a `dials.py`: the named words (`{word: number}`) it
 publishes for its own finalize/repair/patch option values, referencing the
 same constants the recipe itself uses rather than duplicating a number.
 `application/work.py`

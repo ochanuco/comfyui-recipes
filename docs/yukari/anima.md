@@ -1,11 +1,11 @@
-# yukari-anima
+# yukari
 
 > Yuzuki Yukari belongs to her original creators and rights holders -- see
 > [Derivative work](../../README.md#derivative-work) in the README.
 
 The Yukari recipe that draws, built for the Anima Turbo checkpoint,
 `anima-turbo-v1.1.safetensors` (circlestone-labs/Anima on Hugging Face)
-(`src/comfyui_recipes/domain/yukari_anima/`).
+(`src/comfyui_recipes/domain/yukari/`).
 
 ## Fixed vs. variable
 
@@ -168,7 +168,7 @@ checkpoint: a name ending in `.safetensors` loads from `models/checkpoints`
 through `CheckpointLoaderSimple`, anything else is a `models/diffusers`
 folder.
 
-`domain/yukari_anima/recipe.py`'s `refinement_prompt` builds the redraw
+`domain/yukari/recipe.py`'s `refinement_prompt` builds the redraw
 prompt: the positive replaces `STYLE`, the recipe's style tail,
 with `ROUGH_STYLE`, aiming the IL checkpoint at a rough, unfinished line
 instead. The negative drops `DETAIL_BAN`, `GRADIENT_BAN` and
@@ -188,7 +188,7 @@ another redraw-shaping option.
 
 ```json
 "generation": {
-  "recipe": "yukari-anima",
+  "recipe": "yukari",
   "parameters": {"pose": "coffee", "costume": "outing", "expression": "doya"}
 }
 ```
@@ -198,13 +198,13 @@ to the pose's own. `hires` and `denoise` are accepted for this recipe --
 `hires` is the target longest side of the second pass, `denoise` overrides
 `HIRES_DENOISE` and needs `hires` set -- see [queueing.md](../queueing.md).
 
-`domain/yukari_anima/dials.py` publishes `render.width`/`render.height` as
+`domain/yukari/dials.py` publishes `render.width`/`render.height` as
 words for `generation.patches` -- `draft` (`1024`/`1640`, the default
 canvas) and `full` (`1280`/`2048`); `docs/queueing.md`'s "Named dials"
 section covers the resolution rule shared by every recipe.
 
 ```bash
-uv run comfy-recipes anima prompt --pose coffee --json
+uv run comfy-recipes yukari prompt --pose coffee --json
 ```
 
 ## HAND_BAN and the pass-depth split

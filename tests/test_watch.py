@@ -64,7 +64,7 @@ def base_item(**overrides):
         "note": None,
         "experiment": {
             "id": "exp-1", "short_id": "abc123", "name": "sock-cuff",
-            "status": "active", "base_recipe": "yukari-anima",
+            "status": "active", "base_recipe": "yukari",
             "base_parameters": {"pose": "lounge", "costume": "default", "count": 3},
         },
     }
@@ -90,7 +90,7 @@ class BuildRequestTest(unittest.TestCase):
         self.assertEqual(request, {
             "schema_version": 1,
             "request": {"instruction": "ソックスの縁を明示する", "count": 3},
-            "generation": {"recipe": "yukari-anima",
+            "generation": {"recipe": "yukari",
                             "parameters": {"pose": "lounge", "costume": "default"}},
             "semantic": {"summary": "ソックスの縁を明示する"},
             "experiment": {

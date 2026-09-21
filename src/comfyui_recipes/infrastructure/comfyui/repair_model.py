@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import replace
 
 from ...domain.repair.models import resolve_model
-from ...domain.yukari_anima.prompt_style import CFG, SAMPLER, SCHEDULER, STEPS
+from ...domain.yukari.prompt_style import CFG, SAMPLER, SCHEDULER, STEPS
 from .anima_graph import CLIP_NAME, VAE_NAME
 from .repair_graph import RerollHook, RerollRefs
 

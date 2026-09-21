@@ -27,12 +27,11 @@ from ..application.work import (
 from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
+from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
-from ..domain.yukari_anima.costumes import COSTUMES as ANIMA_COSTUMES
-from ..domain.yukari_anima.expressions import EXPRESSIONS as ANIMA_EXPRESSIONS
-from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
-from ..domain.yukari_anima.recipe import negative as anima_negative
-from ..domain.yukari_anima.recipe import positive as anima_positive
+from ..domain.yukari.expressions import EXPRESSIONS
+from ..domain.yukari.poses import POSES
+from ..domain.yukari.recipe import negative, positive
 from ..infrastructure.chimera.client import ChimeraClient
 from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
@@ -329,22 +328,22 @@ def parser() -> argparse.ArgumentParser:
     assets = metadata_commands.add_parser("list-assets")
     assets.add_argument("generation_id")
 
-    anima_parser = commands.add_parser("anima", help="inspect the Yukari-anima domain")
-    anima_commands = anima_parser.add_subparsers(dest="anima_command", required=True)
-    anima_prompt = anima_commands.add_parser("prompt")
-    anima_prompt.add_argument("--pose", required=True, choices=sorted(ANIMA_POSES))
-    anima_prompt.add_argument("--costume", choices=sorted(ANIMA_COSTUMES))
-    anima_prompt.add_argument("--expression", choices=sorted(ANIMA_EXPRESSIONS))
-    anima_prompt.add_argument("--json", action="store_true")
+    yukari_parser = commands.add_parser("yukari", help="inspect the Yukari domain")
+    yukari_commands = yukari_parser.add_subparsers(dest="yukari_command", required=True)
+    yukari_prompt = yukari_commands.add_parser("prompt")
+    yukari_prompt.add_argument("--pose", required=True, choices=sorted(POSES))
+    yukari_prompt.add_argument("--costume", choices=sorted(COSTUMES))
+    yukari_prompt.add_argument("--expression", choices=sorted(EXPRESSIONS))
+    yukari_prompt.add_argument("--json", action="store_true")
     return root
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parser().parse_args(argv)
-    if args.command == "anima":
+    if args.command == "yukari":
         prompts = {
-            "positive": anima_positive(args.pose, args.costume, args.expression),
-            "negative": anima_negative(args.pose, args.costume, args.expression),
+            "positive": positive(args.pose, args.costume, args.expression),
+            "negative": negative(args.pose, args.costume, args.expression),
         }
         if args.json:
             print(json.dumps(prompts, ensure_ascii=False, indent=2))

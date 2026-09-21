@@ -80,7 +80,7 @@ class BuildCatalogTest(unittest.TestCase):
     def test_every_recipe_has_every_pose_with_non_empty_prompts_and_canvas(self):
         catalog = build_catalog(GIT)
         names = {recipe["name"] for recipe in catalog["recipes"]}
-        self.assertEqual(names, {"yukari-anima"})
+        self.assertEqual(names, {"yukari"})
         for recipe in catalog["recipes"]:
             self.assertTrue(recipe["poses"], recipe["name"])
             for pose in recipe["poses"]:
@@ -93,17 +93,17 @@ class BuildCatalogTest(unittest.TestCase):
                         self.assertIsInstance(side, int)
                         self.assertGreater(side, 0)
 
-    def test_anima_poses_carry_an_expression(self):
+    def test_yukari_poses_carry_an_expression(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
-        for pose in by_name["yukari-anima"]["poses"]:
+        for pose in by_name["yukari"]["poses"]:
             self.assertIn("expression", pose)
             self.assertIsInstance(pose["expression"], str)
 
-    def test_anima_recipe_lists_its_expressions(self):
+    def test_yukari_recipe_lists_its_expressions(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
-        self.assertIn("expressions", by_name["yukari-anima"])
+        self.assertIn("expressions", by_name["yukari"])
 
     def test_recipe_parameters_agree_with_validate_request(self):
         catalog = build_catalog(GIT)
@@ -144,10 +144,10 @@ class BuildCatalogTest(unittest.TestCase):
         self.assertIn("identity_override", patches["overrides"])
         self.assertTrue(patches["overrides"]["identity_override"])
 
-    def test_anima_poses_carry_parts_that_join_into_positive(self):
+    def test_yukari_poses_carry_parts_that_join_into_positive(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
-        for pose in by_name["yukari-anima"]["poses"]:
+        for pose in by_name["yukari"]["poses"]:
             with self.subTest(pose=pose["name"]):
                 self.assertIn("parts", pose)
                 self.assertTrue(pose["parts"])
@@ -160,11 +160,11 @@ class BuildCatalogTest(unittest.TestCase):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
         self.assertEqual(
-            by_name["yukari-anima"]["parts"],
+            by_name["yukari"]["parts"],
             ["quality", "identity", "pose", "mouth", "mood", "eyes",
              "gesture", "costume", "scene", "body", "background", "face",
              "style"])
-        tags = by_name["yukari-anima"]["identity_tags"]
+        tags = by_name["yukari"]["identity_tags"]
         self.assertTrue(tags)
         self.assertEqual(tags, sorted(set(tags)))
         for tag in tags:
@@ -180,10 +180,10 @@ class DialsTest(unittest.TestCase):
                 self.assertIn("dials", recipe)
                 self.assertLessEqual(set(recipe["dials"]), set(_DIAL_SCOPE_KEYS))
 
-    def test_anima_dial_scopes(self):
+    def test_yukari_dial_scopes(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
-        self.assertEqual(set(by_name["yukari-anima"]["dials"]),
+        self.assertEqual(set(by_name["yukari"]["dials"]),
                          {"finalize", "patches"})
 
     def test_dial_keys_are_real_option_keys_of_their_scope(self):
@@ -246,11 +246,11 @@ class FinalizeDefaultsTest(unittest.TestCase):
             with self.subTest(recipe=recipe["name"]):
                 finalize_arguments(defaults)
 
-    def test_yukari_anima_defaults_to_deliver_only_with_repin(self):
+    def test_yukari_defaults_to_deliver_only_with_repin(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
         self.assertEqual(
-            by_name["yukari-anima"]["finalize"]["defaults"],
+            by_name["yukari"]["finalize"]["defaults"],
             {"deliver_only": True, "repin": True, "stroke_light": "n",
              "backdrop": "dots"})
 

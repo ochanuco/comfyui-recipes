@@ -100,7 +100,7 @@ def base_request(**generation):
     return {
         "schema_version": 1,
         "request": {"count": 1, "instruction": "test", "seeds": [42]},
-        "generation": {"recipe": "yukari-anima", "parameters": {"pose": "lounge"}, **generation},
+        "generation": {"recipe": "yukari", "parameters": {"pose": "lounge"}, **generation},
         "semantic": {"summary": "test arm"},
     }
 
@@ -1063,7 +1063,7 @@ class GenerateApplicationTest(unittest.TestCase):
             return {
                 "schema_version": 1,
                 "request": {"count": 1, "instruction": "test", "seeds": [7]},
-                "generation": {"recipe": "yukari-anima",
+                "generation": {"recipe": "yukari",
                               "parameters": {"pose": "bust"},
                               "patches": strip_patch, **extra},
                 "semantic": {"summary": "test arm"},

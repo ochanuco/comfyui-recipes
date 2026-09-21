@@ -15,14 +15,12 @@ from ..domain.generation.patches import (
     TEXT_OPS,
     TEXT_TARGETS,
 )
-from ..domain.yukari.delivery_style import BACKDROP_LABELS
-from ..domain.yukari_anima.costumes import COSTUMES as ANIMA_COSTUMES
-from ..domain.yukari_anima.delivery_style import FINALIZE_DEFAULTS as ANIMA_FINALIZE_DEFAULTS
-from ..domain.yukari_anima.dials import DIALS as ANIMA_DIALS
-from ..domain.yukari_anima.expressions import EXPRESSIONS as ANIMA_EXPRESSIONS
-from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
-from ..domain.yukari_anima.recipe import identity_tags as anima_identity_tags
-from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
+from ..domain.yukari.costumes import COSTUMES
+from ..domain.yukari.delivery_style import BACKDROP_LABELS, FINALIZE_DEFAULTS
+from ..domain.yukari.dials import DIALS
+from ..domain.yukari.expressions import EXPRESSIONS
+from ..domain.yukari.poses import POSES
+from ..domain.yukari.recipe import identity_tags, render_spec
 from ..infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
 from ..infrastructure.imaging.backdrops import thumbnail as backdrop_thumbnail
 from .generate import KNOWN_PARAMETERS, RECIPE_REJECTED_PARAMETERS
@@ -43,12 +41,12 @@ def _parameters(recipe: str) -> dict:
     }
 
 
-def _anima_recipe() -> dict:
+def _yukari_recipe() -> dict:
     poses = []
     model = None
-    for name in sorted(ANIMA_POSES):
-        pose = ANIMA_POSES[name]
-        spec = anima_render_spec(name, _SEED, _PREFIX)
+    for name in sorted(POSES):
+        pose = POSES[name]
+        spec = render_spec(name, _SEED, _PREFIX)
         model = spec.model_path
         poses.append({
             "name": name,
@@ -62,17 +60,17 @@ def _anima_recipe() -> dict:
                      for part_name, text in spec.positive_parts],
         })
     return {
-        "name": "yukari-anima",
+        "name": "yukari",
         "model": model,
-        "parameters": _parameters("yukari-anima"),
-        "costumes": sorted(ANIMA_COSTUMES),
-        "expressions": sorted(ANIMA_EXPRESSIONS),
+        "parameters": _parameters("yukari"),
+        "costumes": sorted(COSTUMES),
+        "expressions": sorted(EXPRESSIONS),
         "poses": poses,
         "parts": [name for name, _ in
-                 anima_render_spec(sorted(ANIMA_POSES)[0], _SEED, _PREFIX).positive_parts],
-        "identity_tags": sorted(anima_identity_tags(sorted(ANIMA_POSES)[0])),
-        "dials": ANIMA_DIALS,
-        "finalize": {"defaults": ANIMA_FINALIZE_DEFAULTS},
+                 render_spec(sorted(POSES)[0], _SEED, _PREFIX).positive_parts],
+        "identity_tags": sorted(identity_tags(sorted(POSES)[0])),
+        "dials": DIALS,
+        "finalize": {"defaults": FINALIZE_DEFAULTS},
     }
 
 
@@ -126,7 +124,7 @@ def build_catalog(git: dict) -> dict:
         "git_branch": git.get("branch"),
         "git_dirty": bool(git.get("dirty")),
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "recipes": [_anima_recipe()],
+        "recipes": [_yukari_recipe()],
         "patches": _patches_block(),
         "backdrops": _backdrops_block(),
     }

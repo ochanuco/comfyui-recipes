@@ -12,8 +12,7 @@ from ..domain.repair.loras import part_loras
 from ..domain.repair.prompt import repair_prompt
 from ..domain.repair.regions import rects_from_fractions, regions_from_pose, scale_circles
 from ..domain.yukari import delivery_style
-from ..domain.yukari_anima import delivery_style as anima_delivery_style
-from ..domain.yukari_anima.recipe import refinement_prompt as anima_refinement_prompt
+from ..domain.yukari.recipe import refinement_prompt
 from ..infrastructure.comfyui.base_graph import base_roles
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
 from ..infrastructure.comfyui.refinement_graph import sizes
@@ -117,7 +116,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         ("keep_regions", bool(keep_regions)),
         ("upscale", upscale is not None),
     ) if present]
-    recipe_defaults = anima_delivery_style.FINALIZE_DEFAULTS
+    recipe_defaults = delivery_style.FINALIZE_DEFAULTS
     if deliver_only is RECIPE_DEFAULT:
         deliver_only = (recipe_defaults.get("deliver_only", False)
                         if not redraw_shaping_conflicts else False)
@@ -137,9 +136,9 @@ def finalize(generation_id: str, services: FinalizeServices, *,
             "deliver_only（描き直し無しの納品）なら finalize できます")
 
     if denoise is None:
-        denoise = anima_delivery_style.FINALIZE_DENOISE
+        denoise = delivery_style.FINALIZE_DENOISE
     if size is None:
-        size = anima_delivery_style.FINALIZE_SIZE
+        size = delivery_style.FINALIZE_SIZE
     if latent_route is None:
         latent_route = False
     if deliver_only:
@@ -160,11 +159,11 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         base[roles.negative_id]["inputs"]["text"],
     )
     if is_anima:
-        prompt = anima_refinement_prompt(base_prompt)
-        sampler = anima_delivery_style.FINALIZE_SAMPLER
-        loader = finalizer or anima_delivery_style.FINALIZE_MODEL
-        sampling = (anima_delivery_style.FINALIZE_STEPS,
-                    anima_delivery_style.FINALIZE_CFG)
+        prompt = refinement_prompt(base_prompt)
+        sampler = delivery_style.FINALIZE_SAMPLER
+        loader = finalizer or delivery_style.FINALIZE_MODEL
+        sampling = (delivery_style.FINALIZE_STEPS,
+                    delivery_style.FINALIZE_CFG)
     else:
         # Unused: deliver_only (the only way a non-anima source reaches this
         # point) skips the redraw before any of these are read.

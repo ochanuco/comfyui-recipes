@@ -22,8 +22,8 @@ from ..domain.yukari.dials import DIALS
 PresetFetcher = Callable[[str, str, str, int], dict]
 
 # `generation.recipe` -> its `dials.patches` vocabulary (target -> word ->
-# number). application/work.py's _RECIPE_DIALS is the same, keyed the same
-# way, for its own finalize/repair scopes.
+# number). application/request_options.py's _RECIPE_DIALS is the same, keyed
+# the same way, for its own finalize/repair scopes.
 PATCH_DIALS: dict[str, Mapping[str, Mapping[str, float]]] = {
     "yukari": DIALS.get("patches", {}),
 }

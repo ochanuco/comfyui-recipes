@@ -12,7 +12,6 @@ from ..application import metadata
 from ..application.catalog import build_catalog
 from ..application.catalog import publish_catalog as publish_catalog_document
 from ..application.finalize import finalize
-from ..domain.yukari.recipe import TOE_GUARD
 from ..application.generate import generate
 from ..application.masked_redraw import masked_redraw
 from ..application.repair import repair
@@ -144,13 +143,8 @@ def parser() -> argparse.ArgumentParser:
         help="skip the redraw and run only the delivery tail (matte, repin/"
              "skin/recolor, backdrop and stroke) over the picked picture's "
              "own pixels; mutually exclusive with every redraw-shaping flag")
-    finalize_parser.add_argument("--handdrawn", action="store_true")
     finalize_parser.add_argument(
         "--repin", action="store_true", help="repin the delivery's palette")
-    finalize_parser.add_argument(
-        "--toe-guard", type=_number_or_word, nargs="?", const=TOE_GUARD, metavar="WEIGHT",
-        help="ban the toes in the redraw, hiding the count behind a smooth "
-             "toe box; off by default because the checkpoint draws five")
     finalize_parser.add_argument(
         "--skin", action="store_true",
         help="pin the redraw's skin back to the base render's own")
@@ -171,17 +165,11 @@ def parser() -> argparse.ArgumentParser:
     route_group.add_argument(
         "--pixel-route", dest="latent_route", action="store_const",
         const=False,
-        help="force the pixel-space route on a recipe (yukari-sketch) whose "
-             "own default is the latent route")
+        help="force the pixel-space route explicitly, finalize's own default")
     finalize_parser.add_argument(
         "--finalizer", metavar="MODEL",
         help="DiffusersLoader model_path that redraws instead of the base "
              "pass's own checkpoint")
-    finalize_parser.add_argument(
-        "--sketch-redraw", metavar="POSE",
-        help="on an anima base, redraw with the yukari-sketch look for POSE "
-             "(that pose's own prompt, LoRA and sampler) instead of the "
-             "anima recipe's own rough-style redraw")
     finalize_parser.add_argument(
         "--keep-scene", action="store_true",
         help="deliver the redraw uncut, background and all")
@@ -209,10 +197,6 @@ def parser() -> argparse.ArgumentParser:
         choices=["bicubic", "nearest-exact", "bilinear", "lanczos"],
         help="pixel-route upscale method feeding the redraw, overriding the "
              "delivery's own bicubic default")
-    finalize_parser.add_argument(
-        "--lora-strength", type=_number_or_word, metavar="STRENGTH",
-        help="strength the redraw's LoRA runs at, overriding the recipe's "
-             "own default")
     finalize_parser.add_argument(
         "--stroke-light", choices=sorted(STROKE_LIGHTS),
         help="light direction the purple stroke is shaded from; thin toward "
@@ -483,7 +467,7 @@ def main(argv: list[str] | None = None) -> None:
             chimera, args.generation_id, "finalize",
             {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
         finalize(args.generation_id, services, denoise=dial_values["denoise"],
-                 handdrawn=args.handdrawn, apply_repin=args.repin,
+                 apply_repin=args.repin,
                  apply_skin=args.skin,
                  apply_recolor=args.recolor,
                  keep_legwear=dial_values["keep_legwear"],
@@ -492,11 +476,8 @@ def main(argv: list[str] | None = None) -> None:
                  size=args.size,
                  latent_route=args.latent_route,
                  finalizer=args.finalizer,
-                 sketch_redraw=args.sketch_redraw,
-                 toe_guard=dial_values["toe_guard"],
                  backdrop=args.backdrop,
                  upscale=args.upscale,
-                 lora_strength=dial_values["lora_strength"],
                  deliver_size=args.deliver_size,
                  stroke_light=args.stroke_light,
                  repair=repair_parts,

@@ -32,7 +32,6 @@ from comfyui_recipes.application.work import (
 from comfyui_recipes.domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH
 from comfyui_recipes.domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from comfyui_recipes.domain.yukari.dials import DIALS as YUKARI_DIALS
-from comfyui_recipes.domain.yukari.recipe import TOE_GUARD
 from comfyui_recipes.domain.yukari_sketch.dials import DIALS as SKETCH_DIALS
 
 
@@ -293,17 +292,17 @@ class FinalizeArgumentsTest(unittest.TestCase):
     def test_defaults_are_false_and_null(self):
         arguments = finalize_arguments({})
         self.assertEqual(arguments, {
-            "denoise": None, "handdrawn": False, "apply_repin": RECIPE_DEFAULT,
+            "denoise": None, "apply_repin": RECIPE_DEFAULT,
             "apply_skin": False, "apply_recolor": False, "keep_legwear": None,
-            "toe_guard": None, "size": None, "deliver_size": None,
+            "size": None, "deliver_size": None,
             "latent_route": None,
             "finalizer": None, "keep_scene": False, "transparent": None,
-            "backdrop": RECIPE_DEFAULT, "upscale": None, "lora_strength": None,
+            "backdrop": RECIPE_DEFAULT, "upscale": None,
             "stroke_light": RECIPE_DEFAULT,
             "repair": None, "repair_regions": [], "repair_denoise": 0.6,
             "repair_pad": 1.0, "repair_size": None, "repair_lora": None,
             "repair_seeds": None,
-            "keep_regions": [], "keep_strength": 0.25, "sketch_redraw": None,
+            "keep_regions": [], "keep_strength": 0.25,
             "deliver_only": RECIPE_DEFAULT,
         })
 
@@ -367,21 +366,6 @@ class FinalizeArgumentsTest(unittest.TestCase):
     def test_keep_legwear_true_becomes_default_cut(self):
         self.assertEqual(finalize_arguments({"keep_legwear": True})["keep_legwear"], 0.62)
 
-    def test_lora_strength_null_passes_through(self):
-        self.assertIsNone(finalize_arguments({})["lora_strength"])
-
-    def test_lora_strength_a_number_passes_through(self):
-        self.assertEqual(
-            finalize_arguments({"lora_strength": 1.2})["lora_strength"], 1.2)
-
-    def test_lora_strength_above_the_range_is_rejected(self):
-        with self.assertRaisesRegex(ValueError, "lora_strength"):
-            finalize_arguments({"lora_strength": 3})
-
-    def test_lora_strength_a_boolean_is_rejected(self):
-        with self.assertRaisesRegex(ValueError, "lora_strength"):
-            finalize_arguments({"lora_strength": True})
-
     def test_stroke_light_absent_resolves_to_the_recipe_default_sentinel(self):
         self.assertIs(finalize_arguments({})["stroke_light"], RECIPE_DEFAULT)
 
@@ -428,21 +412,14 @@ class FinalizeArgumentsTest(unittest.TestCase):
     def test_route_latent_forces_latent_route_true(self):
         self.assertIs(finalize_arguments({"route": "latent"})["latent_route"], True)
 
-    def test_toe_guard_true_becomes_the_recipe_constant(self):
-        self.assertEqual(finalize_arguments({"toe_guard": True})["toe_guard"], TOE_GUARD)
-
-    def test_toe_guard_number_passes_through(self):
-        self.assertEqual(finalize_arguments({"toe_guard": 1.2})["toe_guard"], 1.2)
-
     def test_booleans_and_size_and_finalizer_pass_through(self):
         arguments = finalize_arguments({
-            "repin": True, "recolor": True, "handdrawn": True, "skin": True,
+            "repin": True, "recolor": True, "skin": True,
             "keep_scene": True, "size": 2048, "finalizer": "some-model",
             "denoise": 0.5, "transparent": True,
         })
         self.assertEqual(arguments["apply_repin"], True)
         self.assertEqual(arguments["apply_recolor"], True)
-        self.assertEqual(arguments["handdrawn"], True)
         self.assertEqual(arguments["apply_skin"], True)
         self.assertEqual(arguments["keep_scene"], True)
         self.assertEqual(arguments["size"], 2048)
@@ -565,22 +542,12 @@ class FinalizeArgumentsTest(unittest.TestCase):
     def test_word_on_a_recipe_with_no_dial_for_that_key_is_rejected(self):
         # yukari (IL) publishes only a `denoise` dial -- a word for a key it
         # has no vocabulary for fails the same way as an unknown word.
-        with self.assertRaisesRegex(ValueError, "toe_guard"):
-            finalize_arguments({"toe_guard": "on"}, YUKARI_DIALS["finalize"])
+        with self.assertRaisesRegex(ValueError, "keep_legwear"):
+            finalize_arguments({"keep_legwear": "on"}, YUKARI_DIALS["finalize"])
 
     def test_keep_legwear_word_resolves_to_the_same_constant_as_true(self):
         dials = SKETCH_DIALS["finalize"]
         self.assertEqual(finalize_arguments({"keep_legwear": "on"}, dials)["keep_legwear"], 0.62)
-
-    def test_toe_guard_word_resolves_to_the_recipe_constant(self):
-        dials = SKETCH_DIALS["finalize"]
-        self.assertEqual(finalize_arguments({"toe_guard": "on"}, dials)["toe_guard"], TOE_GUARD)
-
-    def test_lora_strength_word_resolves_through_dials(self):
-        dials = SKETCH_DIALS["finalize"]
-        self.assertEqual(finalize_arguments({"lora_strength": "raw"}, dials)["lora_strength"], 1.5)
-        self.assertEqual(
-            finalize_arguments({"lora_strength": "recipe"}, dials)["lora_strength"], 0.8)
 
     def test_repair_lora_word_resolves_through_dials(self):
         dials = SKETCH_DIALS["finalize"]
@@ -621,25 +588,17 @@ class FinalizeArgumentsTest(unittest.TestCase):
         dials = SKETCH_DIALS["finalize"]
         self.assertEqual(finalize_arguments({"denoise": 0.7}, dials)["denoise"], 0.7)
 
-    def test_sketch_redraw_null_passes_through(self):
-        self.assertIsNone(finalize_arguments({})["sketch_redraw"])
-
-    def test_sketch_redraw_string_passes_through(self):
-        self.assertEqual(
-            finalize_arguments({"sketch_redraw": "cinema"})["sketch_redraw"], "cinema")
-
-    def test_sketch_redraw_empty_string_is_rejected(self):
-        with self.assertRaisesRegex(ValueError, "sketch_redraw"):
-            finalize_arguments({"sketch_redraw": ""})
-
-    def test_sketch_redraw_non_string_is_rejected(self):
-        with self.assertRaisesRegex(ValueError, "sketch_redraw"):
-            finalize_arguments({"sketch_redraw": True})
-
     def test_unknown_key_is_rejected(self):
         with self.assertRaises(ValueError) as ctx:
             finalize_arguments({"nope": True})
         self.assertIn("nope", str(ctx.exception))
+
+    def test_removed_redraw_options_are_rejected_as_unknown(self):
+        with self.assertRaises(ValueError) as ctx:
+            finalize_arguments({"handdrawn": True, "toe_guard": 1.5})
+        message = str(ctx.exception)
+        self.assertIn("handdrawn", message)
+        self.assertIn("toe_guard", message)
 
     def test_wrong_type_is_rejected_with_the_offending_key_named(self):
         cases = [
@@ -649,7 +608,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
             {"route": "sideways"},
             {"finalizer": 123},
             {"size": 2048.5},
-            {"toe_guard": "on"},
+            {"upscale": 123},
             {"transparent": "yes"},
         ]
         for options in cases:

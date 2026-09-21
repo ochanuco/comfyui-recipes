@@ -19,7 +19,6 @@ from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.dials import DIALS as _YUKARI_DIALS
-from ..domain.yukari.recipe import TOE_GUARD
 from ..domain.yukari_anima.dials import DIALS as _ANIMA_DIALS
 from ..domain.yukari_sketch.dials import DIALS as _SKETCH_DIALS
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
@@ -34,11 +33,11 @@ DRY_RUN_PATH = "/api/v1/requests?status=queued&limit=1"
 
 _KNOWN_FINALIZE_OPTIONS = frozenset({
     "denoise", "repin", "recolor", "keep_legwear", "route", "finalizer",
-    "size", "handdrawn", "skin", "toe_guard", "keep_scene", "transparent",
-    "backdrop", "upscale", "lora_strength", "deliver_size", "stroke_light",
+    "size", "skin", "keep_scene", "transparent",
+    "backdrop", "upscale", "deliver_size", "stroke_light",
     "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
     "repair_lora", "repair_seeds", "keep_regions", "keep_strength",
-    "sketch_redraw", "deliver_only",
+    "deliver_only",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
@@ -68,8 +67,7 @@ _RECIPE_DIALS = {
 # and repair_arguments(); a key resolved there and missing here is reported
 # unresolved in resolved_options. Public: interfaces/cli.py reads them too,
 # to resolve the same keys' words from the args it already parsed.
-FINALIZE_DIAL_KEYS = ("denoise", "keep_legwear", "toe_guard", "lora_strength",
-                     "repair_denoise", "repair_lora")
+FINALIZE_DIAL_KEYS = ("denoise", "keep_legwear", "repair_denoise", "repair_lora")
 REPAIR_DIAL_KEYS = ("denoise", "lora")
 _MASKED_REDRAW_DIAL_KEYS = ("denoise",)
 
@@ -466,7 +464,7 @@ def finalize_arguments(options: Mapping,
             f"finalize options must be an object, got {type(options).__name__}")
     unknown = sorted(set(options) - _KNOWN_FINALIZE_OPTIONS)
     if unknown:
-        raise ValueError(f"unknown finalize options keys: {unknown}")
+        raise ValueError(f"finalize が受け付けない option です: {', '.join(unknown)}")
     dials = dials or {}
 
     def boolean(key: str) -> bool:
@@ -527,15 +525,6 @@ def finalize_arguments(options: Mapping,
     if deliver_size is not None and deliver_size < 1:
         raise ValueError(f"deliver_size must be at least 1, got {deliver_size!r}")
 
-    toe_guard = resolve_dial("toe_guard", options.get("toe_guard"), dials)
-    if toe_guard is True:
-        toe_guard = TOE_GUARD
-    elif toe_guard is not None and not (
-            isinstance(toe_guard, (int, float)) and not isinstance(toe_guard, bool)):
-        raise ValueError(
-            "toe_guard must be null, true or a number, got "
-            f"{type(toe_guard).__name__}")
-
     transparent = options.get("transparent")
     if transparent is not None and not isinstance(transparent, bool):
         raise ValueError(
@@ -561,14 +550,6 @@ def finalize_arguments(options: Mapping,
         raise ValueError(
             "upscale must be null, 'bicubic', 'nearest-exact', 'bilinear' or "
             f"'lanczos', got {upscale!r}")
-
-    lora_strength = resolve_dial("lora_strength", options.get("lora_strength"), dials)
-    if lora_strength is not None and not (
-            isinstance(lora_strength, (int, float)) and not isinstance(lora_strength, bool)):
-        raise ValueError(
-            f"lora_strength must be null or a number, got {type(lora_strength).__name__}")
-    if lora_strength is not None and not (0 <= lora_strength <= 2):
-        raise ValueError(f"lora_strength must be between 0 and 2, got {lora_strength!r}")
 
     if "stroke_light" not in options:
         stroke_light = RECIPE_DEFAULT
@@ -602,20 +583,12 @@ def finalize_arguments(options: Mapping,
         options.get("keep_regions", []), key="keep_regions")
     keep_strength = _keep_strength_argument(options.get("keep_strength", 0.25))
 
-    sketch_redraw = options.get("sketch_redraw")
-    if sketch_redraw is not None and not (
-            isinstance(sketch_redraw, str) and sketch_redraw):
-        raise ValueError(
-            f"sketch_redraw must be null or a non-empty string, got {sketch_redraw!r}")
-
     return {
         "denoise": float(denoise) if denoise is not None else None,
-        "handdrawn": boolean("handdrawn"),
         "apply_repin": defaultable_boolean("repin"),
         "apply_skin": boolean("skin"),
         "apply_recolor": boolean("recolor"),
         "keep_legwear": float(keep_legwear) if keep_legwear is not None else None,
-        "toe_guard": float(toe_guard) if toe_guard is not None else None,
         "size": size,
         "deliver_size": deliver_size,
         "latent_route": latent_route,
@@ -624,7 +597,6 @@ def finalize_arguments(options: Mapping,
         "transparent": transparent,
         "backdrop": backdrop,
         "upscale": upscale,
-        "lora_strength": float(lora_strength) if lora_strength is not None else None,
         "stroke_light": stroke_light,
         "repair": repair,
         "repair_regions": repair_regions,
@@ -635,7 +607,6 @@ def finalize_arguments(options: Mapping,
         "repair_seeds": repair_seeds,
         "keep_regions": keep_regions,
         "keep_strength": keep_strength,
-        "sketch_redraw": sketch_redraw,
         "deliver_only": defaultable_boolean("deliver_only"),
     }
 

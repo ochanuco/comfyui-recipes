@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import io
 import json
-import tempfile
 import unittest
 from contextlib import redirect_stdout
 from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-from comfyui_recipes.application.finalize import FinalizeServices, finalize
 from comfyui_recipes.application.generate import validate_request
 from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
 from comfyui_recipes.domain.yukari_sketch import delivery_style as ds
@@ -381,89 +379,6 @@ class LayerDiffuseGraphTest(unittest.TestCase):
                      and out[key].get("class_type") == "VAEDecode"]
         self.assertEqual(len(redraw_ids), 1)
         self.assertEqual(out[redraw_ids[0]]["inputs"]["vae"], ["4", 2])
-
-
-class ManagementFake:
-    def __init__(self, base_graph):
-        self.base_graph = base_graph
-        self.calls = []
-        self.context = {"batch": {"id": "source-batch"}}
-
-    def request(self, method, path, payload=None, multipart=None):
-        self.calls.append((method, path, payload, multipart))
-        if path.endswith("/context"):
-            return self.context
-        if method == "POST" and path == "/api/v1/batches":
-            return {"id": "batch-id", "short_id": "batch"}
-        if method == "POST" and path.endswith("/jobs"):
-            return {"id": "job-id"}
-        if path.endswith("/generations"):
-            return {"id": "generation", "short_id": "gen",
-                     "canonical_url": "https://example/g"}
-        return {}
-
-    def fetch_generation_image(self, generation_id):
-        return b"picked"
-
-
-class ComfyFake:
-    def upload_image(self, name, data):
-        return f"uploaded-{name}"
-
-    def submit(self, graph):
-        return "prompt-id"
-
-    def wait_for(self, prompt_id):
-        return [{"filename": "out.png"}, {"filename": "out-matte.png"},
-                {"filename": "out-delivered.png"}]
-
-    def fetch(self, image):
-        name = image["filename"]
-        if "-matte" in name:
-            return b"matte-bytes"
-        if "-delivered" in name:
-            return b"delivered-bytes"
-        return b"raw-bytes"
-
-
-class RecordingNotifier:
-    def send(self, *args):
-        pass
-
-
-class FinalizeSketchTest(unittest.TestCase):
-    def test_sketch_base_picks_its_own_delivery_constants(self):
-        spec = render_spec("cinema", 7, "ab11")
-        base_graph = build_graph(spec)
-        chain_pass_calls = []
-
-        def chain_pass_fake(base, size, denoise, prefix, **kwargs):
-            chain_pass_calls.append((size, denoise, kwargs))
-            return {}
-
-        with tempfile.TemporaryDirectory() as directory:
-            services = FinalizeServices(
-                management=ManagementFake(base_graph),
-                comfyui=ComfyFake(),
-                graph_from_png=lambda data: base_graph,
-                chain_pass=chain_pass_fake,
-                git_metadata=lambda: {"commit": "commit", "dirty": False},
-                notifier=RecordingNotifier(),
-                output_root=Path(directory),
-                emit=lambda message: None,
-                image_size=lambda data: (832, 1664),
-            )
-            finalize("gen-id", services)
-
-        size, denoise, kwargs = chain_pass_calls[-1]
-        self.assertEqual(size, ds.FINALIZE_SIZE)
-        self.assertEqual(denoise, ds.FINALIZE_DENOISE)
-        self.assertEqual(kwargs["sampler"], ds.FINALIZE_SAMPLER)
-        self.assertIsNone(kwargs["loader"])
-        self.assertIsNone(kwargs["sampling"])
-        self.assertTrue(kwargs["latent_route"])
-        self.assertEqual(kwargs["prompt"],
-                         (spec.prompts.positive, spec.prompts.negative))
 
 
 class ValidateRequestTest(unittest.TestCase):

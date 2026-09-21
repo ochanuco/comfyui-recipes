@@ -5,7 +5,6 @@ in the catalog.
 from __future__ import annotations
 
 from ..repair.loras import DEFAULT_PART_LORA_WEIGHT
-from ..yukari.recipe import TOE_GUARD
 from .delivery_style import FINALIZE_DENOISE
 from .prompt_style import LORA as SKETCH_LORA
 
@@ -23,8 +22,6 @@ DIALS = {
         "denoise": {"keep": FINALIZE_DENOISE, "tidy": _TIDY_DENOISE,
                     "redraw": _REDRAW_DENOISE},
         "keep_legwear": {"on": _KEEP_LEGWEAR_CUT},
-        "toe_guard": {"on": TOE_GUARD},
-        "lora_strength": {"recipe": SKETCH_LORA[1], "raw": _RAW_LORA_STRENGTH},
         "repair_lora": {"on": DEFAULT_PART_LORA_WEIGHT},
         "repair_denoise": {"keep": _REPAIR_DENOISE_KEEP},
     },

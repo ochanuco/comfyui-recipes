@@ -2,8 +2,8 @@
 
 Everything in this directory belongs to the Yuzuki Yukari workflow:
 
-- `costume-baseline.json` is the visual acceptance baseline used by
-  `scripts/costume_check.py`.
+- `delivery-fingerprint.json` is the accepted fingerprint of the delivery
+  identity, checked by `scripts/delivery_check.py`.
 - `prone-*-mask.png` are historical masks for the archived region-conditioning
   experiment in `scripts/archive/yk_prone_legwear.py`.
 

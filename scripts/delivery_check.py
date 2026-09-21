@@ -8,11 +8,11 @@ fingerprints it from an explicit canonical payload (not from the module
 source, so a comment edit does not move it and a value edit always does)
 and fails on any change that was not told to `--accept`.
 
-    uv run scripts/costume_check.py            # check the fingerprint
-    uv run scripts/costume_check.py --accept   # record a change that is meant
+    uv run scripts/delivery_check.py            # check the fingerprint
+    uv run scripts/delivery_check.py --accept   # record a change that is meant
 
 When it fails, nothing is broken -- something was changed. Re-run with
---accept to record the new fingerprint into assets/costume-baseline.json,
+--accept to record the new fingerprint into assets/delivery-fingerprint.json,
 and write in docs/render-notes.md what the look is now.
 
 Exit status is 1 if anything fails, so this can gate a commit.
@@ -28,7 +28,7 @@ from pathlib import Path
 
 from comfyui_recipes.domain.yukari import delivery_style as d
 
-BASELINE = Path(__file__).resolve().parent.parent / "assets/costume-baseline.json"
+BASELINE = Path(__file__).resolve().parent.parent / "assets/delivery-fingerprint.json"
 
 # Bumped whenever a field is added to or removed from the payload below --
 # a schema change moves the hash even if no tracked value did.
@@ -77,7 +77,7 @@ def main() -> None:
         BASELINE.write_text(
             json.dumps({"delivery_fingerprint": got}, indent=1) + "\n",
             encoding="utf-8")
-        print(f"delivery {got}   -> assets/costume-baseline.json")
+        print(f"delivery {got}   -> assets/delivery-fingerprint.json")
         print("write in docs/render-notes.md what the look is now")
         return
 

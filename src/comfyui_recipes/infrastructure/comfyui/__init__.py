@@ -1,3 +1,1 @@
-from .yukari_graph import build, build_graph
-
-__all__ = ["build", "build_graph"]
+"""ComfyUI graph adapters: one module per recipe's node encoding."""

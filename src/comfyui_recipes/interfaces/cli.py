@@ -27,22 +27,12 @@ from ..application.work import (
 from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
-from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
-from ..domain.yukari.poses import POSES
-from ..domain.yukari.recipe import negative, positive
 from ..domain.yukari_anima.costumes import COSTUMES as ANIMA_COSTUMES
 from ..domain.yukari_anima.expressions import EXPRESSIONS as ANIMA_EXPRESSIONS
 from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
 from ..domain.yukari_anima.recipe import negative as anima_negative
 from ..domain.yukari_anima.recipe import positive as anima_positive
-from ..domain.yukari_sketch.costumes import COSTUMES as SKETCH_COSTUMES
-from ..domain.yukari_sketch.poses import POSES as SKETCH_POSES
-from ..domain.yukari_sketch.recipe import departures as sketch_departures
-from ..domain.yukari_sketch.recipe import lineage as sketch_lineage
-from ..domain.yukari_sketch.recipe import negative as sketch_negative
-from ..domain.yukari_sketch.recipe import plain_request as sketch_plain_request
-from ..domain.yukari_sketch.recipe import positive as sketch_positive
 from ..infrastructure.chimera.client import ChimeraClient
 from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
@@ -177,8 +167,7 @@ def parser() -> argparse.ArgumentParser:
     transparent_group.add_argument(
         "--transparent", dest="transparent", action="store_const",
         const=True, default=None,
-        help="deliver the figure alone as an RGBA cutout (yukari-sketch's "
-             "default)")
+        help="deliver the figure alone as an RGBA cutout")
     transparent_group.add_argument(
         "--opaque", dest="transparent", action="store_const", const=False,
         help="composite on the backdrop with the purple stroke instead")
@@ -340,13 +329,6 @@ def parser() -> argparse.ArgumentParser:
     assets = metadata_commands.add_parser("list-assets")
     assets.add_argument("generation_id")
 
-    yukari_parser = commands.add_parser("yukari", help="inspect the Yukari domain")
-    yukari_commands = yukari_parser.add_subparsers(dest="yukari_command", required=True)
-    prompt = yukari_commands.add_parser("prompt")
-    prompt.add_argument("--pose", required=True, choices=sorted(POSES))
-    prompt.add_argument("--costume", default="default", choices=sorted(COSTUMES))
-    prompt.add_argument("--json", action="store_true")
-
     anima_parser = commands.add_parser("anima", help="inspect the Yukari-anima domain")
     anima_commands = anima_parser.add_subparsers(dest="anima_command", required=True)
     anima_prompt = anima_commands.add_parser("prompt")
@@ -354,69 +336,15 @@ def parser() -> argparse.ArgumentParser:
     anima_prompt.add_argument("--costume", choices=sorted(ANIMA_COSTUMES))
     anima_prompt.add_argument("--expression", choices=sorted(ANIMA_EXPRESSIONS))
     anima_prompt.add_argument("--json", action="store_true")
-
-    sketch_parser = commands.add_parser("sketch", help="inspect the Yukari-sketch domain")
-    sketch_commands = sketch_parser.add_subparsers(dest="sketch_command", required=True)
-    sketch_prompt = sketch_commands.add_parser("prompt")
-    sketch_prompt.add_argument("--pose", required=True, choices=sorted(SKETCH_POSES))
-    sketch_prompt.add_argument("--costume", choices=sorted(SKETCH_COSTUMES))
-    sketch_prompt.add_argument("--json", action="store_true")
-    sketch_lineage_parser = sketch_commands.add_parser("lineage")
-    sketch_lineage_parser.add_argument("--pose", choices=sorted(SKETCH_POSES))
-    sketch_lineage_parser.add_argument("--json", action="store_true")
-    sketch_plain_parser = sketch_commands.add_parser("plain")
-    sketch_plain_parser.add_argument("--pose", required=True, choices=sorted(SKETCH_POSES))
-    sketch_plain_parser.add_argument("--seed", type=int, required=True)
-    sketch_plain_parser.add_argument("--costume", choices=sorted(SKETCH_COSTUMES))
     return root
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parser().parse_args(argv)
-    if args.command == "yukari":
-        prompts = {
-            "positive": positive(args.pose, args.costume),
-            "negative": negative(args.pose, args.costume),
-        }
-        if args.json:
-            print(json.dumps(prompts, ensure_ascii=False, indent=2))
-        else:
-            print(prompts["positive"], "\n\n---\n\n", prompts["negative"])
-        return
     if args.command == "anima":
         prompts = {
             "positive": anima_positive(args.pose, args.costume, args.expression),
             "negative": anima_negative(args.pose, args.costume, args.expression),
-        }
-        if args.json:
-            print(json.dumps(prompts, ensure_ascii=False, indent=2))
-        else:
-            print(prompts["positive"], "\n\n---\n\n", prompts["negative"])
-        return
-    if args.command == "sketch":
-        if args.sketch_command == "lineage":
-            data = ({args.pose: sketch_departures(args.pose)} if args.pose
-                    else sketch_lineage())
-            if args.json:
-                print(json.dumps(data, ensure_ascii=False, indent=2))
-            else:
-                for name, dep in data.items():
-                    parent = dep["parent"] or "base"
-                    print(f"{name}  <- {parent}  "
-                         f"costume={SKETCH_POSES[name].costume}")
-                    for part, changes in dep["parts"].items():
-                        marker = (" (full override)"
-                                 if part == "face" and dep["face_override"]
-                                 else "")
-                        print(f"  {part}:{marker} " + " ".join(changes))
-            return
-        if args.sketch_command == "plain":
-            payload = sketch_plain_request(args.pose, args.seed, args.costume)
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
-            return
-        prompts = {
-            "positive": sketch_positive(args.pose, args.costume),
-            "negative": sketch_negative(args.pose, args.costume),
         }
         if args.json:
             print(json.dumps(prompts, ensure_ascii=False, indent=2))

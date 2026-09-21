@@ -56,7 +56,6 @@ def _request(recipe: str, parameters: dict) -> dict:
 _DUMMY_VALUES = {
     "hires": 1024, "denoise": 0.5, "costume": "default", "character": "yukari",
     "character_id": "char-1", "arm": "a", "expression": "doya",
-    "layerdiffuse": True,
 }
 
 
@@ -81,7 +80,7 @@ class BuildCatalogTest(unittest.TestCase):
     def test_every_recipe_has_every_pose_with_non_empty_prompts_and_canvas(self):
         catalog = build_catalog(GIT)
         names = {recipe["name"] for recipe in catalog["recipes"]}
-        self.assertEqual(names, {"yukari", "yukari-anima", "yukari-sketch"})
+        self.assertEqual(names, {"yukari-anima"})
         for recipe in catalog["recipes"]:
             self.assertTrue(recipe["poses"], recipe["name"])
             for pose in recipe["poses"]:
@@ -94,62 +93,17 @@ class BuildCatalogTest(unittest.TestCase):
                         self.assertIsInstance(side, int)
                         self.assertGreater(side, 0)
 
-    def test_anima_poses_carry_an_expression_others_do_not(self):
+    def test_anima_poses_carry_an_expression(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
         for pose in by_name["yukari-anima"]["poses"]:
             self.assertIn("expression", pose)
             self.assertIsInstance(pose["expression"], str)
-        for recipe_name in ("yukari", "yukari-sketch"):
-            for pose in by_name[recipe_name]["poses"]:
-                self.assertNotIn("expression", pose)
 
     def test_anima_recipe_lists_its_expressions(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
         self.assertIn("expressions", by_name["yukari-anima"])
-        self.assertNotIn("expressions", by_name["yukari"])
-        self.assertNotIn("expressions", by_name["yukari-sketch"])
-
-    def test_sketch_poses_carry_parent_and_departures(self):
-        catalog = build_catalog(GIT)
-        by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
-        poses = {pose["name"]: pose for pose in by_name["yukari-sketch"]["poses"]}
-        self.assertEqual(poses["date"]["parent"], "cinema")
-        self.assertIn("departures", poses["date"])
-        self.assertEqual(poses["date"]["departures"]["parent"], "cinema")
-        for name in ("cinema", "stand", "bust"):
-            self.assertIsNone(poses[name]["parent"])
-        self.assertEqual(poses["bust"]["canvas"], [1024, 1024])
-        self.assertEqual(
-            [part["text"] for part in poses["bust"]["parts"]
-             if part["name"] in ("proportion", "legwear", "body")],
-            ["adult, ", "", "pale skin, "])
-        expected_face = {
-            "cinema": None,
-            "stand": None,
-            "bust": None,
-            "smug": ("(tareme:1.2), (jitome:1.4), (half-closed eyes:1.2), "
-                     "(confident:1.18), (tiny one-corner smirk:1.1), "
-                     "closed mouth, looking at viewer, "),
-            "date": ("(tareme:1.2), (jitome:1.25), (half-closed eyes:1.15), "
-                     "(smirk:1.2), (smug:1.15), closed mouth, (blush:1.1), "
-                     "(head tilt:1.1), looking at viewer, "),
-            "cafe": ("(tareme:1.2), (jitome:1.2), (upturned eyes:1.3), "
-                     "(looking up:1.15), looking at viewer, (light "
-                     "smile:1.1), (parted lips:1.2), (blush:1.15), (head "
-                     "tilt:1.1), "),
-            "home": ("(tareme:1.2), (jitome:1.15), (half-closed "
-                     "eyes:1.25), (head back:1.3), (looking up:1.15), "
-                     "(open mouth:1.25), (exhausted:1.25), (sigh:1.15), "
-                     "(blush:1.1), "),
-            "bath": ("(tareme:1.2), (jitome:1.2), (half-closed eyes:1.2), "
-                     "(looking down:1.25), closed mouth, (blush:1.3), "
-                     "(flushed:1.2), "),
-        }
-        for name, face in expected_face.items():
-            with self.subTest(pose=name):
-                self.assertEqual(poses[name]["face"], face)
 
     def test_recipe_parameters_agree_with_validate_request(self):
         catalog = build_catalog(GIT)
@@ -181,10 +135,7 @@ class BuildCatalogTest(unittest.TestCase):
             self.assertIsInstance(patches["number"][target]["constraints"], str)
         for target in STRING_TARGETS:
             self.assertEqual(patches["string"][target]["op"], "set")
-        self.assertEqual(
-            patches["string"]["render.layerdiffuse_config"]["values"],
-            ["SDXL, Attention Injection", "SDXL, Conv Injection"])
-        self.assertIsNone(patches["string"]["render.model"]["values"])
+            self.assertIsNone(patches["string"][target]["values"])
 
     def test_patches_block_carries_the_part_target_and_identity_override(self):
         catalog = build_catalog(GIT)
@@ -193,46 +144,32 @@ class BuildCatalogTest(unittest.TestCase):
         self.assertIn("identity_override", patches["overrides"])
         self.assertTrue(patches["overrides"]["identity_override"])
 
-    def test_sketch_and_anima_poses_carry_parts_that_join_into_positive(self):
+    def test_anima_poses_carry_parts_that_join_into_positive(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
-        for recipe_name in ("yukari-sketch", "yukari-anima"):
-            for pose in by_name[recipe_name]["poses"]:
-                with self.subTest(recipe=recipe_name, pose=pose["name"]):
-                    self.assertIn("parts", pose)
-                    self.assertTrue(pose["parts"])
-                    for part in pose["parts"]:
-                        self.assertEqual(set(part), {"name", "text"})
-                    joined = "".join(part["text"] for part in pose["parts"])
-                    self.assertEqual(joined, pose["positive"])
-
-    def test_yukari_poses_carry_no_parts_key(self):
-        catalog = build_catalog(GIT)
-        by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
-        for pose in by_name["yukari"]["poses"]:
-            self.assertNotIn("parts", pose)
+        for pose in by_name["yukari-anima"]["poses"]:
+            with self.subTest(pose=pose["name"]):
+                self.assertIn("parts", pose)
+                self.assertTrue(pose["parts"])
+                for part in pose["parts"]:
+                    self.assertEqual(set(part), {"name", "text"})
+                joined = "".join(part["text"] for part in pose["parts"])
+                self.assertEqual(joined, pose["positive"])
 
     def test_recipe_level_parts_and_identity_tags(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
-        self.assertEqual(by_name["yukari"]["parts"], [])
-        self.assertEqual(
-            by_name["yukari-sketch"]["parts"],
-            ["quality", "identity", "costume", "pose", "proportion",
-             "background", "legwear", "face", "body", "finish"])
         self.assertEqual(
             by_name["yukari-anima"]["parts"],
             ["quality", "identity", "pose", "mouth", "mood", "eyes",
              "gesture", "costume", "scene", "body", "background", "face",
              "style"])
-        for recipe_name in ("yukari", "yukari-sketch", "yukari-anima"):
-            with self.subTest(recipe=recipe_name):
-                tags = by_name[recipe_name]["identity_tags"]
-                self.assertTrue(tags)
-                self.assertEqual(tags, sorted(set(tags)))
-                for tag in tags:
-                    self.assertNotIn("(", tag)
-                    self.assertNotIn(":", tag)
+        tags = by_name["yukari-anima"]["identity_tags"]
+        self.assertTrue(tags)
+        self.assertEqual(tags, sorted(set(tags)))
+        for tag in tags:
+            self.assertNotIn("(", tag)
+            self.assertNotIn(":", tag)
 
 
 class DialsTest(unittest.TestCase):
@@ -243,14 +180,11 @@ class DialsTest(unittest.TestCase):
                 self.assertIn("dials", recipe)
                 self.assertLessEqual(set(recipe["dials"]), set(_DIAL_SCOPE_KEYS))
 
-    def test_sketch_is_the_only_recipe_with_repair_dials(self):
+    def test_anima_dial_scopes(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
-        self.assertEqual(set(by_name["yukari-sketch"]["dials"]),
-                         {"finalize", "repair", "patches"})
         self.assertEqual(set(by_name["yukari-anima"]["dials"]),
                          {"finalize", "patches"})
-        self.assertEqual(set(by_name["yukari"]["dials"]), {"finalize"})
 
     def test_dial_keys_are_real_option_keys_of_their_scope(self):
         catalog = build_catalog(GIT)
@@ -319,10 +253,6 @@ class FinalizeDefaultsTest(unittest.TestCase):
             by_name["yukari-anima"]["finalize"]["defaults"],
             {"deliver_only": True, "repin": True, "stroke_light": "n",
              "backdrop": "dots"})
-        self.assertEqual(by_name["yukari"]["finalize"]["defaults"],
-                         {"stroke_light": "n", "backdrop": "stripes"})
-        self.assertEqual(by_name["yukari-sketch"]["finalize"]["defaults"],
-                         {"stroke_light": "n", "backdrop": "stripes"})
 
 
 class BackdropsBlockTest(unittest.TestCase):

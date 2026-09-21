@@ -16,7 +16,7 @@ they still need to exist:
 - `queue_*.py`, `comfy_host.py`, `workflow_ui.py`,
   `refine_from_history.py` — low-level ComfyUI operator tools. They are useful
   for generic graph work, but are not the recorded Yukari generation path.
-- `costume_check.py`, `palette_check.py`, `prompt_lint.py` — contract and
+- `delivery_check.py`, `palette_check.py`, `prompt_lint.py` — contract and
   request checks.
 - `recolor_*.py`, `outline_stroke.py`, `line_*.py`, `stripe_paint.py`,
   `repin.py`, `glitch.py` — manual image utilities.

@@ -15,10 +15,11 @@ def request_prompts(request: dict) -> tuple[str, str]:
     generation = request.get("generation", {})
     parameters = generation.get("parameters", {})
     pose = parameters["pose"]
-    costume = parameters.get("costume", "default")
+    costume = parameters.get("costume")
+    expression = parameters.get("expression")
     return (
-        generation.get("prompt") or positive(pose, costume),
-        generation.get("negative_prompt") or negative(pose, costume),
+        generation.get("prompt") or positive(pose, costume, expression),
+        generation.get("negative_prompt") or negative(pose, costume, expression),
     )
 
 

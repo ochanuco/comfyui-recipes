@@ -145,14 +145,14 @@ class GenerateApplicationTest(unittest.TestCase):
 
     def test_validate_request_rejects_unknown_parameters(self):
         request = base_request()
-        request["generation"]["parameters"]["expression"] = "smile"
+        request["generation"]["parameters"]["bogus_param"] = "smile"
         with self.assertRaises(SystemExit):
             validate_request(request)
 
     def test_validate_request_allows_unknown_parameters_in_graph_mode(self):
         request = base_request(
             graph={"a": {"class_type": "KSampler", "inputs": {}}})
-        request["generation"]["parameters"]["expression"] = "smile"
+        request["generation"]["parameters"]["bogus_param"] = "smile"
         validate_request(request)
 
     def test_validate_request_rejects_patches_with_graph(self):
@@ -185,17 +185,15 @@ class GenerateApplicationTest(unittest.TestCase):
 
     def test_validate_request_accepts_a_patch_word_for_a_recipe_with_dials(self):
         request = base_request(
-            recipe="yukari-sketch",
-            patches=[{"target": "render.lora_strength", "op": "set",
-                     "value": "raw", "reason": "test"}])
+            patches=[{"target": "render.width", "op": "set",
+                     "value": "draft", "reason": "test"}])
         validate_request(request)
 
-    def test_validate_request_rejects_a_patch_word_for_a_recipe_with_no_dials(self):
-        # yukari (IL) has no `dials.patches` vocabulary at all.
+    def test_validate_request_rejects_an_unknown_patch_word(self):
         request = base_request(patches=[
-            {"target": "render.lora_strength", "op": "set", "value": "raw",
+            {"target": "render.width", "op": "set", "value": "bogus",
              "reason": "test"}])
-        with self.assertRaisesRegex(SystemExit, "raw"):
+        with self.assertRaisesRegex(SystemExit, "bogus"):
             validate_request(request)
 
     def test_validate_request_accepts_well_formed_presets(self):
@@ -375,27 +373,6 @@ class GenerateApplicationTest(unittest.TestCase):
         generation = request_generation(request)
         graph = request_graph(generation, 42, "prefix", builder, encode)
         self.assertEqual(graph["6"]["inputs"]["text"], "base positive, extra tag")
-
-    def test_request_graph_resolves_a_lora_strength_word_for_yukari_sketch(self):
-        from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
-
-        def builder(*args, **kwargs):
-            return RenderSpec(
-                model_path="m", prompts=PromptPair("p", "n"),
-                width=8, height=8, seed=42, steps=30, cfg=5.0,
-                sampler_name="s", scheduler="k", denoise=1.0,
-                filename_prefix="p", loras=(("sketch-style-xl-linaqruf.safetensors", 0.8),))
-
-        def encode(spec):
-            return {"loras": list(spec.loras)}
-
-        generation = {
-            "recipe": "yukari-sketch", "parameters": {"pose": "cinema"},
-            "patches": [{"target": "render.lora_strength", "op": "set",
-                        "value": "raw", "reason": "test"}],
-        }
-        graph = request_graph(generation, 42, "prefix", builder, encode)
-        self.assertEqual(graph["loras"], [("sketch-style-xl-linaqruf.safetensors", 1.5)])
 
     def test_batch_payload_forwards_experiment(self):
         request = base_request()
@@ -577,28 +554,6 @@ class GenerateApplicationTest(unittest.TestCase):
         self.assertEqual(seen["args"], ("coffee", 7, "prefix"))
         self.assertEqual(
             seen["kwargs"], {"costume": "outing", "expression": "doya"})
-
-    def test_request_graph_forwards_layerdiffuse(self):
-        from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
-
-        seen = {}
-
-        def builder(*args, **kwargs):
-            seen["kwargs"] = kwargs
-            return RenderSpec(
-                model_path="m", prompts=PromptPair("built", "built-neg"),
-                width=8, height=8, seed=42, steps=30, cfg=5.0,
-                sampler_name="s", scheduler="k", denoise=1.0,
-                filename_prefix="p")
-
-        def encode(spec):
-            return {"6": {"inputs": {"text": spec.prompts.positive}},
-                    "7": {"inputs": {"text": spec.prompts.negative}}}
-
-        generation = base_request()["generation"]
-        generation["parameters"] = {"pose": "coffee", "layerdiffuse": True}
-        request_graph(generation, 7, "prefix", builder, encode)
-        self.assertEqual(seen["kwargs"], {"layerdiffuse": True})
 
     def test_generate_resume_ingested_job_does_not_submit_or_create_job(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1096,21 +1051,20 @@ class GenerateApplicationTest(unittest.TestCase):
         )
 
         strip_patch = [
-            {"target": "prompt.positive", "op": "remove",
-             "old": ("(light purple hair:1.15), (short hair with long "
-                     "locks:1.25), (very long sidelocks:1.2), (purple "
-                     "eyes:1.15), (hair ornament:1.2), "),
+            {"target": "prompt.positive.identity", "op": "remove",
+             "old": ("light purple hair, short hair with long locks, very "
+                     "long sidelocks, purple eyes, hair ornament, "),
              "reason": "repair crop"},
-            {"target": "prompt.positive", "op": "remove",
-             "old": "(tareme:1.2), (jitome:1.25), ", "reason": "repair crop"},
+            {"target": "prompt.positive.eyes", "op": "remove",
+             "old": "(tareme:1.2), (jitome:1.8), ", "reason": "repair crop"},
         ]
 
         def _request(**extra):
             return {
                 "schema_version": 1,
                 "request": {"count": 1, "instruction": "test", "seeds": [7]},
-                "generation": {"recipe": "yukari-sketch",
-                              "parameters": {"pose": "date"},
+                "generation": {"recipe": "yukari",
+                              "parameters": {"pose": "bust"},
                               "patches": strip_patch, **extra},
                 "semantic": {"summary": "test arm"},
             }
@@ -1131,8 +1085,8 @@ class GenerateApplicationTest(unittest.TestCase):
                 generate(path, services)
             message = str(ctx.exception)
             for tag in ("purple eyes", "light purple hair",
-                       "very long sidelocks", "hair ornament", "tareme",
-                       "jitome"):
+                       "short hair with long locks", "very long sidelocks",
+                       "hair ornament", "jitome"):
                 self.assertIn(tag, message)
 
         with tempfile.TemporaryDirectory() as directory:
@@ -1162,7 +1116,7 @@ class GenerateApplicationTest(unittest.TestCase):
                 call for call in management.calls
                 if call[0] == "POST" and call[1] == "/api/v1/batches")
             removed = set(batch_call[2]["identity_removed"])
-            self.assertTrue({"purple eyes", "tareme", "jitome"} <= removed)
+            self.assertTrue({"purple eyes", "jitome"} <= removed)
             self.assertEqual(
                 batch_call[2]["identity_override"], "deliberate repair crop")
 

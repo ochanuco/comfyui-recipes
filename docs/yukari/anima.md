@@ -1,12 +1,11 @@
-# yukari-anima
+# yukari
 
 > Yuzuki Yukari belongs to her original creators and rights holders -- see
 > [Derivative work](../../README.md#derivative-work) in the README.
 
-A second Yukari recipe, built for the Anima Turbo checkpoint,
-`anima-turbo-v1.1.safetensors` (circlestone-labs/Anima on Hugging Face) (`src/comfyui_recipes/domain/yukari_anima/`). It shares no code
-with `yukari` -- the two checkpoints do not share a prompt vocabulary or a
-graph shape -- but has a hires second pass that mirrors `yukari`'s.
+The Yukari recipe that draws, built for the Anima Turbo checkpoint,
+`anima-turbo-v1.1.safetensors` (circlestone-labs/Anima on Hugging Face)
+(`src/comfyui_recipes/domain/yukari/`).
 
 ## Fixed vs. variable
 
@@ -117,8 +116,8 @@ play; the base model is `anima_baseV10.safetensors` through a
 
 ### Hires pass
 
-`hires` is the target longest side in pixels, same convention as
-`yukari.recipe`. The second-pass canvas is computed proportionally from
+`hires` is the target longest side in pixels. The second-pass canvas is
+computed proportionally from
 the pose's own first-pass canvas -- `1024x1640` becomes `1280x2048` at
 `hires=2048` -- and rounded to a multiple of 8; `render_spec` raises
 `ValueError` if either dimension would come out below 8. The second pass
@@ -131,8 +130,8 @@ always `None` and `HiresSpec.negative` is always the base negative.
 
 The graph builder (`infrastructure/comfyui/anima_graph.py`) wires a
 `UNETLoader` + `CLIPLoader` + `VAELoader` triple (`qwen_3_06b_base` /
-`qwen_image_vae`) rather than yukari's single `DiffusersLoader`; the
-KSampler is node `"3"` and the tail is a `VAEDecode` feeding `SaveImage`,
+`qwen_image_vae`). The KSampler is node `"3"` and the tail is a `VAEDecode`
+feeding `SaveImage`,
 the same shape `refinement_graph.chain_pass` reads off any base graph.
 `render_spec` passes the pose's own `loras` straight through; each pair
 chains a `LoraLoaderModelOnly` node off the `UNETLoader` (or the previous
@@ -145,11 +144,13 @@ pose with none gets `"10"`/`"11"`.
 
 `delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.4`,
 `FINALIZE_MODEL = "hassaku-il-v22"`, `FINALIZE_SAMPLER = ("dpmpp_2m",
-"karras")`, `FINALIZE_STEPS = 30`, `FINALIZE_CFG = 5.0`.
-`application/finalize.py` picks these over yukari's own defaults by
-inspecting the base graph it fetched: a `UNETLoader` node means an anima
-base, and its finalize constants apply; anything else keeps the yukari
-defaults. `--denoise`/`--size` still override either way. `0.4` is the strength the user picked on bases drawn with no style LoRA,
+"karras")`, `FINALIZE_STEPS = 30`, `FINALIZE_CFG = 5.0`. `application/
+finalize.py` inspects the base graph it fetched: a `UNETLoader` node marks
+an anima source, the only one finalize redraws; a source with no
+`UNETLoader` (a plain or already-refined generation) must go through
+`deliver_only` instead, or finalize refuses it. `--denoise`/`--size` still
+override the redraw's own defaults. `0.4` is the strength the user picked
+on bases drawn with no style LoRA,
 over `0.55`, `0.75` and `0.9`; on a base that carries the sketch-style LoRA,
 `0.55` and up adds gloss to the legwear and re-decides buttons and
 ornaments.
@@ -167,14 +168,14 @@ checkpoint: a name ending in `.safetensors` loads from `models/checkpoints`
 through `CheckpointLoaderSimple`, anything else is a `models/diffusers`
 folder.
 
-`domain/yukari_anima/recipe.py`'s `refinement_prompt` builds the redraw
+`domain/yukari/recipe.py`'s `refinement_prompt` builds the redraw
 prompt: the positive replaces `STYLE`, the recipe's style tail,
 with `ROUGH_STYLE`, aiming the IL checkpoint at a rough, unfinished line
 instead. The negative drops `DETAIL_BAN`, `GRADIENT_BAN` and
 `COLORED_LINE_BAN` -- bans against a look the redraw is now asking for --
 and prefixes `ROUGH_BAN + PAINT_BAN + HAND_BAN + SHADE_BAN + DOT_BAN`
-(`HAND_BAN`, `SHADE_BAN` and `DOT_BAN` are the same redraw guards `yukari`
-uses, imported from `yukari.prompt_style`).
+(`HAND_BAN`, `SHADE_BAN` and `DOT_BAN` live in this recipe's own
+`prompt_style.py`; see below for what each guards against).
 
 The catalog publishes `delivery_style.py`'s `FINALIZE_DEFAULTS` --
 `deliver_only: true, repin: true, stroke_light: "n", backdrop: "dots"` -- as
@@ -187,7 +188,7 @@ another redraw-shaping option.
 
 ```json
 "generation": {
-  "recipe": "yukari-anima",
+  "recipe": "yukari",
   "parameters": {"pose": "coffee", "costume": "outing", "expression": "doya"}
 }
 ```
@@ -197,11 +198,53 @@ to the pose's own. `hires` and `denoise` are accepted for this recipe --
 `hires` is the target longest side of the second pass, `denoise` overrides
 `HIRES_DENOISE` and needs `hires` set -- see [queueing.md](../queueing.md).
 
-`domain/yukari_anima/dials.py` publishes `render.width`/`render.height` as
+`domain/yukari/dials.py` publishes `render.width`/`render.height` as
 words for `generation.patches` -- `draft` (`1024`/`1640`, the default
 canvas) and `full` (`1280`/`2048`); `docs/queueing.md`'s "Named dials"
 section covers the resolution rule shared by every recipe.
 
 ```bash
-uv run comfy-recipes anima prompt --pose coffee --json
+uv run comfy-recipes yukari prompt --pose coffee --json
 ```
+
+## HAND_BAN and the pass-depth split
+
+This split exists because of one measured asymmetry. `boss` found that
+removing `half-closed eyes` opens the eyes some, and that removal PLUS
+`(half-closed eyes:1.4), (closed eyes:1.4)` in the negative opens them the
+rest of the way -- 「open, iris visible」 -- and in the same breath found
+that the pair is safe chained onto a settled picture and unsafe from
+scratch: run from the recipe, it stacked with that pose's buttons guard and
+grew a second chair with a rabbit face on it, the fourth intruder this file
+has bought by stacking guards.
+
+The reasoning kept: a late pass only gets to delete, and a guard IS a
+deletion. A first pass gets to rearrange the composition around the same
+guard, and it does. So a guard whose job is subtraction belongs in the
+pass-2-only set (`HAND_BAN` and friends) rather than in the base negative,
+where it would be handed to a pass that can still rearrange around it.
+
+## SHADE_BAN
+
+「線画の絵柄が変わったね」. Every pose gets these tags on the second pass
+only, at 1.45/1.5/1.45/1.45 -- the same four tags already sit in NEGATIVE at
+1.2/1.25, this is the same guard at a weight that survives a 2x redraw.
+
+The diagnosis is worth keeping because it exonerates two suspects. Distinct
+flats over the figure measured 849 on the first `hoops` render, 643 on
+`knotK2`, and 1154 and 1167 on the two finalised prints -- the gloss
+arrived between them. It is not the pass-1 prompt: the same pass 1 measured
+552 with no second pass at all. It is not `6b` either: the 1167 render has
+no `6b` node. What changed is that pass 1 handed pass 2 a different latent,
+and the redraw landed in a glossier style -- specular hair, gradient
+irises, airbrushed skin, i.e. exactly the "clean and vivid" regression this
+guard exists to prevent.
+
+Raising the guard weights to 1.45/1.5 for the second pass measured 590
+against 1154 on the same pass 1. `(short dress:1.35)` was the other
+suspect and it is innocent: dropping it from the pass-2 positive measured
+1147, i.e. nothing.
+
+Pass 1 keeps its weights at 1.2/1.25, untouched: at 1024 that weight was
+never losing, and raising it there would re-roll the composition of every
+picked render in the file. The guard belongs to the pass that redraws.

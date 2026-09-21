@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Turn a bare region of skin into legwear, keeping the drawing that is on it.
 
-`prone` needs tights under knee-highs and the model will not draw both (see the
-splice in yukari_recipe.py). It will draw the socks, and it draws the thigh
-above them as bare skin -- correctly shaped, correctly shaded, wrong garment.
+`prone` needs tights under knee-highs and the model will not draw both. It
+will draw the socks, and it draws the thigh above them as bare skin --
+correctly shaped, correctly shaded, wrong garment.
 That is the case render-notes already settled once, on a thigh that came out
 warm-taupe: **recolour a wrong-coloured but well-shaped mass before re-rolling
 it.** This is that operation, as a tool.

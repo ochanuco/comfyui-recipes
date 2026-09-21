@@ -235,10 +235,9 @@ def _redraw_pass(graph: Mapping) -> dict:
 def _layerdiffuse_tail(graph: Mapping, consumers_map: Mapping[str, list[str]],
                        decode_id: str) -> tuple[str, str, str] | None:
     """`(ld_decode_id, invert_id, join_id)` for a `LayeredDiffusionDecode`
-    consuming `decode_id`'s own image directly (`yukari_graph.build_graph`'s
-    layerdiffuse tail: node 12 `LayeredDiffusionApply`, 13
-    `LayeredDiffusionDecode`, 14 `InvertMask`, 15 `JoinImageWithAlpha`), or
-    `None` if the source is not shaped that way.
+    consuming `decode_id`'s own image directly (a layerdiffuse tail: node 12
+    `LayeredDiffusionApply`, 13 `LayeredDiffusionDecode`, 14 `InvertMask`, 15
+    `JoinImageWithAlpha`), or `None` if the source is not shaped that way.
     """
     for node_id in consumers_map.get(decode_id, []):
         node = graph[node_id]

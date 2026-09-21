@@ -5,8 +5,7 @@ the purple marker is a post-process -- but they are identity all the same,
 applied by the delivery tools instead of the graph. Every tool reads its
 default from here, so the value a delivered picture actually wears has one
 source. Changing a value here changes every picture delivered after it --
-`costume_check.py` fingerprints this file alongside the prompt blocks for
-that reason.
+`costume_check.py` fingerprints this file for that reason.
 
 The calibration measurements behind each number are in
 docs/yukari/delivery_style.md.
@@ -413,14 +412,6 @@ KEY_EDGE_RING_PX = 1
 # of colour distance from the local backdrop.
 KEY_EDGE_RAMP = 2.0
 
-# finalize's masked refine, the denoise a 2048 print's touch-up runs at.
-FINALIZE_DENOISE = 0.45
-
-# The delivery redraw's own sampler (sampler_name, scheduler).
-FINALIZE_SAMPLER = ("euler", "normal")
-
-FINALIZE_DEFAULTS = {"stroke_light": "n", "backdrop": "stripes"}
-
 # Lineart-preserving recolour (infrastructure/imaging/recolor.py). Where
 # repin nudges the render's own saturation, recolor asserts a material's
 # colour outright and can therefore fix value too -- a washed-out black that
@@ -507,3 +498,27 @@ RECOLOR_SKIN_HUE = (48, 240)
 RECOLOR_WHITE_S = 8
 RECOLOR_HAIR_S = 45
 RECOLOR_DARK_V = 120
+
+# What the finalize redraw runs at.
+FINALIZE_SIZE = 2560
+FINALIZE_DENOISE = 0.4
+FINALIZE_MODEL = "hassaku-il-v22"
+FINALIZE_SAMPLER = ("dpmpp_2m", "karras")
+FINALIZE_STEPS = 30
+FINALIZE_CFG = 5.0
+
+FINALIZE_DEFAULTS = {"deliver_only": True, "repin": True, "stroke_light": "n",
+                     "backdrop": "dots"}
+
+# Replaces `STYLE`, the tail of the positive, for the redraw. `STYLE` is
+# hassakuAnima's own flat/cel-shaded finish; the redraw is a different
+# checkpoint aiming at a rough, unfinished line instead.
+ROUGH_STYLE = ("(sketch:1.45), (rough sketch:1.4), rough lines, sketchy "
+              "lines, pencil sketch, (unfinished:1.2), construction lines, "
+              "(colored pencil (medium):1.2), (soft shading:1.1)")
+
+ROUGH_BAN = ("(clean lineart:1.3), (smooth lines:1.2), (cel shading:1.2), "
+            "(flat color:1.2), ")
+PAINT_BAN = ("(brown legwear:1.5), (brown pantyhose:1.4), "
+            "(detailed shading:1.5), (heavy shading:1.5), (impasto:1.45), "
+            "(painterly:1.45), ")

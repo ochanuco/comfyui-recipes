@@ -19,17 +19,11 @@ from ..application.repair import RepairServices
 from ..application.work import WorkServices, work
 from ..domain.generation.fingerprint import prompt_fingerprint
 from ..domain.generation.prompt_lint import conflicts
-from ..domain.yukari.recipe import identity_tags as yukari_identity_tags
-from ..domain.yukari.recipe import render_spec as yukari_render_spec
-from ..domain.yukari_anima.recipe import identity_tags as anima_identity_tags
-from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
-from ..domain.yukari_sketch.recipe import identity_tags as sketch_identity_tags
-from ..domain.yukari_sketch.recipe import render_spec as sketch_render_spec
+from ..domain.yukari.recipe import identity_tags, render_spec
 from ..infrastructure.chimera.client import USER_AGENT, ChimeraClient
 from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_graph
 from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
-from ..infrastructure.comfyui.yukari_graph import build_graph as yukari_build_graph
 from ..infrastructure.imaging.delivery import graph_from_png, image_size
 from ..infrastructure.imaging.palette import summarize
 from ..infrastructure.notifications.discord import DiscordNotifier
@@ -48,16 +42,12 @@ DEFAULT_KINDS = ("generate", "finalize", "repair", "masked_redraw")
 
 # `generation.recipe` -> (RenderSpec builder, ComfyUI graph builder).
 RECIPES = {
-    "yukari": (yukari_render_spec, yukari_build_graph),
-    "yukari-anima": (anima_render_spec, anima_build_graph),
-    "yukari-sketch": (sketch_render_spec, yukari_build_graph),
+    "yukari": (render_spec, anima_build_graph),
 }
 
 # `generation.recipe` -> its identity_tags(pose, costume) function.
 IDENTITY_TAGS = {
-    "yukari": yukari_identity_tags,
-    "yukari-anima": anima_identity_tags,
-    "yukari-sketch": sketch_identity_tags,
+    "yukari": identity_tags,
 }
 
 

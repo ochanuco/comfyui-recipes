@@ -24,7 +24,7 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
 
 ## The pipeline is two stages, and it is the user's
 
-1. **Anima draws.** A new picture starts on `yukari-anima` -- Anima Turbo
+1. **Anima draws.** A new picture starts on `yukari` -- Anima Turbo
    (`anima-turbo-v1.1`, 10 steps, CFG 2) with the artist tags
    `(@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5)` and no style LoRA:
    composition, proportion and hands obey the prompt there, and the artist
@@ -32,7 +32,7 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
 2. **Finalize delivers the raw pick.** `finalize` cuts a matte, repins the
    palette and composites the backdrop and purple stroke onto the Anima
    pick itself -- no redraw. It is the recipe default
-   (`yukari_anima/delivery_style.py`): the WebUI button and an
+   (`yukari/delivery_style.py`): the WebUI button and an
    option-less `finalize_generation` both deliver this way.
 
 An Illustrious redraw (hassaku-il-v22 at 2560, denoise 0.4) is a
@@ -62,21 +62,20 @@ append `render.loras` at strength `0` (the patch rejects an empty list) and
 remove `(sketch style:1.2), ` from `prompt.positive.style`. The recipe's
 plain `stand` still wears the pre-official costume.
 
-One recipe is live, `yukari_anima/` under `src/comfyui_recipes/domain/`: the
-Anima Turbo checkpoint's identity, costumes, poses, prompt edit order and
-stage-2 redraw settings (`delivery_style.py`). `docs/yukari/anima.md` is the
-description. `domain/yukari/delivery_style.py` sits alongside it and is not
-a recipe -- it is the delivery identity (backdrop, purple stroke,
-acceptance band) every delivered picture wears, read by imaging, catalog,
-work, cli and repair alike; `domain/yukari/`'s package `__init__.py` exists
-only to hold that module.
+One recipe is live, `yukari` under `src/comfyui_recipes/domain/`: the Anima
+Turbo checkpoint's identity, costumes, poses and prompt edit order.
+`docs/yukari/anima.md` is the description. `domain/yukari/delivery_style.py`
+holds both the delivery identity (backdrop, purple stroke, acceptance band)
+every delivered picture wears, read by imaging, catalog, work, cli and
+repair alike, and the finalize redraw settings (stage-2 model, sampler,
+denoise); it is not itself a recipe.
 
 Finalize redraws an Anima source only (a `UNETLoader` node in its base
 graph). A source drawn by any other recipe is delivered with `deliver_only`
 and never redrawn, and a LayerDiffuse base is refused.
 
 The ComfyUI node encoding is under `infrastructure/comfyui/`.
-`comfy-recipes anima prompt --pose …` prints what the recipe sends.
+`comfy-recipes yukari prompt --pose …` prints what the recipe sends.
 
 Everything measured is recorded — see "Where information lives" below for
 which store. The records are the point of the repository; the scripts are how
@@ -163,7 +162,7 @@ uv run scripts/atlas.py                    # every script: role, size, one line 
 uv run scripts/atlas.py notes              # the notes' headings + line numbers   (~2.8k)
 uv run scripts/atlas.py notes <pattern>    # just the sections that match
 uv run scripts/atlas.py find <regex>       # matching lines, each under its heading
-uv run comfy-recipes anima prompt --pose bust                    # ~0.6k, not the whole recipe
+uv run comfy-recipes yukari prompt --pose bust                    # ~0.6k, not the whole recipe
 uv run comfy-recipes catalog                                     # what `work` would publish
 uv run scripts/costume_check.py                                  # the delivery identity, verified
 ```
@@ -319,7 +318,7 @@ get.** The one-garment leg was agreed, written into the notes and into
 memory, and applied by throwaway scripts in `.local/` — while the costume
 block still built the retired two-layer garment, so another session got
 tights under knee-highs straight out of the recipe. If a change is settled,
-put it in the blocks (`yukari_anima/costumes.py`'s `COSTUMES`/`LEGWEAR`).
+put it in the blocks (`yukari/costumes.py`'s `COSTUMES`/`LEGWEAR`).
 
 ## Working files
 

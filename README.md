@@ -9,7 +9,7 @@ Two things make it more than a thin API wrapper:
 
 **The defaults are the recipe.** The Yukari domain owns the checkpoint,
 sampler, resolution and prompt blocks that took batches of rendering to find.
-`comfy-recipes anima prompt --pose bust` inspects the exact prompt without
+`comfy-recipes yukari prompt --pose bust` inspects the exact prompt without
 queueing; actual generation always uses a recorded request.
 
 **The GPU box is the only executor.** `comfy-recipes work` runs there next to
@@ -84,7 +84,7 @@ uv run comfy-recipes generate --request request.json --dry-run   # validate a re
 
 `request.json` follows the contract in the chimera repository's
 `docs/generation-request.md` (`schema_version` 1). The parts this CLI reads:
-`generation.recipe` must be `yukari-anima`; `generation.parameters` carries
+`generation.recipe` must be `yukari`; `generation.parameters` carries
 the builder arguments (`pose` required; `costume`, `hires`, `denoise`
 optional); `generation.prompt` / `negative_prompt`, when set, replace the
 built node text wholesale. For attribution, `parameters.character` takes a

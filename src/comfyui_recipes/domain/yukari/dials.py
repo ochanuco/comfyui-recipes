@@ -1,4 +1,4 @@
-"""Named words for yukari-anima's finalize options, published in the catalog."""
+"""Named words for yukari's finalize options, published in the catalog."""
 
 from __future__ import annotations
 

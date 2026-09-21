@@ -1,9 +1,9 @@
 """The interpreter: pose, costume and expression records into a prompt pair.
 
-A hires pass mirrors `yukari.recipe`'s: `hires` is a target longest side,
-the second-pass canvas is computed proportionally from the pose's own
-canvas, and the first pass's prompts carry over unchanged
-(`HiresSpec.positive` is `None`, `HiresSpec.negative` is the base negative).
+A hires pass's `hires` is a target longest side; the second-pass canvas is
+computed proportionally from the pose's own canvas, and the first pass's
+prompts carry over unchanged (`HiresSpec.positive` is `None`,
+`HiresSpec.negative` is the base negative).
 """
 
 from __future__ import annotations
@@ -118,7 +118,7 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
                 denoise: float | None = None, costume: str | None = None,
                 expression: str | None = None) -> RenderSpec:
     if not hires and denoise is not None:
-        raise ValueError("yukari-anima denoise needs hires")
+        raise ValueError("yukari denoise needs hires")
     width, height = POSES[pose].canvas or (WIDTH, HEIGHT)
     parts = positive_parts(pose, costume, expression)
     base_negative = negative(pose, costume, expression)

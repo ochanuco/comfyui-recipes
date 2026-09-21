@@ -20,9 +20,7 @@ from comfyui_recipes.application.finalize import RECIPE_DEFAULT, FinalizeService
 from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.repair.prompt import PART_TAGS
 from comfyui_recipes.domain.yukari import delivery_style
-from comfyui_recipes.domain.yukari_anima import delivery_style as anima_delivery_style
-from comfyui_recipes.domain.yukari_anima.recipe import refinement_prompt as anima_refinement_prompt
-from comfyui_recipes.domain.yukari_anima.recipe import render_spec
+from comfyui_recipes.domain.yukari.recipe import refinement_prompt, render_spec
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 
@@ -378,13 +376,13 @@ class FinalizeApplicationTest(unittest.TestCase):
             self.assertIs(chain_pass_calls[-1]["repin"], False)
             self.assertIs(chain_pass_calls[-1]["skin"], False)
             self.assertEqual(
-                chain_pass_calls[-1]["sampler"], anima_delivery_style.FINALIZE_SAMPLER)
+                chain_pass_calls[-1]["sampler"], delivery_style.FINALIZE_SAMPLER)
 
             finalize("gen-id", services, apply_repin=True, apply_skin=True)
             self.assertIs(chain_pass_calls[-1]["repin"], True)
             self.assertIs(chain_pass_calls[-1]["skin"], True)
             self.assertEqual(
-                chain_pass_calls[-1]["sampler"], anima_delivery_style.FINALIZE_SAMPLER)
+                chain_pass_calls[-1]["sampler"], delivery_style.FINALIZE_SAMPLER)
 
     def test_anima_base_submitted_graph_carries_the_il_redraw(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -409,7 +407,7 @@ class FinalizeApplicationTest(unittest.TestCase):
                 loader["inputs"]["model_path"] == "hassaku-il-v22"
                 for loader in loaders))
             redraw_sampler = graph["12"]["inputs"]
-            self.assertEqual(redraw_sampler["denoise"], anima_delivery_style.FINALIZE_DENOISE)
+            self.assertEqual(redraw_sampler["denoise"], delivery_style.FINALIZE_DENOISE)
             self.assertEqual(redraw_sampler["steps"], 30)
             self.assertEqual(redraw_sampler["cfg"], 5.0)
             self.assertEqual(redraw_sampler["sampler_name"], "dpmpp_2m")
@@ -429,18 +427,18 @@ class FinalizeApplicationTest(unittest.TestCase):
             finalize("gen-id", services)
 
             size, denoise, kwargs = chain_pass_calls[-1]
-            self.assertEqual(size, anima_delivery_style.FINALIZE_SIZE)
-            self.assertEqual(denoise, anima_delivery_style.FINALIZE_DENOISE)
-            self.assertEqual(kwargs["loader"], anima_delivery_style.FINALIZE_MODEL)
-            self.assertEqual(kwargs["sampler"], anima_delivery_style.FINALIZE_SAMPLER)
+            self.assertEqual(size, delivery_style.FINALIZE_SIZE)
+            self.assertEqual(denoise, delivery_style.FINALIZE_DENOISE)
+            self.assertEqual(kwargs["loader"], delivery_style.FINALIZE_MODEL)
+            self.assertEqual(kwargs["sampler"], delivery_style.FINALIZE_SAMPLER)
             self.assertEqual(
                 kwargs["sampling"],
-                (anima_delivery_style.FINALIZE_STEPS,
-                 anima_delivery_style.FINALIZE_CFG))
+                (delivery_style.FINALIZE_STEPS,
+                 delivery_style.FINALIZE_CFG))
 
             self.assertEqual(
                 batch_call(services)[2]["parameters"]["finalizer"],
-                anima_delivery_style.FINALIZE_MODEL)
+                delivery_style.FINALIZE_MODEL)
 
     def test_anima_base_honors_an_explicit_finalizer(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -481,9 +479,9 @@ class FinalizeApplicationTest(unittest.TestCase):
             # the anima defaults prove the LoraLoaderModelOnly node (not
             # LoraLoader) did not get mistaken for a sketch base's own LoRA.
             self.assertEqual(
-                chain_pass_calls[-1]["loader"], anima_delivery_style.FINALIZE_MODEL)
+                chain_pass_calls[-1]["loader"], delivery_style.FINALIZE_MODEL)
             self.assertEqual(
-                chain_pass_calls[-1]["sampler"], anima_delivery_style.FINALIZE_SAMPLER)
+                chain_pass_calls[-1]["sampler"], delivery_style.FINALIZE_SAMPLER)
 
     def test_returns_batch_id_and_generation_ids(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -996,7 +994,7 @@ class FinalizeRepairTest(unittest.TestCase):
             self.assertEqual(call["denoise"], 0.7)
             self.assertEqual(call["size"], 768)
             self.assertIn(PART_TAGS["feet"], call["positive"])
-            expected_negative = anima_refinement_prompt(PromptPair("p", "n")).negative
+            expected_negative = refinement_prompt(PromptPair("p", "n")).negative
             self.assertEqual(call["negative"], expected_negative)
             self.assertTrue(call["mask_name"].startswith("uploaded-fin-gen-id-"))
             self.assertTrue(call["mask_name"].endswith("-mask.png"))

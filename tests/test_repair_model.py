@@ -6,7 +6,7 @@ import json
 import unittest
 from pathlib import Path
 
-from comfyui_recipes.domain.yukari_anima.prompt_style import CFG, SAMPLER, SCHEDULER, STEPS
+from comfyui_recipes.domain.yukari.prompt_style import CFG, SAMPLER, SCHEDULER, STEPS
 from comfyui_recipes.infrastructure.comfyui.anima_graph import CLIP_NAME, VAE_NAME
 from comfyui_recipes.infrastructure.comfyui.repair_graph import repair_graph
 from comfyui_recipes.infrastructure.comfyui.repair_model import anima_model_hook
@@ -67,7 +67,7 @@ class AnimaModelHookTest(unittest.TestCase):
                       and self.graph[node["inputs"]["samples"][0]] is sample)
         self.assertEqual(decode["inputs"]["vae"], [vae_id, 0])
 
-    def test_sampler_settings_come_from_yukari_anima_prompt_style(self):
+    def test_sampler_settings_come_from_yukari_prompt_style(self):
         sample = self._sampler()
         self.assertEqual(sample["inputs"]["steps"], STEPS)
         self.assertEqual(sample["inputs"]["cfg"], CFG)

@@ -58,7 +58,7 @@ class ManagementFake:
         # A finalize/repair/masked_redraw row's dial resolution fetches the
         # source generation's context, then its batch, for `batch.recipe`.
         self.context = context if context is not None else {"batch": {"id": "batch-1"}}
-        self.batch = batch if batch is not None else {"id": "batch-1", "recipe": "yukari-anima"}
+        self.batch = batch if batch is not None else {"id": "batch-1", "recipe": "yukari"}
 
     def request(self, method, path, payload=None, multipart=None):
         self.calls.append((method, path, payload, multipart))
@@ -978,7 +978,7 @@ class ExecuteTest(unittest.TestCase):
     def test_finalize_resolves_words_against_the_source_batchs_recipe(self):
         with tempfile.TemporaryDirectory() as directory:
             management = ManagementFake(
-                batch={"id": "batch-1", "recipe": "yukari-anima"})
+                batch={"id": "batch-1", "recipe": "yukari"})
             services = make_services(
                 directory, management,
                 finalize=lambda generation_id, finalize_services, **kwargs: {
@@ -994,7 +994,7 @@ class ExecuteTest(unittest.TestCase):
 
     def test_finalize_word_unknown_to_the_source_recipe_fails_the_request(self):
         with tempfile.TemporaryDirectory() as directory:
-            # yukari-anima (the default fake recipe) has no `redraw` word.
+            # yukari (the default fake recipe) has no `redraw` word.
             services = make_services(
                 directory, ManagementFake(),
                 finalize=lambda *a, **k: (_ for _ in ()).throw(

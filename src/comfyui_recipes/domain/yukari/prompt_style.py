@@ -1,4 +1,4 @@
-"""Yukari-anima's fixed prompt blocks and render constants.
+"""Yukari's fixed prompt blocks and render constants.
 
 Every block that is concatenated mid-prompt ends with its own ", " -- the
 assembly in `recipe.py` only ever joins strings end to end, never inserts a

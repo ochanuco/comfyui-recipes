@@ -17,7 +17,7 @@ from typing import Protocol
 from ..domain.generation.models import PromptPair, RenderSpec
 from ..domain.generation.patches import apply_patches, parse_patches
 from ..domain.generation.prompt_lint import tags as prompt_tags
-from ..domain.yukari_anima.dials import DIALS as ANIMA_DIALS
+from ..domain.yukari.dials import DIALS
 
 PresetFetcher = Callable[[str, str, str, int], dict]
 
@@ -25,7 +25,7 @@ PresetFetcher = Callable[[str, str, str, int], dict]
 # number). application/work.py's _RECIPE_DIALS is the same, keyed the same
 # way, for its own finalize/repair scopes.
 PATCH_DIALS: dict[str, Mapping[str, Mapping[str, float]]] = {
-    "yukari-anima": ANIMA_DIALS.get("patches", {}),
+    "yukari": DIALS.get("patches", {}),
 }
 
 
@@ -71,7 +71,7 @@ KNOWN_PARAMETERS = frozenset(
 
 # Read by validate_request and by the published catalog.
 RECIPE_REJECTED_PARAMETERS: dict[str, frozenset[str]] = {
-    "yukari-anima": frozenset(),
+    "yukari": frozenset(),
 }
 
 
@@ -136,10 +136,10 @@ def validate_request(req: object) -> None:
             raise SystemExit("generation.graph must be a non-empty graph dict")
         if not generation.get("recipe"):
             raise SystemExit("generation.recipe must name what this graph is")
-    elif generation.get("recipe") not in ("yukari-anima",):
+    elif generation.get("recipe") not in ("yukari",):
         raise SystemExit(
             f"recipe {generation.get('recipe')} は使えません。使えるのは "
-            "yukari-anima です")
+            "yukari です")
     elif not parameters.get("pose") and not _pins_pose(generation):
         raise SystemExit(
             f"generation.parameters.pose is required for {generation['recipe']} "

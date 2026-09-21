@@ -19,8 +19,7 @@ from ..application.repair import RepairServices
 from ..application.work import WorkServices, work
 from ..domain.generation.fingerprint import prompt_fingerprint
 from ..domain.generation.prompt_lint import conflicts
-from ..domain.yukari_anima.recipe import identity_tags as anima_identity_tags
-from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
+from ..domain.yukari.recipe import identity_tags, render_spec
 from ..infrastructure.chimera.client import USER_AGENT, ChimeraClient
 from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_graph
 from ..infrastructure.comfyui.client import ComfyUIClient
@@ -43,12 +42,12 @@ DEFAULT_KINDS = ("generate", "finalize", "repair", "masked_redraw")
 
 # `generation.recipe` -> (RenderSpec builder, ComfyUI graph builder).
 RECIPES = {
-    "yukari-anima": (anima_render_spec, anima_build_graph),
+    "yukari": (render_spec, anima_build_graph),
 }
 
 # `generation.recipe` -> its identity_tags(pose, costume) function.
 IDENTITY_TAGS = {
-    "yukari-anima": anima_identity_tags,
+    "yukari": identity_tags,
 }
 
 

@@ -5,7 +5,7 @@ the purple marker is a post-process -- but they are identity all the same,
 applied by the delivery tools instead of the graph. Every tool reads its
 default from here, so the value a delivered picture actually wears has one
 source. Changing a value here changes every picture delivered after it --
-`costume_check.py` fingerprints this file for that reason.
+`delivery_check.py` fingerprints this file for that reason.
 
 The calibration measurements behind each number are in
 docs/yukari/delivery_style.md.

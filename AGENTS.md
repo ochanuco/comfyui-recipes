@@ -164,7 +164,7 @@ uv run scripts/atlas.py notes <pattern>    # just the sections that match
 uv run scripts/atlas.py find <regex>       # matching lines, each under its heading
 uv run comfy-recipes yukari prompt --pose bust                    # ~0.6k, not the whole recipe
 uv run comfy-recipes catalog                                     # what `work` would publish
-uv run scripts/costume_check.py                                  # the delivery identity, verified
+uv run scripts/delivery_check.py                                  # the delivery identity, verified
 ```
 
 `atlas.py` reads the tree every time it runs, so unlike a committed index it
@@ -300,16 +300,16 @@ tracked file.
 The delivery identity (backdrop `#c7e5e9`, the purple stroke, the acceptance
 band, in `domain/yukari/delivery_style.py`) is worn by every delivered
 picture. Editing it changes every render this repo has ever approved, which
-is why `scripts/costume_check.py` hashes it, from an explicit canonical
+is why `scripts/delivery_check.py` hashes it, from an explicit canonical
 payload, and fails on any change it was not told about:
 
 ```bash
-uv run scripts/costume_check.py            # check the fingerprint
-uv run scripts/costume_check.py --accept   # record a change that is meant
+uv run scripts/delivery_check.py            # check the fingerprint
+uv run scripts/delivery_check.py --accept   # record a change that is meant
 ```
 
 When it fails, nothing is broken — something was changed. `--accept` writes
-the new fingerprint into `assets/costume-baseline.json`; write in
+the new fingerprint into `assets/delivery-fingerprint.json`; write in
 `docs/render-notes.md` what the look is now.
 
 A rule that follows from this, learned the expensive way: **a settled design

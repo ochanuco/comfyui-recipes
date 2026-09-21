@@ -17,11 +17,9 @@ uv run comfy-recipes work                                        # serve the que
 ```
 
 The request contract is schema version 1. `generation.recipe` must be
-`yukari`, `yukari-anima` or `yukari-sketch`, and `generation.parameters.pose`
-is required. `costume` is optional for all three; `hires` and `denoise` are
-accepted by `yukari` and `yukari-anima` (each has a second pass) and
-rejected by `yukari-sketch` (it has none); `expression` is anima-only --
-`yukari-sketch` rejects it too (it has no expression records).
+`yukari`, and `generation.parameters.pose` is required. `costume` is
+optional, and so are `hires`/`denoise` (the recipe's second pass) and
+`expression`.
 A `semantic.summary` is required so each render has evaluation context
 before it is ingested. State is kept beside the request as
 `<request>.state.json`; retain it to resume safely after a crash. A recorded
@@ -50,9 +48,9 @@ A `generate` row's payload is a request.json body, written verbatim to
 case `comfy-recipes generate` does. A `finalize` row's payload is
 `{"generation_id", "options": {...}}`; `options` maps to `finalize()`'s CLI
 flags (`denoise`, `repin`, `recolor`, `keep_legwear`, `route`, `finalizer`,
-`size`, `deliver_size`, `handdrawn`, `skin`, `toe_guard`, `keep_scene`,
+`size`, `deliver_size`, `skin`, `keep_scene`,
 `stroke_light`, `repair`, `repair_regions`, `repair_denoise`, `repair_pad`,
-`repair_size`, `repair_lora`, `repair_seeds`, `sketch_redraw`, `deliver_only`,
+`repair_size`, `repair_lora`, `repair_seeds`, `deliver_only`,
 `matte_model`) with the same
 defaults `comfy-recipes finalize` has when a flag is omitted, except for
 `backdrop`, `stroke_light`, `repin` and `deliver_only`: an omitted key there
@@ -62,12 +60,12 @@ resolves on the worker to the base's own recipe default (the same
 these four gets the same delivery the WebUI gets by sending
 `finalize.defaults` explicitly. `deliver_only` only takes its recipe default
 when none of the redraw-shaping options above (`denoise`, `size`, `route`,
-`finalizer`, `lora_strength`, `sketch_redraw`, `handdrawn`, `toe_guard`,
-`keep_regions`, `upscale`) is present in the same request; if any of them is
-present, an omitted `deliver_only` resolves to `false` instead. `repair` and
+`finalizer`, `keep_regions`, `upscale`) is present in the same request; if
+any of them is present, an omitted `deliver_only` resolves to `false`
+instead. `repair` and
 `repair_regions` are not redraw-shaping options for this purpose -- a
 request that carries only those (plus a recipe whose own default is
-`deliver_only: true`, such as yukari-anima) still takes the deliver_only
+`deliver_only: true`, such as yukari) still takes the deliver_only
 path. An explicit `null` on `backdrop` or `stroke_light` keeps
 today's meaning regardless -- `stroke_light: null` is the uniform rim,
 `backdrop: null` is no backdrop -- only an *absent* key now falls back to
@@ -77,27 +75,17 @@ the recipe default. A `repair` row's payload is
 row's payload is the same shape again; see
 [Masked redraw](#masked-redraw) below for its options.
 
-`sketch_redraw` (`--sketch-redraw POSE`) is valid only on an anima base: the
-redraw runs the yukari-sketch recipe's own prompt for `POSE` (its own default
-costume) instead of the anima recipe's rough-style redraw, loads the sketch
-LoRA at `lora_strength` (or the sketch recipe's own default), and samples
-`euler`/`normal` at the sketch recipe's steps/cfg. Denoise, size, deliver-size
-and the transparent-cutout default all follow yukari-sketch's own defaults
-too; an unknown pose is the same error `comfy-recipes sketch prompt` raises,
-and using it on a non-anima base is rejected.
-
-`backdrop` (`--backdrop` on the CLI) takes a `#RRGGBB` colour or the named
-pattern `stripes`; setting it turns off the sketch recipe's transparent
-default and delivers an opaque sticker on that backdrop instead.
+`backdrop` (`--backdrop` on the CLI) takes a `#RRGGBB` colour or a named
+pattern; setting it turns off the recipe's transparent default and delivers
+an opaque sticker on that backdrop instead.
 
 `deliver_only` (`--deliver-only`) skips the redraw entirely: the picked
 picture's own pixels go straight through the matte, the optional
 repin/skin/recolor, and the backdrop/stroke delivery tail, at the picked
 picture's own canvas size. It works on any base except layerdiffuse, and is
 mutually exclusive with every flag that shapes a whole-canvas redraw --
-`denoise`, `size`, `route`, `finalizer`, `lora_strength`, `sketch_redraw`,
-`handdrawn`, `toe_guard`, `keep_regions` and `upscale` -- each a `SystemExit`
-if combined. `repin`, `recolor`, `skin`, `keep_legwear`, `backdrop`,
+`denoise`, `size`, `route`, `finalizer`, `keep_regions` and `upscale` --
+each a `SystemExit` if combined. `repin`, `recolor`, `skin`, `keep_legwear`, `backdrop`,
 `transparent`/`opaque`, `keep_scene`, `stroke_light`, `deliver_size` and
 `matte_model` still apply. The recorded batch parameters carry
 `deliver_only: true` and omit `size`/`denoise`/`route`/`finalizer`, since no
@@ -121,7 +109,7 @@ raw repaired generation, its delivered generation and its own repair mask
 asset -- the same shape a standalone `repair` request records, plus the
 delivery options used (`deliver_only`, `repin`, `recolor`, `skin`,
 `backdrop`, `stroke_light`, `transparent`, `deliver_size`, `matte_model`).
-`repair_lora` is silently skipped when the source recipe is yukari-anima,
+`repair_lora` is silently skipped when the source recipe is yukari,
 the same way the standalone `repair` request skips it for an anima source
 -- the part LoRA chain is Illustrious-only. `repair_seeds` on a request
 that omits `deliver_only` is a `SystemExit`; a redraw finalize's own
@@ -157,19 +145,17 @@ Pass `--no-hub` to disable the socket and poll only.
 
 `comfy-recipes catalog` prints this worker's recipe vocabulary as one JSON
 document -- schema version 1, with `git_commit`/`git_branch`/`git_dirty`,
-`generated_at` (ISO 8601 UTC) and a `recipes` array (`yukari`,
-`yukari-anima`, `yukari-sketch`). Each recipe entry has the checkpoint its
+`generated_at` (ISO 8601 UTC) and a `recipes` array (currently just
+`yukari`). Each recipe entry has the checkpoint its
 `render_spec` uses, a `parameters` block (`allowed`/`rejected` keys, agreeing
-with `generate.py`'s own per-recipe validation), its `costumes`
-(`yukari-anima` also lists `expressions`), a `parts` list (the recipe's named
-positive-prompt parts in join order -- `[]` for `yukari`, which has none),
-an `identity_tags` list (bare identity tags for the recipe's default
-costume), and one `poses` entry per pose: name, default costume, face
-override (`null` where the recipe has none), `expression` (anima poses
-only), the canvas `render_spec` would use, the fully assembled
-positive/negative prompt for that pose's own default costume, and -- for
-`yukari-sketch`/`yukari-anima` only -- a `parts` list of `{"name", "text"}`
-whose texts concatenate to `positive` byte for byte. A `patches` block
+with `generate.py`'s own per-recipe validation), its `costumes` and
+`expressions`, a `parts` list (the recipe's named positive-prompt parts in
+join order), an `identity_tags` list (bare identity tags for the recipe's
+default costume), and one `poses` entry per pose: name, default costume,
+`expression`, the canvas `render_spec` would use, the fully assembled
+positive/negative prompt for that pose's own default costume, and a `parts`
+list of `{"name", "text"}` whose texts concatenate to `positive` byte for
+byte. A `patches` block
 mirrors `domain/generation/patches.py`'s
 `TEXT_TARGETS`/`NUMBER_TARGETS`/`STRING_TARGETS` -- ops, one-line numeric
 constraints, and the closed string enums -- plus `text.part_target`
@@ -197,9 +183,8 @@ GUI presets a finalize form with when the generation it is finalizing came
 from a batch on that recipe, and the same value the worker itself now
 resolves an omitted `backdrop`/`stroke_light`/`repin`/`deliver_only` request
 option to (see above), so the WebUI and an MCP/AI caller that omits these
-options agree on the delivery. Every recipe publishes `stroke_light: "n"`
-and `backdrop: "stripes"`, except yukari-anima, which additionally publishes
-`deliver_only: true, repin: true` and overrides `backdrop` to `"dots"`.
+options agree on the delivery. `yukari` publishes `stroke_light: "n"`,
+`deliver_only: true, repin: true` and `backdrop: "dots"`.
 
 ## Named dials
 
@@ -213,23 +198,23 @@ generation's batch (`batch.recipe`) and rejects an unknown word, or a word
 for a key/recipe with no dials, the same way it rejects a number out of
 range. `masked_redraw`'s own `denoise` resolves against the recipe's
 `repair` scope rather than a `masked_redraw` scope of its own. The bare
-tri-state `true` (`keep_legwear`, `toe_guard`, `repair_lora`, `lora`) keeps
-its existing constant; a recipe's `"on"` word, where published, resolves to
-that same number.
+tri-state `true` (`keep_legwear`, `repair_lora`, `lora`) keeps its existing
+constant; a recipe's `"on"` word, where published, resolves to that same
+number.
 
 ```json
-{"denoise": "tidy", "repin": true, "keep_legwear": true}
+{"denoise": "keep", "repin": true, "keep_legwear": true}
 ```
 
-resolves to `{"denoise": 0.65, "repin": true, "keep_legwear": 0.62}` on
-`yukari-sketch`, and a finalize/repair/masked_redraw row's result gains
+resolves to `{"denoise": 0.4, "repin": true, "keep_legwear": 0.62}` on
+`yukari`, and a finalize/repair/masked_redraw row's result gains
 `resolved_options` -- the request's own options, words and `true` replaced
 by what they resolved to, keys the request did not give omitted -- so a
 caller can read back what actually ran without re-deriving it from the
-catalog. `comfy-recipes finalize --denoise/--lora-strength/--repair-denoise
-/--keep-legwear/--toe-guard/--repair-lora` and `comfy-recipes repair
---denoise/--lora` accept a word the same way; the CLI already has the
-generation id, so it looks up the recipe itself.
+catalog. `comfy-recipes finalize --denoise/--repair-denoise/--keep-legwear
+/--repair-lora` and `comfy-recipes repair --denoise/--lora` accept a word
+the same way; the CLI already has the generation id, so it looks up the
+recipe itself.
 
 ## Repair
 
@@ -366,22 +351,17 @@ needle, and a needle absent from the text is an immediate error rather than
 a silent no-op. `prompt.positive.<part>` targets one named part of the
 recipe's positive prompt instead of the whole string -- same ops and fields
 as `prompt.positive` -- then the parts are rejoined; targeting a part on a
-recipe with none (`yukari`) or an unrecognised part name is a clear
-`ValueError` naming the valid parts. Number targets are `render.cfg`, `render.steps`,
-`render.width`, `render.height`, `hires.denoise`, `render.layerdiffuse_weight`,
-and `render.lora_strength`, with op `set`; `render.cfg` and `render.steps`
-govern both sampling passes, since the spec holds one value for each.
-`render.width` and `render.height` each require an int that is at least 64
-and a multiple of 8. `render.layerdiffuse_weight` requires `-1 <= value <= 3`.
-`render.lora_strength` requires `0 <= value <= 2` and sets every LoRA in the
-recipe to that strength; it fails on a recipe with no LoRA. String targets
-are `render.model`, `render.sampler`, `render.scheduler`, and
-`render.layerdiffuse_config`, with op `set` only and a required non-empty
-string `value`; `render.layerdiffuse_config` must be `"SDXL, Attention
-Injection"` or `"SDXL, Conv Injection"`. `render.loras`, op `set` only,
+recipe with no named parts or an unrecognised part name is a clear
+`ValueError` naming the valid parts. Number targets are `render.cfg`,
+`render.steps`, `render.width`, `render.height` and `hires.denoise`, with
+op `set`; `render.cfg` and `render.steps` govern both sampling passes,
+since the spec holds one value for each. `render.width` and `render.height`
+each require an int that is at least 64 and a multiple of 8. String targets
+are `render.model`, `render.sampler` and `render.scheduler`, with op `set`
+only and a required non-empty string `value`. `render.loras`, op `set` only,
 replaces `spec.loras` outright: `value` is a non-empty list of `[name,
 strength]` pairs, `name` a non-empty string ending in `.safetensors` and
-`strength` a number with `0 <= strength <= 2`. On `yukari-anima` each pair
+`strength` a number with `0 <= strength <= 2`. On `yukari` each pair
 becomes a `LoraLoaderModelOnly` node chained from the `UNETLoader` into the
 `KSampler`'s model.
 
@@ -400,11 +380,11 @@ diffs in `generation.patches`.
 ```json
 "generation": {
   "recipe": "yukari",
-  "parameters": {"pose": "lounge"},
+  "parameters": {"pose": "bust"},
   "patches": [
-    {"target": "prompt.positive", "op": "replace",
-     "old": "(pale skin:1.25)", "value": "(pale skin:1.2)",
-     "reason": "softer skin tone for this arm"},
+    {"target": "prompt.positive.body", "op": "replace",
+     "old": "(mature female:1.3)", "value": "(mature female:1.2)",
+     "reason": "softer build for this arm"},
     {"target": "render.cfg", "op": "set", "value": 4.5,
      "reason": "lower guidance for the draft pass"}
   ]
@@ -470,13 +450,12 @@ uv run scripts/queue_img2img.py --ckpt-name your-model.safetensors \
 ## Yukari prompt inspection
 
 ```bash
-uv run comfy-recipes yukari prompt --pose lounge
-uv run comfy-recipes yukari prompt --pose lounge --costume sporty
+uv run comfy-recipes yukari prompt --pose bust
+uv run comfy-recipes yukari prompt --pose bust --costume standard --expression gao
 ```
 
-The recipe has 40 poses and four costumes. Prompt edits are ordered and fail
-loudly when their expected text is absent; do not reconstruct prompt strings
-outside the recipe.
+Prompt edits are ordered and fail loudly when their expected text is
+absent; do not reconstruct prompt strings outside the recipe.
 
 ## Anima
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Make a render bigger without letting the model touch it.
 
-`--hires` in yukari_recipe.py is not an upscale, it is a second pass: the latent
-is stretched and then REDRAWN at denoise 0.60, which is why it can add detail
-and why it can also change what is there. When a render has already been picked
-and the only thing wanted is more pixels, this is the other tool -- a plain
-resample, no diffusion, no model.
+A recipe's own `--hires` is not an upscale, it is a second pass: the latent
+is stretched and then REDRAWN, which is why it can add detail and why it can
+also change what is there. When a render has already been picked and the
+only thing wanted is more pixels, this is the other tool -- a plain resample,
+no diffusion, no model.
 
     uv run scripts/analysis/upscale_plain.py out/pick.png --size 2048
     uv run scripts/analysis/upscale_plain.py out/pick.png --size 3072 --filter bicubic

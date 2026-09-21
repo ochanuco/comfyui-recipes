@@ -15,8 +15,6 @@ from ..domain.yukari import delivery_style
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
 from ..infrastructure.comfyui.repair_controlnet import control_hook
 from ..infrastructure.comfyui.repair_graph import (
-    DELIVERED_SUFFIX,
-    MATTE_SUFFIX,
     deliver_only_repair_graph,
     repair_graph,
     source_prompts,
@@ -24,6 +22,7 @@ from ..infrastructure.comfyui.repair_graph import (
 from ..infrastructure.comfyui.repair_model import anima_model_hook
 from ..infrastructure.imaging.masks import mask_bbox_fraction, render_mask_png
 from ..infrastructure.imaging.toe_template import reference_hint
+from .ingest import ingest_seed_render
 
 
 @dataclass(frozen=True)
@@ -209,69 +208,15 @@ def repair(generation_id: str, services: RepairServices, *,
                 model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
         prompt_id = services.comfyui.submit(graph)
         services.emit(f"{job_prefix} {prompt_id}")
-        outputs = services.comfyui.wait_for(prompt_id)
-        mattes = [out for out in outputs if MATTE_SUFFIX in out["filename"]]
-        delivereds = [out for out in outputs if DELIVERED_SUFFIX in out["filename"]]
-        pictures = [out for out in outputs
-                    if MATTE_SUFFIX not in out["filename"]
-                    and DELIVERED_SUFFIX not in out["filename"]]
-        if not pictures:
-            raise SystemExit(f"{job_prefix} produced no raw output")
-        raw_out = pictures[-1]
-        raw = services.comfyui.fetch(raw_out)
-        (services.output_root / raw_out["filename"]).write_bytes(raw)
-        last_raw_filename, last_raw = raw_out["filename"], raw
-
-        job_key = f"{key_prefix}:job:{index}" if key_prefix else str(uuid.uuid4())
-        job = services.management.request(
-            "POST", f"/api/v1/batches/{created['id']}/jobs",
-            {"idempotency_key": job_key, "seed": seed, "index": index})
-        services.management.request(
-            "PATCH", f"/api/v1/jobs/{job['id']}",
-            {"status": "queued", "comfy_prompt_id": prompt_id, "graph": graph})
-        services.management.request(
-            "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "completed"})
-
-        rendered = services.management.request(
-            "POST", f"/api/v1/jobs/{job['id']}/generations",
-            multipart=({"seed": seed, "original_filename": raw_out["filename"],
-                        "comfy_output_index": 0},
-                       "image", raw_out["filename"], raw, "image/png"))
-        raw_generation_id = rendered["id"]
-        ids.append(raw_generation_id)
-        urls.append(rendered["canonical_url"])
-        services.emit(f"{raw_out['filename']} -> {rendered['canonical_url']}")
-
-        if delivereds:
-            delivered_out = delivereds[-1]
-            delivered = services.comfyui.fetch(delivered_out)
-            (services.output_root / delivered_out["filename"]).write_bytes(delivered)
-            rendered = services.management.request(
-                "POST", f"/api/v1/jobs/{job['id']}/generations",
-                multipart=({"seed": seed, "original_filename": delivered_out["filename"],
-                            "comfy_output_index": 1},
-                           "image", delivered_out["filename"], delivered, "image/png"))
-            ids.append(rendered["id"])
-            urls.append(rendered["canonical_url"])
-            services.emit(f"{delivered_out['filename']} -> {rendered['canonical_url']}")
-
-        if mattes:
-            matte_out = mattes[-1]
-            matte = services.comfyui.fetch(matte_out)
-            (services.output_root / matte_out["filename"]).write_bytes(matte)
-            services.management.request(
-                "POST", f"/api/v1/generations/{raw_generation_id}/assets",
-                multipart=({"role": "mask"}, "file", matte_out["filename"], matte,
-                           "image/png"))
-            services.emit(f"{matte_out['filename']} -> mask on {raw_generation_id}")
-
-        services.management.request(
-            "POST", f"/api/v1/generations/{raw_generation_id}/assets",
-            multipart=({"role": "repair-mask"}, "file", f"{job_prefix}-mask.png",
-                       mask_png, "image/png"))
-
-        services.management.request(
-            "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
+        result = ingest_seed_render(
+            comfyui=services.comfyui, management=services.management,
+            output_root=services.output_root, emit=services.emit,
+            batch_id=created["id"], key_prefix=key_prefix, index=index,
+            seed=seed, prompt_id=prompt_id, graph=graph, job_prefix=job_prefix,
+            mask_png=mask_png)
+        ids.extend(result["generation_ids"])
+        urls.extend(result["generation_urls"])
+        last_raw_filename, last_raw = result["raw_filename"], result["raw"]
 
     services.management.request(
         "PATCH", f"/api/v1/batches/{created['id']}", {"status": "completed"})

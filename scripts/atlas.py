@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Where things are, without reading them.
 
-This repo is expensive to look at. `docs/render-notes.md` is ~68k tokens,
-`src/comfyui_recipes/domain/yukari/poses.py` ~30k -- the largest active recipe
-file; together these
-are more than half the repository, and both are files an agent is tempted to
-open whole to answer a one-line question. This prints the answer instead.
+This repo is expensive to look at. `docs/render-notes.md` is ~68k tokens on
+its own, and it is a file an agent is tempted to open whole to answer a
+one-line question. This prints the answer instead.
 
     uv run scripts/atlas.py                 # every script: role, size, one line
     uv run scripts/atlas.py notes           # the notes' headings, with line numbers

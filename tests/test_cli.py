@@ -121,21 +121,6 @@ class CliTest(unittest.TestCase):
 
     @patch.object(cli, "finalize")
     @patch.object(cli, "ChimeraClient")
-    def test_finalize_sketch_redraw_dispatches_without_network(
-            self, chimera_class, run_finalize):
-        cli.main(["finalize", "gen-1", "--sketch-redraw", "cinema"])
-        args, kwargs = run_finalize.call_args
-        self.assertEqual(kwargs["sketch_redraw"], "cinema")
-
-    @patch.object(cli, "finalize")
-    @patch.object(cli, "ChimeraClient")
-    def test_finalize_sketch_redraw_defaults_to_none(self, chimera_class, run_finalize):
-        cli.main(["finalize", "gen-1"])
-        args, kwargs = run_finalize.call_args
-        self.assertIsNone(kwargs["sketch_redraw"])
-
-    @patch.object(cli, "finalize")
-    @patch.object(cli, "ChimeraClient")
     def test_finalize_keep_region_flags_dispatch_without_network(
             self, chimera_class, run_finalize):
         cli.main(["finalize", "gen-1", "--keep-region", "0.3,0.58,0.85,0.8",
@@ -145,27 +130,32 @@ class CliTest(unittest.TestCase):
                          [[0.3, 0.58, 0.85, 0.8], [0.0, 0.84, 0.65, 1.0]])
         self.assertEqual(kwargs["keep_strength"], 0.45)
 
+    @patch.object(cli, "dials_scope")
     @patch.object(cli, "fetch_source")
     @patch.object(cli, "finalize")
     @patch.object(cli, "ChimeraClient")
     def test_finalize_denoise_word_resolves_through_the_source_recipe(
-            self, chimera_class, run_finalize, fetch_source):
+            self, chimera_class, run_finalize, fetch_source, dials_scope):
         context, batch = object(), object()
-        fetch_source.return_value = (context, batch, "yukari-sketch")
+        fetch_source.return_value = (context, batch, "yukari")
+        dials_scope.return_value = {"denoise": {"tidy": 0.65}}
         cli.main(["finalize", "gen-1", "--denoise", "tidy"])
         fetch_source.assert_called_once_with(chimera_class.return_value, "gen-1")
+        dials_scope.assert_called_once_with("yukari", "finalize")
         args, kwargs = run_finalize.call_args
         self.assertEqual(kwargs["denoise"], 0.65)
         # The context fetch_source already made is passed through so
         # finalize() does not fetch it again.
         self.assertIs(kwargs["context"], context)
 
+    @patch.object(cli, "dials_scope")
     @patch.object(cli, "fetch_source")
     @patch.object(cli, "finalize")
     @patch.object(cli, "ChimeraClient")
     def test_finalize_unknown_word_exits_before_finalizing(
-            self, chimera_class, run_finalize, fetch_source):
+            self, chimera_class, run_finalize, fetch_source, dials_scope):
         fetch_source.return_value = ({}, {}, "yukari")
+        dials_scope.return_value = {"denoise": {"keep": 0.4}}
         with self.assertRaises(SystemExit):
             cli.main(["finalize", "gen-1", "--denoise", "blurry"])
         run_finalize.assert_not_called()
@@ -181,15 +171,18 @@ class CliTest(unittest.TestCase):
         self.assertEqual(kwargs["denoise"], 0.7)
         self.assertIsNone(kwargs["context"])
 
+    @patch.object(cli, "dials_scope")
     @patch.object(cli, "fetch_source")
     @patch.object(cli, "repair")
     @patch.object(cli, "ChimeraClient")
     def test_repair_denoise_and_lora_words_resolve_through_the_source_recipe(
-            self, chimera_class, run_repair, fetch_source):
+            self, chimera_class, run_repair, fetch_source, dials_scope):
         context, batch = object(), object()
-        fetch_source.return_value = (context, batch, "yukari-sketch")
+        fetch_source.return_value = (context, batch, "yukari")
+        dials_scope.return_value = {"denoise": {"keep": 0.6}, "lora": {"on": 0.8}}
         cli.main(["repair", "gen-1", "--denoise", "keep", "--lora", "on"])
         fetch_source.assert_called_once_with(chimera_class.return_value, "gen-1")
+        dials_scope.assert_called_once_with("yukari", "repair")
         args, kwargs = run_repair.call_args
         self.assertEqual(kwargs["denoise"], 0.6)
         self.assertEqual(kwargs["lora"], 0.8)
@@ -239,7 +232,7 @@ class CliTest(unittest.TestCase):
         self.assertEqual(document["schema_version"], 1)
         self.assertEqual(
             {recipe["name"] for recipe in document["recipes"]},
-            {"yukari", "yukari-anima", "yukari-sketch"})
+            {"yukari"})
 
     @patch.object(cli, "publish_catalog_document")
     @patch.object(cli, "ChimeraClient")
@@ -287,7 +280,7 @@ class CliTest(unittest.TestCase):
         output = io.StringIO()
         with patch.object(cli, "ChimeraClient") as chimera_class, \
                 redirect_stdout(output):
-            cli.main(["yukari", "prompt", "--pose", "lounge", "--json"])
+            cli.main(["yukari", "prompt", "--pose", "bust", "--json"])
         chimera_class.assert_not_called()
         self.assertIn('"positive"', output.getvalue())
         self.assertIn('"negative"', output.getvalue())

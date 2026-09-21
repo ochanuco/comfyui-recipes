@@ -9,17 +9,15 @@ from __future__ import annotations
 import unittest
 from dataclasses import replace
 
+from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
 from comfyui_recipes.domain.generation.patches import (
     Patch,
     apply_patches,
     parse_patches,
 )
-from comfyui_recipes.domain.yukari.recipe import render_spec
-from comfyui_recipes.domain.yukari_anima.dials import DIALS as ANIMA_DIALS
-from comfyui_recipes.domain.yukari_anima.recipe import render_spec as anima_render_spec
-from comfyui_recipes.domain.yukari_sketch.recipe import render_spec as sketch_render_spec
+from comfyui_recipes.domain.yukari.dials import DIALS as ANIMA_DIALS
+from comfyui_recipes.domain.yukari.recipe import render_spec as anima_render_spec
 from comfyui_recipes.infrastructure.comfyui import anima_graph
-from comfyui_recipes.infrastructure.comfyui.yukari_graph import build, build_graph
 
 
 def _patch(**fields):
@@ -136,47 +134,6 @@ class ParsePatchesTest(unittest.TestCase):
             parse_patches([_patch(target="render.sampler", op="set", value="",
                                   reason="test")])
 
-    def test_rejects_layerdiffuse_weight_below_range(self):
-        with self.assertRaises(ValueError):
-            parse_patches([_patch(target="render.layerdiffuse_weight",
-                                  op="set", value=-1.5, reason="test")])
-
-    def test_rejects_layerdiffuse_weight_above_range(self):
-        with self.assertRaises(ValueError):
-            parse_patches([_patch(target="render.layerdiffuse_weight",
-                                  op="set", value=3.5, reason="test")])
-
-    def test_rejects_lora_strength_below_range(self):
-        with self.assertRaises(ValueError):
-            parse_patches([_patch(target="render.lora_strength", op="set",
-                                  value=-0.1, reason="test")])
-
-    def test_rejects_lora_strength_above_range(self):
-        with self.assertRaises(ValueError):
-            parse_patches([_patch(target="render.lora_strength", op="set",
-                                  value=2.1, reason="test")])
-
-    def test_rejects_layerdiffuse_config_not_in_enum(self):
-        with self.assertRaises(ValueError):
-            parse_patches([_patch(target="render.layerdiffuse_config",
-                                  op="set", value="bogus", reason="test")])
-
-    def test_accepts_new_number_and_string_targets(self):
-        parsed = parse_patches([
-            _patch(target="render.layerdiffuse_weight", op="set", value=0.7,
-                  reason="r"),
-            _patch(target="render.lora_strength", op="set", value=1.1,
-                  reason="r"),
-            _patch(target="render.layerdiffuse_config", op="set",
-                  value="SDXL, Conv Injection", reason="r"),
-        ])
-        self.assertEqual(parsed[0], Patch("render.layerdiffuse_weight", "set",
-                                          0.7, None, "r"))
-        self.assertEqual(parsed[1], Patch("render.lora_strength", "set", 1.1,
-                                          None, "r"))
-        self.assertEqual(parsed[2], Patch("render.layerdiffuse_config", "set",
-                                          "SDXL, Conv Injection", None, "r"))
-
     def test_accepts_each_op_as_patch_tuple(self):
         raw = [
             _patch(target="prompt.positive", op="append", value=" a",
@@ -200,31 +157,31 @@ class ParsePatchesTest(unittest.TestCase):
                                           "r5"))
 
     def test_number_target_word_resolves_through_dials(self):
-        dials = {"render.lora_strength": {"recipe": 0.8, "raw": 1.5}}
+        dials = {"render.width": {"draft": 1024, "full": 1280}}
         parsed = parse_patches([_patch(
-            target="render.lora_strength", op="set", value="raw",
+            target="render.width", op="set", value="full",
             reason="r")], dials)
-        self.assertEqual(parsed[0], Patch("render.lora_strength", "set", 1.5,
+        self.assertEqual(parsed[0], Patch("render.width", "set", 1280,
                                           None, "r"))
 
     def test_number_target_unknown_word_names_the_word(self):
-        dials = {"render.lora_strength": {"recipe": 0.8, "raw": 1.5}}
+        dials = {"render.width": {"draft": 1024, "full": 1280}}
         with self.assertRaisesRegex(ValueError, "punchy"):
             parse_patches([_patch(
-                target="render.lora_strength", op="set", value="punchy",
+                target="render.width", op="set", value="punchy",
                 reason="r")], dials)
 
     def test_number_target_word_with_no_dials_for_that_target_is_rejected(self):
         with self.assertRaises(ValueError):
             parse_patches([_patch(
-                target="render.lora_strength", op="set", value="raw",
+                target="render.width", op="set", value="full",
                 reason="r")])
 
     def test_number_target_word_still_enforces_its_own_range(self):
-        dials = {"render.lora_strength": {"blown_out": 5.0}}
+        dials = {"render.width": {"tiny": 40}}
         with self.assertRaises(ValueError):
             parse_patches([_patch(
-                target="render.lora_strength", op="set", value="blown_out",
+                target="render.width", op="set", value="tiny",
                 reason="r")], dials)
 
     def test_anima_render_width_word_resolves_through_its_own_dials(self):
@@ -293,9 +250,9 @@ class ParsePatchesTest(unittest.TestCase):
 
 class ApplyPatchesTest(unittest.TestCase):
     def setUp(self):
-        self.spec = render_spec("lounge", 555666777, "prefix")
-        self.hires_spec = render_spec(
-            "lounge", 555666777, "prefix", hires=2048)
+        self.spec = anima_render_spec("coffee", 555666777, "prefix")
+        self.hires_spec = anima_render_spec(
+            "coffee", 555666777, "prefix", hires=2048)
 
     def test_append_and_prepend_positive(self):
         patches = parse_patches([
@@ -318,14 +275,14 @@ class ApplyPatchesTest(unittest.TestCase):
             result.prompts.negative, self.spec.prompts.negative + ", extra")
 
     def test_replace_existing_needle(self):
-        needle = "(pale skin:1.25)"
+        needle = "(wide hips:1.2)"
         self.assertIn(needle, self.spec.prompts.positive)
         patches = parse_patches([
             _patch(target="prompt.positive", op="replace", old=needle,
-                   value="(pale skin:1.2)", reason="r")])
+                   value="(wide hips:1.25)", reason="r")])
         result = apply_patches(self.spec, patches)
         self.assertNotIn(needle, result.prompts.positive)
-        self.assertIn("(pale skin:1.2)", result.prompts.positive)
+        self.assertIn("(wide hips:1.25)", result.prompts.positive)
 
     def test_replace_missing_needle_raises(self):
         patches = parse_patches([
@@ -408,34 +365,6 @@ class ApplyPatchesTest(unittest.TestCase):
         self.assertEqual(result.width, 1280)
         self.assertEqual(result.height, 2048)
 
-    def test_layerdiffuse_weight_and_config_sets(self):
-        patches = parse_patches([
-            _patch(target="render.layerdiffuse_weight", op="set", value=0.7,
-                  reason="r"),
-            _patch(target="render.layerdiffuse_config", op="set",
-                  value="SDXL, Conv Injection", reason="r"),
-        ])
-        result = apply_patches(self.spec, patches)
-        self.assertEqual(result.layerdiffuse_weight, 0.7)
-        self.assertEqual(result.layerdiffuse_config, "SDXL, Conv Injection")
-
-    def test_lora_strength_set_updates_every_lora_entry(self):
-        spec = replace(self.spec, loras=(("a.safetensors", 0.5),
-                                         ("b.safetensors", 0.7)))
-        patches = parse_patches([
-            _patch(target="render.lora_strength", op="set", value=1.1,
-                  reason="r")])
-        result = apply_patches(spec, patches)
-        self.assertEqual(result.loras, (("a.safetensors", 1.1),
-                                        ("b.safetensors", 1.1)))
-
-    def test_lora_strength_without_loras_raises(self):
-        patches = parse_patches([
-            _patch(target="render.lora_strength", op="set", value=1.0,
-                  reason="r")])
-        with self.assertRaises(ValueError):
-            apply_patches(self.spec, patches)
-
     def test_loras_replaces_spec_loras(self):
         spec = replace(self.spec, loras=(("a.safetensors", 0.5),))
         patches = parse_patches([_patch(
@@ -464,15 +393,15 @@ class ApplyPatchesTest(unittest.TestCase):
             _patch(target="hires.denoise", op="set", value=0.4, reason="r"),
         ])
         patched = apply_patches(self.hires_spec, patches)
-        graph = build_graph(patched)
+        graph = anima_graph.build_graph(patched)
         self.assertEqual(graph["3"]["inputs"]["cfg"], 4.5)
         self.assertEqual(graph["11"]["inputs"]["denoise"], 0.4)
 
-    def test_unpatched_encoding_matches_legacy_builder(self):
-        spec = render_spec("lounge", 555666777, "prefix")
+    def test_unpatched_encoding_matches_direct_build(self):
+        spec = anima_render_spec("coffee", 555666777, "prefix")
         patched = apply_patches(spec, parse_patches([]))
         self.assertEqual(
-            build_graph(patched), build("lounge", 555666777, "prefix"))
+            anima_graph.build_graph(patched), anima_graph.build_graph(spec))
 
     def test_render_loras_patch_encodes_a_lora_loader_model_only_chain(self):
         spec = anima_render_spec("coffee", 7, "prefix")
@@ -495,28 +424,29 @@ class ApplyPatchesTest(unittest.TestCase):
 
 class PartTargetPatchTest(unittest.TestCase):
     def setUp(self):
-        self.sketch_spec = sketch_render_spec("cinema", 7, "prefix")
         self.anima_spec = anima_render_spec("coffee", 7, "prefix")
-        self.yukari_spec = render_spec("lounge", 555666777, "prefix")
+        self.no_parts_spec = RenderSpec(
+            model_path="m", prompts=PromptPair("p", "n"),
+            width=8, height=8, seed=1, steps=1, cfg=1.0,
+            sampler_name="s", scheduler="k", denoise=1.0,
+            filename_prefix="prefix")
 
     def test_parts_join_back_into_the_whole_positive(self):
-        joined = "".join(text for _, text in self.sketch_spec.positive_parts)
-        self.assertEqual(joined, self.sketch_spec.prompts.positive)
         joined = "".join(text for _, text in self.anima_spec.positive_parts)
         self.assertEqual(joined, self.anima_spec.prompts.positive)
 
-    def test_yukari_has_no_parts(self):
-        self.assertEqual(self.yukari_spec.positive_parts, ())
+    def test_a_recipe_without_parts_has_an_empty_positive_parts(self):
+        self.assertEqual(self.no_parts_spec.positive_parts, ())
 
     def test_append_edits_only_the_named_part(self):
         patches = parse_patches([_patch(
-            target="prompt.positive.background", op="append",
+            target="prompt.positive.scene", op="append",
             value="(overcast:1.1), ", reason="r")])
-        result = apply_patches(self.sketch_spec, patches)
+        result = apply_patches(self.anima_spec, patches)
         parts = dict(result.positive_parts)
-        self.assertTrue(parts["background"].endswith("(overcast:1.1), "))
-        for name, text in dict(self.sketch_spec.positive_parts).items():
-            if name != "background":
+        self.assertTrue(parts["scene"].endswith("(overcast:1.1), "))
+        for name, text in dict(self.anima_spec.positive_parts).items():
+            if name != "scene":
                 self.assertEqual(parts[name], text)
         self.assertEqual(
             result.prompts.positive,
@@ -526,26 +456,26 @@ class PartTargetPatchTest(unittest.TestCase):
         patches = parse_patches([_patch(
             target="prompt.positive.face", op="replace",
             old="(tareme:1.2)", value="(tareme:1.3)", reason="r")])
-        result = apply_patches(self.sketch_spec, patches)
-        self.assertIn("(tareme:1.3), (half-closed eyes:1.2)",
+        result = apply_patches(self.anima_spec, patches)
+        self.assertIn("(tareme:1.3), (thick eyelashes:1.3)",
                       result.prompts.positive)
         self.assertNotIn(",,", result.prompts.positive)
         self.assertNotIn("  ", result.prompts.positive)
 
         patches = parse_patches([
-            {"target": "prompt.positive.mood", "op": "remove",
-             "old": "(excited:1.1), ", "reason": "r"}])
-        result = apply_patches(anima_render_spec("cinema", 7, "p"), patches)
-        self.assertNotIn("(excited:1.1)", result.prompts.positive)
+            {"target": "prompt.positive.pose", "op": "remove",
+             "old": "(straw in mouth:1.25), ", "reason": "r"}])
+        result = apply_patches(anima_render_spec("coffee", 7, "p"), patches)
+        self.assertNotIn("(straw in mouth:1.25)", result.prompts.positive)
         self.assertNotIn(", , ", result.prompts.positive)
         self.assertNotIn(",,", result.prompts.positive)
 
     def test_prepend_to_a_part(self):
         patches = parse_patches([_patch(
-            target="prompt.positive.mouth", op="prepend",
+            target="prompt.positive.gesture", op="prepend",
             value="(grin:1.1), ", reason="r")])
         result = apply_patches(self.anima_spec, patches)
-        self.assertTrue(dict(result.positive_parts)["mouth"]
+        self.assertTrue(dict(result.positive_parts)["gesture"]
                         .startswith("(grin:1.1), "))
 
     def test_unknown_part_raises_and_names_the_valid_parts(self):
@@ -553,17 +483,17 @@ class PartTargetPatchTest(unittest.TestCase):
             target="prompt.positive.nope", op="append", value="x",
             reason="r")])
         with self.assertRaises(ValueError) as ctx:
-            apply_patches(self.sketch_spec, patches)
+            apply_patches(self.anima_spec, patches)
         message = str(ctx.exception)
         self.assertIn("quality", message)
-        self.assertIn("finish", message)
+        self.assertIn("style", message)
 
     def test_part_target_on_a_recipe_without_parts_raises(self):
         patches = parse_patches([_patch(
             target="prompt.positive.face", op="append", value="x",
             reason="r")])
         with self.assertRaises(ValueError):
-            apply_patches(self.yukari_spec, patches)
+            apply_patches(self.no_parts_spec, patches)
 
     def test_dotted_sub_part_is_an_unknown_target(self):
         with self.assertRaises(ValueError):
@@ -576,7 +506,7 @@ class PartTargetPatchTest(unittest.TestCase):
             target="prompt.positive.face", op="replace",
             old="no such text here", value="x", reason="r")])
         with self.assertRaises(ValueError):
-            apply_patches(self.sketch_spec, patches)
+            apply_patches(self.anima_spec, patches)
 
 
 if __name__ == "__main__":

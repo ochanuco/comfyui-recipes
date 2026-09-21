@@ -24,7 +24,7 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
 
 ## The pipeline is two stages, and it is the user's
 
-1. **Anima draws.** A new picture starts on `yukari-anima` -- Anima Turbo
+1. **Anima draws.** A new picture starts on `yukari` -- Anima Turbo
    (`anima-turbo-v1.1`, 10 steps, CFG 2) with the artist tags
    `(@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5)` and no style LoRA:
    composition, proportion and hands obey the prompt there, and the artist
@@ -32,7 +32,7 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
 2. **Finalize delivers the raw pick.** `finalize` cuts a matte, repins the
    palette and composites the backdrop and purple stroke onto the Anima
    pick itself -- no redraw. It is the recipe default
-   (`yukari_anima/delivery_style.py`): the WebUI button and an
+   (`yukari/delivery_style.py`): the WebUI button and an
    option-less `finalize_generation` both deliver this way.
 
 An Illustrious redraw (hassaku-il-v22 at 2560, denoise 0.4) is a
@@ -62,40 +62,20 @@ append `render.loras` at strength `0` (the patch rejects an empty list) and
 remove `(sketch style:1.2), ` from `prompt.positive.style`. The recipe's
 plain `stand` still wears the pre-official costume.
 
-Three recipes are live, all under `src/comfyui_recipes/domain/`:
+One recipe is live, `yukari` under `src/comfyui_recipes/domain/`: the Anima
+Turbo checkpoint's identity, costumes, poses and prompt edit order.
+`docs/yukari/anima.md` is the description. `domain/yukari/delivery_style.py`
+holds both the delivery identity (backdrop, purple stroke, acceptance band)
+every delivered picture wears, read by imaging, catalog, work, cli and
+repair alike, and the finalize redraw settings (stage-2 model, sampler,
+denoise); it is not itself a recipe.
 
-- `yukari/` — the original Illustrious recipe, kept for its pose
-  vocabulary and the shared blocks (hassaku-il-v22 through
-  `DiffusersLoader`), `scripts/yukari_recipe.py` as its compatibility facade.
-  `prompt_style.py` and `delivery_style.py` (the author identity),
-  `costumes.py` (the wardrobe), `poses.py` (one record per pose),
-  `recipe.py` (the interpreter that owns the assembly order), `models.py`
-  (the `Pose`/`Edit` dataclasses). A new pose is one `POSES` entry plus one
-  `POSE_RECORDS` entry in `poses.py`, nothing else. Its style block and
-  texture bans are what the sketch recipe exists to remove.
-- `yukari_anima/` — stage 1 of the pipeline above, and the owner of its
-  stage-2 redraw settings (`delivery_style.py`). `docs/yukari/anima.md` is
-  the description.
-- `yukari_sketch/` — the Illustrious-only path the looks `cinema` through
-  `bath` were delivered on; kept so they can be reproduced and derived from.
-  hassaku-il-v22 with the
-  linaqruf sketch LoRA on a minimal prompt (no style block, no texture bans,
-  a moderate proportion block, simple grey background) and a latent-route
-  2560 redraw at denoise 0.55. `docs/yukari/sketch.md` is the description;
-  `poses.py` holds `cinema`, `stand`, `bust`, `smug`, `date`, `cafe`, `home`
-  and `bath`. A pose is one `Pose` record (action string, costume, a `parent`
-  pose it was derived from, its face as `face_edits` diffed over the shared
-  `FACE` block -- a full-string `face` override is still allowed as an
-  escape hatch -- and `part_overrides`, shared blocks it renders with its
-  own text by part name; `bust` empties the leg and thigh parts this way);
-  `comfy-recipes sketch lineage` prints each pose's departures from
-  its parent (or from the shared blocks/an empty pose block, for one with none);
-  `comfy-recipes sketch plain --pose NAME --seed N` prints a plain
-  request.json payload at that seed.
+Finalize redraws an Anima source only (a `UNETLoader` node in its base
+graph). A source drawn by any other recipe is delivered with `deliver_only`
+and never redrawn, and a LayerDiffuse base is refused.
 
-The ComfyUI node encoding for all three is under `infrastructure/comfyui/`.
-`comfy-recipes {yukari,anima,sketch} prompt --pose …` prints what a recipe
-sends.
+The ComfyUI node encoding is under `infrastructure/comfyui/`.
+`comfy-recipes yukari prompt --pose …` prints what the recipe sends.
 
 Everything measured is recorded — see "Where information lives" below for
 which store. The records are the point of the repository; the scripts are how
@@ -156,10 +136,9 @@ Use `dev/<topic>` branches for implementation and merge only after review.
 
 ## Look things up; do not read them
 
-Two files dominate this repository: `docs/render-notes.md` (~68k tokens) and
-`src/comfyui_recipes/domain/yukari/poses.py` (~30k). Both are exactly what a
-one-line question tempts you to open whole.
-Opening any of them without a line range is a mistake, not a thorough approach.
+`docs/render-notes.md` (~68k tokens) dominates this repository, and is
+exactly what a one-line question tempts you to open whole.
+Opening it without a line range is a mistake, not a thorough approach.
 
 For what a recipe sends and what chimera holds, ask the chimera MCP first — it
 is registered in this session as `chimera` and answers without touching the
@@ -183,9 +162,9 @@ uv run scripts/atlas.py                    # every script: role, size, one line 
 uv run scripts/atlas.py notes              # the notes' headings + line numbers   (~2.8k)
 uv run scripts/atlas.py notes <pattern>    # just the sections that match
 uv run scripts/atlas.py find <regex>       # matching lines, each under its heading
-uv run comfy-recipes sketch prompt --pose date                   # ~0.6k, not 30k
+uv run comfy-recipes yukari prompt --pose bust                    # ~0.6k, not the whole recipe
 uv run comfy-recipes catalog                                     # what `work` would publish
-uv run scripts/costume_check.py                                  # the blocks, verified
+uv run scripts/costume_check.py                                  # the delivery identity, verified
 ```
 
 `atlas.py` reads the tree every time it runs, so unlike a committed index it
@@ -266,10 +245,10 @@ tracked file.
   SaveImage prefix は job ごとに worker が差し替える）。投稿した graph JSON は
   job に保存され、chimera のレコード単体で再投稿・再現できることがこの規則の
   目的。コードの置き場（`.local/` 含む）は provenance に関与しない。
-- graph モードは生 `.replace` の抜け道ではない。`build()` の返り値の prompt に
-  `.replace` を当ててから `generation.graph` に載せるのは、Edit レコードが
-  終わらせたはずの黙って外れる splice の再導入 — departure は pose 側の Edit
-  レコードか request の `patches` にする。
+- graph モードは生 `.replace` の抜け道ではない。recipe が組んだ prompt に
+  `.replace` を当ててから `generation.graph` に載せるのは、needle 不在で
+  黙って外れる splice の再導入 -- departure は request の `patches`
+  （`generation.patches` / `experiment.overrides.patches`）にする。
 - `generation.graph` 使用時、`generation.parameters` はビルドに使われず記録
   専用になる。graph に実在しない値を書くと chimera の記録だけが嘘になるので、
   graph に実際に入れた値だけを書く。
@@ -316,43 +295,30 @@ tracked file.
   に `batch_id` のみを送る。generation_id は代表選定が人間/エージェントの
   仕事なので worker は推測しない。
 
-## The costume is a contract, not a preference
+## The delivery identity is a contract, not a preference
 
-The shared blocks — `CHARACTER`, `LEGWEAR`, `BODY`, `FACE`, `SURFACE`, in the
-Yukari domain's `costumes.py` and `prompt_style.py` — are worn by **every pose
-at once**, and the delivery identity (backdrop `#c7e5e9`, the purple stroke,
-the acceptance band, in `delivery_style.py`) is worn by every
-delivered picture. Editing either changes every render this repo has ever
-approved, which is why `scripts/costume_check.py` hashes both and fails on
-any change it was not told about:
+The delivery identity (backdrop `#c7e5e9`, the purple stroke, the acceptance
+band, in `domain/yukari/delivery_style.py`) is worn by every delivered
+picture. Editing it changes every render this repo has ever approved, which
+is why `scripts/costume_check.py` hashes it, from an explicit canonical
+payload, and fails on any change it was not told about:
 
 ```bash
-uv run scripts/costume_check.py            # fingerprints + per-pose declarations
-uv run scripts/costume_check.py --accept   # the new hashes, for a change that is meant
+uv run scripts/costume_check.py            # check the fingerprint
+uv run scripts/costume_check.py --accept   # record a change that is meant
 ```
 
-When it fails, nothing is broken — something was changed. Paste the new
-fingerprint, and write in `docs/render-notes.md` what the look is now.
+When it fails, nothing is broken — something was changed. `--accept` writes
+the new fingerprint into `assets/costume-baseline.json`; write in
+`docs/render-notes.md` what the look is now.
 
-Two rules that follow from this, both learned the expensive way:
-
-- **A settled design decision that lives only in prose is a decision the next
-  session does not get.** The one-garment leg was agreed, written into the notes
-  and into memory, and applied by throwaway scripts in `.local/` — while
-  `LEGWEAR` still built the retired two-layer costume, so another session got
-  tights under knee-highs straight out of the recipe. If a change is settled,
-  put it in the blocks.
-- **A pass that redraws the face without `positive()` must carry the eye
-  identity by hand.** The recipe path holds the eye design because FACE always
-  rides along; a rough→finish img2img or eye-region inpaint runs on a
-  hand-written prompt, and at high denoise hassaku's own detailed eyes walk in
-  (28bgoa). Put `FACE` in that pass's positive and `EYE_BAN`
-  (`prompt_style.py`) in its negative — both, not either.
-- **Splices are string replacements and fail silently.** That failure is why
-  per-pose departures are `Edit` records now: `replace`/`remove` assert their
-  needle is present, and `_splice`'s `when=` gate is how a costume says "no
-  such garment" out loud. If you write a bare `.replace` against a block
-  anyway, you are reintroducing the bug class the records exist to end.
+A rule that follows from this, learned the expensive way: **a settled design
+decision that lives only in prose is a decision the next session does not
+get.** The one-garment leg was agreed, written into the notes and into
+memory, and applied by throwaway scripts in `.local/` — while the costume
+block still built the retired two-layer garment, so another session got
+tights under knee-highs straight out of the recipe. If a change is settled,
+put it in the blocks (`yukari/costumes.py`'s `COSTUMES`/`LEGWEAR`).
 
 ## Working files
 

@@ -14,7 +14,6 @@ import unittest
 from dataclasses import replace
 from pathlib import Path
 
-from comfyui_recipes.domain.generation.models import PromptPair, RenderSpec
 from comfyui_recipes.infrastructure.comfyui.base_graph import base_roles
 from comfyui_recipes.infrastructure.comfyui.repair_graph import (
     DELIVERED_SUFFIX,
@@ -25,7 +24,6 @@ from comfyui_recipes.infrastructure.comfyui.repair_graph import (
     source_prompts,
     splice_repair,
 )
-from comfyui_recipes.infrastructure.comfyui.yukari_graph import build_graph
 
 FIXTURES = Path(__file__).parent / "fixtures"
 RAW = json.loads((FIXTURES / "repair-graph-raw.json").read_text())
@@ -33,12 +31,32 @@ FINALIZE = json.loads((FIXTURES / "repair-graph-finalize.json").read_text())
 
 # A layerdiffuse raw: node 12 LayeredDiffusionApply wraps the model, 13
 # LayeredDiffusionDecode/14 InvertMask/15 JoinImageWithAlpha compute the RGBA
-# picture from VAEDecode 8, and SaveImage 9 reads the Join.
-LAYERDIFFUSE = build_graph(RenderSpec(
-    model_path="hassaku-il-v22", prompts=PromptPair("p", "n"),
-    width=832, height=1664, seed=7, steps=30, cfg=5.0,
-    sampler_name="dpmpp_2m", scheduler="karras", denoise=1.0,
-    filename_prefix="ld-src", layerdiffuse=True))
+# picture from VAEDecode 8, and SaveImage 9 reads the Join. Written out by
+# hand -- no recipe builds this shape any more, but repair still has to
+# handle a historical generation that carries it.
+LAYERDIFFUSE = {
+    "4": {"class_type": "DiffusersLoader",
+         "inputs": {"model_path": "hassaku-il-v22"}},
+    "5": {"class_type": "EmptyLatentImage",
+         "inputs": {"batch_size": 1, "width": 832, "height": 1664}},
+    "6": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": "p"}},
+    "7": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": "n"}},
+    "3": {"class_type": "KSampler", "inputs": {
+        "model": ["12", 0], "positive": ["6", 0], "negative": ["7", 0],
+        "latent_image": ["5", 0], "seed": 7, "steps": 30, "cfg": 5.0,
+        "sampler_name": "dpmpp_2m", "scheduler": "karras", "denoise": 1.0}},
+    "8": {"class_type": "VAEDecode", "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+    "9": {"class_type": "SaveImage",
+         "inputs": {"images": ["15", 0], "filename_prefix": "ld-src"}},
+    "12": {"class_type": "LayeredDiffusionApply", "inputs": {
+        "model": ["4", 0], "config": "SDXL, Conv Injection", "weight": 1.0}},
+    "13": {"class_type": "LayeredDiffusionDecode", "inputs": {
+        "samples": ["3", 0], "images": ["8", 0],
+        "sd_version": "SDXL", "sub_batch_size": 16}},
+    "14": {"class_type": "InvertMask", "inputs": {"mask": ["13", 1]}},
+    "15": {"class_type": "JoinImageWithAlpha", "inputs": {
+        "image": ["13", 0], "alpha": ["14", 0]}},
+}
 
 
 class SourcePromptsTest(unittest.TestCase):

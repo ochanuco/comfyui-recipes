@@ -1,4 +1,4 @@
-"""Yukari-anima domain, graph and dispatch tests."""
+"""Yukari domain, graph and dispatch tests."""
 
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ from unittest.mock import patch
 from comfyui_recipes.application.generate import validate_request
 from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.generation.prompt_lint import tags as prompt_tags
-from comfyui_recipes.domain.yukari_anima import prompt_style as ps
-from comfyui_recipes.domain.yukari_anima.costumes import COSTUMES
-from comfyui_recipes.domain.yukari_anima.expressions import EXPRESSIONS
-from comfyui_recipes.domain.yukari_anima.poses import POSES
-from comfyui_recipes.domain.yukari_anima.recipe import (
+from comfyui_recipes.domain.yukari import prompt_style as ps
+from comfyui_recipes.domain.yukari.costumes import COSTUMES
+from comfyui_recipes.domain.yukari.expressions import EXPRESSIONS
+from comfyui_recipes.domain.yukari.poses import POSES
+from comfyui_recipes.domain.yukari.recipe import (
     PART_NAMES, identity_tags, negative, positive, positive_parts,
     refinement_prompt, render_spec,
 )
@@ -549,36 +549,36 @@ class ValidateRequestTest(unittest.TestCase):
         return {
             "schema_version": 1,
             "request": {"count": 1, "instruction": "test", "seeds": [42]},
-            "generation": {"recipe": "yukari-anima",
+            "generation": {"recipe": "yukari",
                           "parameters": {"pose": "coffee"}, **generation},
             "semantic": {"summary": "test arm"},
         }
 
-    def test_yukari_anima_is_accepted(self):
+    def test_yukari_is_accepted(self):
         validate_request(self._request())
 
-    def test_hires_is_accepted_for_yukari_anima(self):
+    def test_hires_is_accepted_for_yukari(self):
         request = self._request()
         request["generation"]["parameters"]["hires"] = 2048
         validate_request(request)  # must not raise
 
-    def test_denoise_is_accepted_for_yukari_anima(self):
+    def test_denoise_is_accepted_for_yukari(self):
         request = self._request()
         request["generation"]["parameters"]["hires"] = 2048
         request["generation"]["parameters"]["denoise"] = 0.5
         validate_request(request)  # must not raise
 
-    def test_layerdiffuse_is_rejected_for_yukari_anima(self):
+    def test_layerdiffuse_is_rejected_for_yukari(self):
         request = self._request()
         request["generation"]["parameters"]["layerdiffuse"] = True
         with self.assertRaises(SystemExit):
             validate_request(request)
 
-    def test_expression_is_rejected_for_yukari(self):
+    def test_unsupported_recipe_is_rejected(self):
         request = {
             "schema_version": 1,
             "request": {"count": 1, "instruction": "test", "seeds": [42]},
-            "generation": {"recipe": "yukari",
+            "generation": {"recipe": "yukari-sketch",
                           "parameters": {"pose": "lounge", "expression": "doya"}},
             "semantic": {"summary": "test arm"},
         }
@@ -587,11 +587,11 @@ class ValidateRequestTest(unittest.TestCase):
 
 
 class CliTest(unittest.TestCase):
-    def test_anima_prompt_json_needs_no_clients(self):
+    def test_yukari_prompt_json_needs_no_clients(self):
         output = io.StringIO()
         with patch.object(cli, "ChimeraClient") as chimera_class, \
                 redirect_stdout(output):
-            cli.main(["anima", "prompt", "--pose", "amae", "--json"])
+            cli.main(["yukari", "prompt", "--pose", "amae", "--json"])
         chimera_class.assert_not_called()
         payload = json.loads(output.getvalue())
         self.assertEqual(payload["positive"], AMAE_POSITIVE)

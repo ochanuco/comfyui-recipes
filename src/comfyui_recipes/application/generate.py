@@ -17,20 +17,15 @@ from typing import Protocol
 from ..domain.generation.models import PromptPair, RenderSpec
 from ..domain.generation.patches import apply_patches, parse_patches
 from ..domain.generation.prompt_lint import tags as prompt_tags
-from ..domain.yukari.dials import DIALS as YUKARI_DIALS
-from ..domain.yukari_anima.dials import DIALS as ANIMA_DIALS
-from ..domain.yukari_sketch.dials import DIALS as SKETCH_DIALS
+from ..domain.yukari.dials import DIALS
 
 PresetFetcher = Callable[[str, str, str, int], dict]
 
 # `generation.recipe` -> its `dials.patches` vocabulary (target -> word ->
-# number). One entry per recipe DIALS in domain/*/dials.py -- application/
-# work.py's _RECIPE_DIALS is the same three, keyed the same way, for its own
-# finalize/repair scopes.
+# number). application/request_options.py's _RECIPE_DIALS is the same, keyed
+# the same way, for its own finalize/repair scopes.
 PATCH_DIALS: dict[str, Mapping[str, Mapping[str, float]]] = {
-    "yukari": YUKARI_DIALS.get("patches", {}),
-    "yukari-anima": ANIMA_DIALS.get("patches", {}),
-    "yukari-sketch": SKETCH_DIALS.get("patches", {}),
+    "yukari": DIALS.get("patches", {}),
 }
 
 
@@ -72,13 +67,11 @@ ConflictFinder = Callable[[str, str], list[tuple[str, str, str]]]
 
 KNOWN_PARAMETERS = frozenset(
     {"pose", "costume", "hires", "denoise", "character", "character_id",
-     "arm", "expression", "layerdiffuse"})
+     "arm", "expression"})
 
 # Read by validate_request and by the published catalog.
 RECIPE_REJECTED_PARAMETERS: dict[str, frozenset[str]] = {
-    "yukari": frozenset({"expression"}),
-    "yukari-anima": frozenset({"layerdiffuse"}),
-    "yukari-sketch": frozenset({"hires", "denoise", "expression"}),
+    "yukari": frozenset(),
 }
 
 
@@ -143,8 +136,10 @@ def validate_request(req: object) -> None:
             raise SystemExit("generation.graph must be a non-empty graph dict")
         if not generation.get("recipe"):
             raise SystemExit("generation.recipe must name what this graph is")
-    elif generation.get("recipe") not in ("yukari", "yukari-anima", "yukari-sketch"):
-        raise SystemExit(f"recipe {generation.get('recipe')!r} not supported yet")
+    elif generation.get("recipe") not in ("yukari",):
+        raise SystemExit(
+            f"recipe {generation.get('recipe')} は使えません。使えるのは "
+            "yukari です")
     elif not parameters.get("pose") and not _pins_pose(generation):
         raise SystemExit(
             f"generation.parameters.pose is required for {generation['recipe']} "
@@ -156,9 +151,6 @@ def validate_request(req: object) -> None:
             "belong in semantic.attributes, executable diffs in "
             "generation.patches"
         )
-    elif ("layerdiffuse" in parameters
-          and not isinstance(parameters["layerdiffuse"], bool)):
-        raise SystemExit("generation.parameters.layerdiffuse must be a bool")
     elif set(parameters) & RECIPE_REJECTED_PARAMETERS.get(
             generation["recipe"], frozenset()):
         rejected = sorted(set(parameters)
@@ -294,7 +286,7 @@ def request_graph(generation: dict, seed: int, prefix: str,
     params = generation.get("parameters", {})
     # Optional parameters reach the recipe only when the request sets them.
     kwargs = {key: params[key] for key in
-             ("hires", "denoise", "costume", "expression", "layerdiffuse")
+             ("hires", "denoise", "costume", "expression")
              if key in params}
     spec = spec_builder(params["pose"], seed, prefix, **kwargs)
     if generation.get("prompt") or generation.get("negative_prompt"):
@@ -766,8 +758,7 @@ def generate(request_path: Path, services: GenerateServices, *,
                 semantic = json.loads(json.dumps(req["semantic"]))
                 semantic.setdefault("attributes", {}).update(
                     {"seed": seed, **{key: value for key, value in params.items()
-                                      if key in ("arm", "pose", "costume",
-                                                "layerdiffuse")}})
+                                      if key in ("arm", "pose", "costume")}})
                 if generation.get("patches"):
                     semantic["attributes"]["patches"] = generation["patches"]
                 if identity_removed:

@@ -24,7 +24,7 @@ from ..domain.yukari_sketch.recipe import positive as sketch_positive
 from ..domain.yukari_sketch.recipe import refinement_prompt as sketch_refinement_prompt
 from ..infrastructure.comfyui.base_graph import base_roles
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
-from ..infrastructure.comfyui.refinement_graph import DELIVERED_SUFFIX, MATTE_SUFFIX, sizes
+from ..infrastructure.comfyui.refinement_graph import sizes
 from ..infrastructure.comfyui.repair_graph import redraw_canvas, splice_repair
 from ..infrastructure.imaging.delivery import image_size
 from ..infrastructure.imaging.masks import (
@@ -32,6 +32,7 @@ from ..infrastructure.imaging.masks import (
     render_mask_png,
     render_soft_mask_png,
 )
+from .ingest import attach_asset, classify_outputs, record_job, upload_generation
 from .repair import RepairServices
 from .repair import repair as repair_use_case
 
@@ -408,11 +409,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         matte_name = matte = None
         delivered_name, delivered = image["filename"], raw
     else:
-        mattes = [out for out in outputs if MATTE_SUFFIX in out["filename"]]
-        delivereds = [out for out in outputs if DELIVERED_SUFFIX in out["filename"]]
-        pictures = [out for out in outputs
-                    if MATTE_SUFFIX not in out["filename"]
-                    and DELIVERED_SUFFIX not in out["filename"]]
+        pictures, delivereds, mattes = classify_outputs(outputs)
         missing = [name for name, outs in
                    (("raw", pictures), ("matte", mattes), ("delivered", delivereds))
                    if not outs]
@@ -486,41 +483,28 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         "refinement": {"source_batch_id": context["batch"]["id"],
                        "actor": "human", "reason": "採用作の高解像度化"},
     })
-    job = services.management.request(
-        "POST", f"/api/v1/batches/{batch['id']}/jobs",
-        {"idempotency_key": (f"{key_prefix}:job:0" if key_prefix else str(uuid.uuid4())),
-         "seed": seed, "index": 0})
-    services.management.request(
-        "PATCH", f"/api/v1/jobs/{job['id']}",
-        {"status": "queued", "comfy_prompt_id": prompt_id, "graph": graph})
-    services.management.request(
-        "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "completed"})
+    job = record_job(services.management, batch["id"], key_prefix=key_prefix,
+                     index=0, seed=seed, prompt_id=prompt_id, graph=graph)
     uploads = ([(image["filename"], raw)] if single_output
               else [(delivered_name, delivered)] if deliver_only
               else [(image["filename"], raw), (delivered_name, delivered)])
     ids, urls = [], []
     for index, (name, data) in enumerate(uploads):
-        rendered = services.management.request(
-            "POST", f"/api/v1/jobs/{job['id']}/generations",
-            multipart=({"seed": seed, "original_filename": name,
-                        "comfy_output_index": index},
-                       "image", name, data, "image/png"))
+        rendered = upload_generation(services.management, services.emit,
+                                     job["id"], seed=seed, name=name, data=data,
+                                     index=index)
         ids.append(rendered["id"])
         urls.append(rendered["canonical_url"])
-        services.emit(f"{name} -> {rendered['canonical_url']}")
     if not single_output:
         # The matte hangs off the first ingested generation: the raw redraw
         # when there is one, otherwise the delivered picture.
-        services.management.request(
-            "POST", f"/api/v1/generations/{ids[0]}/assets",
-            multipart=({"role": "mask"}, "file", matte_name, matte, "image/png"))
+        attach_asset(services.management, ids[0], role="mask", name=matte_name,
+                     data=matte)
         services.emit(f"{matte_name} -> mask on {ids[0]}")
     if repair_requested:
         mask_filename = f"{staged_prefix}-mask.png"
-        services.management.request(
-            "POST", f"/api/v1/generations/{ids[0]}/assets",
-            multipart=({"role": "repair-mask"}, "file", mask_filename,
-                       repair_mask_png, "image/png"))
+        attach_asset(services.management, ids[0], role="repair-mask",
+                     name=mask_filename, data=repair_mask_png)
         services.emit(f"{mask_filename} -> repair-mask on {ids[0]}")
     services.management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})

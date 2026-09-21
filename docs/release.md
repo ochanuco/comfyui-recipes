@@ -19,7 +19,7 @@ are joined by a promotion PR, the same shape as ochanuco/webull-trading.
   It authenticates as a GitHub App (secrets `APP_ID`, `APP_PRIVATE_KEY`) so
   the PR is not self-authored and its checks run.
 - `production preflight` is the required check on that PR: tests with
-  `PYTHONPATH=scripts`, then `scripts/costume_check.py`.
+  `PYTHONPATH=scripts`, then `scripts/delivery_check.py`.
 - `deploy worker` runs on `push` to `production` only, on the self-hosted
   runner labelled `gpu-box`. It calls `scripts/worker/deploy.ps1` in the
   standing checkout named by the repository variable `WORKER_CHECKOUT`,

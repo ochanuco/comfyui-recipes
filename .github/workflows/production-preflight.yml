@@ -35,5 +35,5 @@ jobs:
       - name: Tests
         run: PYTHONPATH=scripts .venv/bin/pytest -q
 
-      - name: Costume contract
-        run: .venv/bin/python scripts/costume_check.py
+      - name: Delivery identity contract
+        run: .venv/bin/python scripts/delivery_check.py

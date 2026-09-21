@@ -260,8 +260,3 @@ blue backdrop. The palest green backdrop on record has an excess of 16
 (`p358wk`, `204, 220, 182`); on the grey ones it is 0 or negative. The
 gate is separate from `KEY_DESPILL_MIN_EXCESS` because despill takes any
 dominant channel as a key and this cut only a green one.
-
-## FINALIZE_DENOISE
-
-`0.45`, the denoise `finalize`'s masked refine runs at for a 2048 print's
-touch-up.

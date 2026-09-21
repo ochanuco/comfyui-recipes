@@ -9,20 +9,13 @@ from datetime import datetime, timezone
 from typing import Protocol
 
 from ..domain.generation.patches import (
-    LAYERDIFFUSE_CONFIGS,
     NUMBER_CONSTRAINTS,
     NUMBER_TARGETS,
     STRING_TARGETS,
     TEXT_OPS,
     TEXT_TARGETS,
 )
-from ..domain.yukari.costumes import COSTUMES as YUKARI_COSTUMES
 from ..domain.yukari.delivery_style import BACKDROP_LABELS
-from ..domain.yukari.delivery_style import FINALIZE_DEFAULTS as YUKARI_FINALIZE_DEFAULTS
-from ..domain.yukari.dials import DIALS as YUKARI_DIALS
-from ..domain.yukari.poses import POSE_RECORDS
-from ..domain.yukari.recipe import identity_tags as yukari_identity_tags
-from ..domain.yukari.recipe import render_spec as yukari_render_spec
 from ..domain.yukari_anima.costumes import COSTUMES as ANIMA_COSTUMES
 from ..domain.yukari_anima.delivery_style import FINALIZE_DEFAULTS as ANIMA_FINALIZE_DEFAULTS
 from ..domain.yukari_anima.dials import DIALS as ANIMA_DIALS
@@ -30,14 +23,6 @@ from ..domain.yukari_anima.expressions import EXPRESSIONS as ANIMA_EXPRESSIONS
 from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
 from ..domain.yukari_anima.recipe import identity_tags as anima_identity_tags
 from ..domain.yukari_anima.recipe import render_spec as anima_render_spec
-from ..domain.yukari_sketch.costumes import COSTUMES as SKETCH_COSTUMES
-from ..domain.yukari_sketch.delivery_style import FINALIZE_DEFAULTS as SKETCH_FINALIZE_DEFAULTS
-from ..domain.yukari_sketch.dials import DIALS as SKETCH_DIALS
-from ..domain.yukari_sketch.poses import POSES as SKETCH_POSES
-from ..domain.yukari_sketch.recipe import departures as sketch_departures
-from ..domain.yukari_sketch.recipe import identity_tags as sketch_identity_tags
-from ..domain.yukari_sketch.recipe import render_spec as sketch_render_spec
-from ..domain.yukari_sketch.recipe import resolved_face as sketch_resolved_face
 from ..infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
 from ..infrastructure.imaging.backdrops import thumbnail as backdrop_thumbnail
 from .generate import KNOWN_PARAMETERS, RECIPE_REJECTED_PARAMETERS
@@ -55,66 +40,6 @@ def _parameters(recipe: str) -> dict:
     return {
         "allowed": sorted(KNOWN_PARAMETERS - rejected),
         "rejected": sorted(rejected),
-    }
-
-
-def _yukari_recipe() -> dict:
-    poses = []
-    model = None
-    for name in sorted(POSE_RECORDS):
-        spec = yukari_render_spec(name, _SEED, _PREFIX)
-        model = spec.model_path
-        poses.append({
-            "name": name,
-            "costume": "default",
-            "face": None,
-            "canvas": [spec.width, spec.height],
-            "positive": spec.prompts.positive,
-            "negative": spec.prompts.negative,
-        })
-    return {
-        "name": "yukari",
-        "model": model,
-        "parameters": _parameters("yukari"),
-        "costumes": sorted(YUKARI_COSTUMES),
-        "poses": poses,
-        "parts": [],
-        "identity_tags": sorted(yukari_identity_tags(sorted(POSE_RECORDS)[0], "default")),
-        "dials": YUKARI_DIALS,
-        "finalize": {"defaults": YUKARI_FINALIZE_DEFAULTS},
-    }
-
-
-def _sketch_recipe() -> dict:
-    poses = []
-    model = None
-    for name in sorted(SKETCH_POSES):
-        pose = SKETCH_POSES[name]
-        spec = sketch_render_spec(name, _SEED, _PREFIX)
-        model = spec.model_path
-        poses.append({
-            "name": name,
-            "costume": pose.costume,
-            "face": sketch_resolved_face(name),
-            "parent": pose.parent,
-            "departures": sketch_departures(name),
-            "canvas": [spec.width, spec.height],
-            "positive": spec.prompts.positive,
-            "negative": spec.prompts.negative,
-            "parts": [{"name": part_name, "text": text}
-                     for part_name, text in spec.positive_parts],
-        })
-    return {
-        "name": "yukari-sketch",
-        "model": model,
-        "parameters": _parameters("yukari-sketch"),
-        "costumes": sorted(SKETCH_COSTUMES),
-        "poses": poses,
-        "parts": [name for name, _ in
-                 sketch_render_spec(sorted(SKETCH_POSES)[0], _SEED, _PREFIX).positive_parts],
-        "identity_tags": sorted(sketch_identity_tags(sorted(SKETCH_POSES)[0], "default")),
-        "dials": SKETCH_DIALS,
-        "finalize": {"defaults": SKETCH_FINALIZE_DEFAULTS},
     }
 
 
@@ -170,11 +95,7 @@ def _patches_block() -> dict:
             for target in NUMBER_TARGETS
         },
         "string": {
-            target: {
-                "op": "set",
-                "values": (list(LAYERDIFFUSE_CONFIGS)
-                          if target == "render.layerdiffuse_config" else None),
-            }
+            target: {"op": "set", "values": None}
             for target in STRING_TARGETS
         },
         "overrides": {
@@ -205,7 +126,7 @@ def build_catalog(git: dict) -> dict:
         "git_branch": git.get("branch"),
         "git_dirty": bool(git.get("dirty")),
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "recipes": [_yukari_recipe(), _anima_recipe(), _sketch_recipe()],
+        "recipes": [_anima_recipe()],
         "patches": _patches_block(),
         "backdrops": _backdrops_block(),
     }

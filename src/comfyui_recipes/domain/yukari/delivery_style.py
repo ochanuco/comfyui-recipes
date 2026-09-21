@@ -5,8 +5,7 @@ the purple marker is a post-process -- but they are identity all the same,
 applied by the delivery tools instead of the graph. Every tool reads its
 default from here, so the value a delivered picture actually wears has one
 source. Changing a value here changes every picture delivered after it --
-`costume_check.py` fingerprints this file alongside the prompt blocks for
-that reason.
+`costume_check.py` fingerprints this file for that reason.
 
 The calibration measurements behind each number are in
 docs/yukari/delivery_style.md.
@@ -412,14 +411,6 @@ KEY_EDGE_RING_PX = 1
 # Coverage in that ring reaches 1 at this multiple of MATTE_EDGE_TOLERANCE
 # of colour distance from the local backdrop.
 KEY_EDGE_RAMP = 2.0
-
-# finalize's masked refine, the denoise a 2048 print's touch-up runs at.
-FINALIZE_DENOISE = 0.45
-
-# The delivery redraw's own sampler (sampler_name, scheduler).
-FINALIZE_SAMPLER = ("euler", "normal")
-
-FINALIZE_DEFAULTS = {"stroke_light": "n", "backdrop": "stripes"}
 
 # Lineart-preserving recolour (infrastructure/imaging/recolor.py). Where
 # repin nudges the render's own saturation, recolor asserts a material's

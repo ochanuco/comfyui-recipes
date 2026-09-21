@@ -1,20 +1,3 @@
 {
- "boss": {
-  "coat black": 0.23231050631368624,
-  "dress purple": 0.03793751685065427,
-  "hair light purple": 0.3265873777981319,
-  "hood lining pink": 0.0019366710863085895,
-  "legwear grey": 0.027377004073703377,
-  "pale sock": 0.06816482063517272,
-  "skin": 0.06894964562843245
- },
- "prone": {
-  "coat black": 0.466477531009709,
-  "dress purple": 0.061173934224028025,
-  "hair light purple": 0.2229885704216906,
-  "hood lining pink": 0.008142408488597815,
-  "legwear grey": 0.04323368667941062,
-  "pale sock": 0.281114469025828,
-  "skin": 0.23695385968523128
- }
+ "delivery_fingerprint": "2db8ce3c929596cf"
 }

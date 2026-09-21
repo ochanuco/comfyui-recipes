@@ -12,7 +12,6 @@ from ..application import metadata
 from ..application.catalog import build_catalog
 from ..application.catalog import publish_catalog as publish_catalog_document
 from ..application.finalize import finalize
-from ..domain.yukari.recipe import TOE_GUARD
 from ..application.generate import generate
 from ..application.masked_redraw import masked_redraw
 from ..application.repair import repair
@@ -28,22 +27,12 @@ from ..application.work import (
 from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
-from ..domain.yukari.costumes import COSTUMES
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
-from ..domain.yukari.poses import POSES
-from ..domain.yukari.recipe import negative, positive
 from ..domain.yukari_anima.costumes import COSTUMES as ANIMA_COSTUMES
 from ..domain.yukari_anima.expressions import EXPRESSIONS as ANIMA_EXPRESSIONS
 from ..domain.yukari_anima.poses import POSES as ANIMA_POSES
 from ..domain.yukari_anima.recipe import negative as anima_negative
 from ..domain.yukari_anima.recipe import positive as anima_positive
-from ..domain.yukari_sketch.costumes import COSTUMES as SKETCH_COSTUMES
-from ..domain.yukari_sketch.poses import POSES as SKETCH_POSES
-from ..domain.yukari_sketch.recipe import departures as sketch_departures
-from ..domain.yukari_sketch.recipe import lineage as sketch_lineage
-from ..domain.yukari_sketch.recipe import negative as sketch_negative
-from ..domain.yukari_sketch.recipe import plain_request as sketch_plain_request
-from ..domain.yukari_sketch.recipe import positive as sketch_positive
 from ..infrastructure.chimera.client import ChimeraClient
 from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
@@ -144,13 +133,8 @@ def parser() -> argparse.ArgumentParser:
         help="skip the redraw and run only the delivery tail (matte, repin/"
              "skin/recolor, backdrop and stroke) over the picked picture's "
              "own pixels; mutually exclusive with every redraw-shaping flag")
-    finalize_parser.add_argument("--handdrawn", action="store_true")
     finalize_parser.add_argument(
         "--repin", action="store_true", help="repin the delivery's palette")
-    finalize_parser.add_argument(
-        "--toe-guard", type=_number_or_word, nargs="?", const=TOE_GUARD, metavar="WEIGHT",
-        help="ban the toes in the redraw, hiding the count behind a smooth "
-             "toe box; off by default because the checkpoint draws five")
     finalize_parser.add_argument(
         "--skin", action="store_true",
         help="pin the redraw's skin back to the base render's own")
@@ -171,17 +155,11 @@ def parser() -> argparse.ArgumentParser:
     route_group.add_argument(
         "--pixel-route", dest="latent_route", action="store_const",
         const=False,
-        help="force the pixel-space route on a recipe (yukari-sketch) whose "
-             "own default is the latent route")
+        help="force the pixel-space route explicitly, finalize's own default")
     finalize_parser.add_argument(
         "--finalizer", metavar="MODEL",
         help="DiffusersLoader model_path that redraws instead of the base "
              "pass's own checkpoint")
-    finalize_parser.add_argument(
-        "--sketch-redraw", metavar="POSE",
-        help="on an anima base, redraw with the yukari-sketch look for POSE "
-             "(that pose's own prompt, LoRA and sampler) instead of the "
-             "anima recipe's own rough-style redraw")
     finalize_parser.add_argument(
         "--keep-scene", action="store_true",
         help="deliver the redraw uncut, background and all")
@@ -189,8 +167,7 @@ def parser() -> argparse.ArgumentParser:
     transparent_group.add_argument(
         "--transparent", dest="transparent", action="store_const",
         const=True, default=None,
-        help="deliver the figure alone as an RGBA cutout (yukari-sketch's "
-             "default)")
+        help="deliver the figure alone as an RGBA cutout")
     transparent_group.add_argument(
         "--opaque", dest="transparent", action="store_const", const=False,
         help="composite on the backdrop with the purple stroke instead")
@@ -209,10 +186,6 @@ def parser() -> argparse.ArgumentParser:
         choices=["bicubic", "nearest-exact", "bilinear", "lanczos"],
         help="pixel-route upscale method feeding the redraw, overriding the "
              "delivery's own bicubic default")
-    finalize_parser.add_argument(
-        "--lora-strength", type=_number_or_word, metavar="STRENGTH",
-        help="strength the redraw's LoRA runs at, overriding the recipe's "
-             "own default")
     finalize_parser.add_argument(
         "--stroke-light", choices=sorted(STROKE_LIGHTS),
         help="light direction the purple stroke is shaded from; thin toward "
@@ -356,13 +329,6 @@ def parser() -> argparse.ArgumentParser:
     assets = metadata_commands.add_parser("list-assets")
     assets.add_argument("generation_id")
 
-    yukari_parser = commands.add_parser("yukari", help="inspect the Yukari domain")
-    yukari_commands = yukari_parser.add_subparsers(dest="yukari_command", required=True)
-    prompt = yukari_commands.add_parser("prompt")
-    prompt.add_argument("--pose", required=True, choices=sorted(POSES))
-    prompt.add_argument("--costume", default="default", choices=sorted(COSTUMES))
-    prompt.add_argument("--json", action="store_true")
-
     anima_parser = commands.add_parser("anima", help="inspect the Yukari-anima domain")
     anima_commands = anima_parser.add_subparsers(dest="anima_command", required=True)
     anima_prompt = anima_commands.add_parser("prompt")
@@ -370,69 +336,15 @@ def parser() -> argparse.ArgumentParser:
     anima_prompt.add_argument("--costume", choices=sorted(ANIMA_COSTUMES))
     anima_prompt.add_argument("--expression", choices=sorted(ANIMA_EXPRESSIONS))
     anima_prompt.add_argument("--json", action="store_true")
-
-    sketch_parser = commands.add_parser("sketch", help="inspect the Yukari-sketch domain")
-    sketch_commands = sketch_parser.add_subparsers(dest="sketch_command", required=True)
-    sketch_prompt = sketch_commands.add_parser("prompt")
-    sketch_prompt.add_argument("--pose", required=True, choices=sorted(SKETCH_POSES))
-    sketch_prompt.add_argument("--costume", choices=sorted(SKETCH_COSTUMES))
-    sketch_prompt.add_argument("--json", action="store_true")
-    sketch_lineage_parser = sketch_commands.add_parser("lineage")
-    sketch_lineage_parser.add_argument("--pose", choices=sorted(SKETCH_POSES))
-    sketch_lineage_parser.add_argument("--json", action="store_true")
-    sketch_plain_parser = sketch_commands.add_parser("plain")
-    sketch_plain_parser.add_argument("--pose", required=True, choices=sorted(SKETCH_POSES))
-    sketch_plain_parser.add_argument("--seed", type=int, required=True)
-    sketch_plain_parser.add_argument("--costume", choices=sorted(SKETCH_COSTUMES))
     return root
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parser().parse_args(argv)
-    if args.command == "yukari":
-        prompts = {
-            "positive": positive(args.pose, args.costume),
-            "negative": negative(args.pose, args.costume),
-        }
-        if args.json:
-            print(json.dumps(prompts, ensure_ascii=False, indent=2))
-        else:
-            print(prompts["positive"], "\n\n---\n\n", prompts["negative"])
-        return
     if args.command == "anima":
         prompts = {
             "positive": anima_positive(args.pose, args.costume, args.expression),
             "negative": anima_negative(args.pose, args.costume, args.expression),
-        }
-        if args.json:
-            print(json.dumps(prompts, ensure_ascii=False, indent=2))
-        else:
-            print(prompts["positive"], "\n\n---\n\n", prompts["negative"])
-        return
-    if args.command == "sketch":
-        if args.sketch_command == "lineage":
-            data = ({args.pose: sketch_departures(args.pose)} if args.pose
-                    else sketch_lineage())
-            if args.json:
-                print(json.dumps(data, ensure_ascii=False, indent=2))
-            else:
-                for name, dep in data.items():
-                    parent = dep["parent"] or "base"
-                    print(f"{name}  <- {parent}  "
-                         f"costume={SKETCH_POSES[name].costume}")
-                    for part, changes in dep["parts"].items():
-                        marker = (" (full override)"
-                                 if part == "face" and dep["face_override"]
-                                 else "")
-                        print(f"  {part}:{marker} " + " ".join(changes))
-            return
-        if args.sketch_command == "plain":
-            payload = sketch_plain_request(args.pose, args.seed, args.costume)
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
-            return
-        prompts = {
-            "positive": sketch_positive(args.pose, args.costume),
-            "negative": sketch_negative(args.pose, args.costume),
         }
         if args.json:
             print(json.dumps(prompts, ensure_ascii=False, indent=2))
@@ -483,7 +395,7 @@ def main(argv: list[str] | None = None) -> None:
             chimera, args.generation_id, "finalize",
             {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
         finalize(args.generation_id, services, denoise=dial_values["denoise"],
-                 handdrawn=args.handdrawn, apply_repin=args.repin,
+                 apply_repin=args.repin,
                  apply_skin=args.skin,
                  apply_recolor=args.recolor,
                  keep_legwear=dial_values["keep_legwear"],
@@ -492,11 +404,8 @@ def main(argv: list[str] | None = None) -> None:
                  size=args.size,
                  latent_route=args.latent_route,
                  finalizer=args.finalizer,
-                 sketch_redraw=args.sketch_redraw,
-                 toe_guard=dial_values["toe_guard"],
                  backdrop=args.backdrop,
                  upscale=args.upscale,
-                 lora_strength=dial_values["lora_strength"],
                  deliver_size=args.deliver_size,
                  stroke_light=args.stroke_light,
                  repair=repair_parts,

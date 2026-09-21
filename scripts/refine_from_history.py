@@ -7,12 +7,10 @@ recipe, and no chance of a tag-order difference changing the picture.
 
     refine_from_history.py <prompt_id>                       # second pass, 2048
     refine_from_history.py <prompt_id> --chain               # append to a refined one
-    refine_from_history.py <prompt_id> --chain --pose boss --denoise 0.60
+    refine_from_history.py <prompt_id> --chain --denoise 0.60
 
 `--chain` appends onto a render that already has a second pass instead of
-replacing it, and `--pose` re-encodes the prompt from the current recipe rather
-than reusing the stored one -- which is how a picture whose shading was already
-approved takes corrections made to the recipe afterwards.
+replacing it.
 
 **A cheap pass deletes; it does not add.** At 0.35 the chained pass removed a
 button placket the recipe had since banned and left newly-added halter straps as
@@ -162,9 +160,6 @@ if __name__ == "__main__":
                     help="submit all three measured combinations instead of one")
     ap.add_argument("--chain", action="store_true",
                     help="append a pass onto a render that already has one")
-    ap.add_argument("--pose",
-                    help="with --chain, re-encode the prompt from the current "
-                         "recipe for this pose instead of reusing the stored one")
     args = ap.parse_args()
 
     HOST, PORT, HIRES = args.host, args.port, args.hires
@@ -172,13 +167,8 @@ if __name__ == "__main__":
     print("first pass:", base["5"]["inputs"], "seed", base["3"]["inputs"]["seed"])
     print("second pass:", sizes(base))
     if args.chain:
-        prompt = None
-        if args.pose:
-            import yukari_recipe
-            fresh = yukari_recipe.build(args.pose, base["3"]["inputs"]["seed"], "tmp")
-            prompt = (fresh["6"]["inputs"]["text"], fresh["7"]["inputs"]["text"])
         jobs = [(args.prefix, chain_pass(base, args.hires, args.denoise,
-                                         args.prefix, prompt))]
+                                         args.prefix))]
     elif args.sweep:
         jobs = [(f"{args.prefix}-latent-060", latent_route(base, 0.60, f"{args.prefix}-latent-060")),
                 (f"{args.prefix}-image-045", image_route(base, 0.45, f"{args.prefix}-image-045")),

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from ..generation.models import HiresSpec, PromptPair, RenderSpec
 from ..generation.prompt_lint import tags as prompt_tags
-from ..yukari.prompt_style import DOT_BAN, HAND_BAN, SHADE_BAN
 from .costumes import COSTUMES, HOODED_COSTUMES, LEGWEAR
 from .delivery_style import PAINT_BAN, ROUGH_BAN, ROUGH_STYLE
 from .expressions import EXPRESSIONS
@@ -23,9 +22,11 @@ from .prompt_style import (
     COLORED_LINE_BAN,
     DETAIL_BAN,
     DIGIT_BAN,
+    DOT_BAN,
     FACE,
     GARMENT_BLACK_BAN,
     GRADIENT_BAN,
+    HAND_BAN,
     HEIGHT,
     HIRES_DENOISE,
     HOOD_BAN,
@@ -37,6 +38,7 @@ from .prompt_style import (
     SAMPLER,
     SCHEDULER,
     SCORE_BAN,
+    SHADE_BAN,
     SHINE_BAN,
     STEPS,
     STYLE,

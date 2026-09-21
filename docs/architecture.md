@@ -18,7 +18,8 @@ src/comfyui_recipes/
 ├── application/         # generate, finalize and metadata workflows
 ├── domain/
 │   ├── generation/      # shared values and prompt checks
-│   └── yukari/          # profile, costumes, poses and recipe policy
+│   ├── yukari/          # delivery identity (backdrop, stroke, acceptance band)
+│   └── yukari_anima/    # the recipe that draws: identity, costumes, poses, prompt edit order
 └── infrastructure/
     ├── chimera/         # Management API
     ├── comfyui/         # HTTP client and graph encoders
@@ -44,10 +45,10 @@ requests, open images, or know ComfyUI node ids.
 decides prompts, sampling parameters, sizes and filenames; the ComfyUI adapter
 decides how those values are encoded as nodes and links.
 
-Each recipe package (`yukari/`, `yukari_anima/`, `yukari_sketch/`) owns a
-`dials.py`: the named words (`{word: number}`) it publishes for its own
-finalize/repair/patch option values, referencing the same constants the
-recipe itself uses rather than duplicating a number. `application/work.py`
+`yukari_anima/` owns a `dials.py`: the named words (`{word: number}`) it
+publishes for its own finalize/repair/patch option values, referencing the
+same constants the recipe itself uses rather than duplicating a number.
+`application/work.py`
 and `application/generate.py` resolve a request's word against the source
 generation's recipe; `application/catalog.py` publishes the vocabulary as
 each recipe's `dials` block.
@@ -82,8 +83,7 @@ also stops the render in flight, which is why the drain sentinel
 ## Migration rule
 
 `comfy-recipes` is the only public application entry point. The old
-`scripts/generate.py` and `scripts/yukari_recipe.py` modules are temporary
-compatibility facades and must not acquire new domain or orchestration logic.
-Other files under `scripts/` are operator or research utilities, not alternate
-application entry points; they are being grouped separately as the migration
-continues.
+`scripts/generate.py` module is a temporary compatibility facade and must
+not acquire new domain or orchestration logic. Other files under `scripts/`
+are operator or research utilities, not alternate application entry points;
+they are being grouped separately as the migration continues.

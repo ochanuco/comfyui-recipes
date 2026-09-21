@@ -8,17 +8,18 @@ import json
 from pathlib import Path
 
 from comfyui_recipes.domain.generation.prompt_lint import conflicts
-from comfyui_recipes.domain.yukari.recipe import negative, positive
+from comfyui_recipes.domain.yukari_anima.recipe import negative, positive
 
 
 def request_prompts(request: dict) -> tuple[str, str]:
     generation = request.get("generation", {})
     parameters = generation.get("parameters", {})
     pose = parameters["pose"]
-    costume = parameters.get("costume", "default")
+    costume = parameters.get("costume")
+    expression = parameters.get("expression")
     return (
-        generation.get("prompt") or positive(pose, costume),
-        generation.get("negative_prompt") or negative(pose, costume),
+        generation.get("prompt") or positive(pose, costume, expression),
+        generation.get("negative_prompt") or negative(pose, costume, expression),
     )
 
 

@@ -117,8 +117,11 @@ task `comfyui-recipes-watch` (at logon, interactive principal, so no stored
 password) and starts it. The wrapper waits until ComfyUI answers on
 `127.0.0.1:8188`, restarts the CLI when it exits, and appends to
 `.local/_nogit/worker/watch.log`. `register-comfyui.ps1 -PortableRoot <dir>`
-registers the portable ComfyUI's `run_nvidia_gpu.bat` the same way as task
-`comfyui`, so a reboot brings both back once the user logs on. `.local/chimera-token` and
+registers the portable ComfyUI's `python_embeded\python.exe` with the
+launch arguments the script holds (`--listen`, `--disable-auto-launch`,
+`--cache-ram`) the same way as task `comfyui`, so a reboot brings both back
+once the user logs on. Changing an argument means editing the script and
+re-running it; `run_nvidia_gpu.bat` is not used. `.local/chimera-token` and
 `.local/discord-webhook` are copied onto the box by hand; they are never
 tracked. The wrapper runs `comfy-recipes work` (see
 [queueing.md](queueing.md#queue-worker)); the box must stay on a checkout

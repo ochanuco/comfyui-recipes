@@ -511,15 +511,18 @@ def _bands_over(white_a: np.ndarray, purple_a: np.ndarray,
 
 
 def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
-           backdrop_rgb, light: str | None = None) -> np.ndarray:
+           backdrop_rgb, light: str | None = None,
+           outline: np.ndarray | None = None) -> np.ndarray:
     """Frame `figure` on `backdrop_rgb`, white band then purple band outside it.
 
     `coverage` is the figure's own per-pixel alpha in 0..1; the composite is
     coverage * px + (1 - coverage) * (the stroke bands over the backdrop).
-    `figure` alone decides where the bands sit -- coverage may be soft at the
-    edge the bands are drawn from a hard boundary.
+    `outline` (default `figure`) alone decides where the bands sit --
+    coverage may be soft at the edge the bands are drawn from a hard
+    boundary. A pocket window is passed in with the figure so the bands
+    wrap the patterned side too instead of running through it.
     """
-    white_a, purple_a = band_alphas(figure, light)
+    white_a, purple_a = band_alphas(figure if outline is None else outline, light)
     # backdrop_rgb may be a 3-vector or a full (H, W, 3) pattern; either
     # broadcasts onto px.shape unchanged.
     flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
@@ -568,9 +571,11 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     px = despill(unpremultiply(px, local, coverage),
                  figure_rim(figure, band), key)
     backdrop_rgb = backdrops.render(backdrop, height, width)
+    outline = figure
     if window is not None:
         backdrop_rgb = np.where(window[..., None], backdrop_rgb, key)
-    composite = sticker(px, figure, coverage, backdrop_rgb, light)
+        outline = figure | window
+    composite = sticker(px, figure, coverage, backdrop_rgb, light, outline)
     white_w, purple_w = _band_widths(height, width)
 
     keyed = _key_excess(key) >= delivery_style.KEY_DESPILL_MIN_EXCESS

@@ -223,6 +223,10 @@ class DeliveryTest(unittest.TestCase):
         self.assertTrue((np.abs(arr[300:340, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
         self.assertTrue((arr[:64, :64] >= 250).all())
         self.assertTrue((arr[-64:, -64:] >= 250).all())
+        # the bands wrap the pocket from outside the frame line, not inside it
+        purple = np.array(parse_color(delivery_style.STROKE))
+        self.assertTrue((np.abs(arr[512, 200:250] - purple).max(axis=1) <= 40).any())
+        self.assertFalse((np.abs(arr[512, 262:400] - purple).max(axis=1) <= 40).any())
 
     def test_enclosed_cut_ignores_a_few_green_pixels_on_a_white_backdrop(self):
         pixels = np.full((256, 256, 3), (255, 255, 255), dtype=np.uint8)

@@ -36,10 +36,12 @@ The variable part is three small record sets:
   `style` (replace `BODY`/`STYLE` wholesale), and carry its own `loras`
   (default empty).
 - `costumes.py`: one garment tag block per costume (`roomwear`, `outing`,
-  `standard`) and a matching `LEGWEAR` block per costume, layered on top
+  `standard`, `suspender`) and a matching `LEGWEAR` block per costume, layered on top
   of the garments when the pose's `legwear` is `True`. `standard` is a
   black hooded cardigan, rabbit hood and purple dress; its `LEGWEAR` is
-  black tights with a purple gradient. `HOODED_COSTUMES` names the
+  black tights with a purple gradient. `suspender` is a white t-shirt with
+  a knee-length black suspender skirt over black tights; no pose defaults
+  to it, so it is picked with `parameters.costume`. `HOODED_COSTUMES` names the
   costumes whose garments already include a hood or cardigan (`standard`).
   The request parameter `legwear` picks between `opaque` (the costume's
   own `LEGWEAR`, the default) and `sheer-gloss` (`SHEER_GLOSS_LEGWEAR`, the

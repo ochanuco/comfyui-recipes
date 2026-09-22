@@ -12,12 +12,16 @@ COSTUMES = {
                  "(rabbit hood:1.3), long sleeves, drawstring, "
                  "(purple dress:1.25), frills, (sleeves past wrists:1.15), "
                  "hood down, "),
+    "suspender": ("(white t-shirt:1.35), (suspender skirt:1.4), "
+                  "(black skirt:1.25), (knee-length skirt:1.8), "
+                  "(pleated skirt:1.1), "),
 }
 
 # The `opaque` legwear: each costume's own tights.
 LEGWEAR = {
     "roomwear": "",
     "outing": "(black pantyhose:1.5), (opaque pantyhose:1.4), ",
+    "suspender": "(black pantyhose:1.5), (opaque pantyhose:1.4), ",
     "standard": ("(dark purple pantyhose:1.45), (opaque pantyhose:1.3), "
                  "(gradient legwear:1.2), (purple gradient:1.1), "),
 }

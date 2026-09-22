@@ -26,7 +26,7 @@ from ..application.work import fetch_source, work
 from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
-from ..domain.yukari.costumes import COSTUMES
+from ..domain.yukari.costumes import COSTUMES, LEGWEARS
 from ..domain.yukari.delivery_style import STROKE_LIGHTS
 from ..domain.yukari.expressions import EXPRESSIONS
 from ..domain.yukari.poses import POSES
@@ -334,6 +334,7 @@ def parser() -> argparse.ArgumentParser:
     yukari_prompt.add_argument("--pose", required=True, choices=sorted(POSES))
     yukari_prompt.add_argument("--costume", choices=sorted(COSTUMES))
     yukari_prompt.add_argument("--expression", choices=sorted(EXPRESSIONS))
+    yukari_prompt.add_argument("--legwear", choices=LEGWEARS, default=LEGWEARS[0])
     yukari_prompt.add_argument("--json", action="store_true")
     return root
 
@@ -342,8 +343,10 @@ def main(argv: list[str] | None = None) -> None:
     args = parser().parse_args(argv)
     if args.command == "yukari":
         prompts = {
-            "positive": positive(args.pose, args.costume, args.expression),
-            "negative": negative(args.pose, args.costume, args.expression),
+            "positive": positive(args.pose, args.costume, args.expression,
+                                 args.legwear),
+            "negative": negative(args.pose, args.costume, args.expression,
+                                 args.legwear),
         }
         if args.json:
             print(json.dumps(prompts, ensure_ascii=False, indent=2))

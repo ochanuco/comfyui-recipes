@@ -67,7 +67,7 @@ ConflictFinder = Callable[[str, str], list[tuple[str, str, str]]]
 
 KNOWN_PARAMETERS = frozenset(
     {"pose", "costume", "hires", "denoise", "character", "character_id",
-     "arm", "expression"})
+     "arm", "expression", "legwear"})
 
 # Read by validate_request and by the published catalog.
 RECIPE_REJECTED_PARAMETERS: dict[str, frozenset[str]] = {
@@ -286,7 +286,7 @@ def request_graph(generation: dict, seed: int, prefix: str,
     params = generation.get("parameters", {})
     # Optional parameters reach the recipe only when the request sets them.
     kwargs = {key: params[key] for key in
-             ("hires", "denoise", "costume", "expression")
+             ("hires", "denoise", "costume", "expression", "legwear")
              if key in params}
     spec = spec_builder(params["pose"], seed, prefix, **kwargs)
     if generation.get("prompt") or generation.get("negative_prompt"):
@@ -758,7 +758,7 @@ def generate(request_path: Path, services: GenerateServices, *,
                 semantic = json.loads(json.dumps(req["semantic"]))
                 semantic.setdefault("attributes", {}).update(
                     {"seed": seed, **{key: value for key, value in params.items()
-                                      if key in ("arm", "pose", "costume")}})
+                                      if key in ("arm", "pose", "costume", "legwear")}})
                 if generation.get("patches"):
                     semantic["attributes"]["patches"] = generation["patches"]
                 if identity_removed:

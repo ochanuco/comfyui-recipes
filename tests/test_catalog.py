@@ -56,6 +56,7 @@ def _request(recipe: str, parameters: dict) -> dict:
 _DUMMY_VALUES = {
     "hires": 1024, "denoise": 0.5, "costume": "default", "character": "yukari",
     "character_id": "char-1", "arm": "a", "expression": "doya",
+    "legwear": "sheer-gloss",
 }
 
 

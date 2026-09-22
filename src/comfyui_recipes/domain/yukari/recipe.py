@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from ..generation.models import HiresSpec, PromptPair, RenderSpec
 from ..generation.prompt_lint import tags as prompt_tags
-from .costumes import COSTUMES, HOODED_COSTUMES, LEGWEAR
+from .costumes import COSTUMES, DEFAULT_LEGWEAR, HOODED_COSTUMES, legwear_block
 from .delivery_style import PAINT_BAN, ROUGH_BAN, ROUGH_STYLE
 from .expressions import EXPRESSIONS
 from .poses import POSES
@@ -25,6 +25,7 @@ from .prompt_style import (
     DOT_BAN,
     FACE,
     GARMENT_BLACK_BAN,
+    GARMENT_GLOSS_TAGS,
     GRADIENT_BAN,
     HAND_BAN,
     HEIGHT,
@@ -39,6 +40,7 @@ from .prompt_style import (
     SCHEDULER,
     SCORE_BAN,
     SHADE_BAN,
+    SHEER_BAN,
     SHINE_BAN,
     STEPS,
     STYLE,
@@ -66,11 +68,12 @@ IDENTITY_TAG_NAMES = frozenset({
 
 
 def positive_parts(pose: str, costume: str | None = None,
-                   expression: str | None = None) -> tuple[tuple[str, str], ...]:
+                   expression: str | None = None,
+                   legwear: str = DEFAULT_LEGWEAR) -> tuple[tuple[str, str], ...]:
     p = POSES[pose]
     e = EXPRESSIONS[expression if expression is not None else p.expression]
     c = costume if costume is not None else p.costume
-    costume_block = COSTUMES[c] + (LEGWEAR[c] if p.legwear else "")
+    costume_block = COSTUMES[c] + (legwear_block(c, legwear) if p.legwear else "")
     values = (QUALITY, CHARACTER + IDENTITY, p.action, e.mouth, p.mood,
               e.eye_shape + e.eyes, p.gesture, costume_block, p.scene,
               p.body if p.body is not None else BODY,
@@ -80,8 +83,10 @@ def positive_parts(pose: str, costume: str | None = None,
 
 
 def positive(pose: str, costume: str | None = None,
-            expression: str | None = None) -> str:
-    return "".join(text for _, text in positive_parts(pose, costume, expression))
+            expression: str | None = None,
+            legwear: str = DEFAULT_LEGWEAR) -> str:
+    return "".join(
+        text for _, text in positive_parts(pose, costume, expression, legwear))
 
 
 def identity_tags(pose: str, costume: str | None = None) -> frozenset[str]:
@@ -90,17 +95,24 @@ def identity_tags(pose: str, costume: str | None = None) -> frozenset[str]:
 
 
 def negative(pose: str, costume: str | None = None,
-            expression: str | None = None) -> str:
+            expression: str | None = None,
+            legwear: str = DEFAULT_LEGWEAR) -> str:
     p = POSES[pose]
     _ = EXPRESSIONS[expression if expression is not None else p.expression]
     c = costume if costume is not None else p.costume
     _ = COSTUMES[c]
+    _ = legwear_block(c, legwear)
     hood_ban = "" if c in HOODED_COSTUMES else HOOD_BAN
     garment_black_ban = GARMENT_BLACK_BAN if c == "standard" else ""
+    shine_ban, sheer_ban = SHINE_BAN, ""
+    if legwear == "sheer-gloss" and p.legwear:
+        for tags in GARMENT_GLOSS_TAGS:
+            shine_ban = shine_ban.replace(tags, "")
+        sheer_ban = SHEER_BAN
     return (DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
-            + p.negative + SHINE_BAN + GRADIENT_BAN
+            + p.negative + shine_ban + GRADIENT_BAN
             + NEGATIVE_TAIL + VIVID_BAN + hood_ban + garment_black_ban
-            + SCORE_BAN + PROPORTION_BAN)
+            + sheer_ban + SCORE_BAN + PROPORTION_BAN)
 
 
 def refinement_prompt(base: PromptPair) -> PromptPair:
@@ -116,12 +128,13 @@ def refinement_prompt(base: PromptPair) -> PromptPair:
 
 def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
                 denoise: float | None = None, costume: str | None = None,
-                expression: str | None = None) -> RenderSpec:
+                expression: str | None = None,
+                legwear: str = DEFAULT_LEGWEAR) -> RenderSpec:
     if not hires and denoise is not None:
         raise ValueError("yukari denoise needs hires")
     width, height = POSES[pose].canvas or (WIDTH, HEIGHT)
-    parts = positive_parts(pose, costume, expression)
-    base_negative = negative(pose, costume, expression)
+    parts = positive_parts(pose, costume, expression, legwear)
+    base_negative = negative(pose, costume, expression, legwear)
     hires_spec = None
     if hires:
         longest = max(width, height)

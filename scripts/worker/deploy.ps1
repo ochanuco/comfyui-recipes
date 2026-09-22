@@ -41,6 +41,10 @@ if ($ComfyRoot) {
     & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\register-nodes.ps1 `
         -Checkout $Checkout -ComfyRoot $ComfyRoot
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    $core = & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\sync-comfyui.ps1 `
+        -Checkout $Checkout -ComfyRoot $ComfyRoot
+    if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    $core
     $sync = & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\sync-nodes.ps1 `
         -Checkout $Checkout -ComfyRoot $ComfyRoot
     if ($LASTEXITCODE) { exit $LASTEXITCODE }

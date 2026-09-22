@@ -1,6 +1,10 @@
-# Third-party custom nodes the GPU worker runs, pinned by commit.
-# scripts/worker/sync-nodes.ps1 clones or moves each one under ComfyUI's
-# custom_nodes/ on deploy; ComfyUI is restarted when any entry changed.
+# What the GPU worker runs, pinned: ComfyUI itself by tag, third-party custom
+# nodes by commit. On deploy scripts/worker/sync-comfyui.ps1 moves the portable
+# ComfyUI checkout to the tag and scripts/worker/sync-nodes.ps1 clones or moves
+# each node under its custom_nodes/; ComfyUI is then restarted.
+
+[comfyui]
+tag = "v0.37.0"
 
 [[node]]
 name = "ComfyUI-layerdiffuse"

@@ -193,6 +193,52 @@ class DeliveryTest(unittest.TestCase):
                 np.testing.assert_array_equal(
                     enclosed_cut(pixels.astype(float), figure, 20), figure)
 
+    def test_enclosed_cut_takes_the_key_from_a_pocket_when_the_corners_are_white(self):
+        pixels = np.full((256, 256, 3), (255, 255, 255), dtype=np.uint8)
+        pixels[64:192, 64:192] = (196, 220, 151)     # green closed off by a frame line
+        pixels[60:196, 60:64] = (20, 20, 20)
+        pixels[60:196, 192:196] = (20, 20, 20)
+        pixels[60:64, 60:196] = (20, 20, 20)
+        pixels[192:196, 60:196] = (20, 20, 20)
+        pixels[100:160, 100:160] = (215, 200, 240)   # the figure inside it
+        figure = np.zeros((256, 256), dtype=bool)
+        figure[60:196, 60:196] = True
+        cut = enclosed_cut(pixels.astype(float), figure, 20)
+        self.assertFalse(cut[70:90, 70:90].any())
+        self.assertTrue(cut[100:160, 100:160].all())
+        self.assertTrue(cut[60:196, 60:64].all())
+
+    def test_clean_background_paints_the_backdrop_only_inside_the_pocket(self):
+        pixels = np.full((1024, 1024, 3), (255, 255, 255), dtype=np.uint8)
+        pixels[256:768, 256:768] = (196, 220, 151)
+        pixels[250:774, 250:256] = (20, 20, 20)
+        pixels[250:774, 768:774] = (20, 20, 20)
+        pixels[250:256, 250:774] = (20, 20, 20)
+        pixels[768:774, 250:774] = (20, 20, 20)
+        pixels[400:624, 400:624] = (215, 200, 240)
+        soft = np.zeros((1024, 1024), dtype=np.uint8)
+        soft[256:768, 256:768] = 255                  # the matte dropped the line
+        cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
+        arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
+        self.assertTrue((np.abs(arr[300:340, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
+        self.assertTrue((arr[:64, :64] >= 250).all())
+        self.assertTrue((arr[-64:, -64:] >= 250).all())
+        self.assertTrue((arr[252, 300:700].max(axis=1) < 60).all())   # the line survives
+        self.assertTrue((arr[300:700, 770].max(axis=1) < 60).all())
+        # the bands wrap the pocket from outside the frame line, not inside it
+        purple = np.array(parse_color(delivery_style.STROKE))
+        self.assertTrue((np.abs(arr[512, 200:250] - purple).max(axis=1) <= 40).any())
+        self.assertFalse((np.abs(arr[512, 262:400] - purple).max(axis=1) <= 40).any())
+
+    def test_enclosed_cut_ignores_a_few_green_pixels_on_a_white_backdrop(self):
+        pixels = np.full((256, 256, 3), (255, 255, 255), dtype=np.uint8)
+        pixels[64:192, 64:192] = (40, 40, 40)
+        pixels[100:110, 100:110] = (196, 220, 151)   # under ENCLOSED_POCKET_MIN_AREA
+        figure = np.zeros((256, 256), dtype=bool)
+        figure[64:192, 64:192] = True
+        np.testing.assert_array_equal(
+            enclosed_cut(pixels.astype(float), figure, 20), figure)
+
     def test_clean_background_and_transparent_open_the_enclosed_key_pocket(self):
         pixels = np.full((1024, 1024, 3), (196, 220, 151), dtype=np.uint8)
         pixels[256:768, 256:768] = (215, 200, 240)

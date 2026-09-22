@@ -196,8 +196,72 @@ def enclosed_cut(pixels: np.ndarray, figure: np.ndarray,
     """
     key = _corner_seed(pixels)
     if key[1] - max(key[0], key[2]) < delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS:
-        return figure
+        key = _pocket_key(pixels, figure)
+        if key is None:
+            return figure
     return figure & ~enclosed_mask(pixels, ~figure, tolerance, seed=key)
+
+
+def _pocket_key(pixels: np.ndarray, region: np.ndarray) -> np.ndarray | None:
+    """The green key found inside `region` when the corners are not it.
+
+    A drawn frame line closes the raw's green off from the white outside it,
+    so the corners read as a white backdrop while the matte keeps the whole
+    green pocket as figure. The key is the median of the region's green
+    pixels, once there are `ENCLOSED_POCKET_MIN_AREA` of them.
+    """
+    excess = pixels[..., 1] - np.maximum(pixels[..., 0], pixels[..., 2])
+    inside = region & (excess >= delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS)
+    if int(inside.sum()) < delivery_style.ENCLOSED_POCKET_MIN_AREA:
+        return None
+    return np.median(pixels[inside], axis=0)
+
+
+def pocket_window(pixels: np.ndarray, figure: np.ndarray,
+                  tolerance: int) -> np.ndarray | None:
+    """Where the backdrop goes when the key came from a pocket, else None.
+
+    Inside the frame line the raw's green is the other side of the picture
+    and takes the backdrop; the white beyond the line is left as it is. The
+    window is the filled bounding rectangle of the key-coloured field
+    outside the cut figure: the frame the figure steps out of, whole even
+    where the figure splits the field or the matte dropped a side of the
+    drawn line. `figure` is the silhouette after `enclosed_cut`.
+    """
+    key = _corner_seed(pixels)
+    if key[1] - max(key[0], key[2]) >= delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS:
+        return None
+    key = _pocket_key(pixels, ~figure)
+    if key is None:
+        return None
+    field = enclosed_mask(pixels, figure, tolerance, seed=key)
+    if not field.any():
+        return None
+    rows, cols = np.nonzero(field)
+    window = np.zeros(figure.shape, dtype=bool)
+    window[rows.min():rows.max() + 1, cols.min():cols.max() + 1] = True
+    return window
+
+
+def frame_line(pixels: np.ndarray, window: np.ndarray, band: int) -> np.ndarray:
+    """The drawn frame line hugging `window`, to keep as figure.
+
+    The matte drops a thin line except where it touches the figure, and the
+    backdrop would paint over the rest. The line is the dark pixels within
+    two edge bands outside each side of the window, across the whole row
+    or column so the ends the model overshoots past the corners come too.
+    """
+    dark = pixels.max(axis=2) < delivery_style.FRAME_LINE_MAX_VALUE
+    rows, cols = np.nonzero(window)
+    top, bottom, left, right = rows.min(), rows.max(), cols.min(), cols.max()
+    height, width = window.shape
+    reach = 2 * band
+    line = np.zeros(window.shape, dtype=bool)
+    line[max(top - reach, 0):top, :] = True
+    line[bottom + 1:min(bottom + 1 + reach, height), :] = True
+    line[:, max(left - reach, 0):left] = True
+    line[:, right + 1:min(right + 1 + reach, width)] = True
+    return line & dark
 
 
 def keyed_coverage(pixels: np.ndarray, figure: np.ndarray, local: np.ndarray,
@@ -476,15 +540,18 @@ def _bands_over(white_a: np.ndarray, purple_a: np.ndarray,
 
 
 def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
-           backdrop_rgb, light: str | None = None) -> np.ndarray:
+           backdrop_rgb, light: str | None = None,
+           outline: np.ndarray | None = None) -> np.ndarray:
     """Frame `figure` on `backdrop_rgb`, white band then purple band outside it.
 
     `coverage` is the figure's own per-pixel alpha in 0..1; the composite is
     coverage * px + (1 - coverage) * (the stroke bands over the backdrop).
-    `figure` alone decides where the bands sit -- coverage may be soft at the
-    edge the bands are drawn from a hard boundary.
+    `outline` (default `figure`) alone decides where the bands sit --
+    coverage may be soft at the edge the bands are drawn from a hard
+    boundary. A pocket window is passed in with the figure so the bands
+    wrap the patterned side too instead of running through it.
     """
-    white_a, purple_a = band_alphas(figure, light)
+    white_a, purple_a = band_alphas(figure if outline is None else outline, light)
     # backdrop_rgb may be a 3-vector or a full (H, W, 3) pattern; either
     # broadcasts onto px.shape unchanged.
     flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
@@ -526,13 +593,20 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     figure = soft_clamped(refine_matte(px, soft > 127, band, tolerance), soft)
     figure = shadow_cut(px, figure, soft, band)
     figure = enclosed_cut(px, figure, tolerance)
+    window = pocket_window(px, figure, tolerance)
+    if window is not None:
+        figure = figure | frame_line(px, window, band)
     local = local_backdrop(px, figure, band)
     coverage = keyed_coverage(px, figure, local, band, tolerance)
     key = _corner_seed(px)
     px = despill(unpremultiply(px, local, coverage),
                  figure_rim(figure, band), key)
     backdrop_rgb = backdrops.render(backdrop, height, width)
-    composite = sticker(px, figure, coverage, backdrop_rgb, light)
+    outline = figure
+    if window is not None:
+        backdrop_rgb = np.where(window[..., None], backdrop_rgb, key)
+        outline = figure | window
+    composite = sticker(px, figure, coverage, backdrop_rgb, light, outline)
     white_w, purple_w = _band_widths(height, width)
 
     keyed = _key_excess(key) >= delivery_style.KEY_DESPILL_MIN_EXCESS

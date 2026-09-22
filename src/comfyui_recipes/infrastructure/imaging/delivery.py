@@ -243,6 +243,27 @@ def pocket_window(pixels: np.ndarray, figure: np.ndarray,
     return window
 
 
+def frame_line(pixels: np.ndarray, window: np.ndarray, band: int) -> np.ndarray:
+    """The drawn frame line hugging `window`, to keep as figure.
+
+    The matte drops a thin line except where it touches the figure, and the
+    backdrop would paint over the rest. The line is the dark pixels within
+    two edge bands outside each side of the window, across the whole row
+    or column so the ends the model overshoots past the corners come too.
+    """
+    dark = pixels.max(axis=2) < delivery_style.FRAME_LINE_MAX_VALUE
+    rows, cols = np.nonzero(window)
+    top, bottom, left, right = rows.min(), rows.max(), cols.min(), cols.max()
+    height, width = window.shape
+    reach = 2 * band
+    line = np.zeros(window.shape, dtype=bool)
+    line[max(top - reach, 0):top, :] = True
+    line[bottom + 1:min(bottom + 1 + reach, height), :] = True
+    line[:, max(left - reach, 0):left] = True
+    line[:, right + 1:min(right + 1 + reach, width)] = True
+    return line & dark
+
+
 def keyed_coverage(pixels: np.ndarray, figure: np.ndarray, local: np.ndarray,
                    band: int, tolerance: int) -> np.ndarray:
     """Figure coverage as a ramp on the figure's outermost pixel ring.
@@ -572,10 +593,12 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     figure = soft_clamped(refine_matte(px, soft > 127, band, tolerance), soft)
     figure = shadow_cut(px, figure, soft, band)
     figure = enclosed_cut(px, figure, tolerance)
+    window = pocket_window(px, figure, tolerance)
+    if window is not None:
+        figure = figure | frame_line(px, window, band)
     local = local_backdrop(px, figure, band)
     coverage = keyed_coverage(px, figure, local, band, tolerance)
     key = _corner_seed(px)
-    window = pocket_window(px, figure, tolerance)
     px = despill(unpremultiply(px, local, coverage),
                  figure_rim(figure, band), key)
     backdrop_rgb = backdrops.render(backdrop, height, width)

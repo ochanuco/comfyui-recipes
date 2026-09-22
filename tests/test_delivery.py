@@ -217,12 +217,14 @@ class DeliveryTest(unittest.TestCase):
         pixels[768:774, 250:774] = (20, 20, 20)
         pixels[400:624, 400:624] = (215, 200, 240)
         soft = np.zeros((1024, 1024), dtype=np.uint8)
-        soft[250:774, 250:774] = 255
+        soft[256:768, 256:768] = 255                  # the matte dropped the line
         cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
         arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
         self.assertTrue((np.abs(arr[300:340, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
         self.assertTrue((arr[:64, :64] >= 250).all())
         self.assertTrue((arr[-64:, -64:] >= 250).all())
+        self.assertTrue((arr[252, 300:700].max(axis=1) < 60).all())   # the line survives
+        self.assertTrue((arr[300:700, 770].max(axis=1) < 60).all())
         # the bands wrap the pocket from outside the frame line, not inside it
         purple = np.array(parse_color(delivery_style.STROKE))
         self.assertTrue((np.abs(arr[512, 200:250] - purple).max(axis=1) <= 40).any())

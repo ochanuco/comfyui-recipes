@@ -406,6 +406,10 @@ ENCLOSED_KEY_MIN_GREEN_EXCESS = 12
 # linework holds a few pixels within the excess by accident; a pocket the
 # matte kept holds thousands.
 ENCLOSED_POCKET_MIN_AREA = 256
+# The drawn frame line around a pocket is kept as figure: a pixel darker
+# than this on every channel, within two edge bands outside the window.
+# The line is near black; the pale green and the white are far above it.
+FRAME_LINE_MAX_VALUE = 110
 
 # A raw backdrop counts as a chromatic key when its dominant channel exceeds
 # the larger of the other two by at least this. The same pose's green lands

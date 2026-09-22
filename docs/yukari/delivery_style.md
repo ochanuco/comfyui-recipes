@@ -280,6 +280,10 @@ With a pocket key the backdrop is painted only inside the frame
 outside the cut figure, whole even where the figure splits the field or
 the matte dropped a side of the line); the white beyond the line keeps
 the corner colour, and the white and purple bands wrap the figure and the
-frame as one shape, so the figure inside the frame carries no bands. The pocket is the other side of
+frame as one shape, so the figure inside the frame carries no bands. The
+drawn line itself is kept as figure (`frame_line`: pixels under
+`FRAME_LINE_MAX_VALUE` within two edge bands outside each side of the
+window, whole rows and columns so the overshot ends come too), since the
+matte drops a thin line wherever it does not touch the figure. The pocket is the other side of
 the picture the figure steps out of, and the white is the side she steps
 into.

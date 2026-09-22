@@ -4,10 +4,17 @@ param([Parameter(Mandatory = $true)][string]$PortableRoot)
 # The claim loop runs inside this process (comfy_nodes/yukari_worker), and a
 # scheduled task inherits the user environment rather than a shell's.
 [Environment]::SetEnvironmentVariable("COMFYUI_RECIPES_WORKER", "1", "User")
-$bat = Join-Path $PortableRoot "run_nvidia_gpu.bat"
-if (-not (Test-Path $bat)) { throw "not found: $bat" }
-$action = New-ScheduledTaskAction -Execute "cmd.exe" `
-    -Argument "/c `"$bat`"" -WorkingDirectory $PortableRoot
+$python = Join-Path $PortableRoot "python_embeded\python.exe"
+if (-not (Test-Path $python)) { throw "not found: $python" }
+$arguments = @(
+    "-s", "ComfyUI\main.py",
+    "--listen",
+    "--windows-standalone-build",
+    "--disable-auto-launch",
+    "--cache-ram", "6", "24"
+) -join " "
+$action = New-ScheduledTaskAction -Execute $python `
+    -Argument $arguments -WorkingDirectory $PortableRoot
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) `

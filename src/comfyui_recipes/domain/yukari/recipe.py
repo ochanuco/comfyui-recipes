@@ -10,7 +10,13 @@ from __future__ import annotations
 
 from ..generation.models import HiresSpec, PromptPair, RenderSpec
 from ..generation.prompt_lint import tags as prompt_tags
-from .costumes import COSTUMES, DEFAULT_LEGWEAR, HOODED_COSTUMES, legwear_block
+from .costumes import (
+    COSTUME_BAN,
+    COSTUMES,
+    DEFAULT_LEGWEAR,
+    HOODED_COSTUMES,
+    legwear_block,
+)
 from .delivery_style import PAINT_BAN, ROUGH_BAN, ROUGH_STYLE
 from .expressions import EXPRESSIONS
 from .poses import POSES
@@ -112,7 +118,7 @@ def negative(pose: str, costume: str | None = None,
     return (DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
             + p.negative + shine_ban + GRADIENT_BAN
             + NEGATIVE_TAIL + VIVID_BAN + hood_ban + garment_black_ban
-            + sheer_ban + SCORE_BAN + PROPORTION_BAN)
+            + COSTUME_BAN.get(c, "") + sheer_ban + SCORE_BAN + PROPORTION_BAN)
 
 
 def refinement_prompt(base: PromptPair) -> PromptPair:

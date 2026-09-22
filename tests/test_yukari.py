@@ -13,7 +13,8 @@ from comfyui_recipes.application.generate import validate_request
 from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.generation.prompt_lint import tags as prompt_tags
 from comfyui_recipes.domain.yukari import prompt_style as ps
-from comfyui_recipes.domain.yukari.costumes import COSTUMES, SHEER_GLOSS_LEGWEAR
+from comfyui_recipes.domain.yukari.costumes import (COSTUME_BAN, COSTUMES,
+                                                    SHEER_GLOSS_LEGWEAR)
 from comfyui_recipes.domain.yukari.expressions import EXPRESSIONS
 from comfyui_recipes.domain.yukari.poses import POSES
 from comfyui_recipes.domain.yukari.recipe import (
@@ -273,13 +274,24 @@ class PromptTest(unittest.TestCase):
         self.assertIn("(dark purple pantyhose:1.45), (opaque pantyhose:1.3), "
                       "(gradient legwear:1.2), (purple gradient:1.1), ", text)
 
-    def test_suspender_costume_is_a_knee_length_skirt_over_black_tights(self):
+    def test_suspender_costume_is_an_orange_tee_and_navy_skirt_over_black_tights(self):
         text = positive("stand", costume="suspender")
         self.assertIn(COSTUMES["suspender"]
                       + "(black pantyhose:1.5), (opaque pantyhose:1.4), ", text)
-        self.assertIn("(knee-length skirt:1.8), ", text)
+        self.assertIn("(muted orange t-shirt:1.2), (plain t-shirt:1.15), ", text)
+        self.assertIn("(navy blue skirt:1.3), (knee-length skirt:1.8), ", text)
         self.assertNotIn("(denim shorts", text)
-        self.assertIn(ps.HOOD_BAN, negative("stand", costume="suspender"))
+        neg = negative("stand", costume="suspender")
+        self.assertIn(ps.HOOD_BAN, neg)
+        self.assertIn(COSTUME_BAN["suspender"], neg)
+        self.assertIn("(bright orange:1.2), ", neg)
+
+    def test_costume_bans_stay_with_their_costume(self):
+        for costume in COSTUMES:
+            if costume == "suspender":
+                continue
+            self.assertNotIn(COSTUME_BAN["suspender"],
+                             negative("stand", costume=costume), costume)
 
     def test_sheer_gloss_legwear_replaces_the_costume_tights_on_every_costume(self):
         for costume in COSTUMES:

@@ -27,6 +27,10 @@ if ($current -ne $tag) {
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
     git -C $ComfyRoot checkout --quiet --detach --force $tag
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    Stop-ScheduledTask -TaskName "comfyui" -ErrorAction SilentlyContinue
+    Get-CimInstance Win32_Process |
+        Where-Object { $_.CommandLine -match "ComfyUI[\\/]main\.py" } |
+        ForEach-Object { cmd /c "taskkill /PID $($_.ProcessId) /T /F >nul 2>&1" }
     & $python -m pip install --quiet -r (Join-Path $ComfyRoot "requirements.txt")
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
     $moved = $true

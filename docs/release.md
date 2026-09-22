@@ -82,7 +82,8 @@ a port with nothing behind it.
 
 `register-watch.ps1` and `watch.ps1` still register the standalone worker as
 its own logon task. The deploy does not call them, and running both at once
-means two workers claiming under one `worker_id`. They are there for running
+means two workers claiming under one explicitly configured `worker_id`; the
+default ID includes the process ID. They are there for running
 the loop by hand, the way `register-comfyui.ps1` and `register-runner.ps1`
 are.
 

@@ -238,7 +238,8 @@ class RepairApplicationTest(unittest.TestCase):
             repair("gen-1", services, parts=["feet"], seeds=[7])
             asset_posts = [call for call in services.management.calls
                           if call[0] == "POST" and call[1].endswith("/assets")]
-            mask_posts = [call for call in asset_posts if call[3][0] == {"role": "mask"}]
+            mask_posts = [call for call in asset_posts
+                          if call[3][0].get("role") == "mask"]
             self.assertEqual(len(mask_posts), 1)
             self.assertEqual(mask_posts[0][3][2], "rep-out-matte.png")
             self.assertEqual(mask_posts[0][3][3], b"matte-bytes")
@@ -262,7 +263,8 @@ class RepairApplicationTest(unittest.TestCase):
             asset_posts = [call for call in services.management.calls
                           if call[0] == "POST" and call[1].endswith("/assets")]
             repair_mask_posts = [
-                call for call in asset_posts if call[3][0] == {"role": "repair-mask"}]
+                call for call in asset_posts
+                if call[3][0].get("role") == "repair-mask"]
             self.assertEqual(len(repair_mask_posts), 1)
 
     def test_no_raw_output_raises_system_exit(self):
@@ -299,6 +301,18 @@ class RepairApplicationTest(unittest.TestCase):
             self.assertEqual(
                 posts["/api/v1/batches/repair-batch-id/jobs"]["idempotency_key"],
                 "request:r1:job:0")
+            generation_call = next(
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1].endswith("/generations"))
+            self.assertEqual(
+                generation_call[3][0]["idempotency_key"],
+                "request:r1:job:0:gen:0")
+            asset_call = next(
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1].endswith("/assets"))
+            self.assertEqual(
+                asset_call[3][0]["idempotency_key"],
+                "request:r1:job:0:asset:repair-mask")
 
     def test_returns_batch_id_and_generation_ids(self):
         with tempfile.TemporaryDirectory() as directory:

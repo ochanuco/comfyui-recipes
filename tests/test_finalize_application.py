@@ -23,6 +23,7 @@ from comfyui_recipes.domain.yukari import delivery_style
 from comfyui_recipes.domain.yukari.recipe import refinement_prompt, render_spec
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
+from comfyui_recipes.infrastructure.persistence.run_state import operation_state_path
 
 # base_roles resolves each fixture's sampler/decode/save/prompt roles by
 # structure, so every fixture needs a real KSampler <- decode <- save chain
@@ -119,13 +120,18 @@ class ManagementFake:
 class ComfyFake:
     def __init__(self):
         self.uploaded = []
+        self.submitted = []
 
     def upload_image(self, name, data):
         self.uploaded.append((name, data))
         return f"uploaded-{name}"
 
     def submit(self, graph):
+        self.submitted.append(graph)
         return "prompt-id"
+
+    def knows(self, prompt_id):
+        return True
 
     def wait_for(self, prompt_id):
         return [{"filename": "out.png"}, {"filename": "out-matte.png"},
@@ -201,7 +207,8 @@ class FinalizeApplicationTest(unittest.TestCase):
                 if call[0] == "POST" and call[1].endswith("/assets"))
             self.assertEqual(asset_call[1], "/api/v1/generations/generation/assets")
             metadata, field, filename, data, content_type = asset_call[3]
-            self.assertEqual(metadata, {"role": "mask"})
+            self.assertEqual(metadata["role"], "mask")
+            self.assertTrue(metadata["idempotency_key"])
             self.assertEqual(field, "file")
             self.assertEqual(filename, "out-matte.png")
             self.assertEqual(data, b"matte-bytes")
@@ -508,6 +515,48 @@ class FinalizeApplicationTest(unittest.TestCase):
             self.assertEqual(posts["/api/v1/batches"]["idempotency_key"], "request:r1")
             self.assertEqual(posts["/api/v1/batches/batch-id/jobs"]["idempotency_key"],
                              "request:r1:job:0")
+            generation_call = next(
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1].endswith("/generations"))
+            self.assertEqual(
+                generation_call[3][0]["idempotency_key"],
+                "request:r1:job:0:gen:0")
+            asset_call = next(
+                call for call in services.management.calls
+                if call[0] == "POST" and call[1].endswith("/assets"))
+            self.assertEqual(
+                asset_call[3][0]["idempotency_key"],
+                "request:r1:job:0:asset:mask")
+
+    def test_resumes_a_known_prompt_without_submitting_a_duplicate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = ComfyFake()
+            services = base_services(directory, comfyui=comfy)
+            state_path = operation_state_path(
+                Path(directory), "finalize", "request:r1")
+            state_path.parent.mkdir(parents=True, exist_ok=True)
+            services.state.save(state_path, {"prompt_id": "prompt-id"})
+
+            finalize("gen-id", services, key_prefix="request:r1")
+
+            self.assertEqual(comfy.submitted, [])
+
+    def test_resubmits_when_comfyui_has_forgotten_the_saved_prompt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            class LostPromptComfy(ComfyFake):
+                def knows(self, prompt_id):
+                    return False
+
+            comfy = LostPromptComfy()
+            services = base_services(directory, comfyui=comfy)
+            state_path = operation_state_path(
+                Path(directory), "finalize", "request:r1")
+            state_path.parent.mkdir(parents=True, exist_ok=True)
+            services.state.save(state_path, {"prompt_id": "stale-prompt"})
+
+            finalize("gen-id", services, key_prefix="request:r1")
+
+            self.assertEqual(len(comfy.submitted), 1)
 
     def test_upscale_defaults_to_bicubic_and_reaches_chain_pass(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -772,7 +821,8 @@ class FinalizeDeliverOnlyTest(unittest.TestCase):
                 if call[0] == "POST" and call[1].endswith("/assets"))
             self.assertEqual(asset_call[1], "/api/v1/generations/generation/assets")
             metadata, field, filename, data, content_type = asset_call[3]
-            self.assertEqual(metadata, {"role": "mask"})
+            self.assertEqual(metadata["role"], "mask")
+            self.assertTrue(metadata["idempotency_key"])
             self.assertEqual(filename, "out-matte.png")
             self.assertEqual(data, b"matte-bytes")
 
@@ -1081,7 +1131,7 @@ class FinalizeRepairTest(unittest.TestCase):
             asset_calls = [call for call in services.management.calls
                           if call[0] == "POST" and call[1].endswith("/assets")]
             repair_mask_calls = [call for call in asset_calls
-                                 if call[3][0] == {"role": "repair-mask"}]
+                                 if call[3][0].get("role") == "repair-mask"]
             self.assertEqual(len(repair_mask_calls), 1)
             self.assertEqual(repair_mask_calls[0][1], "/api/v1/generations/generation/assets")
 

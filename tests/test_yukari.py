@@ -273,6 +273,14 @@ class PromptTest(unittest.TestCase):
         self.assertIn("(dark purple pantyhose:1.45), (opaque pantyhose:1.3), "
                       "(gradient legwear:1.2), (purple gradient:1.1), ", text)
 
+    def test_suspender_costume_is_a_knee_length_skirt_over_black_tights(self):
+        text = positive("stand", costume="suspender")
+        self.assertIn(COSTUMES["suspender"]
+                      + "(black pantyhose:1.5), (opaque pantyhose:1.4), ", text)
+        self.assertIn("(knee-length skirt:1.8), ", text)
+        self.assertNotIn("(denim shorts", text)
+        self.assertIn(ps.HOOD_BAN, negative("stand", costume="suspender"))
+
     def test_sheer_gloss_legwear_replaces_the_costume_tights_on_every_costume(self):
         for costume in COSTUMES:
             with self.subTest(costume=costume):

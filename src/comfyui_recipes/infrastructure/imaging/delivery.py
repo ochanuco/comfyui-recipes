@@ -202,19 +202,37 @@ def enclosed_cut(pixels: np.ndarray, figure: np.ndarray,
     return figure & ~enclosed_mask(pixels, ~figure, tolerance, seed=key)
 
 
-def _pocket_key(pixels: np.ndarray, figure: np.ndarray) -> np.ndarray | None:
-    """The green key the figure encloses when the corners are not it.
+def _pocket_key(pixels: np.ndarray, region: np.ndarray) -> np.ndarray | None:
+    """The green key found inside `region` when the corners are not it.
 
     A drawn frame line closes the raw's green off from the white outside it,
     so the corners read as a white backdrop while the matte keeps the whole
-    green pocket as figure. The key is the median of the figure's green
+    green pocket as figure. The key is the median of the region's green
     pixels, once there are `ENCLOSED_POCKET_MIN_AREA` of them.
     """
     excess = pixels[..., 1] - np.maximum(pixels[..., 0], pixels[..., 2])
-    inside = figure & (excess >= delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS)
+    inside = region & (excess >= delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS)
     if int(inside.sum()) < delivery_style.ENCLOSED_POCKET_MIN_AREA:
         return None
     return np.median(pixels[inside], axis=0)
+
+
+def pocket_window(pixels: np.ndarray, figure: np.ndarray,
+                  tolerance: int) -> np.ndarray | None:
+    """Where the backdrop goes when the key came from a pocket, else None.
+
+    Inside the frame line the raw's green is the other side of the picture
+    and takes the backdrop; the white beyond the line is left as it is. The
+    window is the key-coloured field outside the cut figure, in regions.
+    `figure` is the silhouette after `enclosed_cut`.
+    """
+    key = _corner_seed(pixels)
+    if key[1] - max(key[0], key[2]) >= delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS:
+        return None
+    key = _pocket_key(pixels, ~figure)
+    if key is None:
+        return None
+    return enclosed_mask(pixels, figure, tolerance, seed=key)
 
 
 def keyed_coverage(pixels: np.ndarray, figure: np.ndarray, local: np.ndarray,
@@ -546,9 +564,12 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     local = local_backdrop(px, figure, band)
     coverage = keyed_coverage(px, figure, local, band, tolerance)
     key = _corner_seed(px)
+    window = pocket_window(px, figure, tolerance)
     px = despill(unpremultiply(px, local, coverage),
                  figure_rim(figure, band), key)
     backdrop_rgb = backdrops.render(backdrop, height, width)
+    if window is not None:
+        backdrop_rgb = np.where(window[..., None], backdrop_rgb, key)
     composite = sticker(px, figure, coverage, backdrop_rgb, light)
     white_w, purple_w = _band_widths(height, width)
 

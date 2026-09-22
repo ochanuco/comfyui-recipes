@@ -208,6 +208,22 @@ class DeliveryTest(unittest.TestCase):
         self.assertTrue(cut[100:160, 100:160].all())
         self.assertTrue(cut[60:196, 60:64].all())
 
+    def test_clean_background_paints_the_backdrop_only_inside_the_pocket(self):
+        pixels = np.full((1024, 1024, 3), (255, 255, 255), dtype=np.uint8)
+        pixels[256:768, 256:768] = (196, 220, 151)
+        pixels[250:774, 250:256] = (20, 20, 20)
+        pixels[250:774, 768:774] = (20, 20, 20)
+        pixels[250:256, 250:774] = (20, 20, 20)
+        pixels[768:774, 250:774] = (20, 20, 20)
+        pixels[400:624, 400:624] = (215, 200, 240)
+        soft = np.zeros((1024, 1024), dtype=np.uint8)
+        soft[250:774, 250:774] = 255
+        cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
+        arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
+        self.assertTrue((np.abs(arr[300:340, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
+        self.assertTrue((arr[:64, :64] >= 250).all())
+        self.assertTrue((arr[-64:, -64:] >= 250).all())
+
     def test_enclosed_cut_ignores_a_few_green_pixels_on_a_white_backdrop(self):
         pixels = np.full((256, 256, 3), (255, 255, 255), dtype=np.uint8)
         pixels[64:192, 64:192] = (40, 40, 40)

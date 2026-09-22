@@ -274,3 +274,9 @@ instead: those with a green excess of at least
 frame line itself stays figure and gets the bands on both sides. Interior
 linework holds a few pixels within the excess by accident; a kept pocket
 holds thousands.
+
+With a pocket key the backdrop is painted only inside the pocket
+(`pocket_window`: the key-coloured field outside the cut figure, in
+regions); the white beyond the line keeps the corner colour. The pocket
+is the other side of the picture the figure steps out of, and the white
+is the side she steps into.

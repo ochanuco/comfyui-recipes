@@ -400,6 +400,12 @@ SHADOW_DARK_FAR = 90
 # figure is green, while its whites and pale hair sit inside
 # MATTE_EDGE_TOLERANCE of a grey or light blue backdrop.
 ENCLOSED_KEY_MIN_GREEN_EXCESS = 12
+# When the corners are not a green key (a drawn frame line closes the green
+# off from a white outside), the key is taken from the figure's own green
+# pixels instead, once there are at least this many of them. Interior
+# linework holds a few pixels within the excess by accident; a pocket the
+# matte kept holds thousands.
+ENCLOSED_POCKET_MIN_AREA = 256
 
 # A raw backdrop counts as a chromatic key when its dominant channel exceeds
 # the larger of the other two by at least this. The same pose's green lands

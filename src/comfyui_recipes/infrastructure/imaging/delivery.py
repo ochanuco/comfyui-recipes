@@ -196,8 +196,25 @@ def enclosed_cut(pixels: np.ndarray, figure: np.ndarray,
     """
     key = _corner_seed(pixels)
     if key[1] - max(key[0], key[2]) < delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS:
-        return figure
+        key = _pocket_key(pixels, figure)
+        if key is None:
+            return figure
     return figure & ~enclosed_mask(pixels, ~figure, tolerance, seed=key)
+
+
+def _pocket_key(pixels: np.ndarray, figure: np.ndarray) -> np.ndarray | None:
+    """The green key the figure encloses when the corners are not it.
+
+    A drawn frame line closes the raw's green off from the white outside it,
+    so the corners read as a white backdrop while the matte keeps the whole
+    green pocket as figure. The key is the median of the figure's green
+    pixels, once there are `ENCLOSED_POCKET_MIN_AREA` of them.
+    """
+    excess = pixels[..., 1] - np.maximum(pixels[..., 0], pixels[..., 2])
+    inside = figure & (excess >= delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS)
+    if int(inside.sum()) < delivery_style.ENCLOSED_POCKET_MIN_AREA:
+        return None
+    return np.median(pixels[inside], axis=0)
 
 
 def keyed_coverage(pixels: np.ndarray, figure: np.ndarray, local: np.ndarray,

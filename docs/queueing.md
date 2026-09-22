@@ -18,8 +18,8 @@ uv run comfy-recipes work                                        # serve the que
 
 The request contract is schema version 1. `generation.recipe` must be
 `yukari`, and `generation.parameters.pose` is required. `costume` is
-optional, and so are `hires`/`denoise` (the recipe's second pass) and
-`expression`.
+optional, and so are `hires`/`denoise` (the recipe's second pass),
+`expression` and `legwear` (`opaque`, the default, or `sheer-gloss`).
 A `semantic.summary` is required so each render has evaluation context
 before it is ingested. State is kept beside the request as
 `<request>.state.json`; retain it to resume safely after a crash. A recorded
@@ -148,8 +148,8 @@ document -- schema version 1, with `git_commit`/`git_branch`/`git_dirty`,
 `generated_at` (ISO 8601 UTC) and a `recipes` array (currently just
 `yukari`). Each recipe entry has the checkpoint its
 `render_spec` uses, a `parameters` block (`allowed`/`rejected` keys, agreeing
-with `generate.py`'s own per-recipe validation), its `costumes` and
-`expressions`, a `parts` list (the recipe's named positive-prompt parts in
+with `generate.py`'s own per-recipe validation), its `costumes`, `legwear`
+names and `expressions`, a `parts` list (the recipe's named positive-prompt parts in
 join order), an `identity_tags` list (bare identity tags for the recipe's
 default costume), and one `poses` entry per pose: name, default costume,
 `expression`, the canvas `render_spec` would use, the fully assembled

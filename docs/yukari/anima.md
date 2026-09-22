@@ -41,6 +41,13 @@ The variable part is three small record sets:
   black hooded cardigan, rabbit hood and purple dress; its `LEGWEAR` is
   black tights with a purple gradient. `HOODED_COSTUMES` names the
   costumes whose garments already include a hood or cardigan (`standard`).
+  The request parameter `legwear` picks between `opaque` (the costume's
+  own `LEGWEAR`, the default) and `sheer-gloss` (`SHEER_GLOSS_LEGWEAR`, the
+  same low-denier block on every costume). `sheer-gloss` also edits the
+  negative: it drops the garment-gloss runs of `SHINE_BAN`
+  (`GARMENT_GLOSS_TAGS`) and appends `SHEER_BAN` (opaque legwear, latex,
+  photo-realism, tanned or brown skin tones). A pose with `legwear=False`
+  ignores the parameter on both sides.
 - `expressions.py`: one `mouth`/`eyes` pair per expression (`resting`,
   `sleepy`, `doya`, `smile`, `gao`).
 

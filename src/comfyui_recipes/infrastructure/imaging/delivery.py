@@ -223,8 +223,10 @@ def pocket_window(pixels: np.ndarray, figure: np.ndarray,
 
     Inside the frame line the raw's green is the other side of the picture
     and takes the backdrop; the white beyond the line is left as it is. The
-    window is the key-coloured field outside the cut figure, in regions.
-    `figure` is the silhouette after `enclosed_cut`.
+    window is the filled bounding rectangle of the key-coloured field
+    outside the cut figure: the frame the figure steps out of, whole even
+    where the figure splits the field or the matte dropped a side of the
+    drawn line. `figure` is the silhouette after `enclosed_cut`.
     """
     key = _corner_seed(pixels)
     if key[1] - max(key[0], key[2]) >= delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS:
@@ -232,7 +234,13 @@ def pocket_window(pixels: np.ndarray, figure: np.ndarray,
     key = _pocket_key(pixels, ~figure)
     if key is None:
         return None
-    return enclosed_mask(pixels, figure, tolerance, seed=key)
+    field = enclosed_mask(pixels, figure, tolerance, seed=key)
+    if not field.any():
+        return None
+    rows, cols = np.nonzero(field)
+    window = np.zeros(figure.shape, dtype=bool)
+    window[rows.min():rows.max() + 1, cols.min():cols.max() + 1] = True
+    return window
 
 
 def keyed_coverage(pixels: np.ndarray, figure: np.ndarray, local: np.ndarray,

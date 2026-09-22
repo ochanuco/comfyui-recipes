@@ -275,10 +275,11 @@ frame line itself stays figure and gets the bands on both sides. Interior
 linework holds a few pixels within the excess by accident; a kept pocket
 holds thousands.
 
-With a pocket key the backdrop is painted only inside the pocket
-(`pocket_window`: the key-coloured field outside the cut figure, in
-regions); the white beyond the line keeps the corner colour, and the
-white and purple bands wrap the figure and the pocket as one shape
-instead of running through the pattern. The pocket is the other side of
+With a pocket key the backdrop is painted only inside the frame
+(`pocket_window`: the filled bounding rectangle of the key-coloured field
+outside the cut figure, whole even where the figure splits the field or
+the matte dropped a side of the line); the white beyond the line keeps
+the corner colour, and the white and purple bands wrap the figure and the
+frame as one shape, so the figure inside the frame carries no bands. The pocket is the other side of
 the picture the figure steps out of, and the white is the side she steps
 into.

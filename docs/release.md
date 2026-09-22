@@ -27,8 +27,12 @@ are joined by a promotion PR, the same shape as ochanuco/webull-trading.
   repository is public; limiting the runner to `production` pushes is what
   keeps fork PRs off the box. `deploy.ps1` also re-junctions our node packs
   into the ComfyUI install named by the repository variable `COMFYUI_ROOT`,
+  moves that install to the ComfyUI tag pinned in
+  `manifests/worker-nodes.toml` (`scripts/worker/sync-comfyui.ps1`: fetch,
+  detached forced checkout, its `requirements.txt` into the portable Python
+  when the tag moved -- so a ComfyUI upgrade is a PR that bumps the tag),
   brings the third-party node packs under its `custom_nodes/` to the commits
-  pinned in `manifests/worker-nodes.toml` (`scripts/worker/sync-nodes.ps1`:
+  pinned in the same file (`scripts/worker/sync-nodes.ps1`:
   clone, detached checkout, `requirements.txt` into the portable Python when
   an entry moved, then that entry's `pip` list -- packages a node needs
   that its own `requirements.txt` cannot supply, whether because

@@ -260,3 +260,30 @@ blue backdrop. The palest green backdrop on record has an excess of 16
 (`p358wk`, `204, 220, 182`); on the grey ones it is 0 or negative. The
 gate is separate from `KEY_DESPILL_MIN_EXCESS` because despill takes any
 dominant channel as a key and this cut only a green one.
+
+## ENCLOSED_POCKET_MIN_AREA
+
+A drawn frame line closes the raw's green off from the white outside it
+(`mo20bg`: a thin border around the figure, white beyond), so the corners
+read as a white backdrop, the gate above never opens, and the matte keeps
+the whole green pocket between the line and the figure (`cuizdm`). When the
+corners are not a green key, the key is taken from the figure's own pixels
+instead: those with a green excess of at least
+`ENCLOSED_KEY_MIN_GREEN_EXCESS`, once there are
+`ENCLOSED_POCKET_MIN_AREA` (`256`) of them, their median as the seed. The
+frame line itself stays figure and gets the bands on both sides. Interior
+linework holds a few pixels within the excess by accident; a kept pocket
+holds thousands.
+
+With a pocket key the backdrop is painted only inside the frame
+(`pocket_window`: the filled bounding rectangle of the key-coloured field
+outside the cut figure, whole even where the figure splits the field or
+the matte dropped a side of the line); the white beyond the line keeps
+the corner colour, and the white and purple bands wrap the figure and the
+frame as one shape, so the figure inside the frame carries no bands. The
+drawn line itself is kept as figure (`frame_line`: pixels under
+`FRAME_LINE_MAX_VALUE` within two edge bands outside each side of the
+window, whole rows and columns so the overshot ends come too), since the
+matte drops a thin line wherever it does not touch the figure. The pocket is the other side of
+the picture the figure steps out of, and the white is the side she steps
+into.

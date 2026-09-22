@@ -17,9 +17,11 @@ def request_prompts(request: dict) -> tuple[str, str]:
     pose = parameters["pose"]
     costume = parameters.get("costume")
     expression = parameters.get("expression")
+    legwear = parameters.get("legwear", "opaque")
     return (
-        generation.get("prompt") or positive(pose, costume, expression),
-        generation.get("negative_prompt") or negative(pose, costume, expression),
+        generation.get("prompt") or positive(pose, costume, expression, legwear),
+        generation.get("negative_prompt")
+        or negative(pose, costume, expression, legwear),
     )
 
 

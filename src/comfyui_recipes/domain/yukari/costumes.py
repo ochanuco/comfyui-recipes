@@ -12,9 +12,15 @@ COSTUMES = {
                  "(rabbit hood:1.3), long sleeves, drawstring, "
                  "(purple dress:1.25), frills, (sleeves past wrists:1.15), "
                  "hood down, "),
-    "suspender": ("(white t-shirt:1.35), (suspender skirt:1.4), "
-                  "(black skirt:1.25), (knee-length skirt:1.8), "
-                  "(pleated skirt:1.1), "),
+    "suspender": ("(muted orange t-shirt:1.2), (plain t-shirt:1.15), "
+                  "(suspender skirt:1.4), (navy blue skirt:1.3), "
+                  "(knee-length skirt:1.8), (pleated skirt:1.1), "),
+}
+
+# Negative tags a costume adds on top of the recipe's shared bans.
+COSTUME_BAN = {
+    "suspender": ("(text:1.3), (print:1.2), (logo:1.2), (number:1.2), "
+                  "(bright orange:1.2), "),
 }
 
 # The `opaque` legwear: each costume's own tights.

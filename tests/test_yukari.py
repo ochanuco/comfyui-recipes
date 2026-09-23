@@ -14,7 +14,8 @@ from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.generation.prompt_lint import tags as prompt_tags
 from comfyui_recipes.domain.yukari import prompt_style as ps
 from comfyui_recipes.domain.yukari.costumes import (COSTUME_BAN, COSTUMES,
-                                                    SHEER_GLOSS_LEGWEAR)
+                                                    SHEER_GLOSS_LEGWEAR,
+                                                    SHEER_LEGWEAR)
 from comfyui_recipes.domain.yukari.expressions import EXPRESSIONS
 from comfyui_recipes.domain.yukari.poses import POSES
 from comfyui_recipes.domain.yukari.recipe import (
@@ -324,6 +325,42 @@ class PromptTest(unittest.TestCase):
         spec = render_spec("gao", 7, "x", legwear="sheer-gloss")
         self.assertEqual(spec.prompts.positive, positive("gao", legwear="sheer-gloss"))
         self.assertEqual(spec.prompts.negative, negative("gao", legwear="sheer-gloss"))
+
+    def test_sheer_legwear_replaces_the_costume_tights_on_every_costume(self):
+        for costume in COSTUMES:
+            with self.subTest(costume=costume):
+                text = positive("stand", costume=costume, legwear="sheer")
+                self.assertIn(SHEER_LEGWEAR[costume], text)
+                self.assertNotIn("(opaque pantyhose", text)
+                self.assertIn(COSTUMES[costume], text)
+
+    def test_sheer_legwear_standard_keeps_the_purple_gradient(self):
+        self.assertIn("(gradient legwear:1.2), (purple gradient:1.1), ",
+                      SHEER_LEGWEAR["standard"])
+        for costume in COSTUMES:
+            if costume == "standard":
+                continue
+            with self.subTest(costume=costume):
+                self.assertNotIn("(gradient legwear:1.2), (purple gradient:1.1), ",
+                                 SHEER_LEGWEAR[costume])
+
+    def test_sheer_legwear_drops_the_garment_gloss_bans_only(self):
+        text = negative("gao", legwear="sheer")
+        for tags in ps.GARMENT_GLOSS_TAGS:
+            self.assertNotIn(tags, text)
+        self.assertIn("(shiny hair:1.4), (hair highlights:1.2), (watercolor:1.3), ",
+                      text)
+        self.assertIn(ps.SHEER_BAN + ps.SCORE_BAN, text)
+        self.assertIn(ps.GRADIENT_BAN, text)
+
+    def test_sheer_legwear_leaves_a_bare_leg_pose_alone(self):
+        self.assertEqual(positive("bust", legwear="sheer"), positive("bust"))
+        self.assertEqual(negative("bust", legwear="sheer"), negative("bust"))
+
+    def test_render_spec_carries_sheer_legwear_into_both_prompts(self):
+        spec = render_spec("gao", 7, "x", legwear="sheer")
+        self.assertEqual(spec.prompts.positive, positive("gao", legwear="sheer"))
+        self.assertEqual(spec.prompts.negative, negative("gao", legwear="sheer"))
 
     def test_standard_costume_negative_drops_the_hood_ban(self):
         self.assertIn("(hood:1.3), (cardigan:1.3), ", negative("stand"))

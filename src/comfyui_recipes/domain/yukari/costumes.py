@@ -44,13 +44,31 @@ SHEER_GLOSS_LEGWEAR = (
     "legs darken to black toward their outlines, and a soft white sheen "
     "highlight runs along the shin, ")
 
-LEGWEARS = ("opaque", "sheer-gloss")
+# The `sheer` legwear: see-through tights with a faint sheen; `standard`
+# keeps its purple gradient. `recipe.negative` treats it like `sheer-gloss`.
+SHEER_LEGWEAR = {
+    costume: "(sheer black pantyhose:1.5), (see-through black tights:1.4), "
+             "(skin clearly visible through pantyhose:1.4), "
+             "(thin translucent legwear:1.3), (pantyhose:1.4), "
+             "(subtle sheen on legwear:1.15), "
+    for costume in COSTUMES
+}
+SHEER_LEGWEAR["standard"] = (
+    "(sheer black pantyhose:1.5), (see-through black tights:1.4), "
+    "(skin clearly visible through pantyhose:1.4), "
+    "(thin translucent legwear:1.3), (dark purple pantyhose:1.0), "
+    "(pantyhose:1.4), (subtle sheen on legwear:1.15), "
+    "(gradient legwear:1.2), (purple gradient:1.1), ")
+
+LEGWEARS = ("opaque", "sheer-gloss", "sheer")
 DEFAULT_LEGWEAR = "opaque"
 
 
 def legwear_block(costume: str, legwear: str) -> str:
     if legwear == "sheer-gloss":
         return SHEER_GLOSS_LEGWEAR
+    if legwear == "sheer":
+        return SHEER_LEGWEAR[costume]
     if legwear != "opaque":
         raise KeyError(legwear)
     return LEGWEAR[costume]

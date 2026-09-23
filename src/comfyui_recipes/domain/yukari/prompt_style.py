@@ -39,7 +39,7 @@ SHINE_BAN = ("(shiny:1.4), (glossy:1.3), (shiny hair:1.4), "
              "(shiny clothes:1.3), (specular highlights:1.3), "
              "(reflection:1.2), (hair highlights:1.2), (watercolor:1.3), "
              "(ink wash:1.3), (painterly:1.3), ")
-# The garment-gloss runs inside SHINE_BAN; `sheer-gloss` legwear drops them.
+# The garment-gloss runs inside SHINE_BAN; `sheer` and `sheer-gloss` legwear drop them.
 GARMENT_GLOSS_TAGS = (
     "(shiny:1.4), (glossy:1.3), ",
     ("(shiny clothes:1.3), (specular highlights:1.3), (reflection:1.2), "),

@@ -334,15 +334,11 @@ class PromptTest(unittest.TestCase):
                 self.assertNotIn("(opaque pantyhose", text)
                 self.assertIn(COSTUMES[costume], text)
 
-    def test_sheer_legwear_standard_keeps_the_purple_gradient(self):
-        self.assertIn("(gradient legwear:1.2), (purple gradient:1.1), ",
-                      SHEER_LEGWEAR["standard"])
+    def test_sheer_legwear_carries_no_gradient_words(self):
+        self.assertIn("(sheer dark purple pantyhose:1.5), ", SHEER_LEGWEAR["standard"])
         for costume in COSTUMES:
-            if costume == "standard":
-                continue
             with self.subTest(costume=costume):
-                self.assertNotIn("(gradient legwear:1.2), (purple gradient:1.1), ",
-                                 SHEER_LEGWEAR[costume])
+                self.assertNotIn("gradient", SHEER_LEGWEAR[costume])
 
     def test_sheer_legwear_drops_the_garment_gloss_bans_only(self):
         text = negative("gao", legwear="sheer")
@@ -350,7 +346,8 @@ class PromptTest(unittest.TestCase):
             self.assertNotIn(tags, text)
         self.assertIn("(shiny hair:1.4), (hair highlights:1.2), (watercolor:1.3), ",
                       text)
-        self.assertIn(ps.SHEER_BAN + ps.SCORE_BAN, text)
+        self.assertIn(ps.SHEER_BAN + ps.SHEER_TONE_BAN + ps.SCORE_BAN, text)
+        self.assertNotIn(ps.SHEER_TONE_BAN, negative("gao", legwear="sheer-gloss"))
         self.assertIn(ps.GRADIENT_BAN, text)
 
     def test_sheer_legwear_leaves_a_bare_leg_pose_alone(self):

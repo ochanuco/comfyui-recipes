@@ -48,6 +48,8 @@ SHEER_BAN = ("(opaque legwear:1.3), (latex:1.3), (photorealistic:1.4), "
              "(realistic:1.3), (photo:1.2), (tan skin:1.35), (dark skin:1.3), "
              "(brown legwear:1.4), (brown pantyhose:1.4), (tan:1.2), "
              "(beige legwear:1.3), ")
+SHEER_TONE_BAN = ("(light purple legwear:1.35), (lavender legwear:1.25), "
+                  "(gradient legwear:1.3), ")
 GRADIENT_BAN = "(gradient:1.5), (soft shading:1.5), "
 NEGATIVE_TAIL = ("(sparkling eyes:1.4), (glitter:1.3), "
                   "(multiple highlights:1.3), (gradient eyes:1.2), "

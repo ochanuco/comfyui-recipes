@@ -39,7 +39,7 @@ SHINE_BAN = ("(shiny:1.4), (glossy:1.3), (shiny hair:1.4), "
              "(shiny clothes:1.3), (specular highlights:1.3), "
              "(reflection:1.2), (hair highlights:1.2), (watercolor:1.3), "
              "(ink wash:1.3), (painterly:1.3), ")
-# The garment-gloss runs inside SHINE_BAN; `sheer-gloss` legwear drops them.
+# The garment-gloss runs inside SHINE_BAN; `sheer` and `sheer-gloss` legwear drop them.
 GARMENT_GLOSS_TAGS = (
     "(shiny:1.4), (glossy:1.3), ",
     ("(shiny clothes:1.3), (specular highlights:1.3), (reflection:1.2), "),
@@ -48,6 +48,8 @@ SHEER_BAN = ("(opaque legwear:1.3), (latex:1.3), (photorealistic:1.4), "
              "(realistic:1.3), (photo:1.2), (tan skin:1.35), (dark skin:1.3), "
              "(brown legwear:1.4), (brown pantyhose:1.4), (tan:1.2), "
              "(beige legwear:1.3), ")
+SHEER_TONE_BAN = ("(light purple legwear:1.35), (lavender legwear:1.25), "
+                  "(gradient legwear:1.3), ")
 GRADIENT_BAN = "(gradient:1.5), (soft shading:1.5), "
 NEGATIVE_TAIL = ("(sparkling eyes:1.4), (glitter:1.3), "
                   "(multiple highlights:1.3), (gradient eyes:1.2), "

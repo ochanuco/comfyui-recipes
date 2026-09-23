@@ -47,6 +47,7 @@ from .prompt_style import (
     SCORE_BAN,
     SHADE_BAN,
     SHEER_BAN,
+    SHEER_TONE_BAN,
     SHINE_BAN,
     STEPS,
     STYLE,
@@ -111,10 +112,10 @@ def negative(pose: str, costume: str | None = None,
     hood_ban = "" if c in HOODED_COSTUMES else HOOD_BAN
     garment_black_ban = GARMENT_BLACK_BAN if c == "standard" else ""
     shine_ban, sheer_ban = SHINE_BAN, ""
-    if legwear == "sheer-gloss" and p.legwear:
+    if legwear in ("sheer-gloss", "sheer") and p.legwear:
         for tags in GARMENT_GLOSS_TAGS:
             shine_ban = shine_ban.replace(tags, "")
-        sheer_ban = SHEER_BAN
+        sheer_ban = SHEER_BAN + (SHEER_TONE_BAN if legwear == "sheer" else "")
     return (DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
             + p.negative + shine_ban + GRADIENT_BAN
             + NEGATIVE_TAIL + VIVID_BAN + hood_ban + garment_black_ban

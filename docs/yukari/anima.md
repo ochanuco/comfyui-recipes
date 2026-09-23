@@ -46,11 +46,16 @@ The variable part is three small record sets:
   orange). `HOODED_COSTUMES` names the
   costumes whose garments already include a hood or cardigan (`standard`).
   The request parameter `legwear` picks between `opaque` (the costume's
-  own `LEGWEAR`, the default) and `sheer-gloss` (`SHEER_GLOSS_LEGWEAR`, the
-  same low-denier block on every costume). `sheer-gloss` also edits the
-  negative: it drops the garment-gloss runs of `SHINE_BAN`
-  (`GARMENT_GLOSS_TAGS`) and appends `SHEER_BAN` (opaque legwear, latex,
-  photo-realism, tanned or brown skin tones). A pose with `legwear=False`
+  own `LEGWEAR`, the default), `sheer-gloss` (`SHEER_GLOSS_LEGWEAR`, the
+  same low-denier block on every costume) and `sheer` (`SHEER_LEGWEAR`:
+  see-through tights with only a faint sheen, the skin showing through,
+  in one flat tone: black-purple on `standard`, black elsewhere; gradient
+  words are left out because they let the model pick the direction).
+  Both `sheer` and `sheer-gloss` edit the negative the same way: they drop
+  the garment-gloss runs of `SHINE_BAN` (`GARMENT_GLOSS_TAGS`) and append
+  `SHEER_BAN` (opaque legwear, latex, photo-realism, tanned or brown skin
+  tones); `sheer` also appends `SHEER_TONE_BAN` (light purple, lavender and
+  gradient legwear). A pose with `legwear=False`
   ignores the parameter on both sides.
 - `expressions.py`: one `mouth`/`eyes` pair per expression (`resting`,
   `sleepy`, `doya`, `smile`, `gao`).

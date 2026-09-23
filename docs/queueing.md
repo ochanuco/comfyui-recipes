@@ -19,7 +19,8 @@ uv run comfy-recipes work                                        # serve the que
 The request contract is schema version 1. `generation.recipe` must be
 `yukari`, and `generation.parameters.pose` is required. `costume` is
 optional, and so are `hires`/`denoise` (the recipe's second pass),
-`expression` and `legwear` (`opaque`, the default, or `sheer-gloss`).
+`expression` and `legwear` (`opaque`, the default, `sheer-gloss` or
+`sheer`).
 A `semantic.summary` is required so each render has evaluation context
 before it is ingested. State is kept beside the request as
 `<request>.state.json`; retain it to resume safely after a crash. A recorded

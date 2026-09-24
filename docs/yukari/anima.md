@@ -92,8 +92,14 @@ default `1024x1640`.
 model, then joins them. A component is `(name, section, priority, text)`.
 `Section` orders the Anima model card's own tag sections: `QUALITY`,
 `COUNT`, `CHARACTER`, `SERIES`, `ARTIST`, `GENERAL`. `Priority` (`LEAD`,
-`MAIN`, `TAIL`) orders components within `GENERAL` only; every component
-today is `MAIN`, so within `GENERAL` the order is declaration order.
+`MAIN`, `TAIL`) orders components within `GENERAL` only; declaration order
+is the tie-break within a priority. `recipe._components` assigns:
+
+- `LEAD`: `identity`, `eye_base`, `eye_quality`, `framing_tags`,
+  `body_build`, `leg_display`, `legwear`
+- `MAIN`: `action`, `mouth`, `mood`, `gesture`, `costume`, `place`, `cutout`
+- `TAIL`: `face`, `style`
+
 `recipe._components` declares one component per fixed or per-pose/costume/
 expression block -- `quality`, `count`, `character`, `series`, `artist`,
 `identity`, `action`, `mouth`, `mood`, `eye_base`, `eye_quality`, `gesture`,
@@ -129,10 +135,12 @@ Positive, unfolded to the same order this produces today:
 
 ```
 QUALITY + CHARACTER + IDENTITY
-+ pose.action + expression.mouth + pose.mood + expression.eyes + pose.gesture
-+ COSTUMES[costume] + (LEGWEAR[costume] if pose.legwear else "")
-+ pose.scene + pose.framing_tags + pose.leg_display
-+ (pose.body if pose.body is not None else BODY) + BACKGROUND + FACE
++ expression.eye_shape + expression.eyes
++ (LEGWEAR[costume] if pose.legwear else "") + pose.framing_tags
++ pose.leg_display + (pose.body if pose.body is not None else BODY)
++ pose.action + expression.mouth + pose.mood + pose.gesture + COSTUMES[costume]
++ pose.scene
++ (pose.background if pose.background is not None else BACKGROUND) + FACE
 + (pose.style if pose.style is not None else STYLE)
 ```
 

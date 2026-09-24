@@ -90,29 +90,30 @@ def _components(pose: str, costume: str | None = None,
     lw = legwear if legwear is not None else p.legwear_kind
     legwear_text = legwear_block(c, lw) if p.legwear else ""
     G, M = Section.GENERAL, Priority.MAIN
+    L, T = Priority.LEAD, Priority.TAIL
     declared = (
         Component("quality", Section.QUALITY, M, QUALITY_TAG),
         Component("count", Section.COUNT, M, COUNT_TAG),
         Component("character", Section.CHARACTER, M, CHARACTER_TAG),
         Component("series", Section.SERIES, M, SERIES_TAG),
         Component("artist", Section.ARTIST, M, ARTIST_TAG),
-        Component("identity", G, M, IDENTITY),
+        Component("identity", G, L, IDENTITY),
         Component("action", G, M, p.action),
         Component("mouth", G, M, e.mouth),
         Component("mood", G, M, p.mood),
-        Component("eye_base", G, M, e.eye_shape),
-        Component("eye_quality", G, M, e.eyes),
+        Component("eye_base", G, L, e.eye_shape),
+        Component("eye_quality", G, L, e.eyes),
         Component("gesture", G, M, p.gesture),
         Component("costume", G, M, COSTUMES[c]),
-        Component("legwear", G, M, legwear_text),
+        Component("legwear", G, L, legwear_text),
         Component("place", G, M, p.scene),
-        Component("framing_tags", G, M, p.framing_tags),
-        Component("leg_display", G, M, p.leg_display),
-        Component("body_build", G, M, p.body if p.body is not None else BODY),
+        Component("framing_tags", G, L, p.framing_tags),
+        Component("leg_display", G, L, p.leg_display),
+        Component("body_build", G, L, p.body if p.body is not None else BODY),
         Component("cutout", G, M,
                   p.background if p.background is not None else BACKGROUND),
-        Component("face", G, M, FACE),
-        Component("style", G, M, p.style if p.style is not None else STYLE),
+        Component("face", G, T, FACE),
+        Component("style", G, T, p.style if p.style is not None else STYLE),
     )
     return assemble(declared)
 

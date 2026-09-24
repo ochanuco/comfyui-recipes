@@ -1,6 +1,6 @@
-"""Component-model invariants: Section/Priority ordering, GENERAL-only
-Priority use in stage 1, part-mapping coverage/contiguity, and every pose's
-Framing."""
+"""Component-model invariants: Section/Priority ordering, the GENERAL-section
+priority table `_components` assigns, part-mapping coverage, and every
+pose's Framing."""
 
 from __future__ import annotations
 
@@ -15,7 +15,12 @@ from comfyui_recipes.domain.yukari.components import (
     assemble,
 )
 from comfyui_recipes.domain.yukari.poses import POSES
-from comfyui_recipes.domain.yukari.recipe import PART_NAMES, _components
+from comfyui_recipes.domain.yukari.recipe import (
+    PART_GROUPS,
+    PART_NAMES,
+    _components,
+    positive_parts,
+)
 
 
 class AssembleOrderTest(unittest.TestCase):
@@ -40,14 +45,29 @@ class AssembleOrderTest(unittest.TestCase):
                          ["first", "second", "third"])
 
 
-class StageOnePriorityTest(unittest.TestCase):
-    def test_every_general_component_is_main(self):
+class GeneralPriorityTableTest(unittest.TestCase):
+    LEAD = frozenset({"identity", "eye_base", "eye_quality", "framing_tags",
+                      "body_build", "leg_display", "legwear"})
+    MAIN = frozenset({"action", "mouth", "mood", "gesture", "costume",
+                      "place", "cutout"})
+    TAIL = frozenset({"face", "style"})
+
+    def test_general_components_match_the_priority_table(self):
         for pose in POSES:
             with self.subTest(pose=pose):
                 for component in _components(pose):
-                    if component.section == Section.GENERAL:
-                        self.assertEqual(component.priority, Priority.MAIN,
-                                         component.name)
+                    if component.section != Section.GENERAL:
+                        continue
+                    if component.name in self.LEAD:
+                        expected = Priority.LEAD
+                    elif component.name in self.MAIN:
+                        expected = Priority.MAIN
+                    elif component.name in self.TAIL:
+                        expected = Priority.TAIL
+                    else:
+                        self.fail(f"{component.name} not in the priority table")
+                    self.assertEqual(component.priority, expected,
+                                     component.name)
 
 
 class PartMappingTest(unittest.TestCase):
@@ -59,17 +79,18 @@ class PartMappingTest(unittest.TestCase):
             for component in _components(pose):
                 self.assertIn(component.name, PART_OF, component.name)
 
-    def test_a_parts_components_stay_contiguous(self):
+    def test_every_legacy_groups_members_exist_in_positive_parts(self):
+        # The priority table interleaves a legacy part's members with other
+        # parts' components, so `patches.py` resolves a legacy
+        # `prompt.positive.<part>` patch against each member individually
+        # rather than a contiguous run; every member still has to be an
+        # assembled component.
         for pose in POSES:
             with self.subTest(pose=pose):
-                parts = [PART_OF[c.name] for c in _components(pose)]
-                seen = []
-                for part in parts:
-                    if not seen or seen[-1] != part:
-                        self.assertNotIn(part, seen,
-                                         f"{part} split into two runs")
-                        seen.append(part)
-                self.assertEqual(seen, list(PART_NAMES))
+                names = {name for name, _ in positive_parts(pose)}
+                for part, members in PART_GROUPS.items():
+                    for member in members:
+                        self.assertIn(member, names, f"{part}.{member}")
 
 
 class PriorityDrivenOrderTest(unittest.TestCase):

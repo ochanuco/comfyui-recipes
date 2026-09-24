@@ -29,12 +29,17 @@ soft thighs, long legs, a narrow waist, and seven heads tall.
 
 The variable part is three small record sets:
 
-- `poses.py`: one `Pose` per pose -- `action`, `mood`, `gesture`, `scene`
-  (place/situation tags), `framing` (a `Framing`), `framing_tags` (that
-  shot's camera tags), `leg_display` (the trailing `(thighs:...)` tag, or
-  empty), the pose's own default `expression` and `costume`, and an
-  optional pose-specific negative addition. A pose may also override
-  `legwear` (default `True`; `False` drops the costume's leg tags),
+- `poses.py`: one `Pose` per pose -- `action`, `mood`, `gesture`,
+  `framing` (a `Framing`), `angle` (a camera-angle prefix, default empty --
+  `from front`/`from side`; see "Framing" below for where the rest of the
+  shot's camera tags come from), `leg_display` (the trailing
+  `(thighs:...)` tag, or empty), the pose's own default `expression` and
+  `costume`, and an optional pose-specific negative addition. No pose
+  carries a place/location tag: cut-out delivery needs an empty green
+  background, and a location tag invites furniture or a backdrop the matte
+  then has to cut around; `coffee` and `amae` kept only their `standing`
+  tag, moved onto the end of `action`. A pose may also override `legwear`
+  (default `True`; `False` drops the costume's leg tags),
   `legwear_kind` (default `opaque`; the legwear word the pose renders at
   when the request does not name one), `body` and `style` (replace
   `BODY`/`STYLE` wholesale), and carry its own `loras` (default empty).
@@ -62,8 +67,35 @@ The variable part is three small record sets:
   brown skin tones); `sheer` also appends `SHEER_TONE_BAN` (light purple,
   lavender and gradient legwear). A pose with `legwear=False`
   ignores the parameter on both sides.
+
+  The request parameter `legwear_state` (`LegwearState`: `worn`, the
+  default, `removing` or `off`) sits alongside `legwear` on the same
+  component. `worn` is today's `legwear_block` text, unchanged. `removing`
+  follows it with the act of pulling it down --
+  `(pantyhose pull:1.3), (pulled by self:1.25), (pantyhose around
+  knees:1.35), (pantyhose pulled down:1.3), (bare thighs:1.2), ` -- and
+  bans `(thighhighs:1.4), (kneehighs:1.4), (socks:1.3), ` in the negative.
+  `off` drops the legwear block entirely and asks for
+  `(bare legs:1.3), (no legwear:1.3), ` instead, banning
+  `(pantyhose:1.3), (thighhighs:1.3), (kneehighs:1.2), (socks:1.2), ` in
+  the negative and skipping the sheer/sheer-gloss kind's own negative
+  edits (`SHEER_BAN`, `SHEER_TONE_BAN`, the `SHINE_BAN` gloss drop) --
+  those only make sense when a legwear kind is actually worn. Like
+  `legwear`, an unset request falls back to the pose's own
+  `legwear_state` (every pose says `worn`), and a pose with `legwear=False`
+  ignores `legwear_state` entirely.
 - `expressions.py`: one `mouth`/`eyes` pair per expression (`resting`,
-  `sleepy`, `doya`, `smile`, `gao`, `v`).
+  `sleepy`, `doya`, `smile`, `gao`, `v`). `eye_quality` (an `EyeQuality`:
+  `COLD`, the dataclass default, or `BLANK`) routes the eye_quality
+  component's shared tags -- `EYE_QUALITY[COLD]` is
+  `(half-closed eyes:1.3), (unamused:1.15), `, `EYE_QUALITY[BLANK]` is
+  empty -- and `eyes` is now only the expression's own extra on top:
+  `resting`, `doya` and `v` are `COLD` with no extra; `sleepy` is `BLANK`
+  with `(sleepy:1.4), (drowsy:1.3), (half-closed eyes:1.4), `; `smile` and
+  `gao` are `BLANK` with `(confident:1.18), `. `resting`'s own eye text
+  unified onto `EYE_QUALITY[COLD]` (`(unamused:1.3), (half-closed
+  eyes:1.3)` becomes `(half-closed eyes:1.3), (unamused:1.15)`) -- the
+  `eye_shape` field (jitome weight per expression) is unchanged.
 
 ## Poses
 
@@ -76,15 +108,31 @@ The variable part is three small record sets:
 - `cinema`: expression `doya`, costume `outing`. Walking through a movie
   theater lobby with a popcorn bucket in one hand and a cola cup with a
   straw in the other.
-- `bust`: expression `smile`, costume `standard`, canvas `1280x1280`.
-  Head-and-shoulders portrait, looking at viewer. Drops the costume's
-  legwear (`legwear=False`) and overrides `body` to a bare adult-proportions
-  block with no leg tags.
+- `bust`: expression `smile`, costume `standard`. Head-and-shoulders
+  portrait, looking at viewer, canvas `1280x1280` from its `BUST` framing.
+  Drops the costume's legwear (`legwear=False`) and overrides `body` to a
+  bare adult-proportions block with no leg tags.
 - `gao`: expression `gao`, costume `standard`. A claw pose with an open,
   fanged mouth, leaning forward with hands up, cowboy shot from the front.
 
-A pose may carry its own `canvas`; `render_spec` uses it in place of the
-default `1024x1640`.
+A pose may carry its own `canvas`; `render_spec` uses it in place of its
+`Framing`'s canvas, which in turn falls back to the default `1024x1640`.
+
+## Framing
+
+`framing.py`'s `FRAMING` maps each `Framing` kind to the camera-shot tag
+text and, only for `BUST`, the canvas it carries: `BUST` (`portrait, head
+and shoulders, upper body, face focus` -- `1280x1280`), `UPPER` (`upper
+body`), `COWBOY` (`cowboy shot`), `FULL` (`full body, wide shot`), `LYING`
+(`lying, full body`). No pose currently uses `UPPER` or `LYING`. A pose's
+`framing_tags` component is built as `pose.angle + FRAMING[pose.framing].text`
+-- `angle` is the pose's own prefix (`bust`, `stand`, `dance` and `gao` say
+`(from front:1.3)`; `step` says `(from side:1.1)`; `coffee`, `amae` and
+`cinema` say nothing), so the shot kind stays one place while the angle
+stays per-pose. `render_spec`'s canvas is `pose.canvas` if the pose sets
+one, else `FRAMING[pose.framing].canvas`, else the recipe default -- `bust`
+carries no `canvas` of its own any more; its square canvas comes from
+`BUST`.
 
 ## Assembly order
 
@@ -97,13 +145,13 @@ is the tie-break within a priority. `recipe._components` assigns:
 
 - `LEAD`: `identity`, `eye_base`, `eye_quality`, `framing_tags`,
   `body_build`, `leg_display`, `legwear`
-- `MAIN`: `action`, `mouth`, `mood`, `gesture`, `costume`, `place`, `cutout`
+- `MAIN`: `action`, `mouth`, `mood`, `gesture`, `costume`, `cutout`
 - `TAIL`: `face`, `style`
 
 `recipe._components` declares one component per fixed or per-pose/costume/
 expression block -- `quality`, `count`, `character`, `series`, `artist`,
 `identity`, `action`, `mouth`, `mood`, `eye_base`, `eye_quality`, `gesture`,
-`costume`, `legwear`, `place`, `framing_tags`, `leg_display`, `body_build`,
+`costume`, `legwear`, `framing_tags`, `leg_display`, `body_build`,
 `cutout`, `face`, `style` -- and `assemble()` stably sorts them by
 `(section, priority)`.
 
@@ -120,8 +168,8 @@ each component name to the legacy part it used to belong to;
 `components.part_groups()` inverts that into `recipe.PART_GROUPS`, legacy
 name -> the component names that composed it, in declaration order --
 `identity` is `character, series, artist, identity`; `eyes` is `eye_base,
-eye_quality`; `costume` is `costume, legwear`; `scene` is `place,
-framing_tags, leg_display`; `quality` is `quality, count`; the rest are a
+eye_quality`; `costume` is `costume, legwear`; `scene` is `framing_tags,
+leg_display`; `quality` is `quality, count`; the rest are a
 single same-named component. `patches.py` resolves a legacy-named
 `prompt.positive.<part>` patch against the group: `append`/`prepend` target
 its last/first member; `replace`/`remove` find the single member whose text
@@ -135,23 +183,24 @@ Positive, unfolded to the same order this produces today:
 
 ```
 QUALITY + CHARACTER + IDENTITY
-+ expression.eye_shape + expression.eyes
-+ (LEGWEAR[costume] if pose.legwear else "") + pose.framing_tags
++ expression.eye_shape + (EYE_QUALITY[expression.eye_quality] + expression.eyes)
++ (LEGWEAR[costume] if pose.legwear else "")
++ (pose.angle + FRAMING[pose.framing].text)
 + pose.leg_display + (pose.body if pose.body is not None else BODY)
 + pose.action + expression.mouth + pose.mood + pose.gesture + COSTUMES[costume]
-+ pose.scene
 + (pose.background if pose.background is not None else BACKGROUND) + FACE
 + (pose.style if pose.style is not None else STYLE)
 ```
 
-`pose.scene` now holds only the place/situation tags; `pose.framing`
-(a `Framing`: `BUST`, `UPPER`, `COWBOY`, `FULL`, `LYING`) names the pose's
-camera/shot kind, `pose.framing_tags` is that shot's camera tags (`from
-front`, `cowboy shot`, `full body`, ...), and `pose.leg_display` is the
-trailing `(thighs:...)` tag. `bust` is the one exception: its
-portrait/head-and-shoulders/upper-body/face-focus tags stay in `pose.action`
-(moving them would reorder the prompt), `pose.scene` is empty, and
-`pose.framing_tags` carries its whole former scene text.
+No place tags sit between `COSTUMES[costume]` and `BACKGROUND` any more --
+a pose carries no location text at all. `pose.framing` (a `Framing`:
+`BUST`, `UPPER`, `COWBOY`, `FULL`, `LYING`) names the pose's camera/shot
+kind and owns that shot's own tags (`FRAMING[pose.framing].text` -- see
+"Framing" above), and `pose.angle` is the pose's own prefix onto that text
+(`from front`, `from side`, or empty). `pose.leg_display` is the trailing
+`(thighs:...)` tag. `bust` carries an empty `pose.action`: its
+portrait/head-and-shoulders/upper-body/face-focus tags now live in `BUST`'s
+framing text instead.
 
 Negative:
 
@@ -270,10 +319,11 @@ another redraw-shaping option.
 }
 ```
 
-`pose` is required; `costume` and `expression` are optional and fall back
-to the pose's own. `hires` and `denoise` are accepted for this recipe --
-`hires` is the target longest side of the second pass, `denoise` overrides
-`HIRES_DENOISE` and needs `hires` set -- see [queueing.md](../queueing.md).
+`pose` is required; `costume`, `expression`, `legwear` and `legwear_state`
+are optional and fall back to the pose's own. `hires` and `denoise` are
+accepted for this recipe -- `hires` is the target longest side of the
+second pass, `denoise` overrides `HIRES_DENOISE` and needs `hires` set --
+see [queueing.md](../queueing.md).
 
 `domain/yukari/dials.py` publishes `render.width`/`render.height` as
 words for `generation.patches` -- `draft` (`1024`/`1640`, the default

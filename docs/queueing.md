@@ -19,8 +19,8 @@ uv run comfy-recipes work                                        # serve the que
 The request contract is schema version 1. `generation.recipe` must be
 `yukari`, and `generation.parameters.pose` is required. `costume` is
 optional, and so are `hires`/`denoise` (the recipe's second pass),
-`expression` and `legwear` (`opaque`, the default, `sheer-gloss` or
-`sheer`).
+`expression`, `legwear` (`opaque`, the default, `sheer-gloss` or
+`sheer`) and `legwear_state` (`worn`, the default, `removing` or `off`).
 A `semantic.summary` is required so each render has evaluation context
 before it is ingested. State is kept beside the request as
 `<request>.state.json`; retain it to resume safely after a crash. A recorded
@@ -388,9 +388,9 @@ available as the escape hatch for structural experiments) and with full
 `prompt`/`negative_prompt` overrides.
 
 `generation.parameters` is a closed set: `pose`, `costume`, `hires`,
-`denoise`, `expression`, `character`, `character_id`, `arm`. Unknown keys
-are rejected -- annotations belong in `semantic.attributes`, executable
-diffs in `generation.patches`.
+`denoise`, `expression`, `character`, `character_id`, `arm`, `legwear`,
+`legwear_state`. Unknown keys are rejected -- annotations belong in
+`semantic.attributes`, executable diffs in `generation.patches`.
 
 ```json
 "generation": {

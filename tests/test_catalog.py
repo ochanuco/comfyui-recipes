@@ -56,7 +56,7 @@ def _request(recipe: str, parameters: dict) -> dict:
 _DUMMY_VALUES = {
     "hires": 1024, "denoise": 0.5, "costume": "default", "character": "yukari",
     "character_id": "char-1", "arm": "a", "expression": "doya",
-    "legwear": "sheer-gloss",
+    "legwear": "sheer-gloss", "legwear_state": "removing",
 }
 
 
@@ -145,6 +145,15 @@ class BuildCatalogTest(unittest.TestCase):
         self.assertIn("identity_override", patches["overrides"])
         self.assertTrue(patches["overrides"]["identity_override"])
 
+    def test_yukari_publishes_legwear_state_words_and_pose_defaults(self):
+        catalog = build_catalog(GIT)
+        by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
+        yukari = by_name["yukari"]
+        self.assertEqual(set(yukari["legwear_state"]), {"worn", "removing", "off"})
+        by_pose = {pose["name"]: pose for pose in yukari["poses"]}
+        self.assertEqual(by_pose["stand"]["legwear_state"], "worn")
+        self.assertIsNone(by_pose["bust"]["legwear_state"])
+
     def test_yukari_poses_carry_parts_that_join_into_positive(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
@@ -165,7 +174,7 @@ class BuildCatalogTest(unittest.TestCase):
             ["quality", "count", "character", "series", "artist", "identity",
              "eye_base", "eye_quality", "legwear", "framing_tags",
              "leg_display", "body_build", "action", "mouth", "mood",
-             "gesture", "costume", "place", "cutout", "face", "style"])
+             "gesture", "costume", "cutout", "face", "style"])
         self.assertEqual(
             by_name["yukari"]["part_groups"],
             {"quality": ["quality", "count"],
@@ -173,7 +182,7 @@ class BuildCatalogTest(unittest.TestCase):
              "pose": ["action"], "mouth": ["mouth"], "mood": ["mood"],
              "eyes": ["eye_base", "eye_quality"], "gesture": ["gesture"],
              "costume": ["costume", "legwear"],
-             "scene": ["place", "framing_tags", "leg_display"],
+             "scene": ["framing_tags", "leg_display"],
              "body": ["body_build"], "background": ["cutout"],
              "face": ["face"], "style": ["style"]})
         tags = by_name["yukari"]["identity_tags"]

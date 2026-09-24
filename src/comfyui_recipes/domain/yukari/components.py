@@ -58,7 +58,7 @@ PART_OF: dict[str, str] = {
     "eye_base": "eyes", "eye_quality": "eyes",
     "gesture": "gesture",
     "costume": "costume", "legwear": "costume",
-    "place": "scene", "framing_tags": "scene", "leg_display": "scene",
+    "framing_tags": "scene", "leg_display": "scene",
     "body_build": "body",
     "cutout": "background",
     "face": "face",

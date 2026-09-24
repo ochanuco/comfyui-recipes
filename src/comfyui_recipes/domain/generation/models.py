@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -40,3 +41,7 @@ class RenderSpec:
     # no named parts; `patches.py` reads this to resolve
     # `prompt.positive.<part>` targets.
     positive_parts: tuple[tuple[str, str], ...] = ()
+    # Legacy part name -> the `positive_parts` names that composed it, for a
+    # `prompt.positive.<part>` patch that still names a legacy part instead
+    # of one of `positive_parts`. Empty for a recipe with no legacy parts.
+    part_groups: Mapping[str, tuple[str, ...]] = field(default_factory=dict)

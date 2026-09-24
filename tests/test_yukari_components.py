@@ -72,6 +72,29 @@ class PartMappingTest(unittest.TestCase):
                 self.assertEqual(seen, list(PART_NAMES))
 
 
+class PriorityDrivenOrderTest(unittest.TestCase):
+    def test_lead_general_component_sorts_right_after_non_general_sections(self):
+        G, M, L = Section.GENERAL, Priority.MAIN, Priority.LEAD
+        declared = (
+            Component("quality", Section.QUALITY, M, "q"),
+            Component("artist", Section.ARTIST, M, "ar"),
+            Component("action", G, M, "ac"),
+            Component("mood", G, L, "mo"),
+            Component("gesture", G, M, "ge"),
+        )
+        sorted_components = assemble(declared)
+        names = [c.name for c in sorted_components]
+        self.assertEqual(names, ["quality", "artist", "mood", "action", "gesture"])
+
+        # positive_parts() builds (name, text) directly from `assemble`'s
+        # order, so the joined prompt matches that order exactly.
+        parts = tuple((c.name, c.text) for c in sorted_components)
+        self.assertEqual([name for name, _ in parts], names)
+        self.assertEqual(
+            "".join(text for _, text in parts),
+            "".join(c.text for c in sorted_components))
+
+
 class FramingTest(unittest.TestCase):
     def test_every_pose_has_a_framing(self):
         for pose, spec in POSES.items():

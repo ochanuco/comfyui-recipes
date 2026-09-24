@@ -101,16 +101,29 @@ expression block -- `quality`, `count`, `character`, `series`, `artist`,
 `cutout`, `face`, `style` -- and `assemble()` stably sorts them by
 `(section, priority)`.
 
-The 13 external part names (`quality`, `identity`, `pose`, `mouth`, `mood`,
+`recipe.positive_parts()` is `assemble()`'s sorted components as `(name,
+text)` pairs -- joining the texts in order reproduces the positive prompt
+byte for byte, and each component name is a `prompt.positive.<name>` patch
+target (`get_catalog_pose`'s `parts`).
+
+The 13 legacy part names (`quality`, `identity`, `pose`, `mouth`, `mood`,
 `eyes`, `gesture`, `costume`, `scene`, `body`, `background`, `face`,
-`style` -- `recipe.PART_NAMES`) are the patch and catalog contract
-(`prompt.positive.<part>`, `get_catalog_pose`'s `parts`); they do not
-change. `components.PART_OF` maps each component name to the external part
-it belongs to, and `group_by_part()` folds the sorted, assembled components
-back into those 13 parts -- each part is a contiguous run of one or more
-components. `identity` is `character + series + artist + identity`; `eyes`
-is `eye_base + eye_quality`; `costume` is `costume + legwear`; `scene` is
-`place + framing_tags + leg_display`; `quality` is `quality + count`.
+`style` -- `recipe.PART_NAMES`) still work as patch targets, for a caller
+that names one of them instead of a component. `components.PART_OF` maps
+each component name to the legacy part it used to belong to;
+`components.part_groups()` inverts that into `recipe.PART_GROUPS`, legacy
+name -> the component names that composed it, in declaration order --
+`identity` is `character, series, artist, identity`; `eyes` is `eye_base,
+eye_quality`; `costume` is `costume, legwear`; `scene` is `place,
+framing_tags, leg_display`; `quality` is `quality, count`; the rest are a
+single same-named component. `patches.py` resolves a legacy-named
+`prompt.positive.<part>` patch against the group: `append`/`prepend` target
+its last/first member; `replace`/`remove` find the single member whose text
+contains `old` (declaration order; the first match wins if more than one
+would match) and apply there, or raise if `old` isn't found whole in any
+one member (e.g. it spans two of them) -- the error names the group's
+members so the caller can retarget one directly. The catalog carries this
+same mapping as `part_groups`.
 
 Positive, unfolded to the same order this produces today:
 

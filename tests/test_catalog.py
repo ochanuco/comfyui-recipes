@@ -162,9 +162,20 @@ class BuildCatalogTest(unittest.TestCase):
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
         self.assertEqual(
             by_name["yukari"]["parts"],
-            ["quality", "identity", "pose", "mouth", "mood", "eyes",
-             "gesture", "costume", "scene", "body", "background", "face",
-             "style"])
+            ["quality", "count", "character", "series", "artist", "identity",
+             "action", "mouth", "mood", "eye_base", "eye_quality", "gesture",
+             "costume", "legwear", "place", "framing_tags", "leg_display",
+             "body_build", "cutout", "face", "style"])
+        self.assertEqual(
+            by_name["yukari"]["part_groups"],
+            {"quality": ["quality", "count"],
+             "identity": ["character", "series", "artist", "identity"],
+             "pose": ["action"], "mouth": ["mouth"], "mood": ["mood"],
+             "eyes": ["eye_base", "eye_quality"], "gesture": ["gesture"],
+             "costume": ["costume", "legwear"],
+             "scene": ["place", "framing_tags", "leg_display"],
+             "body": ["body_build"], "background": ["cutout"],
+             "face": ["face"], "style": ["style"]})
         tags = by_name["yukari"]["identity_tags"]
         self.assertTrue(tags)
         self.assertEqual(tags, sorted(set(tags)))

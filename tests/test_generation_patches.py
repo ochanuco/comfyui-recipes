@@ -438,15 +438,15 @@ class PartTargetPatchTest(unittest.TestCase):
     def test_a_recipe_without_parts_has_an_empty_positive_parts(self):
         self.assertEqual(self.no_parts_spec.positive_parts, ())
 
-    def test_append_edits_only_the_named_part(self):
+    def test_append_edits_only_the_named_component(self):
         patches = parse_patches([_patch(
-            target="prompt.positive.scene", op="append",
+            target="prompt.positive.framing_tags", op="append",
             value="(overcast:1.1), ", reason="r")])
         result = apply_patches(self.anima_spec, patches)
         parts = dict(result.positive_parts)
-        self.assertTrue(parts["scene"].endswith("(overcast:1.1), "))
+        self.assertTrue(parts["framing_tags"].endswith("(overcast:1.1), "))
         for name, text in dict(self.anima_spec.positive_parts).items():
-            if name != "scene":
+            if name != "framing_tags":
                 self.assertEqual(parts[name], text)
         self.assertEqual(
             result.prompts.positive,
@@ -478,7 +478,7 @@ class PartTargetPatchTest(unittest.TestCase):
         self.assertTrue(dict(result.positive_parts)["gesture"]
                         .startswith("(grin:1.1), "))
 
-    def test_unknown_part_raises_and_names_the_valid_parts(self):
+    def test_unknown_part_raises_and_names_component_and_legacy_names(self):
         patches = parse_patches([_patch(
             target="prompt.positive.nope", op="append", value="x",
             reason="r")])
@@ -487,6 +487,65 @@ class PartTargetPatchTest(unittest.TestCase):
         message = str(ctx.exception)
         self.assertIn("quality", message)
         self.assertIn("style", message)
+        self.assertIn("scene", message)
+
+    def test_legacy_scene_replace_of_a_framing_tag_hits_framing_tags(self):
+        patches = parse_patches([_patch(
+            target="prompt.positive.scene", op="replace",
+            old="(cowboy shot:1.3), ", value="(dynamic cowboy shot:1.3), ",
+            reason="r")])
+        result = apply_patches(self.anima_spec, patches)
+        parts = dict(result.positive_parts)
+        self.assertEqual(parts["framing_tags"], "(dynamic cowboy shot:1.3), ")
+        before = dict(self.anima_spec.positive_parts)
+        self.assertEqual(parts["place"], before["place"])
+        self.assertEqual(parts["leg_display"], before["leg_display"])
+
+    def test_legacy_pose_replace_hits_action(self):
+        patches = parse_patches([_patch(
+            target="prompt.positive.pose", op="replace",
+            old="(drinking:1.3), ", value="(sipping:1.3), ", reason="r")])
+        result = apply_patches(self.anima_spec, patches)
+        self.assertTrue(
+            dict(result.positive_parts)["action"].startswith("(sipping:1.3), "))
+
+    def test_legacy_costume_replace_of_a_legwear_tag_hits_legwear(self):
+        patches = parse_patches([_patch(
+            target="prompt.positive.costume", op="replace",
+            old="(black pantyhose:1.5), ", value="(navy pantyhose:1.5), ",
+            reason="r")])
+        result = apply_patches(self.anima_spec, patches)
+        parts = dict(result.positive_parts)
+        self.assertIn("(navy pantyhose:1.5), ", parts["legwear"])
+        before = dict(self.anima_spec.positive_parts)
+        self.assertEqual(parts["costume"], before["costume"])
+
+    def test_legacy_scene_replace_spanning_two_members_raises_split_error(self):
+        before = dict(self.anima_spec.positive_parts)
+        spanning = before["place"] + before["framing_tags"]
+        patches = parse_patches([_patch(
+            target="prompt.positive.scene", op="replace",
+            old=spanning, value="x", reason="r")])
+        with self.assertRaises(ValueError) as ctx:
+            apply_patches(self.anima_spec, patches)
+        message = str(ctx.exception)
+        self.assertIn("place", message)
+        self.assertIn("framing_tags", message)
+        self.assertIn("leg_display", message)
+
+    def test_append_and_prepend_on_a_legacy_group(self):
+        patches = parse_patches([
+            _patch(target="prompt.positive.scene", op="append",
+                  value="(overcast:1.1), ", reason="r"),
+            _patch(target="prompt.positive.scene", op="prepend",
+                  value="(golden hour:1.1), ", reason="r"),
+        ])
+        result = apply_patches(self.anima_spec, patches)
+        parts = dict(result.positive_parts)
+        self.assertTrue(parts["leg_display"].endswith("(overcast:1.1), "))
+        self.assertTrue(parts["place"].startswith("(golden hour:1.1), "))
+        before = dict(self.anima_spec.positive_parts)
+        self.assertEqual(parts["framing_tags"], before["framing_tags"])
 
     def test_part_target_on_a_recipe_without_parts_raises(self):
         patches = parse_patches([_patch(

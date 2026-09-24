@@ -8,9 +8,14 @@ positive prompt, so it carries no trailing comma.
 
 from __future__ import annotations
 
-QUALITY = "masterpiece, best quality, score_7, 1girl, solo, "
-CHARACTER = ("yuzuki yukari, vocaloid, voiceroid, (@oshiki hitoshi:0.85), "
-             "(@yoshikawa hideaki:0.5), ")
+QUALITY_TAG = "masterpiece, best quality, score_7, "
+COUNT_TAG = "1girl, solo, "
+QUALITY = QUALITY_TAG + COUNT_TAG
+
+CHARACTER_TAG = "yuzuki yukari, "
+SERIES_TAG = "vocaloid, voiceroid, "
+ARTIST_TAG = "(@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+CHARACTER = CHARACTER_TAG + SERIES_TAG + ARTIST_TAG
 IDENTITY = ("light purple hair, short hair with long locks, very long "
             "sidelocks, purple eyes, hair ornament, ")
 BODY = ("(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), "

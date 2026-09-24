@@ -29,13 +29,15 @@ soft thighs, long legs, a narrow waist, and seven heads tall.
 
 The variable part is three small record sets:
 
-- `poses.py`: one `Pose` per pose -- `action`, `mood`, `gesture`, `scene`,
-  the pose's own default `expression` and `costume`, and an optional
-  pose-specific negative addition. A pose may also override `legwear`
-  (default `True`; `False` drops the costume's leg tags), `legwear_kind`
-  (default `opaque`; the legwear word the pose renders at when the request
-  does not name one), `body` and `style` (replace `BODY`/`STYLE`
-  wholesale), and carry its own `loras` (default empty).
+- `poses.py`: one `Pose` per pose -- `action`, `mood`, `gesture`, `scene`
+  (place/situation tags), `framing` (a `Framing`), `framing_tags` (that
+  shot's camera tags), `leg_display` (the trailing `(thighs:...)` tag, or
+  empty), the pose's own default `expression` and `costume`, and an
+  optional pose-specific negative addition. A pose may also override
+  `legwear` (default `True`; `False` drops the costume's leg tags),
+  `legwear_kind` (default `opaque`; the legwear word the pose renders at
+  when the request does not name one), `body` and `style` (replace
+  `BODY`/`STYLE` wholesale), and carry its own `loras` (default empty).
 - `costumes.py`: one garment tag block per costume (`roomwear`, `outing`,
   `standard`, `suspender`) and a matching `LEGWEAR` block per costume, layered on top
   of the garments when the pose's `legwear` is `True`. `standard` is a
@@ -86,15 +88,49 @@ default `1024x1640`.
 
 ## Assembly order
 
-`recipe.py` is the only place that joins them. Positive:
+`recipe.py` builds the positive prompt from a `components.py` component
+model, then joins them. A component is `(name, section, priority, text)`.
+`Section` orders the Anima model card's own tag sections: `QUALITY`,
+`COUNT`, `CHARACTER`, `SERIES`, `ARTIST`, `GENERAL`. `Priority` (`LEAD`,
+`MAIN`, `TAIL`) orders components within `GENERAL` only; every component
+today is `MAIN`, so within `GENERAL` the order is declaration order.
+`recipe._components` declares one component per fixed or per-pose/costume/
+expression block -- `quality`, `count`, `character`, `series`, `artist`,
+`identity`, `action`, `mouth`, `mood`, `eye_base`, `eye_quality`, `gesture`,
+`costume`, `legwear`, `place`, `framing_tags`, `leg_display`, `body_build`,
+`cutout`, `face`, `style` -- and `assemble()` stably sorts them by
+`(section, priority)`.
+
+The 13 external part names (`quality`, `identity`, `pose`, `mouth`, `mood`,
+`eyes`, `gesture`, `costume`, `scene`, `body`, `background`, `face`,
+`style` -- `recipe.PART_NAMES`) are the patch and catalog contract
+(`prompt.positive.<part>`, `get_catalog_pose`'s `parts`); they do not
+change. `components.PART_OF` maps each component name to the external part
+it belongs to, and `group_by_part()` folds the sorted, assembled components
+back into those 13 parts -- each part is a contiguous run of one or more
+components. `identity` is `character + series + artist + identity`; `eyes`
+is `eye_base + eye_quality`; `costume` is `costume + legwear`; `scene` is
+`place + framing_tags + leg_display`; `quality` is `quality + count`.
+
+Positive, unfolded to the same order this produces today:
 
 ```
 QUALITY + CHARACTER + IDENTITY
 + pose.action + expression.mouth + pose.mood + expression.eyes + pose.gesture
-+ COSTUMES[costume] + (LEGWEAR[costume] if pose.legwear else "") + pose.scene
++ COSTUMES[costume] + (LEGWEAR[costume] if pose.legwear else "")
++ pose.scene + pose.framing_tags + pose.leg_display
 + (pose.body if pose.body is not None else BODY) + BACKGROUND + FACE
 + (pose.style if pose.style is not None else STYLE)
 ```
+
+`pose.scene` now holds only the place/situation tags; `pose.framing`
+(a `Framing`: `BUST`, `UPPER`, `COWBOY`, `FULL`, `LYING`) names the pose's
+camera/shot kind, `pose.framing_tags` is that shot's camera tags (`from
+front`, `cowboy shot`, `full body`, ...), and `pose.leg_display` is the
+trailing `(thighs:...)` tag. `bust` is the one exception: its
+portrait/head-and-shoulders/upper-body/face-focus tags stay in `pose.action`
+(moving them would reorder the prompt), `pose.scene` is empty, and
+`pose.framing_tags` carries its whole former scene text.
 
 Negative:
 

@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..domain.repair.prompt import masked_redraw_prompt
 from ..domain.repair.regions import rects_from_fractions
 from ..infrastructure.comfyui.repair_graph import masked_redraw_graph, source_prompts
 from ..infrastructure.imaging.masks import mask_bbox_fraction, render_mask_png
+from ..infrastructure.persistence.run_state import JsonRunState, operation_state_path
 from .ingest import ingest_seed_render
 
 
@@ -25,6 +26,7 @@ class MaskedRedrawServices:
     output_root: Path
     emit: Callable[[str], None] = print
     masked_redraw_graph: Callable[..., dict] = masked_redraw_graph
+    state: JsonRunState = field(default_factory=JsonRunState)
 
 
 def _source_short(generations: Sequence[Mapping], generation_id: str) -> str:
@@ -56,6 +58,13 @@ def masked_redraw(generation_id: str, services: MaskedRedrawServices, *,
                   seeds: Sequence[int] = (1, 2, 3, 4),
                   key_prefix: str | None = None,
                   context: dict | None = None, batch: dict | None = None) -> dict:
+    state_path = operation_state_path(
+        services.output_root, "masked-redraw", key_prefix)
+    if state_path:
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+    state = services.state.load(state_path) if state_path else {}
+    if state.get("status") == "completed" and state.get("result"):
+        return state["result"]
     if context is None:
         context = services.management.request(
             "GET", f"/api/v1/generations/{generation_id}/context")
@@ -123,7 +132,16 @@ def masked_redraw(generation_id: str, services: MaskedRedrawServices, *,
             positive=positive, negative=base_negative, seed=seed,
             denoise=denoise, mask_padding=mask_padding, mask_feather=mask_feather,
             size=size, prefix=job_prefix)
-        prompt_id = services.comfyui.submit(graph)
+        prompt_ids = state.setdefault("prompt_ids", {})
+        prompt_id = prompt_ids.get(str(index))
+        knows = getattr(services.comfyui, "knows", None)
+        if prompt_id and (knows is None or knows(prompt_id)):
+            services.emit(f"{job_prefix} resume {prompt_id}")
+        else:
+            prompt_id = services.comfyui.submit(graph)
+            prompt_ids[str(index)] = prompt_id
+            if state_path:
+                services.state.save(state_path, state)
         services.emit(f"{job_prefix} {prompt_id}")
         result = ingest_seed_render(
             comfyui=services.comfyui, management=services.management,
@@ -143,4 +161,8 @@ def masked_redraw(generation_id: str, services: MaskedRedrawServices, *,
         f"**chimera** {urls[-1]}",
         last_raw_filename, last_raw)
     services.emit(f"batch {created.get('short_id', created['id'])} done")
-    return {"batch_id": created["id"], "generation_ids": ids}
+    result = {"batch_id": created["id"], "generation_ids": ids}
+    if state_path:
+        state.update({"status": "completed", "result": result})
+        services.state.save(state_path, state)
+    return result

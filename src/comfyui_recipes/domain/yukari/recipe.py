@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from ..generation.models import HiresSpec, PromptPair, RenderSpec
 from ..generation.prompt_lint import tags as prompt_tags
-from .components import Component, Priority, Section, assemble, group_by_part
+from .components import Component, Priority, Section, assemble, part_groups
 from .costumes import (
     COSTUME_BAN,
     COSTUMES,
@@ -60,12 +60,16 @@ from .prompt_style import (
 )
 
 
-# The order `positive()` joins its blocks in. `patches.py` resolves
-# `prompt.positive.<part>` against these names; concatenating the texts of
-# `positive_parts()` in order reproduces `positive()` byte for byte.
+# The 13 legacy part names this recipe used to join `positive()` from,
+# before the component model split each into its own patch target.
+# `PART_GROUPS` maps each one to the component names that composed it, in
+# the declaration order `_components` builds them in; `patches.py` resolves
+# a `prompt.positive.<part>` patch against them for a caller that still
+# names a legacy part.
 PART_NAMES = ("quality", "identity", "pose", "mouth", "mood", "eyes",
               "gesture", "costume", "scene", "body", "background", "face",
               "style")
+PART_GROUPS = part_groups(PART_NAMES)
 
 # The identity vocabulary this recipe can carry, at bare-tag level: hair,
 # sidelock, eye colour, ornament, eye-shape, and the `standard` costume's
@@ -117,7 +121,7 @@ def positive_parts(pose: str, costume: str | None = None,
                    expression: str | None = None,
                    legwear: str | None = None) -> tuple[tuple[str, str], ...]:
     components = _components(pose, costume, expression, legwear)
-    return group_by_part(components, PART_NAMES)
+    return tuple((c.name, c.text) for c in components)
 
 
 def positive(pose: str, costume: str | None = None,
@@ -194,6 +198,7 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
         model_path=MODEL,
         prompts=PromptPair("".join(text for _, text in parts), base_negative),
         positive_parts=parts,
+        part_groups=PART_GROUPS,
         width=width, height=height, seed=seed, steps=STEPS, cfg=CFG,
         sampler_name=SAMPLER, scheduler=SCHEDULER, denoise=1.0,
         filename_prefix=prefix, hires=hires_spec, loras=POSES[pose].loras)

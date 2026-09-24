@@ -1,11 +1,13 @@
-"""The component model inside the 13 external prompt parts.
+"""The component model behind the positive prompt.
 
 `Section` orders the Anima model card's own tag sections; `Priority` orders
 components within `Section.GENERAL` only. `assemble` stably sorts a
-declaration-ordered component list by `(section, priority)` and joins the
-texts; `group_by_part` folds that sorted sequence back into the external
-parts named in `recipe.PART_NAMES`, which `patches.py` and the catalog
-target. `Framing` names a pose's camera/shot kind.
+declaration-ordered component list by `(section, priority)`; the sorted
+component names, in order, are `recipe.positive_parts()` and the patch
+targets `patches.py` resolves directly. `part_groups` maps each of the 13
+legacy part names (`recipe.PART_NAMES`) to the component names that used to
+compose it, for patch targets and callers that still name a legacy part.
+`Framing` names a pose's camera/shot kind.
 """
 
 from __future__ import annotations
@@ -68,9 +70,8 @@ def assemble(components: tuple[Component, ...]) -> tuple[Component, ...]:
     return tuple(sorted(components, key=lambda c: (c.section, c.priority)))
 
 
-def group_by_part(components: tuple[Component, ...],
-                  part_names: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
-    by_part: dict[str, list[str]] = {name: [] for name in part_names}
-    for component in components:
-        by_part[PART_OF[component.name]].append(component.text)
-    return tuple((name, "".join(by_part[name])) for name in part_names)
+def part_groups(part_names: tuple[str, ...]) -> dict[str, tuple[str, ...]]:
+    groups: dict[str, list[str]] = {name: [] for name in part_names}
+    for component_name, part_name in PART_OF.items():
+        groups[part_name].append(component_name)
+    return {name: tuple(members) for name, members in groups.items()}

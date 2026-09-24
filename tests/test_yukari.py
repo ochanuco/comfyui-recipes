@@ -22,7 +22,8 @@ from comfyui_recipes.domain.yukari.costumes import (COSTUME_BAN, COSTUMES,
                                                     SHEER_GLOSS_LEGWEAR,
                                                     SHEER_LEGWEAR,
                                                     LegwearState)
-from comfyui_recipes.domain.yukari.expressions import EXPRESSIONS
+from comfyui_recipes.domain.yukari.expressions import (
+    EXPRESSIONS, EYE_QUALITY, Expression, EyeQuality)
 from comfyui_recipes.domain.yukari.poses import POSES
 from comfyui_recipes.domain.yukari.recipe import (
     PART_NAMES, identity_tags, negative, positive, positive_parts,
@@ -39,9 +40,10 @@ COFFEE_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, vocaloid, "
     "voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
-    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), (unamused:1.3), "
-    "(half-closed eyes:1.3), (black pantyhose:1.5), (opaque pantyhose:1.4), "
-    "(cowboy shot:1.3), (thighs:1.2), (mature female:1.3), (adult:1.2), "
+    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), "
+    "(half-closed eyes:1.3), (unamused:1.15), (black pantyhose:1.5), "
+    "(opaque pantyhose:1.4), (cowboy shot:1.3), (thighs:1.2), "
+    "(mature female:1.3), (adult:1.2), "
     "(wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
     "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
     "(drinking:1.3), (iced coffee:1.4), (plastic cup:1.45), (clear cup:1.2), "
@@ -412,12 +414,48 @@ class PromptTest(unittest.TestCase):
     def test_flat_eye_shape_only_rides_expressions_without_half_closed_eyes(self):
         for name, expression in EXPRESSIONS.items():
             with self.subTest(expression=name):
+                eye_quality_text = EYE_QUALITY[expression.eye_quality] + expression.eyes
                 self.assertEqual(
                     expression.eye_shape == ps.EYE_SHAPE_FLAT,
-                    "half-closed eyes" not in expression.eyes)
+                    "half-closed eyes" not in eye_quality_text)
 
     def test_gao_expression_shares_the_smile_eyes(self):
         self.assertEqual(EXPRESSIONS["gao"].eyes, EXPRESSIONS["smile"].eyes)
+
+
+class EyeQualityTest(unittest.TestCase):
+    EXPECTED = {
+        "resting": EyeQuality.COLD, "doya": EyeQuality.COLD,
+        "v": EyeQuality.COLD, "sleepy": EyeQuality.BLANK,
+        "smile": EyeQuality.BLANK, "gao": EyeQuality.BLANK,
+    }
+
+    def test_eye_quality_mapping_per_expression(self):
+        self.assertEqual(
+            {name: e.eye_quality for name, e in EXPRESSIONS.items()},
+            self.EXPECTED)
+
+    def test_cold_and_blank_tag_text(self):
+        self.assertEqual(EYE_QUALITY[EyeQuality.COLD],
+                         "(half-closed eyes:1.3), (unamused:1.15), ")
+        self.assertEqual(EYE_QUALITY[EyeQuality.BLANK], "")
+
+    def test_eye_quality_component_is_quality_text_plus_extras(self):
+        for name, expression in EXPRESSIONS.items():
+            with self.subTest(expression=name):
+                parts = dict(positive_parts("stand", expression=name))
+                self.assertEqual(
+                    parts["eye_quality"],
+                    EYE_QUALITY[expression.eye_quality] + expression.eyes)
+
+    def test_resting_no_longer_carries_its_own_unamused_weight(self):
+        # Unified onto EYE_QUALITY[COLD]: (unamused:1.3) -> (unamused:1.15).
+        parts = dict(positive_parts("stand", expression="resting"))
+        self.assertEqual(parts["eye_quality"],
+                         "(half-closed eyes:1.3), (unamused:1.15), ")
+
+    def test_a_new_expression_defaults_to_cold(self):
+        self.assertEqual(Expression(mouth="").eye_quality, EyeQuality.COLD)
 
 
 class PartsTest(unittest.TestCase):

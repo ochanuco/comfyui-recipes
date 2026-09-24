@@ -85,7 +85,17 @@ The variable part is three small record sets:
   `legwear_state` (every pose says `worn`), and a pose with `legwear=False`
   ignores `legwear_state` entirely.
 - `expressions.py`: one `mouth`/`eyes` pair per expression (`resting`,
-  `sleepy`, `doya`, `smile`, `gao`, `v`).
+  `sleepy`, `doya`, `smile`, `gao`, `v`). `eye_quality` (an `EyeQuality`:
+  `COLD`, the dataclass default, or `BLANK`) routes the eye_quality
+  component's shared tags -- `EYE_QUALITY[COLD]` is
+  `(half-closed eyes:1.3), (unamused:1.15), `, `EYE_QUALITY[BLANK]` is
+  empty -- and `eyes` is now only the expression's own extra on top:
+  `resting`, `doya` and `v` are `COLD` with no extra; `sleepy` is `BLANK`
+  with `(sleepy:1.4), (drowsy:1.3), (half-closed eyes:1.4), `; `smile` and
+  `gao` are `BLANK` with `(confident:1.18), `. `resting`'s own eye text
+  unified onto `EYE_QUALITY[COLD]` (`(unamused:1.3), (half-closed
+  eyes:1.3)` becomes `(half-closed eyes:1.3), (unamused:1.15)`) -- the
+  `eye_shape` field (jitome weight per expression) is unchanged.
 
 ## Poses
 
@@ -173,7 +183,7 @@ Positive, unfolded to the same order this produces today:
 
 ```
 QUALITY + CHARACTER + IDENTITY
-+ expression.eye_shape + expression.eyes
++ expression.eye_shape + (EYE_QUALITY[expression.eye_quality] + expression.eyes)
 + (LEGWEAR[costume] if pose.legwear else "")
 + (pose.angle + FRAMING[pose.framing].text)
 + pose.leg_display + (pose.body if pose.body is not None else BODY)

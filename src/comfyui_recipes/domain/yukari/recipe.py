@@ -22,7 +22,7 @@ from .costumes import (
     legwear_text,
 )
 from .delivery_style import PAINT_BAN, ROUGH_BAN, ROUGH_STYLE
-from .expressions import EXPRESSIONS
+from .expressions import EXPRESSIONS, EYE_QUALITY
 from .framing import FRAMING
 from .poses import POSES, Pose
 from .prompt_style import (
@@ -114,7 +114,7 @@ def _components(pose: str, costume: str | None = None,
         Component("mouth", G, M, e.mouth),
         Component("mood", G, M, p.mood),
         Component("eye_base", G, L, e.eye_shape),
-        Component("eye_quality", G, L, e.eyes),
+        Component("eye_quality", G, L, EYE_QUALITY[e.eye_quality] + e.eyes),
         Component("gesture", G, M, p.gesture),
         Component("costume", G, M, COSTUMES[c]),
         Component("legwear", G, L, legwear_positive),

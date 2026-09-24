@@ -14,12 +14,15 @@ from comfyui_recipes.domain.yukari.components import (
     Section,
     assemble,
 )
+from comfyui_recipes.domain.yukari.framing import FRAMING
 from comfyui_recipes.domain.yukari.poses import POSES
 from comfyui_recipes.domain.yukari.recipe import (
     PART_GROUPS,
     PART_NAMES,
     _components,
+    positive,
     positive_parts,
+    render_spec,
 )
 
 
@@ -49,7 +52,7 @@ class GeneralPriorityTableTest(unittest.TestCase):
     LEAD = frozenset({"identity", "eye_base", "eye_quality", "framing_tags",
                       "body_build", "leg_display", "legwear"})
     MAIN = frozenset({"action", "mouth", "mood", "gesture", "costume",
-                      "place", "cutout"})
+                      "cutout"})
     TAIL = frozenset({"face", "style"})
 
     def test_general_components_match_the_priority_table(self):
@@ -132,12 +135,82 @@ class FramingTest(unittest.TestCase):
         self.assertEqual({pose: spec.framing for pose, spec in POSES.items()},
                          expected)
 
-    def test_place_framing_tags_and_leg_display_are_disjoint_strings(self):
+    def test_angle_and_leg_display_are_disjoint_strings(self):
         for pose, spec in POSES.items():
             with self.subTest(pose=pose):
-                self.assertIsInstance(spec.scene, str)
-                self.assertIsInstance(spec.framing_tags, str)
+                self.assertIsInstance(spec.angle, str)
                 self.assertIsInstance(spec.leg_display, str)
+
+
+class FramingTagsComponentTest(unittest.TestCase):
+    def test_framing_tags_component_is_angle_plus_framing_text(self):
+        for pose, spec in POSES.items():
+            with self.subTest(pose=pose):
+                parts = dict(positive_parts(pose))
+                self.assertEqual(
+                    parts["framing_tags"],
+                    spec.angle + FRAMING[spec.framing].text)
+
+    def test_every_framing_kind_has_a_spec(self):
+        for framing in Framing:
+            with self.subTest(framing=framing):
+                self.assertIn(framing, FRAMING)
+                self.assertIsInstance(FRAMING[framing].text, str)
+
+    def test_framing_texts(self):
+        self.assertEqual(FRAMING[Framing.BUST].text,
+                         "(portrait:1.5), (head and shoulders:1.4), "
+                         "(upper body:1.35), (face focus:1.3), ")
+        self.assertEqual(FRAMING[Framing.COWBOY].text, "(cowboy shot:1.3), ")
+        self.assertEqual(FRAMING[Framing.FULL].text,
+                         "(full body:1.45), (wide shot:1.3), ")
+        self.assertEqual(FRAMING[Framing.UPPER].text, "(upper body:1.3), ")
+        self.assertEqual(FRAMING[Framing.LYING].text,
+                         "(lying:1.3), (full body:1.35), ")
+
+    def test_only_bust_framing_carries_a_canvas(self):
+        self.assertEqual(FRAMING[Framing.BUST].canvas, (1280, 1280))
+        for framing in (Framing.COWBOY, Framing.FULL, Framing.UPPER,
+                        Framing.LYING):
+            with self.subTest(framing=framing):
+                self.assertIsNone(FRAMING[framing].canvas)
+
+
+class CanvasResolutionTest(unittest.TestCase):
+    def test_pose_canvas_wins_over_framing_canvas(self):
+        spec = render_spec("bust", 1, "p")
+        self.assertEqual((spec.width, spec.height), (1280, 1280))
+
+    def test_framing_canvas_applies_when_pose_has_none(self):
+        # `bust` carries no pose-level canvas of its own; the (1280, 1280)
+        # square comes from its BUST framing.
+        self.assertIsNone(POSES["bust"].canvas)
+
+    def test_non_bust_pose_falls_back_to_the_recipe_default_canvas(self):
+        spec = render_spec("stand", 1, "p")
+        self.assertEqual((spec.width, spec.height), (1024, 1640))
+
+
+class NoPlaceTagsTest(unittest.TestCase):
+    """Cut-out delivery needs an empty green background; a location tag
+    invites furniture or a backdrop the matte then has to cut around."""
+
+    LOCATION_WORDS = ("street", "outdoors", "movie theater", "theater lobby",
+                      "indoors", "carpet", "cobblestone", "stone floor",
+                      "day", "shopping", "dim lighting")
+
+    def test_no_place_component(self):
+        for pose in POSES:
+            with self.subTest(pose=pose):
+                names = {name for name, _ in positive_parts(pose)}
+                self.assertNotIn("place", names)
+
+    def test_no_pose_carries_a_location_tag(self):
+        for pose in POSES:
+            text = positive(pose)
+            for word in self.LOCATION_WORDS:
+                with self.subTest(pose=pose, word=word):
+                    self.assertNotIn(word, text)
 
 
 if __name__ == "__main__":

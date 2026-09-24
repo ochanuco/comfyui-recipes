@@ -15,7 +15,7 @@ from ..domain.generation.patches import (
     TEXT_OPS,
     TEXT_TARGETS,
 )
-from ..domain.yukari.costumes import COSTUMES, LEGWEARS
+from ..domain.yukari.costumes import COSTUMES, LEGWEAR_STATES, LEGWEARS
 from ..domain.yukari.delivery_style import BACKDROP_LABELS, FINALIZE_DEFAULTS
 from ..domain.yukari.dials import DIALS
 from ..domain.yukari.expressions import EXPRESSIONS
@@ -54,6 +54,7 @@ def _yukari_recipe() -> dict:
             "face": None,
             "expression": pose.expression,
             "legwear": pose.legwear_kind if pose.legwear else None,
+            "legwear_state": pose.legwear_state.value if pose.legwear else None,
             "canvas": [spec.width, spec.height],
             "positive": spec.prompts.positive,
             "negative": spec.prompts.negative,
@@ -66,6 +67,7 @@ def _yukari_recipe() -> dict:
         "parameters": _parameters("yukari"),
         "costumes": sorted(COSTUMES),
         "legwear": list(LEGWEARS),
+        "legwear_state": list(LEGWEAR_STATES),
         "expressions": sorted(EXPRESSIONS),
         "poses": poses,
         "parts": [name for name, _ in

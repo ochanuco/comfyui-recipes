@@ -498,7 +498,6 @@ class PartTargetPatchTest(unittest.TestCase):
         parts = dict(result.positive_parts)
         self.assertEqual(parts["framing_tags"], "(dynamic cowboy shot:1.3), ")
         before = dict(self.anima_spec.positive_parts)
-        self.assertEqual(parts["place"], before["place"])
         self.assertEqual(parts["leg_display"], before["leg_display"])
 
     def test_legacy_pose_replace_hits_action(self):
@@ -522,14 +521,13 @@ class PartTargetPatchTest(unittest.TestCase):
 
     def test_legacy_scene_replace_spanning_two_members_raises_split_error(self):
         before = dict(self.anima_spec.positive_parts)
-        spanning = before["place"] + before["framing_tags"]
+        spanning = before["framing_tags"] + before["leg_display"]
         patches = parse_patches([_patch(
             target="prompt.positive.scene", op="replace",
             old=spanning, value="x", reason="r")])
         with self.assertRaises(ValueError) as ctx:
             apply_patches(self.anima_spec, patches)
         message = str(ctx.exception)
-        self.assertIn("place", message)
         self.assertIn("framing_tags", message)
         self.assertIn("leg_display", message)
 
@@ -543,9 +541,7 @@ class PartTargetPatchTest(unittest.TestCase):
         result = apply_patches(self.anima_spec, patches)
         parts = dict(result.positive_parts)
         self.assertTrue(parts["leg_display"].endswith("(overcast:1.1), "))
-        self.assertTrue(parts["place"].startswith("(golden hour:1.1), "))
-        before = dict(self.anima_spec.positive_parts)
-        self.assertEqual(parts["framing_tags"], before["framing_tags"])
+        self.assertTrue(parts["framing_tags"].startswith("(golden hour:1.1), "))
 
     def test_part_target_on_a_recipe_without_parts_raises(self):
         patches = parse_patches([_patch(

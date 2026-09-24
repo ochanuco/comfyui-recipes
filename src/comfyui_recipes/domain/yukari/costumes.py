@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from enum import Enum
+
 COSTUMES = {
     "roomwear": ("(oversized shirt:1.35), (sleeves past wrists:1.3), "
                  "(bare shoulders:1.1), "),
@@ -76,3 +78,33 @@ def legwear_block(costume: str, legwear: str) -> str:
 # Costumes whose garments include a hood or cardigan; `recipe.negative`
 # skips HOOD_BAN for them.
 HOODED_COSTUMES = frozenset({"standard"})
+
+
+class LegwearState(Enum):
+    WORN = "worn"
+    REMOVING = "removing"
+    OFF = "off"
+
+
+LEGWEAR_STATES = ("worn", "removing", "off")
+DEFAULT_LEGWEAR_STATE = "worn"
+
+# REMOVING follows the worn block with the act of pulling it down; OFF
+# replaces it outright -- no costume's legwear tags belong on bare legs.
+REMOVING_LEGWEAR = ("(pantyhose pull:1.3), (pulled by self:1.25), "
+                    "(pantyhose around knees:1.35), "
+                    "(pantyhose pulled down:1.3), (bare thighs:1.2), ")
+OFF_LEGWEAR = "(bare legs:1.3), (no legwear:1.3), "
+
+REMOVING_LEGWEAR_BAN = "(thighhighs:1.4), (kneehighs:1.4), (socks:1.3), "
+OFF_LEGWEAR_BAN = ("(pantyhose:1.3), (thighhighs:1.3), (kneehighs:1.2), "
+                   "(socks:1.2), ")
+
+
+def legwear_text(costume: str, legwear: str, state: LegwearState) -> str:
+    if state is LegwearState.OFF:
+        return OFF_LEGWEAR
+    text = legwear_block(costume, legwear)
+    if state is LegwearState.REMOVING:
+        return text + REMOVING_LEGWEAR
+    return text

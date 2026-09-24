@@ -155,9 +155,12 @@ document -- schema version 1, with `git_commit`/`git_branch`/`git_dirty`,
 `yukari`). Each recipe entry has the checkpoint its
 `render_spec` uses, a `parameters` block (`allowed`/`rejected` keys, agreeing
 with `generate.py`'s own per-recipe validation), its `costumes`, `legwear`
-names and `expressions`, a `parts` list (the recipe's named positive-prompt parts in
-join order), an `identity_tags` list (bare identity tags for the recipe's
-default costume), and one `poses` entry per pose: name, default costume,
+names and `expressions`, a `parts` list (the recipe's component names, in
+join order -- each one a `prompt.positive.<name>` patch target), a
+`part_groups` map (legacy part name -> the component names that composed
+it, for a patch that still names a legacy part instead of a component), an
+`identity_tags` list (bare identity tags for the recipe's default costume),
+and one `poses` entry per pose: name, default costume,
 `expression`, the canvas `render_spec` would use, the fully assembled
 positive/negative prompt for that pose's own default costume, and a `parts`
 list of `{"name", "text"}` whose texts concatenate to `positive` byte for
@@ -356,9 +359,15 @@ Text targets are `prompt.positive`, `prompt.negative`,
 needle, and a needle absent from the text is an immediate error rather than
 a silent no-op. `prompt.positive.<part>` targets one named part of the
 recipe's positive prompt instead of the whole string -- same ops and fields
-as `prompt.positive` -- then the parts are rejoined; targeting a part on a
-recipe with no named parts or an unrecognised part name is a clear
-`ValueError` naming the valid parts. Number targets are `render.cfg`,
+as `prompt.positive` -- then the parts are rejoined. `<part>` is either a
+component name from the catalog's `parts` (the patch applies to that
+component directly) or a legacy name from `part_groups` (`append`/`prepend`
+go to its last/first component; `replace`/`remove` search its components in
+order for the one whose text contains `old` and apply there, or raise if no
+single component contains it whole -- the error names the group's
+components). Targeting a part on a recipe with no named parts or an
+unrecognised part name is a clear `ValueError` naming the valid component
+and legacy names. Number targets are `render.cfg`,
 `render.steps`, `render.width`, `render.height` and `hires.denoise`, with
 op `set`; `render.cfg` and `render.steps` govern both sampling passes,
 since the spec holds one value for each. `render.width` and `render.height`

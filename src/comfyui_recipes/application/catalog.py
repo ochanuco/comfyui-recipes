@@ -20,7 +20,7 @@ from ..domain.yukari.delivery_style import BACKDROP_LABELS, FINALIZE_DEFAULTS
 from ..domain.yukari.dials import DIALS
 from ..domain.yukari.expressions import EXPRESSIONS
 from ..domain.yukari.poses import POSES
-from ..domain.yukari.recipe import identity_tags, render_spec
+from ..domain.yukari.recipe import PART_GROUPS, identity_tags, render_spec
 from ..infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
 from ..infrastructure.imaging.backdrops import thumbnail as backdrop_thumbnail
 from .generate import KNOWN_PARAMETERS, RECIPE_REJECTED_PARAMETERS
@@ -70,6 +70,8 @@ def _yukari_recipe() -> dict:
         "poses": poses,
         "parts": [name for name, _ in
                  render_spec(sorted(POSES)[0], _SEED, _PREFIX).positive_parts],
+        "part_groups": {name: list(members)
+                        for name, members in PART_GROUPS.items()},
         "identity_tags": sorted(identity_tags(sorted(POSES)[0])),
         "dials": DIALS,
         "finalize": {"defaults": FINALIZE_DEFAULTS},

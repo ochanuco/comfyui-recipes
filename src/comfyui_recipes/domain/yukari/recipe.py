@@ -19,6 +19,7 @@ from .costumes import (
 )
 from .delivery_style import PAINT_BAN, ROUGH_BAN, ROUGH_STYLE
 from .expressions import EXPRESSIONS
+from .framing import FRAMING
 from .poses import POSES
 from .prompt_style import (
     ARTIST_TAG,
@@ -107,7 +108,7 @@ def _components(pose: str, costume: str | None = None,
         Component("costume", G, M, COSTUMES[c]),
         Component("legwear", G, L, legwear_text),
         Component("place", G, M, p.scene),
-        Component("framing_tags", G, L, p.framing_tags),
+        Component("framing_tags", G, L, p.angle + FRAMING[p.framing].text),
         Component("leg_display", G, L, p.leg_display),
         Component("body_build", G, L, p.body if p.body is not None else BODY),
         Component("cutout", G, M,
@@ -176,7 +177,9 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
                 legwear: str | None = None) -> RenderSpec:
     if not hires and denoise is not None:
         raise ValueError("yukari denoise needs hires")
-    width, height = POSES[pose].canvas or (WIDTH, HEIGHT)
+    p = POSES[pose]
+    width, height = (p.canvas or FRAMING[p.framing].canvas
+                     or (WIDTH, HEIGHT))
     parts = positive_parts(pose, costume, expression, legwear)
     base_negative = negative(pose, costume, expression, legwear)
     hires_spec = None

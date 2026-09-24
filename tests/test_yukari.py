@@ -132,9 +132,9 @@ BUST_POSITIVE = (
     "voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
     "purple eyes, hair ornament, (tareme:1.2), (jitome:1.8), (confident:1.18), "
-    "(from front:1.2), (mature female:1.3), (adult:1.2), adult proportions, "
-    "(portrait:1.5), (head and shoulders:1.4), (upper body:1.35), "
-    "(face focus:1.3), (closed mouth:1.2), (light smile:1.25), "
+    "(from front:1.3), (portrait:1.5), (head and shoulders:1.4), "
+    "(upper body:1.35), (face focus:1.3), (mature female:1.3), (adult:1.2), "
+    "adult proportions, (closed mouth:1.2), (light smile:1.25), "
     "(looking at viewer:1.2), (eggplant purple hooded cardigan:1.5), "
     "(dark violet hoodie:1.25), open cardigan, (rabbit hood:1.3), long sleeves, "
     "drawstring, (purple dress:1.25), frills, (sleeves past wrists:1.15), "
@@ -172,7 +172,7 @@ GAO_POSITIVE = (
     "purple eyes, hair ornament, (tareme:1.2), (jitome:1.8), (confident:1.18), "
     "(dark purple pantyhose:1.45), (opaque pantyhose:1.3), "
     "(gradient legwear:1.2), (purple gradient:1.1), (from front:1.3), "
-    "(cowboy shot:1.35), (thighs:1.2), (mature female:1.3), (adult:1.2), "
+    "(cowboy shot:1.3), (thighs:1.2), (mature female:1.3), (adult:1.2), "
     "(wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
     "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
     "(claw pose:1.45), (gao:1.2), (hands up:1.25), (standing:1.3), "
@@ -490,7 +490,7 @@ class PoseTableTest(unittest.TestCase):
         self.assertIn("bust", POSES)
         self.assertEqual(POSES["bust"].expression, "smile")
         self.assertEqual(POSES["bust"].costume, "standard")
-        self.assertEqual(POSES["bust"].canvas, (1280, 1280))
+        self.assertIsNone(POSES["bust"].canvas)
         self.assertFalse(POSES["bust"].legwear)
 
     def test_gao_pose_defaults(self):

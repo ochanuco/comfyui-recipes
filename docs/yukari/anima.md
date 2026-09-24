@@ -30,11 +30,13 @@ soft thighs, long legs, a narrow waist, and seven heads tall.
 The variable part is three small record sets:
 
 - `poses.py`: one `Pose` per pose -- `action`, `mood`, `gesture`, `scene`
-  (place/situation tags), `framing` (a `Framing`), `framing_tags` (that
-  shot's camera tags), `leg_display` (the trailing `(thighs:...)` tag, or
-  empty), the pose's own default `expression` and `costume`, and an
-  optional pose-specific negative addition. A pose may also override
-  `legwear` (default `True`; `False` drops the costume's leg tags),
+  (place/situation tags), `framing` (a `Framing`), `angle` (a camera-angle
+  prefix, default empty -- `from front`/`from side`; see "Framing" below for
+  where the rest of the shot's camera tags come from), `leg_display` (the
+  trailing `(thighs:...)` tag, or empty), the pose's own default
+  `expression` and `costume`, and an optional pose-specific negative
+  addition. A pose may also override `legwear` (default `True`; `False`
+  drops the costume's leg tags),
   `legwear_kind` (default `opaque`; the legwear word the pose renders at
   when the request does not name one), `body` and `style` (replace
   `BODY`/`STYLE` wholesale), and carry its own `loras` (default empty).
@@ -76,15 +78,31 @@ The variable part is three small record sets:
 - `cinema`: expression `doya`, costume `outing`. Walking through a movie
   theater lobby with a popcorn bucket in one hand and a cola cup with a
   straw in the other.
-- `bust`: expression `smile`, costume `standard`, canvas `1280x1280`.
-  Head-and-shoulders portrait, looking at viewer. Drops the costume's
-  legwear (`legwear=False`) and overrides `body` to a bare adult-proportions
-  block with no leg tags.
+- `bust`: expression `smile`, costume `standard`. Head-and-shoulders
+  portrait, looking at viewer, canvas `1280x1280` from its `BUST` framing.
+  Drops the costume's legwear (`legwear=False`) and overrides `body` to a
+  bare adult-proportions block with no leg tags.
 - `gao`: expression `gao`, costume `standard`. A claw pose with an open,
   fanged mouth, leaning forward with hands up, cowboy shot from the front.
 
-A pose may carry its own `canvas`; `render_spec` uses it in place of the
-default `1024x1640`.
+A pose may carry its own `canvas`; `render_spec` uses it in place of its
+`Framing`'s canvas, which in turn falls back to the default `1024x1640`.
+
+## Framing
+
+`framing.py`'s `FRAMING` maps each `Framing` kind to the camera-shot tag
+text and, only for `BUST`, the canvas it carries: `BUST` (`portrait, head
+and shoulders, upper body, face focus` -- `1280x1280`), `UPPER` (`upper
+body`), `COWBOY` (`cowboy shot`), `FULL` (`full body, wide shot`), `LYING`
+(`lying, full body`). No pose currently uses `UPPER` or `LYING`. A pose's
+`framing_tags` component is built as `pose.angle + FRAMING[pose.framing].text`
+-- `angle` is the pose's own prefix (`bust`, `stand`, `dance` and `gao` say
+`(from front:1.3)`; `step` says `(from side:1.1)`; `coffee`, `amae` and
+`cinema` say nothing), so the shot kind stays one place while the angle
+stays per-pose. `render_spec`'s canvas is `pose.canvas` if the pose sets
+one, else `FRAMING[pose.framing].canvas`, else the recipe default -- `bust`
+carries no `canvas` of its own any more; its square canvas comes from
+`BUST`.
 
 ## Assembly order
 
@@ -136,7 +154,8 @@ Positive, unfolded to the same order this produces today:
 ```
 QUALITY + CHARACTER + IDENTITY
 + expression.eye_shape + expression.eyes
-+ (LEGWEAR[costume] if pose.legwear else "") + pose.framing_tags
++ (LEGWEAR[costume] if pose.legwear else "")
++ (pose.angle + FRAMING[pose.framing].text)
 + pose.leg_display + (pose.body if pose.body is not None else BODY)
 + pose.action + expression.mouth + pose.mood + pose.gesture + COSTUMES[costume]
 + pose.scene
@@ -144,14 +163,14 @@ QUALITY + CHARACTER + IDENTITY
 + (pose.style if pose.style is not None else STYLE)
 ```
 
-`pose.scene` now holds only the place/situation tags; `pose.framing`
+`pose.scene` holds only the place/situation tags; `pose.framing`
 (a `Framing`: `BUST`, `UPPER`, `COWBOY`, `FULL`, `LYING`) names the pose's
-camera/shot kind, `pose.framing_tags` is that shot's camera tags (`from
-front`, `cowboy shot`, `full body`, ...), and `pose.leg_display` is the
-trailing `(thighs:...)` tag. `bust` is the one exception: its
-portrait/head-and-shoulders/upper-body/face-focus tags stay in `pose.action`
-(moving them would reorder the prompt), `pose.scene` is empty, and
-`pose.framing_tags` carries its whole former scene text.
+camera/shot kind and owns that shot's own tags (`FRAMING[pose.framing].text`
+-- see "Framing" above), and `pose.angle` is the pose's own prefix onto that
+text (`from front`, `from side`, or empty). `pose.leg_display` is the
+trailing `(thighs:...)` tag. `bust` carries an empty `pose.action`: its
+portrait/head-and-shoulders/upper-body/face-focus tags now live in `BUST`'s
+framing text instead.
 
 Negative:
 

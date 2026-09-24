@@ -7,9 +7,10 @@ import json
 import unittest
 from contextlib import redirect_stdout
 from dataclasses import replace
+from pathlib import Path
 from unittest.mock import patch
 
-from comfyui_recipes.application.generate import validate_request
+from comfyui_recipes.application.generate import request_graph, validate_request
 from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.generation.prompt_lint import tags as prompt_tags
 from comfyui_recipes.domain.yukari import prompt_style as ps
@@ -25,6 +26,9 @@ from comfyui_recipes.domain.yukari.recipe import (
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 from comfyui_recipes.interfaces import cli
+
+FIXTURES = Path(__file__).parent / "fixtures"
+GBM9OM = json.loads((FIXTURES / "gbm9om-dance.json").read_text())
 
 COFFEE_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
@@ -364,11 +368,11 @@ class PromptTest(unittest.TestCase):
         self.assertNotIn("(hood:1.3), (cardigan:1.3), ",
                          negative("stand", costume="standard"))
 
-    def test_brush_carries_its_own_expression_and_costume(self):
-        text = positive("brush")
+    def test_dance_carries_its_own_expression_and_costume(self):
+        text = positive("dance")
         self.assertTrue(text.startswith(ps.QUALITY + ps.CHARACTER + ps.IDENTITY))
-        self.assertIn("(sleepy:1.4)", text)
-        self.assertIn(COSTUMES["roomwear"], text)
+        self.assertIn("(:v:1.5)", text)
+        self.assertIn(COSTUMES["standard"], text)
 
     def test_expression_override_swaps_the_eyes_block(self):
         default_text = positive("coffee")
@@ -383,6 +387,12 @@ class PromptTest(unittest.TestCase):
 
     def test_gao_negative_matches_the_confirmed_render(self):
         self.assertEqual(negative("gao"), GAO_NEGATIVE)
+
+    def test_dance_positive_matches_the_confirmed_render(self):
+        self.assertEqual(positive("dance"), GBM9OM["positive"])
+
+    def test_dance_negative_matches_the_confirmed_render(self):
+        self.assertEqual(negative("dance"), GBM9OM["negative"])
 
     def test_eye_shape_leads_the_eyes_part_for_every_expression(self):
         for expression in EXPRESSIONS:
@@ -433,7 +443,7 @@ class IdentityTagsTest(unittest.TestCase):
         # expression's own `e.eyes` -- present for every pose regardless of
         # expression. No anima costume carries a cardigan/hood, so those two
         # names never enter the set.
-        for pose in ("coffee", "brush", "amae", "stand"):
+        for pose in ("coffee", "step", "amae", "stand"):
             with self.subTest(pose=pose):
                 self.assertEqual(identity_tags(pose), self.EXPECTED)
 
@@ -459,11 +469,15 @@ class PoseTableTest(unittest.TestCase):
         self.assertEqual(POSES["stand"].expression, "doya")
         self.assertEqual(POSES["stand"].costume, "outing")
 
-    def test_sofa_pose_defaults(self):
-        self.assertIn("sofa", POSES)
-        self.assertEqual(POSES["sofa"].expression, "sleepy")
-        self.assertEqual(POSES["sofa"].costume, "roomwear")
-        self.assertEqual(POSES["sofa"].canvas, (2048, 1280))
+    def test_dance_pose_defaults(self):
+        self.assertIn("dance", POSES)
+        self.assertEqual(POSES["dance"].expression, "v")
+        self.assertEqual(POSES["dance"].costume, "standard")
+        self.assertEqual(POSES["dance"].legwear_kind, "sheer-gloss")
+
+    def test_brush_and_sofa_are_retired(self):
+        self.assertNotIn("brush", POSES)
+        self.assertNotIn("sofa", POSES)
 
     def test_bust_pose_defaults(self):
         self.assertIn("bust", POSES)
@@ -488,7 +502,9 @@ class RenderSpecTest(unittest.TestCase):
         self.assertEqual(spec.steps, 10)
 
     def test_pose_canvas_overrides_the_default(self):
-        spec = render_spec("sofa", 7, "p")
+        wide = replace(POSES["stand"], canvas=(2048, 1280))
+        with patch.dict(POSES, {"_wide": wide}):
+            spec = render_spec("_wide", 7, "p")
         self.assertEqual((spec.width, spec.height), (2048, 1280))
 
     def test_render_spec_default_canvas(self):
@@ -515,7 +531,9 @@ class RenderSpecTest(unittest.TestCase):
             render_spec("coffee", 42, "p", denoise=0.5)
 
     def test_hires_on_wide_canvas_pose(self):
-        spec = render_spec("sofa", 7, "p", hires=2048)
+        wide = replace(POSES["stand"], canvas=(2048, 1280))
+        with patch.dict(POSES, {"_wide": wide}):
+            spec = render_spec("_wide", 7, "p", hires=2048)
         self.assertEqual((spec.hires.width, spec.hires.height), (2048, 1280))
 
     def test_hires_on_square_canvas_pose(self):
@@ -533,6 +551,32 @@ class RenderSpecTest(unittest.TestCase):
                 continue
             with self.subTest(pose=pose):
                 self.assertEqual(render_spec(pose, 42, "p").loras, ())
+
+    def test_dance_render_spec_matches_the_confirmed_render(self):
+        spec = render_spec("dance", 42, "p")
+        self.assertEqual(spec.prompts.positive, GBM9OM["positive"])
+        self.assertEqual(spec.prompts.negative, GBM9OM["negative"])
+        self.assertEqual((spec.width, spec.height),
+                         (GBM9OM["width"], GBM9OM["height"]))
+
+
+class PlainRenderLegwearDefaultTest(unittest.TestCase):
+    """The chimera plain-render path forwards only parameters the request
+    sets, so a bare `parameters: {"pose": ...}` must resolve legwear from
+    the pose, not from a recipe-wide default."""
+
+    def _plain_positive(self, pose: str) -> str:
+        generation = {"recipe": "yukari", "parameters": {"pose": pose}}
+        spec = request_graph(generation, 42, "p", render_spec, lambda spec: spec)
+        return spec.prompts.positive
+
+    def test_plain_dance_render_defaults_to_sheer_gloss_legwear(self):
+        self.assertIn(SHEER_GLOSS_LEGWEAR, self._plain_positive("dance"))
+
+    def test_plain_stand_render_still_defaults_to_opaque_legwear(self):
+        text = self._plain_positive("stand")
+        self.assertNotIn(SHEER_GLOSS_LEGWEAR, text)
+        self.assertIn("(black pantyhose:1.5), (opaque pantyhose:1.4), ", text)
 
 
 class GraphTest(unittest.TestCase):

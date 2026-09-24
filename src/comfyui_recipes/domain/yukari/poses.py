@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .costumes import DEFAULT_LEGWEAR
+
 
 @dataclass(frozen=True)
 class Pose:
@@ -16,6 +18,7 @@ class Pose:
     negative: str = ""
     canvas: tuple[int, int] | None = None
     legwear: bool = True
+    legwear_kind: str = DEFAULT_LEGWEAR
     body: str | None = None
     style: str | None = None
     background: str | None = None
@@ -23,30 +26,6 @@ class Pose:
 
 
 POSES = {
-    "brush": Pose(
-        action=("(brushing teeth:1.5), (toothbrush:1.4), "
-                "(holding toothbrush:1.35), (toothbrush in mouth:1.3), "),
-        mood="",
-        gesture="(messy hair:1.25), (bed hair:1.2), ",
-        scene=("(standing:1.2), (upper body:1.3), (looking at viewer:1.1), "
-               "(night:1.35), (bathroom:1.15), (sink:1.1), (indoors:1.1), "),
-        expression="sleepy", costume="roomwear"),
-    "sofa": Pose(
-        action=("(lying:1.45), (on side:1.35), (on couch:1.45), "
-                "(couch:1.3), (knees up:1.1), (hand on own cheek:1.1), "),
-        mood="(relaxed:1.2), (cozy:1.1), ",
-        gesture=("(messy hair:1.2), (wet hair:1.3), (damp hair:1.2), "
-                 "(after bath:1.3), (towel around neck:1.15), (blush:1.1), "
-                 "(looking at viewer:1.0), (thighhighs:1.45), "
-                 "(purple thighhighs:1.35), (loose thighhighs:1.3), "
-                 "(slouch socks:1.2), (baggy:1.15), (wrinkled legwear:1.1), "),
-        scene=("(indoors:1.2), (living room:1.15), (from side:1.25), "
-               "(full body:1.3), (thighs:1.15), (evening:1.1), "),
-        expression="sleepy", costume="roomwear",
-        negative=("(sitting:1.3), (standing:1.4), (bed:1.25), "
-                  "(pillow:1.1), (blanket:1.1), (socks:1.3), "
-                  "(loose socks:1.3), (kneehighs:1.2), "),
-        canvas=(2048, 1280)),
     "cinema": Pose(
         action=("(walking:1.2), (holding popcorn:1.45), (popcorn:1.4), "
                 "(popcorn bucket:1.3), (holding cup:1.35), "
@@ -104,6 +83,17 @@ POSES = {
                "(thighs:1.1), "),
         expression="doya", costume="outing",
         negative="(sitting:1.3), (cowboy shot:1.2), (upper body:1.2), "),
+    "dance": Pose(
+        action=("(standing:1.4), (dancing:1.4), (knock-kneed:1.3), "
+                "(one arm up:1.2), (clenched hand:1.1), "),
+        mood="",
+        gesture=("(looking at viewer:1.2), (sneakers:1.3), "
+                 "(white sneakers:1.2), "),
+        scene=("(from front:1.3), (full body:1.45), (wide shot:1.3), "
+               "(thighs:1.1), "),
+        expression="v", costume="standard",
+        negative="(sitting:1.3), (cowboy shot:1.2), (upper body:1.2), ",
+        legwear_kind="sheer-gloss"),
     "bust": Pose(
         action=("(portrait:1.5), (head and shoulders:1.4), "
                 "(upper body:1.35), (face focus:1.3), "),

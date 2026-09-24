@@ -334,7 +334,7 @@ def parser() -> argparse.ArgumentParser:
     yukari_prompt.add_argument("--pose", required=True, choices=sorted(POSES))
     yukari_prompt.add_argument("--costume", choices=sorted(COSTUMES))
     yukari_prompt.add_argument("--expression", choices=sorted(EXPRESSIONS))
-    yukari_prompt.add_argument("--legwear", choices=LEGWEARS, default=LEGWEARS[0])
+    yukari_prompt.add_argument("--legwear", choices=LEGWEARS, default=None)
     yukari_prompt.add_argument("--json", action="store_true")
     return root
 

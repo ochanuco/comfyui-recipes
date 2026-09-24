@@ -12,6 +12,9 @@ if TYPE_CHECKING:
     from .work import WorkServices
 
 
+THREAD_STOP_TIMEOUT = 5.0
+
+
 class Management(Protocol):
     def request(self, method: str, path: str, payload: dict | None = None,
                 multipart: tuple[dict, str, str, bytes, str] | None = None) -> dict | None: ...
@@ -55,7 +58,7 @@ class Heartbeat:
     def stop(self) -> None:
         self._stop.set()
         if self._thread is not None:
-            self._thread.join()
+            self._thread.join(timeout=THREAD_STOP_TIMEOUT)
 
     def __enter__(self) -> "Heartbeat":
         return self.start()
@@ -96,7 +99,7 @@ class HubListener:
             except (SystemExit, Exception):
                 pass
         if self._thread is not None:
-            self._thread.join()
+            self._thread.join(timeout=THREAD_STOP_TIMEOUT)
 
     def send_progress(self, request_id: str, phase: str, **fields: object) -> None:
         with self._lock:
@@ -173,7 +176,7 @@ class ProgressRelay:
     def stop(self) -> None:
         self._stop.set()
         if self._thread is not None:
-            self._thread.join()
+            self._thread.join(timeout=THREAD_STOP_TIMEOUT)
 
     def _run(self) -> None:
         backoff = 1.0

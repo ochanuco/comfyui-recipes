@@ -8,6 +8,7 @@ sentinel -- is written once.
 
 from __future__ import annotations
 
+import os
 import socket
 from collections.abc import Callable
 from pathlib import Path
@@ -39,6 +40,12 @@ DRAIN_FILE = ".local/_nogit/worker/drain"
 # there is no single source both can read, so a change to one without the
 # other silently drifts.
 DEFAULT_KINDS = ("generate", "finalize", "repair", "masked_redraw")
+
+
+def default_worker_id() -> str:
+    """Identify one worker process without conflating co-located workers."""
+    return f"{socket.gethostname()}:{os.getpid()}"
+
 
 # `generation.recipe` -> (RenderSpec builder, ComfyUI graph builder).
 RECIPES = {
@@ -207,7 +214,7 @@ def run(repository: Path | None = None, *, worker_id: str | None = None,
     repository = repository or discover_repository()
     services = build_work_services(
         repository,
-        worker_id=worker_id or socket.gethostname(),
+        worker_id=worker_id or default_worker_id(),
         kinds=kinds or DEFAULT_KINDS,
         hub=hub,
         emit=emit,

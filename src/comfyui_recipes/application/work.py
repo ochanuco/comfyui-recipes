@@ -285,6 +285,7 @@ def work(services: WorkServices, *, interval: float = 30, once: bool = False,
     listener: HubListener | None = None
     relay: ProgressRelay | None = None
     wake = threading.Event()
+    interrupted = False
     if not dry_run:
         release_claims(services)
     if publish_catalog and not dry_run:
@@ -310,12 +311,15 @@ def work(services: WorkServices, *, interval: float = 30, once: bool = False,
             if not did_something:
                 _idle(services, wake if listener is not None else None, interval)
     except KeyboardInterrupt:
+        interrupted = True
         services.emit("work stopped")
     finally:
         if relay is not None:
             relay.stop()
         if listener is not None:
             listener.stop()
+        if interrupted and not dry_run:
+            release_claims(services)
         if services.drained is not None and _draining(services):
             # The deploy waits on this acknowledgement rather than on a clock.
             try:

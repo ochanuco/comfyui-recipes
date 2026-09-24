@@ -13,6 +13,7 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from comfyui_recipes.application.generate import GenerateServices
 from comfyui_recipes.application.work import (
@@ -662,6 +663,18 @@ class WorkLoopTest(unittest.TestCase):
                 directory, management, sleep=interrupt, emit=messages.append)
             work(services, once=False)
             self.assertTrue(any("stopped" in message for message in messages))
+
+    def test_keyboard_interrupt_releases_claims_after_stopping(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(claim_responses=[None])
+
+            def interrupt(seconds):
+                raise KeyboardInterrupt
+
+            services = make_services(directory, management, sleep=interrupt)
+            with patch("comfyui_recipes.application.work.release_claims") as release:
+                work(services, once=False, publish_catalog=False)
+            self.assertEqual(release.call_count, 2)  # startup cleanup + shutdown cleanup
 
 
 class PublishCatalogAtStartupTest(unittest.TestCase):

@@ -79,10 +79,13 @@ class AttachAssetTests(unittest.TestCase):
     def test_posts_multipart_asset(self):
         management = ManagementFake()
         attach_asset(management, "gen-1", role="mask", name="a.png", data=b"x")
-        self.assertEqual(management.calls, [
-            ("POST", "/api/v1/generations/gen-1/assets", None,
-             ({"role": "mask"}, "file", "a.png", b"x", "image/png")),
-        ])
+        self.assertEqual(len(management.calls), 1)
+        method, path, payload, multipart = management.calls[0]
+        self.assertEqual((method, path, payload),
+                         ("POST", "/api/v1/generations/gen-1/assets", None))
+        self.assertEqual(multipart[0]["role"], "mask")
+        self.assertTrue(multipart[0]["idempotency_key"])
+        self.assertEqual(multipart[1:], ("file", "a.png", b"x", "image/png"))
 
 
 if __name__ == "__main__":

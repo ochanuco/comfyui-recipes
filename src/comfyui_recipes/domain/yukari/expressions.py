@@ -23,6 +23,9 @@ EXPRESSIONS = {
     "doya": Expression(
         mouth="(smug:1.35), (doyagao:1.25), ",
         eyes="(half-closed eyes:1.3), (unamused:1.15), "),
+    "v": Expression(
+        mouth="(:v:1.5), ",
+        eyes="(half-closed eyes:1.3), (unamused:1.15), "),
     "smile": Expression(
         mouth="(closed mouth:1.2), (light smile:1.25), ",
         eyes="(confident:1.18), ", eye_shape=EYE_SHAPE_FLAT),

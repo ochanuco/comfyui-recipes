@@ -17,16 +17,26 @@ import time
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from comfyui_recipes.interfaces.agent import build_work_services  # noqa: E402
+from comfyui_recipes.interfaces.agent import (  # noqa: E402
+    build_work_services,
+    default_worker_id,
+)
 from comfy_nodes.yukari_worker import agent as worker_agent  # noqa: E402
 
 
 class BuildWorkServicesTest(unittest.TestCase):
+    @patch("comfyui_recipes.interfaces.agent.socket.gethostname",
+           return_value="gpu-box")
+    @patch("comfyui_recipes.interfaces.agent.os.getpid", return_value=1234)
+    def test_default_worker_id_is_process_scoped(self, _getpid, _hostname):
+        self.assertEqual(default_worker_id(), "gpu-box:1234")
+
     def test_draining_and_drained_operate_on_the_sentinel_file(self):
         with TemporaryDirectory() as tmp:
             repository = Path(tmp)

@@ -4,9 +4,21 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 import uuid
 from pathlib import Path
+
+
+def operation_state_path(output_root: Path, kind: str,
+                         key_prefix: str | None) -> Path | None:
+    """Return a Windows-safe state path for a queued operation, if any."""
+    if not key_prefix:
+        return None
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", key_prefix).strip("._")
+    if not safe:
+        raise ValueError("key_prefix does not contain a usable state identifier")
+    return output_root / "requests" / f"{kind}-{safe}.state.json"
 
 
 class JsonRunState:

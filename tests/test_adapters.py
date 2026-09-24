@@ -59,6 +59,34 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(urlopen.call_count, 3)
         self.assertEqual(sleep.call_args_list, [call(2), call(4)])
 
+    def test_chimera_does_not_retry_a_non_idempotent_post(self):
+        client = ChimeraClient(Path("."), base_url="https://example.invalid")
+        client._credentials = {}
+        with patch("urllib.request.urlopen",
+                   side_effect=urllib.error.URLError("offline")) as urlopen, \
+                patch("time.sleep") as sleep, self.assertRaises(SystemExit):
+            client.request("POST", "/api/v1/batches", {"recipe": "yukari"})
+        self.assertEqual(urlopen.call_count, 1)
+        sleep.assert_not_called()
+
+    def test_chimera_retries_a_post_when_it_has_an_idempotency_key(self):
+        client = ChimeraClient(Path("."), base_url="https://example.invalid")
+        client._credentials = {}
+        response = MagicMock()
+        response.read.return_value = b'{"ok": true}'
+        response.status = 201
+        response.headers = {"Content-Type": "application/json"}
+        response.__enter__.return_value = response
+        with patch("urllib.request.urlopen",
+                   side_effect=[urllib.error.URLError("offline"), response]) as urlopen, \
+                patch("time.sleep") as sleep:
+            self.assertEqual(
+                client.request("POST", "/api/v1/batches",
+                               {"idempotency_key": "batch-key"}),
+                {"ok": True})
+        self.assertEqual(urlopen.call_count, 2)
+        sleep.assert_called_once_with(2)
+
     def test_chimera_request_returns_none_on_204(self):
         client = ChimeraClient(Path("."), base_url="https://example.invalid")
         client._credentials = {}

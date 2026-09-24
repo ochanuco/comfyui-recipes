@@ -25,6 +25,16 @@ class ChimeraClient:
         self._credentials: dict[str, str] | None = None
         self._preset_cache: dict[tuple[str, str, str, int], dict] = {}
 
+    @staticmethod
+    def _retryable(method: str, payload: dict | None,
+                   multipart: tuple[dict, str, str, bytes, str] | None) -> bool:
+        """Only retry requests whose side effect is explicitly repeatable."""
+        if method in {"GET", "HEAD", "OPTIONS", "PUT", "DELETE"}:
+            return True
+        if payload and payload.get("idempotency_key"):
+            return True
+        return bool(multipart and multipart[0].get("idempotency_key"))
+
     def credentials(self) -> dict[str, str]:
         if self._credentials is not None:
             return self._credentials
@@ -54,6 +64,7 @@ class ChimeraClient:
 
     def request(self, method: str, path: str, payload: dict | None = None,
                 multipart: tuple[dict, str, str, bytes, str] | None = None) -> dict | None:
+        method = method.upper()
         headers = {**self.credentials(), "User-Agent": USER_AGENT}
         if multipart:
             meta, field, filename, data, content_type = multipart
@@ -73,7 +84,8 @@ class ChimeraClient:
             headers["Content-Type"] = "application/json"
         else:
             body = None
-        for attempt in range(3):
+        attempts = 3 if self._retryable(method, payload, multipart) else 1
+        for attempt in range(attempts):
             request = urllib.request.Request(
                 self.base_url + path, data=body, headers=headers, method=method)
             try:
@@ -94,7 +106,7 @@ class ChimeraClient:
                 last = f"HTTP {error.code} {detail!r}"
             except urllib.error.URLError as error:
                 last = str(error)
-            if attempt < 2:
+            if attempt + 1 < attempts:
                 time.sleep(2 ** (attempt + 1))
         raise SystemExit(f"{method} {path}: giving up after retries ({last})")
 
@@ -138,12 +150,13 @@ class ChimeraClient:
             "POST", f"/api/v1/generations/{generation_id}/publications", payload)
 
     def upload_asset(self, generation_id: str, role: str, path: Path,
-                     region: str = "") -> dict:
+                     region: str = "", idempotency_key: str | None = None) -> dict:
         content_types = {
             ".png": "image/png", ".json": "application/json",
             ".psd": "image/vnd.adobe.photoshop",
         }
-        metadata = {"role": role}
+        metadata = {"role": role,
+                    "idempotency_key": idempotency_key or str(uuid.uuid4())}
         if region:
             metadata["region"] = region
         return self.request(

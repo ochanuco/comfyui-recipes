@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH
@@ -22,6 +22,7 @@ from ..infrastructure.comfyui.repair_graph import (
 from ..infrastructure.comfyui.repair_model import anima_model_hook
 from ..infrastructure.imaging.masks import mask_bbox_fraction, render_mask_png
 from ..infrastructure.imaging.toe_template import reference_hint
+from ..infrastructure.persistence.run_state import JsonRunState, operation_state_path
 from .ingest import ingest_seed_render
 
 
@@ -38,6 +39,7 @@ class RepairServices:
     pose_graph: Callable[..., dict] = pose_graph
     repair_graph: Callable[..., dict] = repair_graph
     deliver_repair_graph: Callable[..., dict] = deliver_only_repair_graph
+    state: JsonRunState = field(default_factory=JsonRunState)
 
 
 def _source_short(generations: Sequence[Mapping], generation_id: str) -> str:
@@ -79,6 +81,12 @@ def repair(generation_id: str, services: RepairServices, *,
           graph_generation_id: str | None = None,
           key_prefix: str | None = None,
           context: dict | None = None, batch: dict | None = None) -> dict:
+    state_path = operation_state_path(services.output_root, "repair", key_prefix)
+    if state_path:
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+    state = services.state.load(state_path) if state_path else {}
+    if state.get("status") == "completed" and state.get("result"):
+        return state["result"]
     if context is None:
         context = services.management.request(
             "GET", f"/api/v1/generations/{generation_id}/context")
@@ -206,7 +214,16 @@ def repair(generation_id: str, services: RepairServices, *,
                 positive=positive, negative=base_negative, seed=seed,
                 denoise=denoise, size=size, prefix=job_prefix, loras=loras,
                 model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
-        prompt_id = services.comfyui.submit(graph)
+        prompt_ids = state.setdefault("prompt_ids", {})
+        prompt_id = prompt_ids.get(str(index))
+        knows = getattr(services.comfyui, "knows", None)
+        if prompt_id and (knows is None or knows(prompt_id)):
+            services.emit(f"{job_prefix} resume {prompt_id}")
+        else:
+            prompt_id = services.comfyui.submit(graph)
+            prompt_ids[str(index)] = prompt_id
+            if state_path:
+                services.state.save(state_path, state)
         services.emit(f"{job_prefix} {prompt_id}")
         result = ingest_seed_render(
             comfyui=services.comfyui, management=services.management,
@@ -226,4 +243,8 @@ def repair(generation_id: str, services: RepairServices, *,
         f"**chimera** {urls[-1]}",
         last_raw_filename, last_raw)
     services.emit(f"batch {created.get('short_id', created['id'])} done")
-    return {"batch_id": created["id"], "generation_ids": ids}
+    result = {"batch_id": created["id"], "generation_ids": ids}
+    if state_path:
+        state.update({"status": "completed", "result": result})
+        services.state.save(state_path, state)
+    return result

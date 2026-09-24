@@ -56,7 +56,7 @@ def _request(recipe: str, parameters: dict) -> dict:
 _DUMMY_VALUES = {
     "hires": 1024, "denoise": 0.5, "costume": "default", "character": "yukari",
     "character_id": "char-1", "arm": "a", "expression": "doya",
-    "legwear": "sheer-gloss",
+    "legwear": "sheer-gloss", "legwear_state": "removing",
 }
 
 
@@ -144,6 +144,15 @@ class BuildCatalogTest(unittest.TestCase):
         self.assertEqual(patches["text"]["part_target"], "prompt.positive.<part>")
         self.assertIn("identity_override", patches["overrides"])
         self.assertTrue(patches["overrides"]["identity_override"])
+
+    def test_yukari_publishes_legwear_state_words_and_pose_defaults(self):
+        catalog = build_catalog(GIT)
+        by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
+        yukari = by_name["yukari"]
+        self.assertEqual(set(yukari["legwear_state"]), {"worn", "removing", "off"})
+        by_pose = {pose["name"]: pose for pose in yukari["poses"]}
+        self.assertEqual(by_pose["stand"]["legwear_state"], "worn")
+        self.assertIsNone(by_pose["bust"]["legwear_state"])
 
     def test_yukari_poses_carry_parts_that_join_into_positive(self):
         catalog = build_catalog(GIT)

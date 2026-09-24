@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .components import Framing
-from .costumes import DEFAULT_LEGWEAR
+from .costumes import DEFAULT_LEGWEAR, LegwearState
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,7 @@ class Pose:
     canvas: tuple[int, int] | None = None
     legwear: bool = True
     legwear_kind: str = DEFAULT_LEGWEAR
+    legwear_state: LegwearState = LegwearState.WORN
     body: str | None = None
     style: str | None = None
     background: str | None = None

@@ -15,12 +15,16 @@ from .costumes import (
     COSTUME_BAN,
     COSTUMES,
     HOODED_COSTUMES,
+    LegwearState,
+    OFF_LEGWEAR_BAN,
+    REMOVING_LEGWEAR_BAN,
     legwear_block,
+    legwear_text,
 )
 from .delivery_style import PAINT_BAN, ROUGH_BAN, ROUGH_STYLE
 from .expressions import EXPRESSIONS
 from .framing import FRAMING
-from .poses import POSES
+from .poses import POSES, Pose
 from .prompt_style import (
     ARTIST_TAG,
     BACKGROUND,
@@ -82,14 +86,21 @@ IDENTITY_TAG_NAMES = frozenset({
 })
 
 
+def _legwear_state(pose: Pose, legwear_state: str | None) -> LegwearState:
+    return (LegwearState(legwear_state) if legwear_state is not None
+           else pose.legwear_state)
+
+
 def _components(pose: str, costume: str | None = None,
                 expression: str | None = None,
-                legwear: str | None = None) -> tuple[Component, ...]:
+                legwear: str | None = None,
+                legwear_state: str | None = None) -> tuple[Component, ...]:
     p = POSES[pose]
     e = EXPRESSIONS[expression if expression is not None else p.expression]
     c = costume if costume is not None else p.costume
     lw = legwear if legwear is not None else p.legwear_kind
-    legwear_text = legwear_block(c, lw) if p.legwear else ""
+    ls = _legwear_state(p, legwear_state)
+    legwear_positive = legwear_text(c, lw, ls) if p.legwear else ""
     G, M = Section.GENERAL, Priority.MAIN
     L, T = Priority.LEAD, Priority.TAIL
     declared = (
@@ -106,7 +117,7 @@ def _components(pose: str, costume: str | None = None,
         Component("eye_quality", G, L, e.eyes),
         Component("gesture", G, M, p.gesture),
         Component("costume", G, M, COSTUMES[c]),
-        Component("legwear", G, L, legwear_text),
+        Component("legwear", G, L, legwear_positive),
         Component("framing_tags", G, L, p.angle + FRAMING[p.framing].text),
         Component("leg_display", G, L, p.leg_display),
         Component("body_build", G, L, p.body if p.body is not None else BODY),
@@ -120,16 +131,19 @@ def _components(pose: str, costume: str | None = None,
 
 def positive_parts(pose: str, costume: str | None = None,
                    expression: str | None = None,
-                   legwear: str | None = None) -> tuple[tuple[str, str], ...]:
-    components = _components(pose, costume, expression, legwear)
+                   legwear: str | None = None,
+                   legwear_state: str | None = None) -> tuple[tuple[str, str], ...]:
+    components = _components(pose, costume, expression, legwear, legwear_state)
     return tuple((c.name, c.text) for c in components)
 
 
 def positive(pose: str, costume: str | None = None,
             expression: str | None = None,
-            legwear: str | None = None) -> str:
+            legwear: str | None = None,
+            legwear_state: str | None = None) -> str:
     return "".join(
-        text for _, text in positive_parts(pose, costume, expression, legwear))
+        text for _, text in
+        positive_parts(pose, costume, expression, legwear, legwear_state))
 
 
 def identity_tags(pose: str, costume: str | None = None) -> frozenset[str]:
@@ -139,24 +153,35 @@ def identity_tags(pose: str, costume: str | None = None) -> frozenset[str]:
 
 def negative(pose: str, costume: str | None = None,
             expression: str | None = None,
-            legwear: str | None = None) -> str:
+            legwear: str | None = None,
+            legwear_state: str | None = None) -> str:
     p = POSES[pose]
     _ = EXPRESSIONS[expression if expression is not None else p.expression]
     c = costume if costume is not None else p.costume
     lw = legwear if legwear is not None else p.legwear_kind
+    ls = _legwear_state(p, legwear_state)
     _ = COSTUMES[c]
     _ = legwear_block(c, lw)
     hood_ban = "" if c in HOODED_COSTUMES else HOOD_BAN
     garment_black_ban = GARMENT_BLACK_BAN if c == "standard" else ""
     shine_ban, sheer_ban = SHINE_BAN, ""
-    if lw in ("sheer-gloss", "sheer") and p.legwear:
+    # A sheer/sheer-gloss kind only earns its own negative edits when the
+    # legwear it names is actually worn.
+    if lw in ("sheer-gloss", "sheer") and p.legwear and ls is not LegwearState.OFF:
         for tags in GARMENT_GLOSS_TAGS:
             shine_ban = shine_ban.replace(tags, "")
         sheer_ban = SHEER_BAN + (SHEER_TONE_BAN if lw == "sheer" else "")
+    legwear_state_ban = ""
+    if p.legwear:
+        if ls is LegwearState.REMOVING:
+            legwear_state_ban = REMOVING_LEGWEAR_BAN
+        elif ls is LegwearState.OFF:
+            legwear_state_ban = OFF_LEGWEAR_BAN
     return (DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
             + p.negative + shine_ban + GRADIENT_BAN
             + NEGATIVE_TAIL + VIVID_BAN + hood_ban + garment_black_ban
-            + COSTUME_BAN.get(c, "") + sheer_ban + SCORE_BAN + PROPORTION_BAN)
+            + COSTUME_BAN.get(c, "") + sheer_ban + legwear_state_ban
+            + SCORE_BAN + PROPORTION_BAN)
 
 
 def refinement_prompt(base: PromptPair) -> PromptPair:
@@ -173,14 +198,15 @@ def refinement_prompt(base: PromptPair) -> PromptPair:
 def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
                 denoise: float | None = None, costume: str | None = None,
                 expression: str | None = None,
-                legwear: str | None = None) -> RenderSpec:
+                legwear: str | None = None,
+                legwear_state: str | None = None) -> RenderSpec:
     if not hires and denoise is not None:
         raise ValueError("yukari denoise needs hires")
     p = POSES[pose]
     width, height = (p.canvas or FRAMING[p.framing].canvas
                      or (WIDTH, HEIGHT))
-    parts = positive_parts(pose, costume, expression, legwear)
-    base_negative = negative(pose, costume, expression, legwear)
+    parts = positive_parts(pose, costume, expression, legwear, legwear_state)
+    base_negative = negative(pose, costume, expression, legwear, legwear_state)
     hires_spec = None
     if hires:
         longest = max(width, height)

@@ -15,8 +15,13 @@ from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.generation.prompt_lint import tags as prompt_tags
 from comfyui_recipes.domain.yukari import prompt_style as ps
 from comfyui_recipes.domain.yukari.costumes import (COSTUME_BAN, COSTUMES,
+                                                    OFF_LEGWEAR,
+                                                    OFF_LEGWEAR_BAN,
+                                                    REMOVING_LEGWEAR,
+                                                    REMOVING_LEGWEAR_BAN,
                                                     SHEER_GLOSS_LEGWEAR,
-                                                    SHEER_LEGWEAR)
+                                                    SHEER_LEGWEAR,
+                                                    LegwearState)
 from comfyui_recipes.domain.yukari.expressions import EXPRESSIONS
 from comfyui_recipes.domain.yukari.poses import POSES
 from comfyui_recipes.domain.yukari.recipe import (
@@ -584,6 +589,82 @@ class PlainRenderLegwearDefaultTest(unittest.TestCase):
         self.assertIn("(black pantyhose:1.5), (opaque pantyhose:1.4), ", text)
 
 
+class LegwearStateTest(unittest.TestCase):
+    def test_every_pose_defaults_to_worn(self):
+        for pose in POSES:
+            with self.subTest(pose=pose):
+                self.assertEqual(POSES[pose].legwear_state, LegwearState.WORN)
+
+    def test_worn_is_byte_identical_to_the_unstated_default(self):
+        for pose in POSES:
+            with self.subTest(pose=pose):
+                self.assertEqual(positive(pose), positive(pose, legwear_state="worn"))
+                self.assertEqual(negative(pose), negative(pose, legwear_state="worn"))
+
+    def test_removing_follows_the_worn_block_with_the_pull_down_tags(self):
+        worn = positive("stand", legwear_state="worn")
+        removing = positive("stand", legwear_state="removing")
+        legwear_block = "(black pantyhose:1.5), (opaque pantyhose:1.4), "
+        self.assertIn(legwear_block, worn)
+        self.assertIn(legwear_block + REMOVING_LEGWEAR, removing)
+
+    def test_off_drops_the_legwear_block_for_bare_legs(self):
+        text = positive("stand", legwear_state="off")
+        self.assertNotIn("pantyhose", text)
+        self.assertIn(OFF_LEGWEAR, text)
+
+    def test_removing_negative_bans_thighhighs_kneehighs_socks(self):
+        removing = negative("stand", legwear_state="removing")
+        self.assertIn(REMOVING_LEGWEAR_BAN + ps.SCORE_BAN, removing)
+
+    def test_off_negative_bans_every_legwear_kind_and_drops_worn_only_bans(self):
+        off = negative("stand", legwear_state="off")
+        self.assertIn(OFF_LEGWEAR_BAN + ps.SCORE_BAN, off)
+
+    def test_off_drops_the_sheer_kind_negative_edits(self):
+        # `dance`'s legwear_kind is sheer-gloss; OFF means no legwear kind is
+        # worn at all, so the sheer-only shine/sheer-ban edits do not apply.
+        worn = negative("dance")
+        off = negative("dance", legwear_state="off")
+        self.assertIn("(shiny:1.4), (glossy:1.3), ", off)
+        self.assertNotIn("(shiny:1.4), (glossy:1.3), ", worn)
+        self.assertNotIn("(opaque legwear:1.3)", off)
+
+    def test_explicit_legwear_state_overrides_the_pose_default(self):
+        # `dance`'s pose default is WORN; an explicit parameter still wins.
+        self.assertIn(OFF_LEGWEAR, positive("dance", legwear_state="off"))
+
+    def test_bust_ignores_legwear_state_entirely(self):
+        for state in ("worn", "removing", "off"):
+            with self.subTest(state=state):
+                self.assertEqual(positive("bust"),
+                                 positive("bust", legwear_state=state))
+                self.assertEqual(negative("bust"),
+                                 negative("bust", legwear_state=state))
+
+    def test_unknown_legwear_state_is_rejected(self):
+        with self.assertRaises(ValueError):
+            positive("stand", legwear_state="half-off")
+        with self.assertRaises(ValueError):
+            negative("stand", legwear_state="half-off")
+
+    def test_render_spec_carries_legwear_state_into_both_prompts(self):
+        spec = render_spec("stand", 7, "x", legwear_state="off")
+        self.assertEqual(spec.prompts.positive, positive("stand", legwear_state="off"))
+        self.assertEqual(spec.prompts.negative, negative("stand", legwear_state="off"))
+
+    def test_plain_render_path_routes_legwear_state_from_parameters(self):
+        generation = {"recipe": "yukari",
+                     "parameters": {"pose": "stand", "legwear_state": "off"}}
+        spec = request_graph(generation, 42, "p", render_spec, lambda spec: spec)
+        self.assertEqual(spec.prompts.positive, positive("stand", legwear_state="off"))
+
+    def test_plain_render_path_defaults_to_worn_when_unstated(self):
+        generation = {"recipe": "yukari", "parameters": {"pose": "stand"}}
+        spec = request_graph(generation, 42, "p", render_spec, lambda spec: spec)
+        self.assertEqual(spec.prompts.positive, positive("stand"))
+
+
 class GraphTest(unittest.TestCase):
     def test_build_graph_node_shape(self):
         spec = render_spec("coffee", 42, "p")
@@ -703,6 +784,11 @@ class ValidateRequestTest(unittest.TestCase):
         request["generation"]["parameters"]["denoise"] = 0.5
         validate_request(request)  # must not raise
 
+    def test_legwear_state_is_accepted_for_yukari(self):
+        request = self._request()
+        request["generation"]["parameters"]["legwear_state"] = "removing"
+        validate_request(request)  # must not raise
+
     def test_layerdiffuse_is_rejected_for_yukari(self):
         request = self._request()
         request["generation"]["parameters"]["layerdiffuse"] = True
@@ -731,6 +817,15 @@ class CliTest(unittest.TestCase):
         payload = json.loads(output.getvalue())
         self.assertEqual(payload["positive"], AMAE_POSITIVE)
         self.assertEqual(payload["negative"], AMAE_NEGATIVE)
+
+    def test_yukari_prompt_accepts_legwear_state(self):
+        output = io.StringIO()
+        with patch.object(cli, "ChimeraClient"), redirect_stdout(output):
+            cli.main(["yukari", "prompt", "--pose", "stand",
+                     "--legwear-state", "off", "--json"])
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["positive"], positive("stand", legwear_state="off"))
+        self.assertEqual(payload["negative"], negative("stand", legwear_state="off"))
 
 
 if __name__ == "__main__":

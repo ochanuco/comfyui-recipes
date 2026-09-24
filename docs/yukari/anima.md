@@ -67,6 +67,23 @@ The variable part is three small record sets:
   brown skin tones); `sheer` also appends `SHEER_TONE_BAN` (light purple,
   lavender and gradient legwear). A pose with `legwear=False`
   ignores the parameter on both sides.
+
+  The request parameter `legwear_state` (`LegwearState`: `worn`, the
+  default, `removing` or `off`) sits alongside `legwear` on the same
+  component. `worn` is today's `legwear_block` text, unchanged. `removing`
+  follows it with the act of pulling it down --
+  `(pantyhose pull:1.3), (pulled by self:1.25), (pantyhose around
+  knees:1.35), (pantyhose pulled down:1.3), (bare thighs:1.2), ` -- and
+  bans `(thighhighs:1.4), (kneehighs:1.4), (socks:1.3), ` in the negative.
+  `off` drops the legwear block entirely and asks for
+  `(bare legs:1.3), (no legwear:1.3), ` instead, banning
+  `(pantyhose:1.3), (thighhighs:1.3), (kneehighs:1.2), (socks:1.2), ` in
+  the negative and skipping the sheer/sheer-gloss kind's own negative
+  edits (`SHEER_BAN`, `SHEER_TONE_BAN`, the `SHINE_BAN` gloss drop) --
+  those only make sense when a legwear kind is actually worn. Like
+  `legwear`, an unset request falls back to the pose's own
+  `legwear_state` (every pose says `worn`), and a pose with `legwear=False`
+  ignores `legwear_state` entirely.
 - `expressions.py`: one `mouth`/`eyes` pair per expression (`resting`,
   `sleepy`, `doya`, `smile`, `gao`, `v`).
 
@@ -292,10 +309,11 @@ another redraw-shaping option.
 }
 ```
 
-`pose` is required; `costume` and `expression` are optional and fall back
-to the pose's own. `hires` and `denoise` are accepted for this recipe --
-`hires` is the target longest side of the second pass, `denoise` overrides
-`HIRES_DENOISE` and needs `hires` set -- see [queueing.md](../queueing.md).
+`pose` is required; `costume`, `expression`, `legwear` and `legwear_state`
+are optional and fall back to the pose's own. `hires` and `denoise` are
+accepted for this recipe -- `hires` is the target longest side of the
+second pass, `denoise` overrides `HIRES_DENOISE` and needs `hires` set --
+see [queueing.md](../queueing.md).
 
 `domain/yukari/dials.py` publishes `render.width`/`render.height` as
 words for `generation.patches` -- `draft` (`1024`/`1640`, the default

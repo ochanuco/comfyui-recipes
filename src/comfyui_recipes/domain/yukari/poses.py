@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .components import Framing
 from .costumes import DEFAULT_LEGWEAR
 
 
@@ -13,6 +14,9 @@ class Pose:
     mood: str
     gesture: str
     scene: str
+    framing: Framing
+    framing_tags: str
+    leg_display: str
     expression: str
     costume: str
     negative: str = ""
@@ -35,8 +39,10 @@ POSES = {
         gesture=("(looking at viewer:1.2), (sneakers:1.3), "
                  "(white sneakers:1.2), "),
         scene=("(movie theater:1.4), (theater lobby:1.2), (indoors:1.2), "
-               "(dim lighting:1.1), (carpet:1.1), (cowboy shot:1.3), "
-               "(thighs:1.15), "),
+               "(dim lighting:1.1), (carpet:1.1), "),
+        framing=Framing.COWBOY,
+        framing_tags="(cowboy shot:1.3), ",
+        leg_display="(thighs:1.15), ",
         expression="doya", costume="outing",
         negative=("(sitting:1.3), (eating:1.3), (theater seat:1.1), "
                   "(mug:1.2), (glass:1.2), (bottle:1.2), (bag:1.1), "
@@ -48,8 +54,10 @@ POSES = {
                 "(straw in mouth:1.25), "),
         mood="",
         gesture="(looking at viewer:1.1), ",
-        scene=("(outdoors:1.3), (street:1.15), (day:1.1), (standing:1.2), "
-               "(cowboy shot:1.3), (thighs:1.2), "),
+        scene="(outdoors:1.3), (street:1.15), (day:1.1), (standing:1.2), ",
+        framing=Framing.COWBOY,
+        framing_tags="(cowboy shot:1.3), ",
+        leg_display="(thighs:1.2), ",
         expression="resting", costume="outing",
         negative="(mug:1.3), (paper cup:1.2), (hot coffee:1.2), (steam:1.3), "),
     "amae": Pose(
@@ -59,7 +67,10 @@ POSES = {
                  "(looking at viewer:1.3), (own hands clasped:1.25), "
                  "(hands up:1.1), "),
         scene=("(outdoors:1.3), (shopping:1.15), (street:1.1), (day:1.1), "
-               "(standing:1.2), (cowboy shot:1.3), (thighs:1.2), "),
+               "(standing:1.2), "),
+        framing=Framing.COWBOY,
+        framing_tags="(cowboy shot:1.3), ",
+        leg_display="(thighs:1.2), ",
         expression="doya", costume="outing"),
     "step": Pose(
         action=("(walking:1.3), (stepping:1.3), (big step:1.35), "
@@ -69,8 +80,10 @@ POSES = {
         mood="",
         gesture="(looking at viewer:1.1), (sneakers:1.3), (white sneakers:1.2), ",
         scene=("(outdoors:1.3), (cobblestone:1.4), (stone floor:1.25), "
-               "(street:1.15), (day:1.1), (full body:1.35), (from side:1.1), "
-               "(thighs:1.1), "),
+               "(street:1.15), (day:1.1), "),
+        framing=Framing.FULL,
+        framing_tags="(full body:1.35), (from side:1.1), ",
+        leg_display="(thighs:1.1), ",
         expression="resting", costume="outing",
         negative="(running:1.3), (jumping:1.25), (sitting:1.2), "),
     "stand": Pose(
@@ -79,8 +92,10 @@ POSES = {
         mood="",
         gesture=("(looking at viewer:1.2), (sneakers:1.3), "
                  "(white sneakers:1.2), "),
-        scene=("(from front:1.3), (full body:1.45), (wide shot:1.3), "
-               "(thighs:1.1), "),
+        scene="",
+        framing=Framing.FULL,
+        framing_tags="(from front:1.3), (full body:1.45), (wide shot:1.3), ",
+        leg_display="(thighs:1.1), ",
         expression="doya", costume="outing",
         negative="(sitting:1.3), (cowboy shot:1.2), (upper body:1.2), "),
     "dance": Pose(
@@ -89,8 +104,10 @@ POSES = {
         mood="",
         gesture=("(looking at viewer:1.2), (sneakers:1.3), "
                  "(white sneakers:1.2), "),
-        scene=("(from front:1.3), (full body:1.45), (wide shot:1.3), "
-               "(thighs:1.1), "),
+        scene="",
+        framing=Framing.FULL,
+        framing_tags="(from front:1.3), (full body:1.45), (wide shot:1.3), ",
+        leg_display="(thighs:1.1), ",
         expression="v", costume="standard",
         negative="(sitting:1.3), (cowboy shot:1.2), (upper body:1.2), ",
         legwear_kind="sheer-gloss"),
@@ -99,7 +116,10 @@ POSES = {
                 "(upper body:1.35), (face focus:1.3), "),
         mood="",
         gesture="(looking at viewer:1.2), ",
-        scene="(from front:1.2), ",
+        scene="",
+        framing=Framing.BUST,
+        framing_tags="(from front:1.2), ",
+        leg_display="",
         expression="smile", costume="standard",
         negative=("(sitting:1.3), (wavy mouth:1.4), (:3:1.3), (pout:1.3), "
                   "(pursed lips:1.3), (puckered lips:1.2), "),
@@ -111,7 +131,10 @@ POSES = {
                 "(standing:1.3), (leaning forward:1.15), "),
         mood="",
         gesture="(looking at viewer:1.2), ",
-        scene="(from front:1.3), (cowboy shot:1.35), (thighs:1.2), ",
+        scene="",
+        framing=Framing.COWBOY,
+        framing_tags="(from front:1.3), (cowboy shot:1.35), ",
+        leg_display="(thighs:1.2), ",
         expression="gao", costume="standard",
         negative=("(sitting:1.3), (upper body:1.2), "
                   "(ribbed legwear:1.3), (vertical-striped legwear:1.3), ")),

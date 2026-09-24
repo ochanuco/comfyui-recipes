@@ -31,21 +31,22 @@ FIXTURES = Path(__file__).parent / "fixtures"
 GBM9OM = json.loads((FIXTURES / "gbm9om-dance.json").read_text())
 
 COFFEE_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), light "
-    "purple hair, short hair with long locks, very long sidelocks, purple "
-    "eyes, hair ornament, (drinking:1.3), (iced coffee:1.4), (plastic "
-    "cup:1.45), (clear cup:1.2), (drinking straw:1.4), (holding cup:1.35), "
-    "(straw in mouth:1.25), (tareme:1.2), (jitome:1.4), (unamused:1.3), (half-closed eyes:1.3), (looking "
-    "at viewer:1.1), (oversized sweatshirt:1.35), (white sweatshirt:1.2), "
-    "(sleeves past wrists:1.25), (denim shorts:1.3), (black pantyhose:1.5), "
-    "(opaque pantyhose:1.4), (outdoors:1.3), (street:1.15), (day:1.1), "
-    "(standing:1.2), (cowboy shot:1.3), (thighs:1.2), (mature female:1.3), "
-    "(adult:1.2), (wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), "
-    "(long legs:1.35), (narrow waist:1.25), adult proportions, long torso, "
-    "seven heads tall, simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), "
-    "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (flat color:1.3),"
-    " (sketch:1.3), (traditional media:1.2)"
+    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, vocaloid, "
+    "voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "light purple hair, short hair with long locks, very long sidelocks, "
+    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), (unamused:1.3), "
+    "(half-closed eyes:1.3), (black pantyhose:1.5), (opaque pantyhose:1.4), "
+    "(cowboy shot:1.3), (thighs:1.2), (mature female:1.3), (adult:1.2), "
+    "(wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
+    "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
+    "(drinking:1.3), (iced coffee:1.4), (plastic cup:1.45), (clear cup:1.2), "
+    "(drinking straw:1.4), (holding cup:1.35), (straw in mouth:1.25), "
+    "(looking at viewer:1.1), (oversized sweatshirt:1.35), "
+    "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
+    "(outdoors:1.3), (street:1.15), (day:1.1), (standing:1.2), "
+    "simple background, (green background:1.3), (large eyes:1.6), "
+    "(big eyes:1.3), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
+    "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
 )
 
 COFFEE_NEGATIVE = (
@@ -67,42 +68,45 @@ COFFEE_NEGATIVE = (
 )
 
 AMAE_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), light "
-    "purple hair, short hair with long locks, very long sidelocks, purple "
-    "eyes, hair ornament, (smug:1.35), (doyagao:1.25), (pleading:1.15), "
-    "(tareme:1.2), (jitome:1.4), (half-closed eyes:1.3), (unamused:1.15), (head tilt:1.2), "
-    "(leaning forward:1.3), (looking at viewer:1.3), (own hands "
-    "clasped:1.25), (hands up:1.1), (oversized sweatshirt:1.35), (white "
-    "sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), (black "
-    "pantyhose:1.5), (opaque pantyhose:1.4), (outdoors:1.3), (shopping:1.15),"
-    " (street:1.1), (day:1.1), (standing:1.2), (cowboy shot:1.3), "
-    "(thighs:1.2), (mature female:1.3), (adult:1.2), (wide hips:1.2), (thick "
-    "thighs:1.2), (soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), "
-    "adult proportions, long torso, seven heads tall, simple background,"
-    " (green background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), (thick "
-    "eyelashes:1.3), (flat color:1.3), (sketch:1.3), (traditional media:1.2)"
+    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, vocaloid, "
+    "voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "light purple hair, short hair with long locks, very long sidelocks, "
+    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), "
+    "(half-closed eyes:1.3), (unamused:1.15), (black pantyhose:1.5), "
+    "(opaque pantyhose:1.4), (cowboy shot:1.3), (thighs:1.2), "
+    "(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), "
+    "(soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), "
+    "adult proportions, long torso, seven heads tall, (smug:1.35), "
+    "(doyagao:1.25), (pleading:1.15), (head tilt:1.2), (leaning forward:1.3), "
+    "(looking at viewer:1.3), (own hands clasped:1.25), (hands up:1.1), "
+    "(oversized sweatshirt:1.35), (white sweatshirt:1.2), "
+    "(sleeves past wrists:1.25), (denim shorts:1.3), (outdoors:1.3), "
+    "(shopping:1.15), (street:1.1), (day:1.1), (standing:1.2), "
+    "simple background, (green background:1.3), (large eyes:1.6), "
+    "(big eyes:1.3), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
+    "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
 )
 
 AMAE_NEGATIVE = COFFEE_NEGATIVE.replace(
     "(mug:1.3), (paper cup:1.2), (hot coffee:1.2), (steam:1.3), ", "")
 
 STAND_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), light "
-    "purple hair, short hair with long locks, very long sidelocks, purple "
-    "eyes, hair ornament, (standing:1.5), (own hands together:1.3), (hands "
-    "up:1.2), (arched back:1.15), (smug:1.35), (doyagao:1.25), "
-    "(tareme:1.2), (jitome:1.4), (half-closed eyes:1.3), (unamused:1.15), (looking at viewer:1.2), "
+    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, vocaloid, "
+    "voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "light purple hair, short hair with long locks, very long sidelocks, "
+    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), "
+    "(half-closed eyes:1.3), (unamused:1.15), (black pantyhose:1.5), "
+    "(opaque pantyhose:1.4), (from front:1.3), (full body:1.45), "
+    "(wide shot:1.3), (thighs:1.1), (mature female:1.3), (adult:1.2), "
+    "(wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
+    "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
+    "(standing:1.5), (own hands together:1.3), (hands up:1.2), "
+    "(arched back:1.15), (smug:1.35), (doyagao:1.25), (looking at viewer:1.2), "
     "(sneakers:1.3), (white sneakers:1.2), (oversized sweatshirt:1.35), "
     "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
-    "(black pantyhose:1.5), (opaque pantyhose:1.4), (from front:1.3), (full "
-    "body:1.45), (wide shot:1.3), (thighs:1.1), (mature female:1.3), "
-    "(adult:1.2), (wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), "
-    "(long legs:1.35), (narrow waist:1.25), adult proportions, long torso, "
-    "seven heads tall, simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), "
-    "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (flat color:1.3),"
-    " (sketch:1.3), (traditional media:1.2)"
+    "simple background, (green background:1.3), (large eyes:1.6), "
+    "(big eyes:1.3), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
+    "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
 )
 
 STAND_NEGATIVE = (
@@ -124,20 +128,19 @@ STAND_NEGATIVE = (
 )
 
 BUST_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), light "
-    "purple hair, short hair with long locks, very long sidelocks, purple "
-    "eyes, hair ornament, (portrait:1.5), (head and shoulders:1.4), (upper "
-    "body:1.35), (face focus:1.3), (closed mouth:1.2), (light smile:1.25), "
-    "(tareme:1.2), (jitome:1.8), (confident:1.18), "
-    "(looking at viewer:1.2), (eggplant purple hooded cardigan:1.5), (dark "
-    "violet hoodie:1.25), open cardigan, "
-    "(rabbit hood:1.3), long sleeves, drawstring, (purple dress:1.25), "
-    "frills, (sleeves past wrists:1.15), hood down, (from front:1.2), (mature"
-    " female:1.3), (adult:1.2), adult proportions, simple background, (green "
-    "background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), "
-    "(thick eyelashes:1.3), (flat color:1.3), (sketch:1.3), (traditional "
-    "media:1.2)"
+    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, vocaloid, "
+    "voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "light purple hair, short hair with long locks, very long sidelocks, "
+    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.8), (confident:1.18), "
+    "(from front:1.2), (mature female:1.3), (adult:1.2), adult proportions, "
+    "(portrait:1.5), (head and shoulders:1.4), (upper body:1.35), "
+    "(face focus:1.3), (closed mouth:1.2), (light smile:1.25), "
+    "(looking at viewer:1.2), (eggplant purple hooded cardigan:1.5), "
+    "(dark violet hoodie:1.25), open cardigan, (rabbit hood:1.3), long sleeves, "
+    "drawstring, (purple dress:1.25), frills, (sleeves past wrists:1.15), "
+    "hood down, simple background, (green background:1.3), (large eyes:1.6), "
+    "(big eyes:1.3), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
+    "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
 )
 
 # The accepted render's negative, with the missing ", " between "(aged
@@ -163,24 +166,23 @@ BUST_NEGATIVE_TAG_SOURCE = (
 )
 
 GAO_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, vocaloid, "
+    "voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
-    "purple eyes, hair ornament, (claw pose:1.45), (gao:1.2), (hands "
-    "up:1.25), (standing:1.3), (leaning forward:1.15), (open mouth:1.35), "
-    "(fang:1.3), (tareme:1.2), (jitome:1.8), "
-    "(confident:1.18), (looking at viewer:1.2), (eggplant purple hooded "
-    "cardigan:1.5), (dark violet hoodie:1.25), open cardigan, "
-    "(rabbit hood:1.3), long sleeves, "
-    "drawstring, (purple dress:1.25), frills, (sleeves past wrists:1.15), "
-    "hood down, (dark purple pantyhose:1.45), (opaque pantyhose:1.3), (gradient "
-    "legwear:1.2), (purple gradient:1.1), (from front:1.3), (cowboy "
-    "shot:1.35), (thighs:1.2), (mature female:1.3), (adult:1.2), (wide "
-    "hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
+    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.8), (confident:1.18), "
+    "(dark purple pantyhose:1.45), (opaque pantyhose:1.3), "
+    "(gradient legwear:1.2), (purple gradient:1.1), (from front:1.3), "
+    "(cowboy shot:1.35), (thighs:1.2), (mature female:1.3), (adult:1.2), "
+    "(wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
     "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
-    "simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), "
-    "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (flat "
-    "color:1.3), (sketch:1.3), (traditional media:1.2)"
+    "(claw pose:1.45), (gao:1.2), (hands up:1.25), (standing:1.3), "
+    "(leaning forward:1.15), (open mouth:1.35), (fang:1.3), "
+    "(looking at viewer:1.2), (eggplant purple hooded cardigan:1.5), "
+    "(dark violet hoodie:1.25), open cardigan, (rabbit hood:1.3), long sleeves, "
+    "drawstring, (purple dress:1.25), frills, (sleeves past wrists:1.15), "
+    "hood down, simple background, (green background:1.3), (large eyes:1.6), "
+    "(big eyes:1.3), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
+    "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
 )
 
 GAO_NEGATIVE = (
@@ -204,22 +206,24 @@ GAO_NEGATIVE = (
 )
 
 REDRAW_STAND_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), light purple hair, short hair with long "
-    "locks, very long sidelocks, purple eyes, hair ornament, (standing:1.5), "
-    "(own hands together:1.3), (hands up:1.2), (arched back:1.15), "
-    "(smug:1.35), (doyagao:1.25), (tareme:1.2), (jitome:1.4), (half-closed eyes:1.3), "
-    "(unamused:1.15), (looking at viewer:1.2), (sneakers:1.3), (white "
-    "sneakers:1.2), (oversized sweatshirt:1.35), (white sweatshirt:1.2), "
-    "(sleeves past wrists:1.25), (denim shorts:1.3), (black pantyhose:1.5), "
-    "(opaque pantyhose:1.4), (from front:1.3), (full body:1.45), (wide "
-    "shot:1.3), (thighs:1.1), (mature female:1.3), (adult:1.2), (wide "
-    "hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
+    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, vocaloid, "
+    "voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "light purple hair, short hair with long locks, very long sidelocks, "
+    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), "
+    "(half-closed eyes:1.3), (unamused:1.15), (black pantyhose:1.5), "
+    "(opaque pantyhose:1.4), (from front:1.3), (full body:1.45), "
+    "(wide shot:1.3), (thighs:1.1), (mature female:1.3), (adult:1.2), "
+    "(wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
     "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
-    "simple background, (green background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), "
-    "(tareme:1.2), (thick eyelashes:1.3), (sketch:1.45), (rough sketch:1.4), "
-    "rough lines, sketchy lines, pencil sketch, (unfinished:1.2), "
-    "construction lines, (colored pencil (medium):1.2), (soft shading:1.1)"
+    "(standing:1.5), (own hands together:1.3), (hands up:1.2), "
+    "(arched back:1.15), (smug:1.35), (doyagao:1.25), (looking at viewer:1.2), "
+    "(sneakers:1.3), (white sneakers:1.2), (oversized sweatshirt:1.35), "
+    "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
+    "simple background, (green background:1.3), (large eyes:1.6), "
+    "(big eyes:1.3), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
+    "(sketch:1.45), (rough sketch:1.4), rough lines, sketchy lines, "
+    "pencil sketch, (unfinished:1.2), construction lines, "
+    "(colored pencil (medium):1.2), (soft shading:1.1)"
 )
 
 REDRAW_STAND_NEGATIVE = (
@@ -281,8 +285,8 @@ class PromptTest(unittest.TestCase):
 
     def test_suspender_costume_is_an_orange_tee_and_navy_skirt_over_black_tights(self):
         text = positive("stand", costume="suspender")
-        self.assertIn(COSTUMES["suspender"]
-                      + "(black pantyhose:1.5), (opaque pantyhose:1.4), ", text)
+        self.assertIn(COSTUMES["suspender"], text)
+        self.assertIn("(black pantyhose:1.5), (opaque pantyhose:1.4), ", text)
         self.assertIn("(muted orange t-shirt:1.2), (plain t-shirt:1.15), ", text)
         self.assertIn("(navy blue skirt:1.3), (knee-length skirt:1.8), ", text)
         self.assertNotIn("(denim shorts", text)
@@ -425,9 +429,9 @@ class PartsTest(unittest.TestCase):
     def test_part_names_match_the_declared_order(self):
         self.assertEqual([name for name, _ in positive_parts("coffee")], [
             "quality", "count", "character", "series", "artist", "identity",
-            "action", "mouth", "mood", "eye_base", "eye_quality", "gesture",
-            "costume", "legwear", "place", "framing_tags", "leg_display",
-            "body_build", "cutout", "face", "style"])
+            "eye_base", "eye_quality", "legwear", "framing_tags",
+            "leg_display", "body_build", "action", "mouth", "mood",
+            "gesture", "costume", "place", "cutout", "face", "style"])
         self.assertEqual(PART_NAMES, (
             "quality", "identity", "pose", "mouth", "mood", "eyes",
             "gesture", "costume", "scene", "body", "background", "face",

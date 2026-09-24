@@ -41,9 +41,8 @@ COFFEE_POSITIVE = (
     "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
     "(drinking:1.3), (iced coffee:1.4), (plastic cup:1.45), (clear cup:1.2), "
     "(drinking straw:1.4), (holding cup:1.35), (straw in mouth:1.25), "
-    "(looking at viewer:1.1), (oversized sweatshirt:1.35), "
+    "(standing:1.2), (looking at viewer:1.1), (oversized sweatshirt:1.35), "
     "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
-    "(outdoors:1.3), (street:1.15), (day:1.1), (standing:1.2), "
     "simple background, (green background:1.3), (large eyes:1.6), "
     "(big eyes:1.3), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
     "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
@@ -76,12 +75,11 @@ AMAE_POSITIVE = (
     "(opaque pantyhose:1.4), (cowboy shot:1.3), (thighs:1.2), "
     "(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), "
     "(soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), "
-    "adult proportions, long torso, seven heads tall, (smug:1.35), "
-    "(doyagao:1.25), (pleading:1.15), (head tilt:1.2), (leaning forward:1.3), "
-    "(looking at viewer:1.3), (own hands clasped:1.25), (hands up:1.1), "
-    "(oversized sweatshirt:1.35), (white sweatshirt:1.2), "
-    "(sleeves past wrists:1.25), (denim shorts:1.3), (outdoors:1.3), "
-    "(shopping:1.15), (street:1.1), (day:1.1), (standing:1.2), "
+    "adult proportions, long torso, seven heads tall, (standing:1.2), "
+    "(smug:1.35), (doyagao:1.25), (pleading:1.15), (head tilt:1.2), "
+    "(leaning forward:1.3), (looking at viewer:1.3), "
+    "(own hands clasped:1.25), (hands up:1.1), (oversized sweatshirt:1.35), "
+    "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
     "simple background, (green background:1.3), (large eyes:1.6), "
     "(big eyes:1.3), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
     "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
@@ -431,7 +429,7 @@ class PartsTest(unittest.TestCase):
             "quality", "count", "character", "series", "artist", "identity",
             "eye_base", "eye_quality", "legwear", "framing_tags",
             "leg_display", "body_build", "action", "mouth", "mood",
-            "gesture", "costume", "place", "cutout", "face", "style"])
+            "gesture", "costume", "cutout", "face", "style"])
         self.assertEqual(PART_NAMES, (
             "quality", "identity", "pose", "mouth", "mood", "eyes",
             "gesture", "costume", "scene", "body", "background", "face",

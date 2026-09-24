@@ -29,14 +29,17 @@ soft thighs, long legs, a narrow waist, and seven heads tall.
 
 The variable part is three small record sets:
 
-- `poses.py`: one `Pose` per pose -- `action`, `mood`, `gesture`, `scene`
-  (place/situation tags), `framing` (a `Framing`), `angle` (a camera-angle
-  prefix, default empty -- `from front`/`from side`; see "Framing" below for
-  where the rest of the shot's camera tags come from), `leg_display` (the
-  trailing `(thighs:...)` tag, or empty), the pose's own default
-  `expression` and `costume`, and an optional pose-specific negative
-  addition. A pose may also override `legwear` (default `True`; `False`
-  drops the costume's leg tags),
+- `poses.py`: one `Pose` per pose -- `action`, `mood`, `gesture`,
+  `framing` (a `Framing`), `angle` (a camera-angle prefix, default empty --
+  `from front`/`from side`; see "Framing" below for where the rest of the
+  shot's camera tags come from), `leg_display` (the trailing
+  `(thighs:...)` tag, or empty), the pose's own default `expression` and
+  `costume`, and an optional pose-specific negative addition. No pose
+  carries a place/location tag: cut-out delivery needs an empty green
+  background, and a location tag invites furniture or a backdrop the matte
+  then has to cut around; `coffee` and `amae` kept only their `standing`
+  tag, moved onto the end of `action`. A pose may also override `legwear`
+  (default `True`; `False` drops the costume's leg tags),
   `legwear_kind` (default `opaque`; the legwear word the pose renders at
   when the request does not name one), `body` and `style` (replace
   `BODY`/`STYLE` wholesale), and carry its own `loras` (default empty).
@@ -115,13 +118,13 @@ is the tie-break within a priority. `recipe._components` assigns:
 
 - `LEAD`: `identity`, `eye_base`, `eye_quality`, `framing_tags`,
   `body_build`, `leg_display`, `legwear`
-- `MAIN`: `action`, `mouth`, `mood`, `gesture`, `costume`, `place`, `cutout`
+- `MAIN`: `action`, `mouth`, `mood`, `gesture`, `costume`, `cutout`
 - `TAIL`: `face`, `style`
 
 `recipe._components` declares one component per fixed or per-pose/costume/
 expression block -- `quality`, `count`, `character`, `series`, `artist`,
 `identity`, `action`, `mouth`, `mood`, `eye_base`, `eye_quality`, `gesture`,
-`costume`, `legwear`, `place`, `framing_tags`, `leg_display`, `body_build`,
+`costume`, `legwear`, `framing_tags`, `leg_display`, `body_build`,
 `cutout`, `face`, `style` -- and `assemble()` stably sorts them by
 `(section, priority)`.
 
@@ -138,8 +141,8 @@ each component name to the legacy part it used to belong to;
 `components.part_groups()` inverts that into `recipe.PART_GROUPS`, legacy
 name -> the component names that composed it, in declaration order --
 `identity` is `character, series, artist, identity`; `eyes` is `eye_base,
-eye_quality`; `costume` is `costume, legwear`; `scene` is `place,
-framing_tags, leg_display`; `quality` is `quality, count`; the rest are a
+eye_quality`; `costume` is `costume, legwear`; `scene` is `framing_tags,
+leg_display`; `quality` is `quality, count`; the rest are a
 single same-named component. `patches.py` resolves a legacy-named
 `prompt.positive.<part>` patch against the group: `append`/`prepend` target
 its last/first member; `replace`/`remove` find the single member whose text
@@ -158,17 +161,17 @@ QUALITY + CHARACTER + IDENTITY
 + (pose.angle + FRAMING[pose.framing].text)
 + pose.leg_display + (pose.body if pose.body is not None else BODY)
 + pose.action + expression.mouth + pose.mood + pose.gesture + COSTUMES[costume]
-+ pose.scene
 + (pose.background if pose.background is not None else BACKGROUND) + FACE
 + (pose.style if pose.style is not None else STYLE)
 ```
 
-`pose.scene` holds only the place/situation tags; `pose.framing`
-(a `Framing`: `BUST`, `UPPER`, `COWBOY`, `FULL`, `LYING`) names the pose's
-camera/shot kind and owns that shot's own tags (`FRAMING[pose.framing].text`
--- see "Framing" above), and `pose.angle` is the pose's own prefix onto that
-text (`from front`, `from side`, or empty). `pose.leg_display` is the
-trailing `(thighs:...)` tag. `bust` carries an empty `pose.action`: its
+No place tags sit between `COSTUMES[costume]` and `BACKGROUND` any more --
+a pose carries no location text at all. `pose.framing` (a `Framing`:
+`BUST`, `UPPER`, `COWBOY`, `FULL`, `LYING`) names the pose's camera/shot
+kind and owns that shot's own tags (`FRAMING[pose.framing].text` -- see
+"Framing" above), and `pose.angle` is the pose's own prefix onto that text
+(`from front`, `from side`, or empty). `pose.leg_display` is the trailing
+`(thighs:...)` tag. `bust` carries an empty `pose.action`: its
 portrait/head-and-shoulders/upper-body/face-focus tags now live in `BUST`'s
 framing text instead.
 

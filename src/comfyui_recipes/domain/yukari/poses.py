@@ -13,7 +13,6 @@ class Pose:
     action: str
     mood: str
     gesture: str
-    scene: str
     framing: Framing
     leg_display: str
     expression: str
@@ -38,8 +37,6 @@ POSES = {
         mood="(excited:1.1), ",
         gesture=("(looking at viewer:1.2), (sneakers:1.3), "
                  "(white sneakers:1.2), "),
-        scene=("(movie theater:1.4), (theater lobby:1.2), (indoors:1.2), "
-               "(dim lighting:1.1), (carpet:1.1), "),
         framing=Framing.COWBOY,
         leg_display="(thighs:1.15), ",
         expression="doya", costume="outing",
@@ -50,22 +47,19 @@ POSES = {
     "coffee": Pose(
         action=("(drinking:1.3), (iced coffee:1.4), (plastic cup:1.45), "
                 "(clear cup:1.2), (drinking straw:1.4), (holding cup:1.35), "
-                "(straw in mouth:1.25), "),
+                "(straw in mouth:1.25), (standing:1.2), "),
         mood="",
         gesture="(looking at viewer:1.1), ",
-        scene="(outdoors:1.3), (street:1.15), (day:1.1), (standing:1.2), ",
         framing=Framing.COWBOY,
         leg_display="(thighs:1.2), ",
         expression="resting", costume="outing",
         negative="(mug:1.3), (paper cup:1.2), (hot coffee:1.2), (steam:1.3), "),
     "amae": Pose(
-        action="",
+        action="(standing:1.2), ",
         mood="(pleading:1.15), ",
         gesture=("(head tilt:1.2), (leaning forward:1.3), "
                  "(looking at viewer:1.3), (own hands clasped:1.25), "
                  "(hands up:1.1), "),
-        scene=("(outdoors:1.3), (shopping:1.15), (street:1.1), (day:1.1), "
-               "(standing:1.2), "),
         framing=Framing.COWBOY,
         leg_display="(thighs:1.2), ",
         expression="doya", costume="outing"),
@@ -76,8 +70,6 @@ POSES = {
                 "(outstretched arms:1.35), (balancing:1.35), (playful:1.15), "),
         mood="",
         gesture="(looking at viewer:1.1), (sneakers:1.3), (white sneakers:1.2), ",
-        scene=("(outdoors:1.3), (cobblestone:1.4), (stone floor:1.25), "
-               "(street:1.15), (day:1.1), "),
         framing=Framing.FULL,
         angle="(from side:1.1), ",
         leg_display="(thighs:1.1), ",
@@ -89,7 +81,6 @@ POSES = {
         mood="",
         gesture=("(looking at viewer:1.2), (sneakers:1.3), "
                  "(white sneakers:1.2), "),
-        scene="",
         framing=Framing.FULL,
         angle="(from front:1.3), ",
         leg_display="(thighs:1.1), ",
@@ -101,7 +92,6 @@ POSES = {
         mood="",
         gesture=("(looking at viewer:1.2), (sneakers:1.3), "
                  "(white sneakers:1.2), "),
-        scene="",
         framing=Framing.FULL,
         angle="(from front:1.3), ",
         leg_display="(thighs:1.1), ",
@@ -112,7 +102,6 @@ POSES = {
         action="",
         mood="",
         gesture="(looking at viewer:1.2), ",
-        scene="",
         framing=Framing.BUST,
         angle="(from front:1.3), ",
         leg_display="",
@@ -126,7 +115,6 @@ POSES = {
                 "(standing:1.3), (leaning forward:1.15), "),
         mood="",
         gesture="(looking at viewer:1.2), ",
-        scene="",
         framing=Framing.COWBOY,
         angle="(from front:1.3), ",
         leg_display="(thighs:1.2), ",

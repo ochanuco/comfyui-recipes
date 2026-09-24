@@ -20,6 +20,7 @@ from comfyui_recipes.domain.yukari.recipe import (
     PART_GROUPS,
     PART_NAMES,
     _components,
+    positive,
     positive_parts,
     render_spec,
 )
@@ -51,7 +52,7 @@ class GeneralPriorityTableTest(unittest.TestCase):
     LEAD = frozenset({"identity", "eye_base", "eye_quality", "framing_tags",
                       "body_build", "leg_display", "legwear"})
     MAIN = frozenset({"action", "mouth", "mood", "gesture", "costume",
-                      "place", "cutout"})
+                      "cutout"})
     TAIL = frozenset({"face", "style"})
 
     def test_general_components_match_the_priority_table(self):
@@ -134,10 +135,9 @@ class FramingTest(unittest.TestCase):
         self.assertEqual({pose: spec.framing for pose, spec in POSES.items()},
                          expected)
 
-    def test_place_angle_and_leg_display_are_disjoint_strings(self):
+    def test_angle_and_leg_display_are_disjoint_strings(self):
         for pose, spec in POSES.items():
             with self.subTest(pose=pose):
-                self.assertIsInstance(spec.scene, str)
                 self.assertIsInstance(spec.angle, str)
                 self.assertIsInstance(spec.leg_display, str)
 
@@ -189,6 +189,28 @@ class CanvasResolutionTest(unittest.TestCase):
     def test_non_bust_pose_falls_back_to_the_recipe_default_canvas(self):
         spec = render_spec("stand", 1, "p")
         self.assertEqual((spec.width, spec.height), (1024, 1640))
+
+
+class NoPlaceTagsTest(unittest.TestCase):
+    """Cut-out delivery needs an empty green background; a location tag
+    invites furniture or a backdrop the matte then has to cut around."""
+
+    LOCATION_WORDS = ("street", "outdoors", "movie theater", "theater lobby",
+                      "indoors", "carpet", "cobblestone", "stone floor",
+                      "day", "shopping", "dim lighting")
+
+    def test_no_place_component(self):
+        for pose in POSES:
+            with self.subTest(pose=pose):
+                names = {name for name, _ in positive_parts(pose)}
+                self.assertNotIn("place", names)
+
+    def test_no_pose_carries_a_location_tag(self):
+        for pose in POSES:
+            text = positive(pose)
+            for word in self.LOCATION_WORDS:
+                with self.subTest(pose=pose, word=word):
+                    self.assertNotIn(word, text)
 
 
 if __name__ == "__main__":

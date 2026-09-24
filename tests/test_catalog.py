@@ -165,7 +165,7 @@ class BuildCatalogTest(unittest.TestCase):
             ["quality", "count", "character", "series", "artist", "identity",
              "eye_base", "eye_quality", "legwear", "framing_tags",
              "leg_display", "body_build", "action", "mouth", "mood",
-             "gesture", "costume", "place", "cutout", "face", "style"])
+             "gesture", "costume", "cutout", "face", "style"])
         self.assertEqual(
             by_name["yukari"]["part_groups"],
             {"quality": ["quality", "count"],
@@ -173,7 +173,7 @@ class BuildCatalogTest(unittest.TestCase):
              "pose": ["action"], "mouth": ["mouth"], "mood": ["mood"],
              "eyes": ["eye_base", "eye_quality"], "gesture": ["gesture"],
              "costume": ["costume", "legwear"],
-             "scene": ["place", "framing_tags", "leg_display"],
+             "scene": ["framing_tags", "leg_display"],
              "body": ["body_build"], "background": ["cutout"],
              "face": ["face"], "style": ["style"]})
         tags = by_name["yukari"]["identity_tags"]

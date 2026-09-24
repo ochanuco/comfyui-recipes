@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from ..domain.generation.models import PromptPair
@@ -23,7 +23,18 @@ from ..infrastructure.imaging.masks import (
     render_mask_png,
     render_soft_mask_png,
 )
-from .ingest import attach_asset, classify_outputs, record_job, upload_generation
+from ..infrastructure.persistence.run_state import (
+    JsonRunState,
+    operation_state_path,
+)
+from .ingest import (
+    asset_key,
+    attach_asset,
+    classify_outputs,
+    generation_key,
+    record_job,
+    upload_generation,
+)
 from .repair import RepairServices
 from .repair import repair as repair_use_case
 
@@ -53,6 +64,7 @@ class FinalizeServices:
     # case instead of the redraw's own splice -- same masked reroll, and the
     # same batch/job/generation recording repair() already does.
     repair_use_case: Callable[..., dict] = repair_use_case
+    state: JsonRunState = field(default_factory=JsonRunState)
 
 
 @dataclass(frozen=True)
@@ -473,18 +485,22 @@ def _record(services: FinalizeServices, generation_id: str, source: _Source,
     for index, (name, data) in enumerate(uploads):
         rendered = upload_generation(services.management, services.emit,
                                      job["id"], seed=seed, name=name, data=data,
-                                     index=index)
+                                     index=index,
+                                     idempotency_key=generation_key(
+                                         key_prefix, 0, index))
         ids.append(rendered["id"])
         urls.append(rendered["canonical_url"])
     # The matte hangs off the first ingested generation: the raw redraw
     # when there is one, otherwise the delivered picture.
     attach_asset(services.management, ids[0], role="mask", name=outputs.matte_name,
-                data=outputs.matte)
+                data=outputs.matte,
+                idempotency_key=asset_key(key_prefix, 0, "mask"))
     services.emit(f"{outputs.matte_name} -> mask on {ids[0]}")
     if plan.repair_requested:
         mask_filename = f"{staged.staged_prefix}-mask.png"
         attach_asset(services.management, ids[0], role="repair-mask",
-                    name=mask_filename, data=repair_mask_png)
+                    name=mask_filename, data=repair_mask_png,
+                    idempotency_key=asset_key(key_prefix, 0, "repair-mask"))
         services.emit(f"{mask_filename} -> repair-mask on {ids[0]}")
     services.management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
@@ -524,6 +540,12 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              deliver_only: bool | object = False,
              matte_model: str | None = None,
              context: dict | None = None) -> dict:
+    state_path = operation_state_path(services.output_root, "finalize", key_prefix)
+    if state_path:
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+    state = services.state.load(state_path) if state_path else {}
+    if state.get("status") == "completed" and state.get("result"):
+        return state["result"]
     source = _load_source(generation_id, services, context)
     plan, seed, prefix = _resolve_plan(
         source, generation_id,
@@ -550,10 +572,23 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     graph, repair_mask_png, repair_mask_bbox = _splice_repair(
         services, source, plan, staged, graph, prefix, generation_id)
 
-    prompt_id = services.comfyui.submit(graph)
+    prompt_id = state.get("prompt_id")
+    knows = getattr(services.comfyui, "knows", None)
+    if prompt_id and (knows is None or knows(prompt_id)):
+        services.emit(f"{prefix} resume {prompt_id}")
+    else:
+        prompt_id = services.comfyui.submit(graph)
+        if state_path:
+            state["prompt_id"] = prompt_id
+            services.state.save(state_path, state)
     services.emit(f"{prefix} {prompt_id}")
     outputs = _collect_outputs(services, prefix, prompt_id)
 
     batch_parameters = _batch_parameters(generation_id, plan, repair_mask_bbox)
-    return _record(services, generation_id, source, plan, staged, graph, prompt_id,
-                   outputs, batch_parameters, seed, repair_mask_png, key_prefix)
+    result = _record(services, generation_id, source, plan, staged, graph,
+                     prompt_id, outputs, batch_parameters, seed,
+                     repair_mask_png, key_prefix)
+    if state_path:
+        state.update({"status": "completed", "result": result})
+        services.state.save(state_path, state)
+    return result

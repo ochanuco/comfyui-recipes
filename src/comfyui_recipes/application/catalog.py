@@ -53,6 +53,7 @@ def _yukari_recipe() -> dict:
             "costume": pose.costume,
             "face": None,
             "expression": pose.expression,
+            "legwear": pose.legwear_kind if pose.legwear else None,
             "canvas": [spec.width, spec.height],
             "positive": spec.prompts.positive,
             "negative": spec.prompts.negative,

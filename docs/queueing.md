@@ -40,7 +40,9 @@ chimera's `requests` queue (`POST /api/v1/requests/claim`, kinds `generate`,
 heartbeats `{"status": "running"}` every 30 seconds; `--interval` is how long
 it sleeps when the queue is empty. `--once` claims and executes a single row
 then exits; `--dry-run` never claims -- it fetches and prints the next
-queued row instead. `--worker-id` defaults to the machine's hostname;
+queued row instead. `--worker-id` defaults to the machine's hostname and
+process ID so embedded and standalone workers on one box do not release each
+other's claims;
 `--kinds` (comma-separated, default `generate,finalize,repair,masked_redraw`)
 narrows which kinds this worker claims.
 
@@ -123,10 +125,13 @@ background-removal model file (the recipe's own default), or
 name instead.
 
 Idempotency keys are derived from the request id, so a re-claimed row
-resumes the same batch/job/generation records: batch `request:{id}`, job
+resumes the same batch/job/generation/asset records: batch `request:{id}`, job
 `request:{id}:job:{index}`, generation
-`request:{id}:job:{index}:gen:{output_index}`. finalize, repair and
-masked_redraw use the same batch and job keys.
+`request:{id}:job:{index}:gen:{output_index}`, and asset
+`request:{id}:job:{index}:asset:{role}`. finalize, repair and masked_redraw
+also persist their ComfyUI prompt IDs under their output root and reuse a
+known prompt after a worker restart; if ComfyUI has forgotten it, they submit
+the graph again while the Chimera idempotency keys prevent duplicate records.
 
 A row's `recipe_ref` must equal the worker's current git branch; a worker on
 the wrong branch fails the row rather than generating from a recipe it

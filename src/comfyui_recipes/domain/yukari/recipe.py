@@ -13,7 +13,6 @@ from ..generation.prompt_lint import tags as prompt_tags
 from .costumes import (
     COSTUME_BAN,
     COSTUMES,
-    DEFAULT_LEGWEAR,
     HOODED_COSTUMES,
     legwear_block,
 )
@@ -76,11 +75,12 @@ IDENTITY_TAG_NAMES = frozenset({
 
 def positive_parts(pose: str, costume: str | None = None,
                    expression: str | None = None,
-                   legwear: str = DEFAULT_LEGWEAR) -> tuple[tuple[str, str], ...]:
+                   legwear: str | None = None) -> tuple[tuple[str, str], ...]:
     p = POSES[pose]
     e = EXPRESSIONS[expression if expression is not None else p.expression]
     c = costume if costume is not None else p.costume
-    costume_block = COSTUMES[c] + (legwear_block(c, legwear) if p.legwear else "")
+    lw = legwear if legwear is not None else p.legwear_kind
+    costume_block = COSTUMES[c] + (legwear_block(c, lw) if p.legwear else "")
     values = (QUALITY, CHARACTER + IDENTITY, p.action, e.mouth, p.mood,
               e.eye_shape + e.eyes, p.gesture, costume_block, p.scene,
               p.body if p.body is not None else BODY,
@@ -91,7 +91,7 @@ def positive_parts(pose: str, costume: str | None = None,
 
 def positive(pose: str, costume: str | None = None,
             expression: str | None = None,
-            legwear: str = DEFAULT_LEGWEAR) -> str:
+            legwear: str | None = None) -> str:
     return "".join(
         text for _, text in positive_parts(pose, costume, expression, legwear))
 
@@ -103,19 +103,20 @@ def identity_tags(pose: str, costume: str | None = None) -> frozenset[str]:
 
 def negative(pose: str, costume: str | None = None,
             expression: str | None = None,
-            legwear: str = DEFAULT_LEGWEAR) -> str:
+            legwear: str | None = None) -> str:
     p = POSES[pose]
     _ = EXPRESSIONS[expression if expression is not None else p.expression]
     c = costume if costume is not None else p.costume
+    lw = legwear if legwear is not None else p.legwear_kind
     _ = COSTUMES[c]
-    _ = legwear_block(c, legwear)
+    _ = legwear_block(c, lw)
     hood_ban = "" if c in HOODED_COSTUMES else HOOD_BAN
     garment_black_ban = GARMENT_BLACK_BAN if c == "standard" else ""
     shine_ban, sheer_ban = SHINE_BAN, ""
-    if legwear in ("sheer-gloss", "sheer") and p.legwear:
+    if lw in ("sheer-gloss", "sheer") and p.legwear:
         for tags in GARMENT_GLOSS_TAGS:
             shine_ban = shine_ban.replace(tags, "")
-        sheer_ban = SHEER_BAN + (SHEER_TONE_BAN if legwear == "sheer" else "")
+        sheer_ban = SHEER_BAN + (SHEER_TONE_BAN if lw == "sheer" else "")
     return (DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
             + p.negative + shine_ban + GRADIENT_BAN
             + NEGATIVE_TAIL + VIVID_BAN + hood_ban + garment_black_ban
@@ -136,7 +137,7 @@ def refinement_prompt(base: PromptPair) -> PromptPair:
 def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
                 denoise: float | None = None, costume: str | None = None,
                 expression: str | None = None,
-                legwear: str = DEFAULT_LEGWEAR) -> RenderSpec:
+                legwear: str | None = None) -> RenderSpec:
     if not hires and denoise is not None:
         raise ValueError("yukari denoise needs hires")
     width, height = POSES[pose].canvas or (WIDTH, HEIGHT)

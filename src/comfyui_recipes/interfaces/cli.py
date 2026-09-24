@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import socket
 from pathlib import Path
 
 from ..application import metadata
@@ -41,6 +40,7 @@ from .agent import (
     build_generate_services,
     build_masked_redraw_services,
     build_repair_services,
+    default_worker_id,
     wire_work_services,
 )
 
@@ -112,7 +112,7 @@ def parser() -> argparse.ArgumentParser:
         "--interval", type=_positive_finite_seconds, default=30)
     work_parser.add_argument("--once", action="store_true")
     work_parser.add_argument("--dry-run", action="store_true")
-    work_parser.add_argument("--worker-id", default=socket.gethostname())
+    work_parser.add_argument("--worker-id", default=default_worker_id())
     work_parser.add_argument(
         "--kinds", default="generate,finalize,repair,masked_redraw",
         help="comma-separated request kinds to claim")
@@ -334,7 +334,7 @@ def parser() -> argparse.ArgumentParser:
     yukari_prompt.add_argument("--pose", required=True, choices=sorted(POSES))
     yukari_prompt.add_argument("--costume", choices=sorted(COSTUMES))
     yukari_prompt.add_argument("--expression", choices=sorted(EXPRESSIONS))
-    yukari_prompt.add_argument("--legwear", choices=LEGWEARS, default=LEGWEARS[0])
+    yukari_prompt.add_argument("--legwear", choices=LEGWEARS, default=None)
     yukari_prompt.add_argument("--json", action="store_true")
     return root
 

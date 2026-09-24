@@ -398,7 +398,7 @@ class PromptTest(unittest.TestCase):
         for expression in EXPRESSIONS:
             with self.subTest(expression=expression):
                 parts = dict(positive_parts("stand", expression=expression))
-                self.assertTrue(parts["eyes"].startswith(
+                self.assertTrue(parts["eye_base"].startswith(
                     EXPRESSIONS[expression].eye_shape))
                 self.assertNotIn("jitome", parts["face"])
 
@@ -423,8 +423,11 @@ class PartsTest(unittest.TestCase):
                 self.assertEqual(joined, fixture)
 
     def test_part_names_match_the_declared_order(self):
-        self.assertEqual(
-            [name for name, _ in positive_parts("coffee")], list(PART_NAMES))
+        self.assertEqual([name for name, _ in positive_parts("coffee")], [
+            "quality", "count", "character", "series", "artist", "identity",
+            "action", "mouth", "mood", "eye_base", "eye_quality", "gesture",
+            "costume", "legwear", "place", "framing_tags", "leg_display",
+            "body_build", "cutout", "face", "style"])
         self.assertEqual(PART_NAMES, (
             "quality", "identity", "pose", "mouth", "mood", "eyes",
             "gesture", "costume", "scene", "body", "background", "face",

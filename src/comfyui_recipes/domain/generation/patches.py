@@ -9,8 +9,10 @@ from .models import RenderSpec
 
 TEXT_TARGETS = ("prompt.positive", "prompt.negative",
                 "prompt.hires.positive", "prompt.hires.negative")
-# `prompt.positive.<part>` targets one named part of `RenderSpec.positive_parts`
-# instead of the whole joined string -- same ops and fields as a text target.
+# `prompt.positive.<part>` targets one named part instead of the whole
+# joined string -- same ops and fields as a text target. `<part>` is either
+# a `RenderSpec.positive_parts` name, or a `RenderSpec.part_groups` legacy
+# name that resolves to one of its member components (see `_apply_group`).
 PART_TARGET_PREFIX = "prompt.positive."
 NUMBER_TARGETS = ("render.cfg", "render.steps", "render.width",
                   "render.height", "hires.denoise")
@@ -187,21 +189,44 @@ def _apply_text(text: str, patch: Patch) -> str:
     return _splice(text, patch.target, patch.old, "")
 
 
-def _apply_part(spec: RenderSpec, patch: Patch, part_name: str) -> RenderSpec:
-    if not spec.positive_parts:
-        raise ValueError(
-            f"patch {patch.target!r}: this recipe has no prompt parts")
-    names = [name for name, _ in spec.positive_parts]
-    if part_name not in names:
-        raise ValueError(
-            f"patch {patch.target!r}: unknown part, must be one of {names}")
+def _apply_component(spec: RenderSpec, patch: Patch, component_name: str) -> RenderSpec:
     parts = list(spec.positive_parts)
-    index = names.index(part_name)
+    names = [name for name, _ in parts]
+    index = names.index(component_name)
     name, text = parts[index]
     parts[index] = (name, _apply_text(text, patch))
     joined = "".join(text for _, text in parts)
     prompts = replace(spec.prompts, positive=joined)
     return replace(spec, positive_parts=tuple(parts), prompts=prompts)
+
+
+def _apply_group(spec: RenderSpec, patch: Patch, group_name: str,
+                 members: tuple[str, ...]) -> RenderSpec:
+    if patch.op in ("append", "prepend"):
+        target = members[-1] if patch.op == "append" else members[0]
+        return _apply_component(spec, patch, target)
+    by_name = dict(spec.positive_parts)
+    for member in members:
+        if patch.old in by_name.get(member, ""):
+            return _apply_component(spec, patch, member)
+    raise ValueError(
+        f"patch {patch.target!r}: target text not found within a single "
+        f"member of group {group_name!r} ({', '.join(members)}); it may be "
+        "split across them -- patch the member components directly")
+
+
+def _apply_part(spec: RenderSpec, patch: Patch, part_name: str) -> RenderSpec:
+    if not spec.positive_parts:
+        raise ValueError(
+            f"patch {patch.target!r}: this recipe has no prompt parts")
+    names = [name for name, _ in spec.positive_parts]
+    if part_name in spec.part_groups:
+        return _apply_group(spec, patch, part_name, spec.part_groups[part_name])
+    if part_name in names:
+        return _apply_component(spec, patch, part_name)
+    allowed = sorted(set(names) | set(spec.part_groups))
+    raise ValueError(
+        f"patch {patch.target!r}: unknown part, must be one of {allowed}")
 
 
 def _apply_one(spec: RenderSpec, patch: Patch) -> RenderSpec:

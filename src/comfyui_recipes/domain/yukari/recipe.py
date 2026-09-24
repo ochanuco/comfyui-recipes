@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from ..generation.models import HiresSpec, PromptPair, RenderSpec
 from ..generation.prompt_lint import tags as prompt_tags
+from .components import Component, Priority, Section, assemble, group_by_part
 from .costumes import (
     COSTUME_BAN,
     COSTUMES,
@@ -20,11 +21,13 @@ from .delivery_style import PAINT_BAN, ROUGH_BAN, ROUGH_STYLE
 from .expressions import EXPRESSIONS
 from .poses import POSES
 from .prompt_style import (
+    ARTIST_TAG,
     BACKGROUND,
     BODY,
     CFG,
-    CHARACTER,
+    CHARACTER_TAG,
     COLORED_LINE_BAN,
+    COUNT_TAG,
     DETAIL_BAN,
     DIGIT_BAN,
     DOT_BAN,
@@ -40,10 +43,11 @@ from .prompt_style import (
     MODEL,
     NEGATIVE_TAIL,
     PROPORTION_BAN,
-    QUALITY,
+    QUALITY_TAG,
     SAMPLER,
     SCHEDULER,
     SCORE_BAN,
+    SERIES_TAG,
     SHADE_BAN,
     SHEER_BAN,
     SHEER_TONE_BAN,
@@ -73,20 +77,47 @@ IDENTITY_TAG_NAMES = frozenset({
 })
 
 
-def positive_parts(pose: str, costume: str | None = None,
-                   expression: str | None = None,
-                   legwear: str | None = None) -> tuple[tuple[str, str], ...]:
+def _components(pose: str, costume: str | None = None,
+                expression: str | None = None,
+                legwear: str | None = None) -> tuple[Component, ...]:
     p = POSES[pose]
     e = EXPRESSIONS[expression if expression is not None else p.expression]
     c = costume if costume is not None else p.costume
     lw = legwear if legwear is not None else p.legwear_kind
-    costume_block = COSTUMES[c] + (legwear_block(c, lw) if p.legwear else "")
-    values = (QUALITY, CHARACTER + IDENTITY, p.action, e.mouth, p.mood,
-              e.eye_shape + e.eyes, p.gesture, costume_block, p.scene,
-              p.body if p.body is not None else BODY,
-              p.background if p.background is not None else BACKGROUND,
-              FACE, p.style if p.style is not None else STYLE)
-    return tuple(zip(PART_NAMES, values))
+    legwear_text = legwear_block(c, lw) if p.legwear else ""
+    G, M = Section.GENERAL, Priority.MAIN
+    declared = (
+        Component("quality", Section.QUALITY, M, QUALITY_TAG),
+        Component("count", Section.COUNT, M, COUNT_TAG),
+        Component("character", Section.CHARACTER, M, CHARACTER_TAG),
+        Component("series", Section.SERIES, M, SERIES_TAG),
+        Component("artist", Section.ARTIST, M, ARTIST_TAG),
+        Component("identity", G, M, IDENTITY),
+        Component("action", G, M, p.action),
+        Component("mouth", G, M, e.mouth),
+        Component("mood", G, M, p.mood),
+        Component("eye_base", G, M, e.eye_shape),
+        Component("eye_quality", G, M, e.eyes),
+        Component("gesture", G, M, p.gesture),
+        Component("costume", G, M, COSTUMES[c]),
+        Component("legwear", G, M, legwear_text),
+        Component("place", G, M, p.scene),
+        Component("framing_tags", G, M, p.framing_tags),
+        Component("leg_display", G, M, p.leg_display),
+        Component("body_build", G, M, p.body if p.body is not None else BODY),
+        Component("cutout", G, M,
+                  p.background if p.background is not None else BACKGROUND),
+        Component("face", G, M, FACE),
+        Component("style", G, M, p.style if p.style is not None else STYLE),
+    )
+    return assemble(declared)
+
+
+def positive_parts(pose: str, costume: str | None = None,
+                   expression: str | None = None,
+                   legwear: str | None = None) -> tuple[tuple[str, str], ...]:
+    components = _components(pose, costume, expression, legwear)
+    return group_by_part(components, PART_NAMES)
 
 
 def positive(pose: str, costume: str | None = None,

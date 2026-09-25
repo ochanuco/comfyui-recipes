@@ -34,7 +34,7 @@ from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 from comfyui_recipes.interfaces import cli
 
 FIXTURES = Path(__file__).parent / "fixtures"
-DANCE_FIXTURE = json.loads((FIXTURES / "dance-legwear-7ikakt.json").read_text())
+DANCE_FIXTURE = json.loads((FIXTURES / "dance-legwear-9g7tl0.json").read_text())
 LEGWEAR_SHEER_GLOSS_FINAL = json.loads(
     (FIXTURES / "legwear-sheer-gloss-final.json").read_text())
 
@@ -77,6 +77,7 @@ COFFEE_NEGATIVE = (
     "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
     "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
     "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
+    "(ribbed legwear:1.3), (vertical-striped legwear:1.3), "
 )
 
 AMAE_POSITIVE = (
@@ -141,6 +142,7 @@ STAND_NEGATIVE = (
     "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
     "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
     "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
+    "(ribbed legwear:1.3), (vertical-striped legwear:1.3), "
 )
 
 BUST_POSITIVE = (
@@ -221,6 +223,7 @@ GAO_NEGATIVE = (
     "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
     "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
     "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
+    "(ribbed legwear:1.3), (vertical-striped legwear:1.3), "
 )
 
 REDRAW_STAND_POSITIVE = (
@@ -267,6 +270,7 @@ REDRAW_STAND_NEGATIVE = (
     "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
     "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
     "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
+    "(ribbed legwear:1.3), (vertical-striped legwear:1.3), "
 )
 
 

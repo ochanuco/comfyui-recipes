@@ -36,7 +36,7 @@ LEGWEAR = {
 
 # The `sheer-gloss` legwear: one block for every costume. `recipe.negative`
 # pairs it with SHEER_BAN, drops GARMENT_GLOSS_TAGS, and appends
-# SHEER_GLOSS_SHINE_BAN at the end.
+# SHEER_GLOSS_BAN at the end.
 SHEER_GLOSS_LEGWEAR = (
     "(sheer black pantyhose:1.5), (dark violet tint:1.2), "
     "(see-through legwear:1.4), (thin translucent legwear:1.3), "

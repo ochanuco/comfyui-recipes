@@ -69,11 +69,13 @@ The variable part is three small record sets:
   and append `SHEER_BAN` (opaque legwear, latex, photo-realism, tanned or
   brown skin tones); `sheer` also appends `SHEER_TONE_BAN` (light purple,
   lavender and gradient legwear). `sheer-gloss` alone also appends
-  `SHEER_GLOSS_SHINE_BAN` (glossy, specular highlights, reflection) at the
-  very end of the negative, after `PROPORTION_BAN` -- banning the gloss
-  words the positive block's own `subtle sheen on legwear` tag would
-  otherwise fight. A pose with `legwear=False` ignores the parameter on
-  both sides.
+  `SHEER_GLOSS_BAN` (glossy, specular highlights, reflection, ribbed
+  legwear, vertical-striped legwear) at the very end of the negative,
+  after `PROPORTION_BAN` -- banning the gloss words the positive block's
+  own `subtle sheen on legwear` tag would otherwise fight, and the dark
+  stripes the render put on the legs without a ban on ribbed and
+  vertical-striped legwear. A pose with `legwear=False` ignores the
+  parameter on both sides.
 
   The request parameter `legwear_state` (`LegwearState`: `worn`, the
   default, `removing` or `off`) sits alongside `legwear` on the same

@@ -55,7 +55,7 @@ from .prompt_style import (
     SERIES_TAG,
     SHADE_BAN,
     SHEER_BAN,
-    SHEER_GLOSS_SHINE_BAN,
+    SHEER_GLOSS_BAN,
     SHEER_TONE_BAN,
     SHINE_BAN,
     STEPS,
@@ -186,7 +186,7 @@ def negative(pose: str, costume: str | None = None,
     # `sheer-gloss` only, tacked on after PROPORTION_BAN so it is the last
     # thing in the negative prompt.
     if lw == "sheer-gloss" and p.legwear and ls is not LegwearState.OFF:
-        result += SHEER_GLOSS_SHINE_BAN
+        result += SHEER_GLOSS_BAN
     return result
 
 

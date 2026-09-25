@@ -1,22 +1,14 @@
 #!/usr/bin/env python3
 """Redraw the legwear stripes as geometry: even bands, a line at every edge.
 
-Asking the model for even stripes does not work -- (evenly spaced stripes) and
-(uniform stripes) make it draw fewer and fainter stripes rather than better
-spaced ones, and on one render the pattern vanished into a solid colour. Band
-width is not something the prompt controls, only band presence.
+Band width is not something the prompt controls, only band presence, so the
+model draws the legwear and this draws the pattern: bands laid out
+perpendicular to each leg's own axis at a fixed period, each boundary given
+a drawn line.
 
-So the model draws the legwear and this draws the pattern. Bands are laid out
-perpendicular to each leg's own axis at a fixed period, which makes them even by
-construction, and each boundary gets a drawn line, which is what separates a
-striped garment from a colour gradient.
-
-The mask comes from a render that already has stripes, for the reason
-recolor_stripes.py explains: a light band lies between two dark ones and an edge
-does not. A plain white pair of tights has no such handle -- nothing in it tells
-white legwear from a white frill or a white sticker border -- and rendering a
-colour-keyed twin to difference against does not work either, because changing
-the colour word moves the composition.
+The mask requires a render that already has stripes -- for the reason
+recolor_stripes.py explains, a light band lies between two dark ones and an
+edge does not. A plain white pair of tights has no such handle.
 
     uv run scripts/stripe_paint.py in.png --out out.png \\
         --light "#F2DCC6" --dark "#B07BD8" --period 90
@@ -78,21 +70,18 @@ def legwear_mask(hsv: np.ndarray, args: argparse.Namespace) -> np.ndarray:
     )
     light = (sat < args.light_sat_max) & (val > args.light_val_min)
     both = (light & sandwiched(dark, args.radius)) | (dark & sandwiched(light, args.radius))
-    # Discard the strays first. Her hair is white with violet shadows and passes
-    # the sandwich test on a scatter of pixels; joining the bands up before
-    # throwing those away drags the head into the same region as the legs.
+    # Discard hair-scatter strays first -- joining bands up before dropping
+    # them would drag the head into the same region as the legs.
     both = drop_small(both, args.min_area)
-    # Now bridge band to band, by half a period each way -- enough to close the
-    # gap between two bands, not enough to reach the dress. No hole filling: the
-    # bands wrap around the figure, and filling the ring they make would take
-    # the whole torso with it.
+    # Bridge band to band by half a period each way: enough to close the gap
+    # between two bands, not enough to reach the dress. No hole filling --
+    # the bands wrap the figure, and filling that ring would take the torso too.
     reach = max(1, int(args.period // 2))
     solid = ndimage.binary_dilation(both, iterations=reach)
     solid = ndimage.binary_erosion(solid, iterations=reach)
     solid = drop_small(solid, args.min_area)
-    # A fixed area floor cannot separate a leg from the patch that survives up
-    # at the hood, because both are large. Relative size can: the legs are the
-    # subject of the pattern and everything else is an order of magnitude below.
+    # Relative, not fixed, size: a fixed floor can't separate a leg from a
+    # large stray elsewhere, but the legs are an order of magnitude bigger.
     labels, count = ndimage.label(solid)
     if count > 1:
         areas = np.bincount(labels.ravel())
@@ -122,9 +111,8 @@ def main() -> None:
     for label in range(1, count + 1):
         part = labels == label
         py, px = np.nonzero(part)
-        # The bands run across the leg, so they are level sets of the position
-        # along its long axis. Each leg gets its own, since they point different
-        # ways -- one shin can be vertical while the other lies flat.
+        # Bands are level sets of position along the leg's own long axis,
+        # computed per leg since they can point different ways.
         coords = np.stack([py - py.mean(), px - px.mean()])
         axis = np.linalg.eigh(np.cov(coords))[1][:, -1]
         along = (ys[part] - py.mean()) * axis[0] + (xs[part] - px.mean()) * axis[1]

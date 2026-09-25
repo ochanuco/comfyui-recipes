@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 """Where the ComfyUI server lives. Defaults local, overridable per shell.
 
-Every queue/post-processing script talks to a single ComfyUI instance. This
-module centralizes that address so `COMFYUI_HOST` / `COMFYUI_PORT` can point
-the whole toolchain at a remote box without touching each script -- CLI flags
-still win when a script also exposes `--host` / `--port`, since argparse
-defaults are read from here but explicit flags override them.
+Centralizes `COMFYUI_HOST` / `COMFYUI_PORT`; a script's own `--host` /
+`--port` flags read their default from here but still override it.
 """
 
 from __future__ import annotations
@@ -47,12 +44,7 @@ def ensure_local(
     host: str | None = None,
     port: int | None = None,
 ) -> Path:
-    """Path to the rendered image on this disk, pulling it over HTTP if needed.
-
-    Local runs already share the filesystem with ComfyUI, so this just points
-    at the file. Remote runs fetch it through /view into the same place, which
-    keeps every downstream script working on a plain local path.
-    """
+    """Path to the rendered image on this disk, pulling it over HTTP if needed."""
     output_dir = Path(output_dir)
     path = output_dir / subfolder / filename if subfolder else output_dir / filename
 
@@ -84,10 +76,8 @@ def stage_input(
 ) -> str:
     """Put an image where LoadImage can see it, and return the name to use.
 
-    Local runs only need the copy into ComfyUI's own input directory. Remote
-    runs also push it through /upload/image, since that directory lives on
-    the other machine. The returned string is what a LoadImage node's
-    `image` input expects -- "name" or "subfolder/name".
+    Returns what a LoadImage node's `image` input expects: "name" or
+    "subfolder/name".
     """
     src = Path(src)
     input_dir = Path(input_dir)
@@ -95,8 +85,7 @@ def stage_input(
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / src.name
 
-    # Skip the copy when src already is the staged file -- shutil.copyfile
-    # would otherwise raise SameFileError.
+    # shutil.copyfile raises SameFileError if src is already the staged file.
     if not (dest.exists() and os.path.samefile(src, dest)):
         shutil.copyfile(src, dest)
 
@@ -110,7 +99,6 @@ def stage_input(
             f"{MAX_UPLOAD_BYTES}-byte limit"
         )
 
-    # A boundary that cannot appear inside the file's own bytes.
     boundary = uuid.uuid4().hex
     while boundary.encode() in data:
         boundary = uuid.uuid4().hex

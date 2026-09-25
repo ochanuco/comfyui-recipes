@@ -1,19 +1,12 @@
 #!/usr/bin/env python3
 """Draw the line last: extract lineart from a finished render and multiply it back on.
 
-This is the "最後に線を引く" control. Nothing is re-diffused -- the colour image is
-final and the line is a compositing step, so its strength is a continuous dial
-(blend_factor) instead of a tag weight that the sampler may or may not honour.
+Nothing is re-diffused: the colour image is final and line strength is a
+continuous blend dial, not a tag weight.
 
-The point of running it before building anything with ControlNet is to settle how
-much line is actually wanted. A target strength found here can then be reproduced
-by whichever mechanism is cheapest; picking the mechanism first would mean
-building it twice.
-
-The aux preprocessors emit white lines on black for ControlNet consumption, so
-the extract is inverted before it can be multiplied over the colour. The raw
-extract is saved too -- it is what a ControlNet pass would be conditioned on, so
-it is worth looking at on its own.
+The aux preprocessors emit white lines on black for ControlNet consumption,
+so the extract is inverted before being multiplied over the colour. The raw
+extract is saved too -- it's what a ControlNet pass would be conditioned on.
 """
 
 from __future__ import annotations
@@ -74,11 +67,7 @@ def main() -> None:
     parser.add_argument("--factor", action="append", type=float, default=[])
     parser.add_argument("--width", type=int, default=1024)
     parser.add_argument("--height", type=int, default=1280)
-    # The anime extractor found only the silhouette on a flat-coloured render: it
-    # is a learned model for pulling drawn lines out of drawn art, and a grey
-    # shadow boundary is not one. LineartStandard is XDoG-ish and fires on the
-    # luminance step itself, so its sensitivity is the dial that matters here --
-    # a small sigma keeps thin detail, a low threshold lets weak edges through.
+    # A small sigma keeps thin detail; a low threshold lets weak edges through.
     parser.add_argument("--sigma", type=float, help="LineartStandard guassian_sigma")
     parser.add_argument("--threshold", type=int, help="LineartStandard intensity_threshold")
     # Extraction at 1024 on a 1280-tall source already loses the thinnest strands.
@@ -104,10 +93,8 @@ def main() -> None:
         )
         if not src.exists():
             raise SystemExit(f"no such render: {src}")
-        # stage_input keeps the source basename; this pipeline renames on the
-        # way in so a human browsing the flat input dir can tell which script
-        # staged the file, so rename locally first and hand stage_input that
-        # copy.
+        # Renamed locally first so stage_input (which keeps the basename)
+        # stages it under the lx-src- name, not the render's own.
         renamed = INPUT_DIR / f"lx-src-{source}.png"
         shutil.copyfile(src, renamed)
         filename = stage_input(renamed, INPUT_DIR, host=args.host, port=args.port)

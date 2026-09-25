@@ -4,7 +4,7 @@
 `prone` needs tights under knee-highs and the model will not draw both. It
 will draw the socks, and it draws the thigh above them as bare skin --
 correctly shaped, correctly shaded, wrong garment.
-That is the case render-notes already settled once, on a thigh that came out
+That is the case the render-notes archive already settled once, on a thigh that came out
 warm-taupe: **recolour a wrong-coloured but well-shaped mass before re-rolling
 it.** This is that operation, as a tool.
 

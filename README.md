@@ -25,13 +25,14 @@ uv run comfy-recipes work                # on the GPU box: serve chimera's queue
 
 ## Finding your way
 
-There is no list of scripts here, and no table of contents for the notes. Both
-are things that have to be maintained, and both are wrong the week after they
-are written. The repository describes itself instead:
+There is no list of scripts here; the repository describes itself instead.
+[`docs/README.md`](docs/README.md) is the one hand-kept index, and a test fails
+when it misses a doc:
 
 ```bash
 uv run scripts/atlas.py             # every script: its role, its size, its own first line
-uv run scripts/atlas.py notes       # docs/render-notes.md by heading, with line numbers
+uv run scripts/atlas.py docs        # every doc with its size
+uv run scripts/atlas.py notes       # findings and archive by heading, with line numbers
 ```
 
 `config/`, `docs/`, `manifests/`, `scripts/` and `workflows/` are tracked;
@@ -41,9 +42,10 @@ uv run scripts/atlas.py notes       # docs/render-notes.md by heading, with line
 record rather than as tools.
 
 [`docs/`](docs/) holds the operating notes — queueing, remote and local install,
-configuration, model provenance. [`docs/render-notes.md`](docs/render-notes.md)
-is the measurements, per character, including the ones that turned out to be
-wrong. It is the point of the repository; the scripts are how it was produced.
+configuration, model provenance. [`docs/findings/`](docs/findings/) is what the
+measurements concluded, one topic per file; `experiments/` is the measurements
+themselves, and `docs/archive/` the original log they were distilled from. They
+are the point of the repository; the scripts are how they were produced.
 
 ## What it runs on
 
@@ -106,7 +108,7 @@ stopped instead of creating duplicates.
 ## What this is, and what it is not
 
 This is personal tooling, published because the measurements in
-[`docs/render-notes.md`](docs/render-notes.md) are worth more written down than
+[`docs/findings/`](docs/findings/) are worth more written down than
 kept — a record of what was tried, what worked, and the several occasions where
 the first conclusion turned out to be wrong. The recipe is tuned to a specific
 Illustrious-family checkpoint and Yuzuki Yukari. It is installable only to

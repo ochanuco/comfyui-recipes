@@ -16,7 +16,7 @@ Two families:
   lived in the `queue_dq3.py` pipeline. Superseded by `scripts/yukari_recipe.py`,
   which is where the settled answers ended up.
 - `style_sweep2.py` … `style_sweep6.py` — the Hamakaze art-style sweeps, one
-  variable per file, in order. `docs/render-notes.md` carries what each found.
+  variable per file, in order. `docs/archive/render-notes/1-early.md` carries what each found.
 
 They import from `scripts/`, so run them from the repo root with that on the
 path:

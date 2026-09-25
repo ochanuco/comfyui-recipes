@@ -324,13 +324,11 @@ def figure_rim(figure: np.ndarray, band: int) -> np.ndarray:
 def despill(pixels: np.ndarray, region: np.ndarray, key: np.ndarray) -> np.ndarray:
     """Remove the key colour's own chroma from every `region` pixel.
 
-    A no-op unless `key` is a chromatic key: its dominant channel has to
+    A no-op unless `key` is a chromatic key: its dominant channel must
     clear the larger of the other two by `delivery_style.KEY_DESPILL_MIN_EXCESS`.
-    Where it does, each region pixel's chroma (its departure from its own
-    grey) is projected onto the key's chroma direction and the positive part
-    subtracted, so a teal key leaves neither green nor cyan behind; a single
-    channel cap only strips the dominant channel and leaves the rest of the
-    key's tint in place.
+    Each region pixel's chroma is projected onto the key's chroma direction
+    and the positive part subtracted, so e.g. a teal key leaves neither
+    green nor cyan behind.
     """
     if _key_excess(key) < delivery_style.KEY_DESPILL_MIN_EXCESS:
         return pixels
@@ -346,13 +344,9 @@ def stroke_alpha(mask: np.ndarray, gap: float, width: float,
                  edge_smooth: float) -> np.ndarray:
     """Coverage of the band, gap..gap+width pixels out into the backdrop.
 
-    `distance_transform_edt` on the backdrop gives each backdrop pixel its
-    distance to the nearest figure pixel, so the first ring out is 1. The
-    ramps read that distance blurred by `edge_smooth`, not the raw one: a
-    ramp follows the shape of the boundary it measures from, so a jagged
-    `mask` needs the field rounded before it is ramped, not just softened.
-    Both edges are ramped over one pixel; the inner ramp does nothing at gap
-    0 and keeps the stroke from stepping when it is pushed away from the
+    Distance is blurred by `edge_smooth` before ramping, so a jagged `mask`
+    does not produce a jagged band. The inner ramp does nothing at gap 0
+    and keeps the stroke from stepping when it is pushed away from the
     figure.
     """
     distance = ndimage.distance_transform_edt(mask)
@@ -369,12 +363,11 @@ def directional_stroke_alpha(mask: np.ndarray, gap: float, w_min: float,
                              smooth: float, edge_smooth: float) -> np.ndarray:
     """Coverage of a purple band whose width follows the outline's own normal.
 
-    Thin where the outward normal faces `light` (image coordinates, x right,
-    y down), thick on the opposite side. The normal is read from the
-    gradient of a Gaussian-blurred distance field rather than the raw one, so
-    a hair strand or a notch does not flip the width pixel to pixel. The edge
-    ramps take a separate, much smaller `edge_smooth` blur: `smooth` is sized
-    to ignore real shape, which is exactly what an edge must follow.
+    Thin where the outward normal faces `light` (image coords, x right, y
+    down), thick on the opposite side. The normal comes from a
+    Gaussian-blurred distance field so a hair strand or notch does not flip
+    the width pixel to pixel; the edge itself ramps on a separate, smaller
+    `edge_smooth` blur.
     """
     distance = ndimage.distance_transform_edt(mask)
     field = ndimage.gaussian_filter(distance, smooth)
@@ -396,14 +389,11 @@ def directional_stroke_alpha(mask: np.ndarray, gap: float, w_min: float,
 
 def _polygon_coverage(region: np.ndarray, eps_pct: float,
                       supersample: int = 2) -> np.ndarray:
-    """Coverage of `region`'s outer shape, polygon-simplified.
+    """Coverage of `region`'s outer shape, polygon-simplified -- the
+    shape-simplifying counterpart to `STROKE_EDGE_SMOOTH`'s ramp blur.
 
-    Supersamples `supersample`x, straightens each contour with
-    `cv2.approxPolyDP` at `eps_pct` percent of the longest side, fills the
-    outer contours and clears the holes, then area-downsamples back to 1x --
-    the shape-simplifying counterpart to `STROKE_EDGE_SMOOTH`'s ramp blur.
     Holes (background the shape encloses, e.g. between an arm and the body)
-    survive because only contours with a parent in the hierarchy are cleared.
+    survive: only contours with a parent in the hierarchy are cleared.
     """
     height, width = region.shape
     scaled = cv2.resize(region.astype(np.uint8) * 255,
@@ -464,16 +454,10 @@ def band_alphas(figure: np.ndarray, light: str | None = None,
 
     `eps_pct` (default `delivery_style.STROKE_CUT_EPS_PCT`) is the
     Douglas-Peucker epsilon, as a percent of the longest side, each band's
-    outer outline is simplified to -- straight, angular segments instead of
-    the smooth ramp, for a hand-cut rather than die-cut edge. At
-    `eps_pct <= 0` this is exactly the old smooth geometry: the 2x
-    `Image.NEAREST` upscale adds no information -- the boundary is the
-    source pixel grid's staircase, just bigger -- so the bands are ramped
-    from a distance field blurred by `delivery_style.STROKE_EDGE_SMOOTH` and
-    averaged back down, rounding that staircase off instead of merely
-    softening it. `light`, one of `delivery_style.STROKE_LIGHTS`' keys,
-    shades the purple band's width by direction instead of drawing it at the
-    uniform width; the white band is never shaded.
+    outer outline is simplified to, for a hand-cut rather than die-cut edge;
+    0 reproduces the old smooth-ramp geometry. `light`, one of
+    `delivery_style.STROKE_LIGHTS`' keys, shades the purple band's width by
+    direction instead of a uniform width; the white band is never shaded.
     """
     height, width = figure.shape
     white_w, purple_w = _band_widths(height, width)
@@ -576,14 +560,10 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
                      backdrop: str | None = None) -> tuple[bytes, str]:
     """Frame the figure the matte cuts out, in the delivery's own colours.
 
-    The matte is the authority on the silhouette. Colour cannot be: repin
-    moves the figure's own colours, and the pale hair lands inside the
-    backdrop's tolerance once it has. The refined matte is clamped to the
-    soft matte's support (`soft_clamped`) and loses the cast shadow the
-    model kept (`shadow_cut`). The matte's own edge band gets a
-    soft, colour-distance coverage instead of a binary one, its figure
-    pixels un-premultiplied against the local backdrop; a chromatic raw
-    backdrop (a green screen) also gets despilled from the figure's rim.
+    The matte is the authority on the silhouette, not colour: repin moves
+    the figure's own colours, and pale hair lands inside the backdrop's
+    tolerance once it has. A chromatic raw backdrop (a green screen) is
+    despilled from the figure's rim.
     """
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
     soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
@@ -618,12 +598,9 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 
-# Below this alpha, the band-less compose drops a pixel outright: a
-# layerdiffuse raw's own low-alpha haze skirt reads near-white for tens of
-# pixels past the figure, and composited at its raw alpha/255 it bakes in as
-# a pale glow the redraw then treats as picture. Above HAZE_ALPHA_CEIL a
-# pixel keeps its own coverage unchanged; between the two it ramps linearly,
-# so a real antialiased edge is thinned rather than cut.
+# Below FLOOR the band-less compose drops a pixel outright (a layerdiffuse
+# haze skirt reads near-white past the figure and would bake in as a pale
+# glow); above CEIL coverage is unchanged; between, it ramps linearly.
 HAZE_ALPHA_FLOOR = 32
 HAZE_ALPHA_CEIL = 64
 
@@ -640,15 +617,11 @@ def compose(data: bytes, backdrop: str | None = None,
     """Composite an RGBA figure onto a flat backdrop, unrefined.
 
     The alpha is a layerdiffuse render's own -- islands and holes are left
-    as drawn, unlike `clean_background`'s birefnet matte, which `refine_matte`
-    retraces because the model loses strands `refine_matte` was written to
-    put back. `bands=False` skips the white/purple ring and plain
-    alpha-composites the figure onto the backdrop instead: the redraw that
-    follows moves the silhouette, so the transparent finalize path draws its
-    own band afterward, from the redrawn pixels' own matte. That path leaves
-    `backdrop` unset -- `delivery_style.BACKDROP` is the only flat colour this
-    module already owns, so the band-less compose reads it too rather than
-    adding a second one.
+    as drawn, unlike `clean_background`'s retraced matte. `bands=False`
+    skips the white/purple ring and plain alpha-composites onto the
+    backdrop instead, for the transparent finalize path, which draws its
+    own band later from the redrawn pixels' own matte and leaves
+    `backdrop` unset (so this reads `delivery_style.BACKDROP` instead).
     """
     rgba = Image.open(io.BytesIO(data)).convert("RGBA")
     px = np.array(rgba)[..., :3].astype(float)
@@ -692,13 +665,10 @@ def transparent(data: bytes, matte: bytes,
                 light: str | None = None) -> tuple[bytes, str]:
     """Cut the figure out and frame it with the sticker bands on alpha 0.
 
-    The refined matte, clamped to the soft matte's support and without the
-    cast shadow, is the authority on the silhouette, same as
-    `clean_background`. It gets a sub-pixel ramp
-    of its own so the strands it retraced keep their coverage, and the soft
-    matte only adds coverage inside the 1-px ring around it. The white and
-    purple bands are the same as `clean_background`'s; outside them the
-    alpha is 0 instead of the backdrop.
+    Same silhouette authority as `clean_background`. The figure gets a
+    sub-pixel ramp so retraced strands keep partial coverage, and the soft
+    matte only adds coverage inside a 1-px ring around it. Outside the
+    white/purple bands, alpha is 0 instead of the backdrop colour.
     """
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(np.uint8)
     soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
@@ -742,20 +712,16 @@ def cut_backdrop(data: bytes, outside_mask: bytes,
                  backdrop: str | None = None) -> tuple[bytes, bytes, str]:
     """Turn a redrawn picture's flat backdrop into transparency.
 
-    A compose-then-redraw bakes the white band and purple rim into the
-    picture before the redraw runs, so nothing downstream cuts a silhouette
-    from a matte model -- the backdrop itself is the only thing left to cut,
-    by colour, against `backdrops.render`'s own flat fill. Colour alone
-    cannot bound that cut: the redraw retints and textures the flat fill, so
-    the tolerance against it (`delivery_style.CUT_BACKDROP_TOLERANCE`) is
-    generous, and the figure's own light passages (pale hair, a pale prop)
-    sit inside it too. `outside_mask` -- `compose_outside_mask`'s own output,
-    at the compose's own scale -- bounds the colour test instead: resized to
-    this picture and dilated by `delivery_style.CUT_BACKDROP_MARGIN` (a
-    share of the white band's own width, absorbing the redraw's edge drift),
-    a pixel outside it is kept whatever colour the redraw gave it. A pattern
-    backdrop has no single colour to tolerance against. The kept edge is
-    softened by one pixel so the rim's outer boundary is not aliased.
+    The backdrop is the only thing left to cut, by colour, against
+    `backdrops.render`'s flat fill -- but colour alone cannot bound the
+    cut: the redraw retints the fill, and the figure's own light passages
+    (pale hair, a pale prop) sit inside the tolerance too. `outside_mask`
+    (from `compose_outside_mask`, dilated by
+    `delivery_style.CUT_BACKDROP_MARGIN`) bounds the colour test instead:
+    a pixel outside it is kept whatever colour the redraw gave it.
+    Requires a flat backdrop -- a pattern has no single colour to
+    tolerance against. The kept edge is softened by one pixel to avoid
+    aliasing.
     """
     if backdrop in backdrops.PATTERNS:
         raise ValueError(

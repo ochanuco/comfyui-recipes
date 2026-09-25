@@ -1,10 +1,4 @@
-"""Prompt edits for the repair redraw.
-
-The masked redraw only ever touches hands/feet, so tags that steer the face,
-hair or framing are dead weight at best and a fight against the unmasked
-region at worst; they are dropped and replaced with tags for the parts
-actually being redrawn.
-"""
+"""Prompt edits for the repair redraw."""
 
 from __future__ import annotations
 
@@ -45,12 +39,8 @@ def repair_prompt(positive: str, parts: Sequence[str]) -> str:
 
 
 def masked_redraw_prompt(positive: str, prompt_patch: str) -> str:
-    """`positive` with face/hair/framing tags dropped and `prompt_patch` appended.
-
-    An arbitrary region can land anywhere, so a tag with nothing left to
-    describe inside the mask (e.g. a hair ornament) is still fair game for
-    the sampler to draw there uninvited -- same drop as `repair_prompt`.
-    """
+    """`positive` with face/hair/framing tags dropped (same as
+    `repair_prompt`) and `prompt_patch` appended."""
     tags = [tag.strip() for tag in positive.split(",")]
     bare_tags = [_bare_tag(tag) for tag in tags]
     kept = [tag for tag, bare in zip(tags, bare_tags)

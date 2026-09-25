@@ -60,9 +60,8 @@ class FinalizeServices:
     pose_graph: Callable[..., dict] = pose_graph
     splice_repair: Callable[..., dict] = splice_repair
     image_size: Callable[[bytes], tuple[int, int]] = image_size
-    # deliver_only + repair/repair_regions routes through the repair use
-    # case instead of the redraw's own splice -- same masked reroll, and the
-    # same batch/job/generation recording repair() already does.
+    # deliver_only + repair routes through the repair use case, not the
+    # redraw's own splice.
     repair_use_case: Callable[..., dict] = repair_use_case
     state: JsonRunState = field(default_factory=JsonRunState)
 
@@ -156,9 +155,8 @@ def _load_source(generation_id: str, services: FinalizeServices,
     if any(node.get("class_type") == "LayeredDiffusionApply"
            for node in base.values()):
         raise SystemExit("LayerDiffuse 由来の絵は finalize できません")
-    # A UNETLoader in the base graph marks an anima render -- the only
-    # source finalize redraws; every other source can still be delivered
-    # with deliver_only.
+    # A UNETLoader in the base graph marks an anima render, the only
+    # source finalize redraws; others require deliver_only.
     is_anima = any(node.get("class_type") == "UNETLoader"
                    for node in base.values())
     return _Source(context=context, picked=picked, batch=source_batch,
@@ -223,9 +221,8 @@ def _resolve_plan(source: _Source, generation_id: str, *,
     if keep_scene:
         transparent = False
     if source.roles.stitched:
-        # A stitched base's sampler latent is the inpaint crop, not the whole
-        # picture -- the pixel route is the only correct one, so a caller's
-        # explicit opt-in does not survive here.
+        # A stitched base's sampler latent is the inpaint crop, not the
+        # whole picture, so only the pixel route is correct.
         latent_route = False
     seed = source.graph[source.roles.sampler_id]["inputs"]["seed"]
     prefix = f"fin-{generation_id}"
@@ -240,8 +237,7 @@ def _resolve_plan(source: _Source, generation_id: str, *,
         sampling = (delivery_style.FINALIZE_STEPS,
                     delivery_style.FINALIZE_CFG)
     else:
-        # Unused: deliver_only (the only way a non-anima source reaches this
-        # point) skips the redraw before any of these are read.
+        # deliver_only skips the redraw before these are read.
         prompt = None
         sampler = None
         loader = finalizer
@@ -274,10 +270,8 @@ def _resolve_plan(source: _Source, generation_id: str, *,
 def _deliver_with_repair(generation_id: str, services: FinalizeServices,
                          source: _Source, plan: _Plan,
                          key_prefix: str | None) -> dict:
-    # deliver_only skips the redraw entirely, so there is no whole-canvas
-    # sampler for `splice_repair` to splice into -- route through the
-    # repair use case instead, once per seed, with a delivery spec so it
-    # hangs the same deliver-only tail off each seed's own stitched crop.
+    # deliver_only has no whole-canvas sampler for splice_repair to splice
+    # into, so this routes through repair() once per seed instead.
     seeds_count = plan.repair_seeds if plan.repair_seeds is not None else 4
     if not (1 <= seeds_count <= 8):
         raise SystemExit("repair_seeds must be between 1 and 8")
@@ -306,9 +300,8 @@ def _deliver_with_repair(generation_id: str, services: FinalizeServices,
 
 def _stage_inputs(services: FinalizeServices, source: _Source, plan: _Plan,
                   prefix: str) -> _Staged:
-    # One staged name per run, shared by skin and repair: a second upload of
-    # the same picked bytes buys nothing, and ComfyUI would report a cached
-    # node's pose text for nothing if the pose pass reused a stale name.
+    # One staged name per run, shared by skin and repair, so the pose pass
+    # never reuses a stale cached name.
     staged_prefix = (f"{prefix}-{uuid.uuid4().hex[:8]}"
                      if plan.repair_requested or source.is_repaired_raw else None)
     source_image = None

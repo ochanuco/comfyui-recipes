@@ -1,19 +1,12 @@
 #!/usr/bin/env python3
 """Hold the delivery identity to a contract.
 
-The delivery identity -- backdrop, purple stroke, acceptance band -- in
-`domain/yukari/delivery_style.py` is worn by every delivered picture.
-Editing it changes every render this repo has ever approved, so this
-fingerprints it from an explicit canonical payload (not from the module
-source, so a comment edit does not move it and a value edit always does)
-and fails on any change that was not told to `--accept`.
+Fingerprints `domain/yukari/delivery_style.py` from an explicit payload (a
+value edit moves the hash, a comment edit doesn't) and fails unless the
+change was told to --accept.
 
     uv run scripts/delivery_check.py            # check the fingerprint
     uv run scripts/delivery_check.py --accept   # record a change that is meant
-
-When it fails, nothing is broken -- something was changed. Re-run with
---accept to record the new fingerprint into assets/delivery-fingerprint.json,
-and write in docs/render-notes.md what the look is now.
 
 Exit status is 1 if anything fails, so this can gate a commit.
 """
@@ -30,8 +23,7 @@ from comfyui_recipes.domain.yukari import delivery_style as d
 
 BASELINE = Path(__file__).resolve().parent.parent / "assets/delivery-fingerprint.json"
 
-# Bumped whenever a field is added to or removed from the payload below --
-# a schema change moves the hash even if no tracked value did.
+# Bump when a field is added/removed below -- a schema change must move the hash too.
 FINGERPRINT_SCHEMA = 4
 
 
@@ -78,7 +70,7 @@ def main() -> None:
             json.dumps({"delivery_fingerprint": got}, indent=1) + "\n",
             encoding="utf-8")
         print(f"delivery {got}   -> assets/delivery-fingerprint.json")
-        print("write in docs/render-notes.md what the look is now")
+        print("write in docs/findings/delivery.md what the look is now")
         return
 
     accepted = accepted_fingerprint()

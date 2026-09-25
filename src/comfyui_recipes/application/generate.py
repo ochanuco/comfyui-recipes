@@ -1,8 +1,4 @@
-"""Generate-and-record use case.
-
-The application layer owns the workflow and depends on small adapter
-interfaces.  HTTP, files, credentials and graph node details stay outside it.
-"""
+"""Generate-and-record use case."""
 
 from __future__ import annotations
 
@@ -22,8 +18,7 @@ from ..domain.yukari.dials import DIALS
 PresetFetcher = Callable[[str, str, str, int], dict]
 
 # `generation.recipe` -> its `dials.patches` vocabulary (target -> word ->
-# number). application/request_options.py's _RECIPE_DIALS is the same, keyed
-# the same way, for its own finalize/repair scopes.
+# number). Mirrored by request_options.py's _RECIPE_DIALS for finalize/repair.
 PATCH_DIALS: dict[str, Mapping[str, Mapping[str, float]]] = {
     "yukari": DIALS.get("patches", {}),
 }
@@ -89,9 +84,8 @@ class GenerateServices:
     measure: Callable[[bytes], dict] | None = None
     presets: PresetFetcher | None = None
     pose_fingerprint: Callable[[str, str], str | None] | None = None
-    # (recipe, pose, costume) -> the recipe's identity tags for that pose,
-    # bare (weight/parens stripped). None from this callable, or the field
-    # itself left unset, skips the identity guard -- see `_identity_removed`.
+    # (recipe, pose, costume) -> identity tags, bare (weight/parens
+    # stripped). None, or the field left unset, skips the identity guard.
     identity_tags: Callable[[str, str, str | None], frozenset[str] | None] | None = None
 
 
@@ -270,9 +264,8 @@ def request_graph(generation: dict, seed: int, prefix: str,
                   encode: Callable) -> dict:
     """Build a job graph while preserving explicit graphs verbatim.
 
-    Seed inputs and SaveImage prefixes are job properties, so those are the
-    only fields rewritten in explicit graph mode. Recipe mode instead builds
-    a RenderSpec, applies request-level diffs to it, and only then encodes.
+    Explicit graph mode only rewrites seed and SaveImage prefix; recipe mode
+    builds a RenderSpec, applies diffs, then encodes.
     """
     if generation.get("graph"):
         graph = json.loads(json.dumps(generation["graph"]))
@@ -284,7 +277,6 @@ def request_graph(generation: dict, seed: int, prefix: str,
                 inputs["filename_prefix"] = prefix
         return graph
     params = generation.get("parameters", {})
-    # Optional parameters reach the recipe only when the request sets them.
     kwargs = {key: params[key] for key in
              ("hires", "denoise", "costume", "expression", "legwear",
               "legwear_state")
@@ -303,10 +295,8 @@ def request_graph(generation: dict, seed: int, prefix: str,
 def request_generation(req: Mapping) -> dict:
     """Resolve the generation view graph_builder sees, experiment override included.
 
-    experiment.overrides.patches is a second entrance to the same patch
-    mechanism as generation.patches -- chimera's ExperimentRun is the source
-    of truth for the override, and validate_request guarantees the two are
-    never both set.
+    experiment.overrides.patches and generation.patches are mutually
+    exclusive; validate_request enforces it.
     """
     generation = dict(req["generation"])
     experiment = req.get("experiment")
@@ -320,8 +310,7 @@ def request_generation(req: Mapping) -> dict:
 def apply_presets(generation: dict, fetch: PresetFetcher) -> dict:
     """Resolve generation.presets into parameters.pose and leading patches.
 
-    A preset is the base a request builds on, so its patches apply before
-    the request's own generation.patches -- the alpha layered on top.
+    Preset patches apply before the request's own generation.patches.
     """
     presets = generation.get("presets")
     if not presets:
@@ -354,8 +343,8 @@ def apply_presets(generation: dict, fetch: PresetFetcher) -> dict:
 def graph_prompts(graph: dict) -> tuple[str | None, str | None]:
     """Read the prompt pair a graph actually carries, following the sampler.
 
-    A hires graph has more than one CLIPTextEncode pair, so the text is taken
-    from whatever the first sampler is wired to rather than from fixed ids.
+    A hires graph has more than one CLIPTextEncode pair, so text is read
+    from whatever the first sampler is wired to, not fixed node ids.
     """
     samplers = sorted(
         (key for key, node in graph.items()
@@ -381,12 +370,11 @@ def batch_payload(req: dict, git: dict, idempotency_key: str,
                   patches: list | None = None,
                   pose_fingerprint: str | None = None,
                   identity_removed: list | None = None) -> dict:
-    # A preset resolves recipe_pose after validation, so a Batch built from
-    # req's raw generation would misreport what actually rendered.
+    # A preset resolves recipe_pose after validation; req's raw generation
+    # would misreport what actually rendered.
     generation = req["generation"] if generation is None else generation
-    # Only what this request itself contributed: the pinned preset's own
-    # patches are recorded as the pin, and counting them here would apply
-    # them twice on anything promoted or derived from this Batch.
+    # Preset patches are recorded as the pin; counting them here would
+    # apply them twice on anything derived from this Batch.
     patches = generation.get("patches") if patches is None else patches
     payload = {
         "idempotency_key": idempotency_key,
@@ -404,10 +392,8 @@ def batch_payload(req: dict, git: dict, idempotency_key: str,
         payload["patches"] = patches
     if pose_fingerprint is not None:
         payload["pose_fingerprint"] = pose_fingerprint
-    # Only when the override actually excused a removal -- a caller that sets
-    # identity_override defensively on a request that dropped nothing did not
-    # invoke it, and stamping it here without a paired identity_removed would
-    # misreport why the Batch carries it.
+    # Only stamp identity_override when it actually excused a removal, not
+    # whenever a caller sets it defensively.
     if identity_removed:
         payload["identity_override"] = generation["identity_override"]
         payload["identity_removed"] = identity_removed
@@ -512,10 +498,8 @@ def _check_identity(generation: dict, services: GenerateServices) -> list[str]:
     """Fail before rendering if a patch or a prompt override dropped an
     identity tag and `generation.identity_override` does not excuse it.
 
-    Compares bare tags (weight syntax and parentheses stripped) of the
-    recipe's own identity_tags() for the request's pose/costume -- the
-    unpatched recipe prompt -- against the final positive, after presets,
-    `generation.prompt` and every patch have been applied.
+    Compares bare tags (weight/parens stripped) of the unpatched recipe
+    prompt against the final positive, after presets and patches apply.
     """
     if services.identity_tags is None or generation.get("graph"):
         return []
@@ -641,8 +625,8 @@ def generate(request_path: Path, services: GenerateServices, *,
     short = batch.get("short_id", batch["id"][:8])
     services.emit(f"batch {batch['id']} ({short})")
     if req.get("experiment"):
-        # Only batch_id: the Run's representative generation is a human/agent
-        # pick made after reviewing the batch, so the CLI must not guess it.
+        # Only batch_id: the representative generation is a human/agent pick
+        # made after reviewing the batch, not the CLI's to guess.
         services.management.request(
             "PATCH", f"/api/v1/experiment-runs/{req['experiment']['run_id']}",
             {"batch_id": state["batch_id"]})

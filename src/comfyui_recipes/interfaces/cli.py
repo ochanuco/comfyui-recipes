@@ -47,8 +47,7 @@ from .agent import (
 
 def _number_or_word(raw: str) -> float | str:
     """argparse type= for a dial-eligible flag: a recipe word passes through
-    as a string for `_resolve_word_args` to resolve once the generation's
-    recipe is known.
+    as a string for `_resolve_word_args` to resolve.
     """
     try:
         return float(raw)
@@ -61,9 +60,8 @@ def _resolve_word_args(chimera: ChimeraClient, generation_id: str, scope: str,
     """Resolve any word (string) values in `values` against the source
     generation's recipe dials for `scope`; numbers and `None` pass through.
 
-    Returns the `context`/`batch` `fetch_source` fetched (or `(None, None)`
-    if no word was given, so the numeric-only path stays fetch-free) so the
-    caller can pass them into finalize()/repair() and avoid re-fetching.
+    Returns the `context`/`batch` `fetch_source` fetched, or `(None, None)`
+    if no word was given, so the caller can reuse them without re-fetching.
     """
     if not any(isinstance(value, str) for value in values.values()):
         return None, None, values
@@ -282,11 +280,8 @@ def parser() -> argparse.ArgumentParser:
         "--prompt-patch", required=True,
         help="text appended to the source's own positive prompt after the "
              "face/hair/framing drop")
-    # A queued masked_redraw row's own `denoise` resolves a dial word the
-    # same as repair's (see dials_scope(recipe, "repair") in
-    # request_options.py); the CLI flag stays numeric-only here since
-    # masked_redraw is not one of the named-dial commands this branch's CLI
-    # support covers.
+    # Server-side denoise resolves dial words via dials_scope(recipe,
+    # "repair"); this CLI flag stays numeric-only.
     masked_redraw_parser.add_argument("--denoise", type=float, default=0.45)
     masked_redraw_parser.add_argument(
         "--mask-padding", type=int, default=0, metavar="PIXELS",

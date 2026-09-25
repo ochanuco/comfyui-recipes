@@ -3,387 +3,53 @@
 > Yuzuki Yukari belongs to her original creators and rights holders -- see
 > [Derivative work](../../README.md#derivative-work) in the README.
 
-The Yukari recipe that draws, built for the Anima Turbo checkpoint,
-`anima-turbo-v1.1.safetensors` (circlestone-labs/Anima on Hugging Face)
-(`src/comfyui_recipes/domain/yukari/`).
+The one live recipe, drawn on Anima Turbo (`anima-turbo-v1.1.safetensors`).
+The code is the description. This page maps where things are; the reasons
+behind the values are in [`docs/findings/`](../findings/).
 
-## Fixed vs. variable
-
-`prompt_style.py` holds the blocks every pose wears: `QUALITY`,
-`CHARACTER` (the series tags plus two weighted artist tags --
-`(@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5)`; on Anima Turbo a weight
-below `1.0` still registers, `0.85` on `oshiki hitoshi` keeps the thick
-black line, and `0.5` on `yoshikawa hideaki` keeps the face from
-elongating and the eyes from shrinking while still suppressing the
-handwritten text `oshiki hitoshi` brings alone), `IDENTITY`, `BODY`,
-`BACKGROUND` (`simple background, (green background:1.3)` -- every pose
-draws on the green screen, the key colour `clean_background` despills; the
-earlier grey default sat too close to the paper-white skin for the matte
-edge), `FACE`, `STYLE` (positive:
-`flat color`, `sketch` and `traditional media` -- `flat color` and
-`sketch` together draw a hatched line into the shadows that neither does
-alone; the earlier thirteen-tag flat/cel block turned the skin paper-white),
-and the negative bans (`DIGIT_BAN` through `PROPORTION_BAN`). `BODY`
-carries the mature-female build: adult proportions, wide hips, thick and
-soft thighs, long legs, a narrow waist, and seven heads tall.
-
-The variable part is three small record sets:
-
-- `poses.py`: one `Pose` per pose -- `action`, `mood`, `gesture`,
-  `framing` (a `Framing`), `angle` (a camera-angle prefix, default empty --
-  `from front`/`from side`; see "Framing" below for where the rest of the
-  shot's camera tags come from), `leg_display` (the trailing
-  `(thighs:...)` tag, or empty), the pose's own default `expression` and
-  `costume`, and an optional pose-specific negative addition. No pose
-  carries a place/location tag: cut-out delivery needs an empty green
-  background, and a location tag invites furniture or a backdrop the matte
-  then has to cut around; `coffee` and `amae` kept only their `standing`
-  tag, moved onto the end of `action`. A pose may also override `legwear`
-  (default `True`; `False` drops the costume's leg tags),
-  `legwear_kind` (default `sheer-gloss`; the legwear word the pose renders
-  at when the request does not name one), `body` and `style` (replace
-  `BODY`/`STYLE` wholesale), and carry its own `loras` (default empty).
-- `costumes.py`: one garment tag block per costume (`roomwear`, `outing`,
-  `standard`, `suspender`) and a matching `LEGWEAR` block per costume, layered on top
-  of the garments when the pose's `legwear` is `True`. `standard` is a
-  black hooded cardigan, rabbit hood and purple dress; its `LEGWEAR` is
-  black tights with a purple gradient. `suspender` is a muted orange t-shirt with
-  a knee-length navy suspender skirt over black tights; no pose defaults
-  to it, so it is picked with `parameters.costume`. `COSTUME_BAN` holds the
-  negative tags a costume adds (`suspender` bans shirt prints and bright
-  orange). `HOODED_COSTUMES` names the
-  costumes whose garments already include a hood or cardigan (`standard`).
-  The request parameter `legwear` picks between `sheer-gloss`
-  (`SHEER_GLOSS_LEGWEAR` -- sheer black pantyhose with a dark violet tint,
-  see-through legwear with the skin visible through it, a subtle sheen,
-  the same block on every costume, and the recipe-wide default; `thin
-  translucent legwear` is left out because it draws thin vertical lines
-  down the legs -- a second contour inside the leg outline or rib-like
-  streaks -- that no negative ban removes), `opaque` (the costume's
-  own `LEGWEAR`) and `sheer` (`SHEER_LEGWEAR`: see-through tights with only
-  a faint sheen, the skin showing through, in one flat tone: black-purple on
-  `standard`, black elsewhere; gradient words are left out because they
-  let the model pick the direction). When the request leaves `legwear`
-  unset, the pose's own `legwear_kind` picks it -- every pose says
-  `sheer-gloss` (`DEFAULT_LEGWEAR`); `opaque` and `sheer` stay reachable
-  through `parameters.legwear`. Both `sheer` and `sheer-gloss` edit the
-  negative the same way: they drop the garment-gloss runs of `SHINE_BAN`
-  (`GARMENT_GLOSS_TAGS`)
-  and append `SHEER_BAN` (opaque legwear, latex, photo-realism, tanned or
-  brown skin tones); `sheer` also appends `SHEER_TONE_BAN` (light purple,
-  lavender and gradient legwear). `sheer-gloss` alone also appends
-  `SHEER_GLOSS_BAN` (glossy, specular highlights, reflection, ribbed
-  legwear, vertical-striped legwear) at the very end of the negative,
-  after `PROPORTION_BAN` -- banning the gloss words the positive block's
-  own `subtle sheen on legwear` tag would otherwise fight, plus ribbed and
-  vertical-striped legwear. A pose with `legwear=False` ignores the
-  parameter on both sides.
-
-  The request parameter `legwear_state` (`LegwearState`: `worn`, the
-  default, `removing` or `off`) sits alongside `legwear` on the same
-  component. `worn` is today's `legwear_block` text, unchanged. `removing`
-  follows it with the act of pulling it down --
-  `(pantyhose pull:1.3), (pulled by self:1.25), (pantyhose around
-  knees:1.35), (pantyhose pulled down:1.3), (bare thighs:1.2), ` -- and
-  bans `(thighhighs:1.4), (kneehighs:1.4), (socks:1.3), ` in the negative.
-  `off` drops the legwear block entirely and asks for
-  `(bare legs:1.3), (no legwear:1.3), ` instead, banning
-  `(pantyhose:1.3), (thighhighs:1.3), (kneehighs:1.2), (socks:1.2), ` in
-  the negative and skipping the sheer/sheer-gloss kind's own negative
-  edits (`SHEER_BAN`, `SHEER_TONE_BAN`, the `SHINE_BAN` gloss drop) --
-  those only make sense when a legwear kind is actually worn. Like
-  `legwear`, an unset request falls back to the pose's own
-  `legwear_state` (every pose says `worn`), and a pose with `legwear=False`
-  ignores `legwear_state` entirely.
-- `expressions.py`: one `mouth`/`eyes` pair per expression (`resting`,
-  `sleepy`, `doya`, `smile`, `gao`, `v`). `eye_quality` (an `EyeQuality`:
-  `COLD`, the dataclass default, or `BLANK`) routes the eye_quality
-  component's shared tags -- `EYE_QUALITY[COLD]` is
-  `(half-closed eyes:1.3), (unamused:1.15), `, `EYE_QUALITY[BLANK]` is
-  empty -- and `eyes` is now only the expression's own extra on top:
-  `resting`, `doya` and `v` are `COLD` with no extra; `sleepy` is `BLANK`
-  with `(sleepy:1.4), (drowsy:1.3), (half-closed eyes:1.4), `; `smile` and
-  `gao` are `BLANK` with `(confident:1.18), `. `resting`'s own eye text
-  unified onto `EYE_QUALITY[COLD]` (`(unamused:1.3), (half-closed
-  eyes:1.3)` becomes `(half-closed eyes:1.3), (unamused:1.15)`) -- the
-  `eye_shape` field (jitome weight per expression) is unchanged.
-
-## Poses
-
-- `coffee`: expression `resting`, costume `outing`.
-- `amae`: expression `doya`, costume `outing`.
-- `step`: expression `resting`, costume `outing`.
-- `stand`: expression `doya`, costume `outing`.
-- `dance`: expression `v`, costume `standard`. A knock-kneed dancing pose,
-  one arm up with a clenched hand, mouth in a `:v`.
-- `cinema`: expression `doya`, costume `outing`. Walking through a movie
-  theater lobby with a popcorn bucket in one hand and a cola cup with a
-  straw in the other.
-- `bust`: expression `smile`, costume `standard`. Head-and-shoulders
-  portrait, looking at viewer, canvas `1280x1280` from its `BUST` framing.
-  Drops the costume's legwear (`legwear=False`) and overrides `body` to a
-  bare adult-proportions block with no leg tags.
-- `gao`: expression `gao`, costume `standard`. A claw pose with an open,
-  fanged mouth, leaning forward with hands up, cowboy shot from the front.
-
-A pose may carry its own `canvas`; `render_spec` uses it in place of its
-`Framing`'s canvas, which in turn falls back to the default `1024x1640`.
-
-## Framing
-
-`framing.py`'s `FRAMING` maps each `Framing` kind to the camera-shot tag
-text and, only for `BUST`, the canvas it carries: `BUST` (`portrait, head
-and shoulders, upper body, face focus` -- `1280x1280`), `UPPER` (`upper
-body`), `COWBOY` (`cowboy shot`), `FULL` (`full body, wide shot`), `LYING`
-(`lying, full body`). No pose currently uses `UPPER` or `LYING`. A pose's
-`framing_tags` component is built as `pose.angle + FRAMING[pose.framing].text`
--- `angle` is the pose's own prefix (`bust`, `stand`, `dance` and `gao` say
-`(from front:1.3)`; `step` says `(from side:1.1)`; `coffee`, `amae` and
-`cinema` say nothing), so the shot kind stays one place while the angle
-stays per-pose. `render_spec`'s canvas is `pose.canvas` if the pose sets
-one, else `FRAMING[pose.framing].canvas`, else the recipe default -- `bust`
-carries no `canvas` of its own any more; its square canvas comes from
-`BUST`.
-
-## Assembly order
-
-`recipe.py` builds the positive prompt from a `components.py` component
-model, then joins them. A component is `(name, section, priority, text)`.
-`Section` orders the Anima model card's own tag sections: `QUALITY`,
-`COUNT`, `CHARACTER`, `SERIES`, `ARTIST`, `GENERAL`. `Priority` (`LEAD`,
-`MAIN`, `TAIL`) orders components within `GENERAL` only; declaration order
-is the tie-break within a priority. `recipe._components` assigns:
-
-- `LEAD`: `identity`, `eye_base`, `eye_quality`, `framing_tags`,
-  `body_build`, `leg_display`
-- `MAIN`: `action`, `mouth`, `mood`, `gesture`, `costume`, `legwear`,
-  `cutout`
-- `TAIL`: `face`, `style`
-
-`recipe._components` declares one component per fixed or per-pose/costume/
-expression block -- `quality`, `count`, `character`, `series`, `artist`,
-`identity`, `action`, `mouth`, `mood`, `eye_base`, `eye_quality`, `gesture`,
-`costume`, `legwear`, `framing_tags`, `leg_display`, `body_build`,
-`cutout`, `face`, `style` -- and `assemble()` stably sorts them by
-`(section, priority)`.
-
-`recipe.positive_parts()` is `assemble()`'s sorted components as `(name,
-text)` pairs -- joining the texts in order reproduces the positive prompt
-byte for byte, and each component name is a `prompt.positive.<name>` patch
-target (`get_catalog_pose`'s `parts`).
-
-The 13 legacy part names (`quality`, `identity`, `pose`, `mouth`, `mood`,
-`eyes`, `gesture`, `costume`, `scene`, `body`, `background`, `face`,
-`style` -- `recipe.PART_NAMES`) still work as patch targets, for a caller
-that names one of them instead of a component. `components.PART_OF` maps
-each component name to the legacy part it used to belong to;
-`components.part_groups()` inverts that into `recipe.PART_GROUPS`, legacy
-name -> the component names that composed it, in declaration order --
-`identity` is `character, series, artist, identity`; `eyes` is `eye_base,
-eye_quality`; `costume` is `costume, legwear`; `scene` is `framing_tags,
-leg_display`; `quality` is `quality, count`; the rest are a
-single same-named component. `patches.py` resolves a legacy-named
-`prompt.positive.<part>` patch against the group: `append`/`prepend` target
-its last/first member; `replace`/`remove` find the single member whose text
-contains `old` (declaration order; the first match wins if more than one
-would match) and apply there, or raise if `old` isn't found whole in any
-one member (e.g. it spans two of them) -- the error names the group's
-members so the caller can retarget one directly. The catalog carries this
-same mapping as `part_groups`.
-
-Positive, unfolded to the same order this produces today:
-
-```
-QUALITY + CHARACTER + IDENTITY
-+ expression.eye_shape + (EYE_QUALITY[expression.eye_quality] + expression.eyes)
-+ (LEGWEAR[costume] if pose.legwear else "")
-+ (pose.angle + FRAMING[pose.framing].text)
-+ pose.leg_display + (pose.body if pose.body is not None else BODY)
-+ pose.action + expression.mouth + pose.mood + pose.gesture + COSTUMES[costume]
-+ (pose.background if pose.background is not None else BACKGROUND) + FACE
-+ (pose.style if pose.style is not None else STYLE)
-```
-
-No place tags sit between `COSTUMES[costume]` and `BACKGROUND` any more --
-a pose carries no location text at all. `pose.framing` (a `Framing`:
-`BUST`, `UPPER`, `COWBOY`, `FULL`, `LYING`) names the pose's camera/shot
-kind and owns that shot's own tags (`FRAMING[pose.framing].text` -- see
-"Framing" above), and `pose.angle` is the pose's own prefix onto that text
-(`from front`, `from side`, or empty). `pose.leg_display` is the trailing
-`(thighs:...)` tag. `bust` carries an empty `pose.action`: its
-portrait/head-and-shoulders/upper-body/face-focus tags now live in `BUST`'s
-framing text instead.
-
-Negative:
-
-```
-DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
-+ pose.negative
-+ SHINE_BAN + GRADIENT_BAN
-+ NEGATIVE_TAIL + (HOOD_BAN unless costume in HOODED_COSTUMES) + SCORE_BAN
-+ PROPORTION_BAN
-```
-
-`PROPORTION_BAN` is the fixed tail: it bans the builds `BODY` argues
-against -- fat, chubby, short legs, muscular, toned, and the
-child/loli/chibi/aged-down range. `HOOD_BAN` bans a bare hood/cardigan;
-it is left out for any costume in `HOODED_COSTUMES` so the negative
-doesn't ban the garment the costume just drew.
-
-`costume`, `expression` and the legwear word default to the pose's own
-(`pose.costume`, `pose.expression`, `pose.legwear_kind`); passing any of
-them overrides just that block. `body`, `style` and `loras` are fixed by
-the pose and are not overridable per call -- `pose.legwear` (the bool)
-still gates whether a costume override wears a legwear block at all, so
-`positive("stand", costume="standard")` carries `sheer-gloss` legwear
-because `stand.legwear_kind` is `DEFAULT_LEGWEAR` (`"sheer-gloss"`) and no
-caller named `legwear`; `positive("stand", costume="standard",
-legwear="opaque")` is what reaches `standard`'s own gradient `LEGWEAR`
-block instead. An unknown pose, costume or expression is a `KeyError`.
-
-## Render constants
-
-Fixed in `prompt_style.py`: `MODEL = "anima-turbo-v1.1.safetensors"`,
-canvas `1024x1640`, `steps=10`, `cfg=2.0`, sampler `euler`, scheduler
-`normal`, denoise `1.0`. Turbo is the distilled Anima: about 33 s a render
-against 75-85 s for the base model at `steps=25`/`cfg=3.5`/`er_sde`. Its
-card recommends `cfg=1`, but at `1` the negative prompt does nothing -- the
-shine, shadow and mouth bans all stop working -- so `2.0` keeps them in
-play; the base model is `anima_baseV10.safetensors` through a
-`render.model` patch.
-
-### Hires pass
-
-`hires` is the target longest side in pixels. The second-pass canvas is
-computed proportionally from
-the pose's own first-pass canvas -- `1024x1640` becomes `1280x2048` at
-`hires=2048` -- and rounded to a multiple of 8; `render_spec` raises
-`ValueError` if either dimension would come out below 8. The second pass
-is a `LatentUpscale` (bicubic) into a second `KSampler` on the same
-UNET/LoRA chain, with the same prompts as the first pass: anima has no
-pass-2 positive/negative records of its own, so `HiresSpec.positive` is
-always `None` and `HiresSpec.negative` is always the base negative.
-`denoise` defaults to `HIRES_DENOISE = 0.4`; passing `denoise` without
-`hires` is a `ValueError`.
-
-The graph builder (`infrastructure/comfyui/anima_graph.py`) wires a
-`UNETLoader` + `CLIPLoader` + `VAELoader` triple (`qwen_3_06b_base` /
-`qwen_image_vae`). The KSampler is node `"3"` and the tail is a `VAEDecode`
-feeding `SaveImage`,
-the same shape `refinement_graph.chain_pass` reads off any base graph.
-`render_spec` passes the pose's own `loras` straight through; each pair
-chains a `LoraLoaderModelOnly` node off the `UNETLoader` (or the previous
-LoRA), in order, starting at node id `"10"`. The hires `LatentUpscale` and
-second `KSampler` are appended after that chain, continuing the same id
-counter -- so a pose with one LoRA gets hires nodes `"11"`/`"12"`, and a
-pose with none gets `"10"`/`"11"`.
-
-## Finalize defaults
-
-`delivery_style.py`: `FINALIZE_SIZE = 2560`, `FINALIZE_DENOISE = 0.4`,
-`FINALIZE_MODEL = "hassaku-il-v22"`, `FINALIZE_SAMPLER = ("dpmpp_2m",
-"karras")`, `FINALIZE_STEPS = 30`, `FINALIZE_CFG = 5.0`. `application/
-finalize.py` inspects the base graph it fetched: a `UNETLoader` node marks
-an anima source, the only one finalize redraws; a source with no
-`UNETLoader` (a plain or already-refined generation) must go through
-`deliver_only` instead, or finalize refuses it. `--denoise`/`--size` still
-override the redraw's own defaults. `0.4` is the strength the user picked
-on bases drawn with no style LoRA,
-over `0.55`, `0.75` and `0.9`; on a base that carries the sketch-style LoRA,
-`0.55` and up adds gloss to the legwear and re-decides buttons and
-ornaments.
-
-`--keep-scene` delivers the redraw uncut, background and all, instead of
-the die-cut sticker; the matte is still rendered and stored.
-
-The redraw runs through a different checkpoint, `hassaku-il-v22`
-(Illustrious, loaded through `DiffusersLoader`), rather than the
-stage-1 Anima checkpoint. `refinement_graph.chain_pass`'s `loader` argument adds
-that `DiffusersLoader` node and reroutes the redraw's model, CLIP and both
-VAEs (encode and decode) through it, re-encoding the base prompts on its
-CLIP. `--finalizer MODEL` overrides `FINALIZE_MODEL` with a different
-checkpoint: a name ending in `.safetensors` loads from `models/checkpoints`
-through `CheckpointLoaderSimple`, anything else is a `models/diffusers`
-folder.
-
-`domain/yukari/recipe.py`'s `refinement_prompt` builds the redraw
-prompt: the positive replaces `STYLE`, the recipe's style tail,
-with `ROUGH_STYLE`, aiming the IL checkpoint at a rough, unfinished line
-instead. The negative drops `DETAIL_BAN`, `GRADIENT_BAN` and
-`COLORED_LINE_BAN` -- bans against a look the redraw is now asking for --
-and prefixes `ROUGH_BAN + PAINT_BAN + HAND_BAN + SHADE_BAN + DOT_BAN`
-(`HAND_BAN`, `SHADE_BAN` and `DOT_BAN` live in this recipe's own
-`prompt_style.py`; see below for what each guards against).
-
-The catalog publishes `delivery_style.py`'s `FINALIZE_DEFAULTS` --
-`deliver_only: true, repin: true, stroke_light: "n", backdrop: "dots"` -- as
-chimera's GUI's finalize form defaults for this recipe: an option-less
-finalize cuts the matte, repins and delivers the Anima pick itself, and the
-redraw above is a per-request opt-in via `denoise`, `size`, `route` or
-another redraw-shaping option.
-
-## Requesting it
-
-```json
-"generation": {
-  "recipe": "yukari",
-  "parameters": {"pose": "coffee", "costume": "outing", "expression": "doya"}
-}
-```
-
-`pose` is required; `costume`, `expression`, `legwear` and `legwear_state`
-are optional and fall back to the pose's own. `hires` and `denoise` are
-accepted for this recipe -- `hires` is the target longest side of the
-second pass, `denoise` overrides `HIRES_DENOISE` and needs `hires` set --
-see [queueing.md](../queueing.md).
-
-`domain/yukari/dials.py` publishes `render.width`/`render.height` as
-words for `generation.patches` -- `draft` (`1024`/`1640`, the default
-canvas) and `full` (`1280`/`2048`); `docs/queueing.md`'s "Named dials"
-section covers the resolution rule shared by every recipe.
+## Read the prompt, not the source
 
 ```bash
-uv run comfy-recipes yukari prompt --pose coffee --json
+uv run comfy-recipes yukari prompt --pose bust                          # assembled positive/negative
+uv run comfy-recipes yukari prompt --pose bust --costume standard --expression gao --json
+uv run comfy-recipes catalog                                            # every pose, part, dial
 ```
 
-## HAND_BAN and the pass-depth split
+On the MCP, `get_catalog_pose yukari <pose>` returns the same thing as the
+production worker sees it.
 
-This split exists because of one measured asymmetry. `boss` found that
-removing `half-closed eyes` opens the eyes some, and that removal PLUS
-`(half-closed eyes:1.4), (closed eyes:1.4)` in the negative opens them the
-rest of the way -- 「open, iris visible」 -- and in the same breath found
-that the pair is safe chained onto a settled picture and unsafe from
-scratch: run from the recipe, it stacked with that pose's buttons guard and
-grew a second chair with a rabbit face on it, the fourth intruder this file
-has bought by stacking guards.
+## Where things are (`src/comfyui_recipes/domain/yukari/`)
 
-The reasoning kept: a late pass only gets to delete, and a guard IS a
-deletion. A first pass gets to rearrange the composition around the same
-guard, and it does. So a guard whose job is subtraction belongs in the
-pass-2-only set (`HAND_BAN` and friends) rather than in the base negative,
-where it would be handed to a pass that can still rearrange around it.
+| File | Holds |
+|---|---|
+| `prompt_style.py` | blocks every pose wears (`QUALITY`, `CHARACTER`, `BODY`, `BACKGROUND`, `FACE`, `STYLE`), the negative bans, render constants (model, canvas, steps, cfg, sampler) |
+| `poses.py` | one `Pose` per pose: action, mood, gesture, framing, angle, default expression/costume/legwear, optional body/style/negative/canvas/loras |
+| `costumes.py` | garment block per costume, `LEGWEAR` per costume, the legwear kinds (`sheer-gloss` default, `opaque`, `sheer`) and states (`worn`, `removing`, `off`) with their negative edits |
+| `expressions.py` | mouth/eyes per expression and the `EyeQuality` routing |
+| `framing.py` | shot tags per `Framing` kind; `BUST` also carries its canvas |
+| `components.py` | the component model: `(name, section, priority, text)`, legacy part groups |
+| `recipe.py` | assembly, `render_spec`, identity tags, the IL redraw prompt |
+| `dials.py` | words for `render.width`/`render.height` patches |
+| `delivery_style.py` | delivery identity and finalize defaults; see [delivery_style.md](delivery_style.md) |
 
-## SHADE_BAN
+The graph is built by `infrastructure/comfyui/anima_graph.py`.
 
-「線画の絵柄が変わったね」. Every pose gets these tags on the second pass
-only, at 1.45/1.5/1.45/1.45 -- the same four tags already sit in NEGATIVE at
-1.2/1.25, this is the same guard at a weight that survives a 2x redraw.
+## Contracts that span files
 
-The diagnosis is worth keeping because it exonerates two suspects. Distinct
-flats over the figure measured 849 on the first `hoops` render, 643 on
-`knotK2`, and 1154 and 1167 on the two finalised prints -- the gloss
-arrived between them. It is not the pass-1 prompt: the same pass 1 measured
-552 with no second pass at all. It is not `6b` either: the 1167 render has
-no `6b` node. What changed is that pass 1 handed pass 2 a different latent,
-and the redraw landed in a glossier style -- specular hair, gradient
-irises, airbrushed skin, i.e. exactly the "clean and vivid" regression this
-guard exists to prevent.
-
-Raising the guard weights to 1.45/1.5 for the second pass measured 590
-against 1154 on the same pass 1. `(short dress:1.35)` was the other
-suspect and it is innocent: dropping it from the pass-2 positive measured
-1147, i.e. nothing.
-
-Pass 1 keeps its weights at 1.2/1.25, untouched: at 1024 that weight was
-never losing, and raising it there would re-roll the composition of every
-picked render in the file. The guard belongs to the pass that redraws.
+- Components sort by Anima's card sections (`QUALITY`, `COUNT`,
+  `CHARACTER`, `SERIES`, `ARTIST`, `GENERAL`). Inside `GENERAL`, the order is
+  priority (`LEAD`, `MAIN`, `TAIL`), then declaration order. The joined
+  components equal the positive byte for byte (`tests/test_yukari_components.py`).
+- Each component name is a `prompt.positive.<name>` patch target. The 13
+  legacy part names still resolve through `PART_GROUPS`.
+- A request's `costume`, `expression`, `legwear` and `legwear_state`
+  override the pose's own. `body`, `style` and `loras` belong to the pose.
+  `pose.legwear=False` ignores both legwear parameters.
+- No pose carries a place tag. Every pose draws on the green key the matte
+  despills.
+- Canvas precedence is `pose.canvas`, then the framing's canvas, then
+  `1024x1640`. `hires` scales that canvas to the given long side (multiple
+  of 8), and `denoise` needs `hires`.
+- Finalize redraws only an Anima source (a `UNETLoader` in its base graph),
+  on the IL checkpoint, with `refinement_prompt`'s rough style. Other
+  sources go through `deliver_only`.

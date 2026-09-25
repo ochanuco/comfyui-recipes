@@ -1,13 +1,9 @@
 """The component model behind the positive prompt.
 
-`Section` orders the Anima model card's own tag sections; `Priority` orders
-components within `Section.GENERAL` only. `assemble` stably sorts a
-declaration-ordered component list by `(section, priority)`; the sorted
-component names, in order, are `recipe.positive_parts()` and the patch
-targets `patches.py` resolves directly. `part_groups` maps each of the 13
-legacy part names (`recipe.PART_NAMES`) to the component names that used to
-compose it, for patch targets and callers that still name a legacy part.
-`Framing` names a pose's camera/shot kind.
+`Section` follows the Anima model card's own tag-section order; `Priority`
+only orders components within `Section.GENERAL`. The sorted component
+names double as `recipe.positive_parts()` and the patch targets
+`patches.py` resolves.
 """
 
 from __future__ import annotations

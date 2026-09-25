@@ -1,286 +1,47 @@
 # delivery_style
 
-Yukari's delivery policy: what happens to a render after the model. The
-prompt cannot hold these values -- the backdrop is not prompt-stable and the
-purple marker is a post-process -- but they are identity all the same,
-applied by the delivery tools instead of the graph. Every tool reads its
-default from here, so the value a delivered picture actually wears has one
-source; before this file, `#c7e5e9` lived in two scripts and the stroke
-colour in two others, and only the session that set them knew which copy was
-current.
+`src/comfyui_recipes/domain/yukari/delivery_style.py` holds what happens to a
+render after the model: the delivery identity and the finalize defaults.
+Every tool reads its values from there, and `scripts/delivery_check.py`
+fingerprints them. The values live in the code; the reasons behind them are
+in [`findings/delivery.md`](../findings/delivery.md).
 
-## BACKDROP
+## Constant groups
 
-The render's own backdrop is unstable under any perturbation: three renders
-whose only difference was two leg-tag weights landed on `#d0d0c0`,
-`#a0a0a0` and `#909090`. So the delivered colour, `#c7e5e9`, is set after
-the fact by the delivery, always to this value.
+| Group | Read by |
+|---|---|
+| `BACKDROP`, `STROKE`, `WHITE_WIDTH_PCT`, `STROKE_WIDTH_*` | band drawing in `infrastructure/imaging/delivery.py` |
+| `STROKE_CUT_EPS_PCT`, `STROKE_EDGE_SMOOTH` | `band_alphas`: hand-cut outline and edge rounding |
+| `STROKE_LIGHT_*`, `STROKE_LIGHTS` | the `stroke_light` finalize option |
+| `STRIPES_*`, `WAVEFORM_*`, `EARS_*`, `BACKDROP_*` | named backdrops in `infrastructure/imaging/backdrops.py` |
+| `SAT_BAND`, `BG_SAT_MAX`, `FIGURE_SAT_*`, `BACKDROP_SPREAD_MAX` | `measure`/`verdict` in `palette.py`: the gate at ingest and in `palette_check.py` |
+| `FIGURE_LIGHT_*`, `PALETTE_WINDOWS`, `REPIN_*` | `repin` in `infrastructure/imaging/palette.py` |
+| `RECOLOR_*` | `--recolor` in `infrastructure/imaging/recolor.py` |
+| `MATTE_*`, `KEY_*`, `ENCLOSED_*`, `FRAME_LINE_*` | matte, keyed edge and pocket cuts in `delivery.py` |
+| `FINALIZE_*`, `ROUGH_STYLE`, `FINALIZE_DEFAULTS` | finalize: the opt-in IL redraw and the catalog's defaults |
 
-## STROKE
+## Contracts
 
-The purple marker drawn outside the figure's own white band (the white band
-itself is the model's `(white outline:1.6)` from `SURFACE`). Currently
-`#885b80`, a mauve measured off a render whose rim was drawn before a strong
-redraw rather than after and read as a hand-cut sticker rather than a
-machine-cut one -- see `STROKE_CUT_EPS_PCT` below for the geometry half of
-that same look.
-
-## STROKE_CUT_EPS_PCT
-
-The outer outline of the white band and of the purple band are each
-polygon-simplified (Douglas-Peucker, `cv2.approxPolyDP` on a 2x-supersampled
-fill of the band's own region) into straight, angular segments instead of
-ramped off a smoothed distance field -- the hand-cut half of the look
-`STROKE` carries the colour half of. The value is the epsilon as a percent of
-the image's longest side; `0` reproduces the old smooth ramp exactly, and
-`band_alphas` branches on that. It has to stay well under `WHITE_WIDTH_PCT`
-(the white band's own width) -- an epsilon comparable to or larger than a
-band's width can simplify the outline to a straight run that cuts inside the
-band, fragmenting it. `light`, when set, shades the purple region's width
-before it is simplified, not after: the shaded region's own outline is what
-gets straightened, not a straightened uniform one that is then reshaded.
-
-## STROKE_WIDTH_BAND / STROKE_WIDTH_PCT
-
-Width is set as a share of the white band it sits against (`0.80`), which
-is what it was actually chosen as: 12.5px on the render whose 0.32 stroke
-setting drew 6.1px, picked from a 0.32 / 0.50 / 0.80 / 1.2 ladder.
-
-The old share-of-canvas rule, `0.3`, is kept as a FLOOR under the band rule:
-both rules only ever failed by drawing too thin, so the larger of the two
-values is the one that is never the failure.
-
-## STROKE_LIGHT_THIN / STROKE_LIGHT_THICK / STROKE_LIGHT_SMOOTH
-
-An optional finalize option (`stroke_light`) shades the purple band's width
-by a picked light direction instead of drawing it at the uniform
-`STROKE_WIDTH_BAND` width: `STROKE_LIGHT_THIN` and `STROKE_LIGHT_THICK` are
-multiples of the uniform width, drawn where the outline's own outward normal
-faces toward and away from the light. `STROKE_LIGHTS` holds the eight
-directions (`n`, `ne`, `e`, `se`, `s`, `sw`, `w`, `nw`) as unit vectors in
-image coordinates -- x right, y down, so `n` is `(0, -1)`. The normal is not
-read from the raw silhouette but from the gradient of a distance field
-blurred by `STROKE_LIGHT_SMOOTH` purple widths, so a stray hair strand or a
-notch in the outline does not flip the width from one pixel to the next.
-Only the purple band is shaded; the white band stays the uniform width
-regardless of `stroke_light`.
-
-## STROKE_EDGE_SMOOTH
-
-The silhouette a band is drawn around is a binary matte, upscaled 2x with
-`Image.NEAREST` before the band ring is drawn; NEAREST adds no information,
-so a diagonal edge stays the staircase of the source pixel grid, just
-bigger. Ramping a band's coverage straight off that staircase's own distance
-transform softens the edge without rounding its shape -- it still reads as
-jagged, just blurrily so. `STROKE_EDGE_SMOOTH` is the sigma of a Gaussian
-blur applied to the distance field before the ramp reads it, rounding the
-staircase off first. It is a fixed count of 2x-supersample pixels rather
-than a share of band width, deliberately: the staircase being rounded is
-always one source pixel high regardless of how wide a band is drawn, so
-scaling it with band width would over-blur a large render's edge and
-under-blur a small one. Both the white band and the purple band read
-`STROKE_EDGE_SMOOTH`, so their edges stay visually consistent.
-
-## STRIPES_BASE / STRIPES_PITCH / STRIPES_CONTRAST / STRIPES_BURST_RAYS / STRIPES_BURST / STRIPES_BURST_CENTER / STRIPES_BURST_REACH
-
-The `stripes` named backdrop (`infrastructure/imaging/backdrops.py`), an
-opaque `backdrop` option reachable from both `clean_background` and
-`compose`. `STRIPES_BASE` is the hair's own lavender, drawn in two-tone
-diagonal bands whose period is `STRIPES_PITCH` and whose light band is
-`STRIPES_BASE` blended `STRIPES_CONTRAST` of the way toward white; both are
-shares of the longest side, so the band pitch scales with the canvas rather
-than holding a fixed pixel count. A white radial burst sits behind the
-figure: `STRIPES_BURST_RAYS` is the ray count, `STRIPES_BURST` the burst's
-peak opacity, `STRIPES_BURST_CENTER` the burst's centre as a share of the
-canvas (`(0.5, 0.55)`, a little below the middle), and `STRIPES_BURST_REACH`
-the fade radius, again a share of the longest side.
-
-## SAT_BAND / BG_SAT_MAX
-
-The acceptance band, from measured approved work: `kfuthu` 54.5, `lx2mjb`
-41.6, `uk1jfi` 41.5. (The y-arms' 68-86 pink drift already read as
-「寄っている」 by eye, independent of this band.) A pass is not approval --
-the human still judges -- but a FAIL never goes forward.
-
-The upper bound was 70 until 2026-08-28, when it failed a render the user
-had already picked (`tx4oxl`, raw saturation 76.5, delivered composite
-90.8): the frame mean moves with the figure's share of the canvas, so a
-bound calibrated on lap framings misreads a lounge framing. The bound was
-raised to 95, which keeps it as an explosion detector (the lap disasters
-measured 108-188); the composition-independent guard is the `FIGURE_SAT`
-pair below.
-
-## FIGURE_MIDTONE_V / FIGURE_SAT_MEAN_MAX / FIGURE_SAT_P90_MAX
-
-The figure's own saturation, measured where colour is actually visible:
-non-backdrop pixels at V >= `FIGURE_MIDTONE_V` (80). The V floor is the
-「タイツを除く」 rule made mechanical -- the black tights and coat sit below
-it, so deep black stays exempt while the midtones carry the 高彩度・多彩
-guard.
-
-Calibrated 2026-08-28 on the lounge contrast verdicts: the picked
-grad-free arms (`jcjwb6`/`64d41q`) measure mean 59.9-66.5, top-decile
-123-191; the rejected gradient renders measure mean 108-137, top-decile
-255. The bands (`FIGURE_SAT_MEAN_MAX = 95.0`, `FIGURE_SAT_P90_MAX = 230.0`)
-split those two populations with margin on the picked side.
-
-## FIGURE_LIGHT_V / FIGURE_LIGHT_SAT_TARGET
-
-Saturation normalization is applied to the raw render
-(`infrastructure/imaging/palette.py`, HSV S alone) before the layered delivery. Poses drift by different amounts
--- `lounge` paints the whole picture at 3x `stand`'s saturation on every
-seed (8/8), `lap` at about half that -- and no prompt lever moves it (six
-attempts on record: muted colour, limited palette, and others). So the
-delivery normalizes instead of holding a per-pose factor table: measure the
-figure's LIGHT band (the pale dress and hair, V >= `FIGURE_LIGHT_V` = 150),
-scale saturation by target/measured, clamped to at most 1.0 so a pale
-render is never pushed up.
-
-The light band is the anchor because it reproduced both settled verdicts
-from one rule: `lounge` 28/98 -> 0.29 (the user's picked value was 0.30,
-「明らかに yjsswf だ！」) and `lap` 28/51 -> 0.55 (the computed proposal).
-The target, `FIGURE_LIGHT_SAT_TARGET = 28.0`, is `stand`'s own measured
-light band (26-30 across the delivered pair) -- `stand` IS the palette
-reference, per 「立ちの方が正」.
-
-## PALETTE_WINDOWS
-
-The palette proper, applied by `scripts/repin.py` (V untouched -- the
-brushwork is the render's own; hue and saturation are the delivery's).
-Values are `stand` `4eqpdv`'s measurement frozen as numbers -- `stand` IS
-the reference, per 「立ちの方が正」 -- and each window's saturation target is
-per V band (light >= `FIGURE_LIGHT_V` / mid below), blended continuously so
-no band boundary shows.
-
-Chosen over a uniform S scale by eye across `stand`/`lounge`/`lap`
-(「安定してそう」, 2026-08-28): the materials drift by different amounts --
-purple mid drift 0.18 against skin mid drift 0.37 on the same render --
-which one global factor can only average.
-
-Three windows: `purple` (hue 170-225, target 191) for the hair and dress,
-`skin` (hue 0-48, target 17.8) read by `repin_skin_png` / `skin_mask`, and
-`cyan` (hue 115-140, target 128, the purple saturation targets) for a bright
-cyan accent -- inner hair, an iris -- that would otherwise pass `repin`
-untouched. `palette_window(name)` looks a window up by its `name` entry.
-
-`repin` compresses and hue-eases the windows named in `REPIN_CHROMA_WINDOWS`
-(`purple`, `cyan`); each contributes its own hue-weighted share of the shared
-per-V-band saturation target and eases hue toward its own `hue_target`. The
-windows do not overlap -- `cyan` tops out at 150, `purple` starts at 160, ten
-clear of each other's ten-unit feather -- so one window's correction never
-leaks into another's hue band.
-
-The dark band (`REPIN_DARK`) crushes saturation on every hue except the
-ranges in `REPIN_DARK_EXEMPT`: `REPIN_WARM_EXEMPT` (skin shadows) and the
-`cyan` window's own hue range, so a dark cyan shadow stays cyan instead of
-going grey.
-
-## BACKDROP_SPREAD_MAX
-
-The backdrop flatness screen, on the RAW render's corner brightness spread.
-A gradient backdrop starves the flood mask (23.7% coverage on `cmfpby`'s
-`stand` against ~40%+ when flat), and then every downstream number -- the
-figure bands, the normalization factor, the repaint -- is measured against
-a backdrop leak.
-
-Measured flat renders sit under 10, gradient failures at 40+ (2026-08-28
-white-outline sweep; confirmed by `cmfpby` at 41.1), so the bound (`25.0`)
-splits them mid-gap.
-
-## MATTE_MODEL
-
-The worker-side matte that cuts the figure out: `rmbg:BiRefNet-general`,
-ComfyUI-RMBG's `BiRefNetRMBG` node with its general BiRefNet weights. A
-bare file name selects the core `LoadBackgroundRemovalModel` checkpoint
-instead; `finalize --matte-model` overrides either per call. Chosen on the
-green-screen bust `tiikcs` against the core `birefnet.safetensors` and the
-RMBG `BiRefNet-HR`, `BiRefNet-HR-matting` and `BiRefNet_toonout` weights:
-`BiRefNet-general` cuts the enclosed gaps under the chin like the core
-model (IoU 0.998) with the fewest fragments (3 components), where
-`BiRefNet-HR` fills those gaps as figure and `HR-matting` splits the edge
-into 35 fragments.
-
-## MATTE_EDGE_BAND_PCT / MATTE_EDGE_TOLERANCE
-
-The band either side of `refine_matte`'s edge, as a share of the longest
-side (`0.6`): inside it a pixel is figure when it differs from the locally
-read backdrop by more than `MATTE_EDGE_TOLERANCE` (`20`) on any channel.
-
-## KEY_EDGE_RING_PX / KEY_EDGE_RAMP / KEY_DESPILL_MIN_EXCESS
-
-The keyed edge `clean_background` applies on top of `refine_matte`'s band.
-Only the figure's outermost `KEY_EDGE_RING_PX` (`1`) pixels are soft:
-inside that ring coverage is 1, outside the figure it is 0, and on the ring
-itself it ramps by each pixel's own colour distance from the local backdrop
--- `keyed_coverage` -- reaching 1 at `KEY_EDGE_RAMP` (`2.0`) times
-`MATTE_EDGE_TOLERANCE`. The ring is one pixel because the pale hair and the
-paper-white skin sit within two tolerances of a grey backdrop, so a ramp
-across the whole band would thin them. Where that coverage is fractional, `unpremultiply`
-solves the figure's own colour back out of its blend with the local
-backdrop, rather than leaving the blend in. `despill` then reads the raw's
-own backdrop colour (`_corner_seed`) as a key: if its dominant channel
-clears the larger of the other two by at least `KEY_DESPILL_MIN_EXCESS`
-(`12`), the chroma of every pixel in the figure's rim (`figure_rim`, the
-outermost `MATTE_EDGE_BAND_PCT` band) is projected onto the key's chroma
-direction and the positive part subtracted. Only the rim, because a drawn
-figure has no bounced light and the key's tint exists only where the edge
-blends into the backdrop: the bust's yellow-green key (`184, 210, 145`)
-points the same way as the skin's own yellow, and despilling the whole
-figure took the cheek from `251, 222, 206` to `249, 212, 216` (`9ks5sn`).
-The bar is `12` because the same pose's green lands on either side of 24
-from seed to seed (`kbc4ja` 23 after repin, `3iory6` 26), which left an
-olive fringe on the outline wherever it did not fire; the palest green on
-record is 16 (`p358wk`) and the grey backdrops stay under 6. A projection rather than a
-channel cap because the model draws `(green background:1.3)` as a teal
-(`86, 186, 155` on the bust canary), and capping green alone left a cyan
-rim two to three pixels wide around the whole silhouette (`qodxqz`). On a
-flat grey backdrop neither the excess check nor the ramp typically fires
-past 1, so only the edge softening changes.
-
-## ENCLOSED_KEY_MIN_GREEN_EXCESS
-
-`enclosed_cut` takes the backdrop the figure encloses back out of the
-silhouette, after `shadow_cut`, in both `clean_background` and
-`transparent`. BiRefNet fills the gap a loop of hair closes around the
-backdrop with a soft value of 255 (`kbc4ja`: four pockets, 922 pixels, the
-largest between the side hair and the twin tail), and the pipeline treats a
-pixel the model is certain of as figure, so the pocket was delivered in the
-raw's own green (`5dyllv`). The cut is `enclosed_mask` against the raw
-backdrop colour (`_corner_seed`) at `MATTE_EDGE_TOLERANCE`, regions of 16
-pixels and up.
-
-It only runs on a green key: green has to be the backdrop's dominant
-channel by at least `ENCLOSED_KEY_MIN_GREEN_EXCESS` (`12`). Nothing on the
-figure is green, so a colour test cannot take figure there, while the
-figure's whites and pale hair sit inside the tolerance of a grey or light
-blue backdrop. The palest green backdrop on record has an excess of 16
-(`p358wk`, `204, 220, 182`); on the grey ones it is 0 or negative. The
-gate is separate from `KEY_DESPILL_MIN_EXCESS` because despill takes any
-dominant channel as a key and this cut only a green one.
-
-## ENCLOSED_POCKET_MIN_AREA
-
-A drawn frame line closes the raw's green off from the white outside it
-(`mo20bg`: a thin border around the figure, white beyond), so the corners
-read as a white backdrop, the gate above never opens, and the matte keeps
-the whole green pocket between the line and the figure (`cuizdm`). When the
-corners are not a green key, the key is taken from the figure's own pixels
-instead: those with a green excess of at least
-`ENCLOSED_KEY_MIN_GREEN_EXCESS`, once there are
-`ENCLOSED_POCKET_MIN_AREA` (`256`) of them, their median as the seed. The
-frame line itself stays figure and gets the bands on both sides. Interior
-linework holds a few pixels within the excess by accident; a kept pocket
-holds thousands.
-
-With a pocket key the backdrop is painted only inside the frame
-(`pocket_window`: the filled bounding rectangle of the key-coloured field
-outside the cut figure, whole even where the figure splits the field or
-the matte dropped a side of the line); the white beyond the line keeps
-the corner colour, and the white and purple bands wrap the figure and the
-frame as one shape, so the figure inside the frame carries no bands. The
-drawn line itself is kept as figure (`frame_line`: pixels under
-`FRAME_LINE_MAX_VALUE` within two edge bands outside each side of the
-window, whole rows and columns so the overshot ends come too), since the
-matte drops a thin line wherever it does not touch the figure. The pocket is the other side of
-the picture the figure steps out of, and the white is the side she steps
-into.
+- The delivered backdrop is always `BACKDROP`, repainted after the render.
+  The render's own backdrop is not stable enough to keep.
+- Stroke width is the larger of a share of the white band and a share of the
+  canvas. The canvas share is a floor.
+- `STROKE_CUT_EPS_PCT = 0` reproduces the smooth ramp exactly, and
+  `band_alphas` branches on it. The epsilon stays well under
+  `WHITE_WIDTH_PCT`. With `stroke_light`, the purple band is shaded first and
+  then simplified. The white band is never shaded.
+- `STROKE_EDGE_SMOOTH` counts 2x-supersample pixels, not band widths.
+- A palette gate pass is not an approval; a FAIL never goes forward.
+  `FIGURE_SAT_*` measures only pixels at V ≥ `FIGURE_MIDTONE_V`, so black
+  tights and coat are exempt.
+- The repin factor is at most 1.0, so a pale render is never pushed up.
+  Palette windows do not overlap. The dark band greys every hue except
+  `REPIN_DARK_EXEMPT`.
+- The matte is cut from the raw render, never from repinned colour.
+- Only the outermost `KEY_EDGE_RING_PX` of the figure is soft. Despill runs
+  on the rim only, and only when the corner key's dominant channel clears the
+  others by `KEY_DESPILL_MIN_EXCESS`.
+- `enclosed_cut` runs only on a green key. When the corners are not green (a
+  drawn frame line), the key comes from the figure's own green pixels once
+  there are `ENCLOSED_POCKET_MIN_AREA` of them. The backdrop is then painted
+  only inside the frame, and the frame line stays figure.

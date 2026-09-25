@@ -33,7 +33,7 @@ the archive and lives in `experiments/`, chimera or the named PR.
 | File | ~tok | Covers |
 |---|---|---|
 | [yukari/anima.md](yukari/anima.md) | 1k | the live recipe: where each block lives, cross-file contracts |
-| [yukari/delivery_style.md](yukari/delivery_style.md) | 4k | delivery identity and finalize settings |
+| [yukari/delivery_style.md](yukari/delivery_style.md) | 0.9k | delivery constants: which code reads them, cross-file contracts |
 
 ## Operations
 

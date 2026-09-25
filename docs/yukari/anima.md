@@ -40,8 +40,8 @@ The variable part is three small record sets:
   then has to cut around; `coffee` and `amae` kept only their `standing`
   tag, moved onto the end of `action`. A pose may also override `legwear`
   (default `True`; `False` drops the costume's leg tags),
-  `legwear_kind` (default `opaque`; the legwear word the pose renders at
-  when the request does not name one), `body` and `style` (replace
+  `legwear_kind` (default `sheer-gloss`; the legwear word the pose renders
+  at when the request does not name one), `body` and `style` (replace
   `BODY`/`STYLE` wholesale), and carry its own `loras` (default empty).
 - `costumes.py`: one garment tag block per costume (`roomwear`, `outing`,
   `standard`, `suspender`) and a matching `LEGWEAR` block per costume, layered on top
@@ -53,20 +53,29 @@ The variable part is three small record sets:
   negative tags a costume adds (`suspender` bans shirt prints and bright
   orange). `HOODED_COSTUMES` names the
   costumes whose garments already include a hood or cardigan (`standard`).
-  The request parameter `legwear` picks between `opaque` (the costume's
-  own `LEGWEAR`), `sheer-gloss` (`SHEER_GLOSS_LEGWEAR`, the
-  same low-denier block on every costume) and `sheer` (`SHEER_LEGWEAR`:
-  see-through tights with only a faint sheen, the skin showing through,
-  in one flat tone: black-purple on `standard`, black elsewhere; gradient
-  words are left out because they let the model pick the direction). When
-  the request leaves `legwear` unset, the pose's own `legwear_kind` picks
-  it instead of a recipe-wide default -- every pose but `dance` still
-  says `opaque`. Both `sheer` and `sheer-gloss` edit the negative the same
-  way: they drop the garment-gloss runs of `SHINE_BAN` (`GARMENT_GLOSS_TAGS`)
+  The request parameter `legwear` picks between `sheer-gloss`
+  (`SHEER_GLOSS_LEGWEAR` -- sheer black pantyhose with a dark violet tint,
+  see-through and thin translucent legwear, a subtle sheen, the same block
+  on every costume, and the recipe-wide default), `opaque` (the costume's
+  own `LEGWEAR`) and `sheer` (`SHEER_LEGWEAR`: see-through tights with only
+  a faint sheen, the skin showing through, in one flat tone: black-purple on
+  `standard`, black elsewhere; gradient words are left out because they
+  let the model pick the direction). When the request leaves `legwear`
+  unset, the pose's own `legwear_kind` picks it -- every pose says
+  `sheer-gloss` (`DEFAULT_LEGWEAR`); `opaque` and `sheer` stay reachable
+  through `parameters.legwear`. Both `sheer` and `sheer-gloss` edit the
+  negative the same way: they drop the garment-gloss runs of `SHINE_BAN`
+  (`GARMENT_GLOSS_TAGS`)
   and append `SHEER_BAN` (opaque legwear, latex, photo-realism, tanned or
   brown skin tones); `sheer` also appends `SHEER_TONE_BAN` (light purple,
-  lavender and gradient legwear). A pose with `legwear=False`
-  ignores the parameter on both sides.
+  lavender and gradient legwear). `sheer-gloss` alone also appends
+  `SHEER_GLOSS_BAN` (glossy, specular highlights, reflection, ribbed
+  legwear, vertical-striped legwear) at the very end of the negative,
+  after `PROPORTION_BAN` -- banning the gloss words the positive block's
+  own `subtle sheen on legwear` tag would otherwise fight, and the dark
+  stripes the render put on the legs without a ban on ribbed and
+  vertical-striped legwear. A pose with `legwear=False` ignores the
+  parameter on both sides.
 
   The request parameter `legwear_state` (`LegwearState`: `worn`, the
   default, `removing` or `off`) sits alongside `legwear` on the same
@@ -103,8 +112,8 @@ The variable part is three small record sets:
 - `amae`: expression `doya`, costume `outing`.
 - `step`: expression `resting`, costume `outing`.
 - `stand`: expression `doya`, costume `outing`.
-- `dance`: expression `v`, costume `standard`, legwear `sheer-gloss`. A
-  knock-kneed dancing pose, one arm up with a clenched hand, mouth in a `:v`.
+- `dance`: expression `v`, costume `standard`. A knock-kneed dancing pose,
+  one arm up with a clenched hand, mouth in a `:v`.
 - `cinema`: expression `doya`, costume `outing`. Walking through a movie
   theater lobby with a popcorn bucket in one hand and a cola cup with a
   straw in the other.
@@ -144,8 +153,9 @@ model, then joins them. A component is `(name, section, priority, text)`.
 is the tie-break within a priority. `recipe._components` assigns:
 
 - `LEAD`: `identity`, `eye_base`, `eye_quality`, `framing_tags`,
-  `body_build`, `leg_display`, `legwear`
-- `MAIN`: `action`, `mouth`, `mood`, `gesture`, `costume`, `cutout`
+  `body_build`, `leg_display`
+- `MAIN`: `action`, `mouth`, `mood`, `gesture`, `costume`, `legwear`,
+  `cutout`
 - `TAIL`: `face`, `style`
 
 `recipe._components` declares one component per fixed or per-pose/costume/
@@ -222,12 +232,12 @@ doesn't ban the garment the costume just drew.
 (`pose.costume`, `pose.expression`, `pose.legwear_kind`); passing any of
 them overrides just that block. `body`, `style` and `loras` are fixed by
 the pose and are not overridable per call -- `pose.legwear` (the bool)
-still gates whether a costume override's `LEGWEAR` entry is worn at all,
-so `positive("stand", costume="standard")` carries `standard`'s legwear
-tags because `stand.legwear` is `True`, and `positive("dance")` carries
-`sheer-gloss` legwear because `dance.legwear_kind` is `"sheer-gloss"`
-even though no caller named `legwear`. An unknown pose, costume or
-expression is a `KeyError`.
+still gates whether a costume override wears a legwear block at all, so
+`positive("stand", costume="standard")` carries `sheer-gloss` legwear
+because `stand.legwear_kind` is `DEFAULT_LEGWEAR` (`"sheer-gloss"`) and no
+caller named `legwear`; `positive("stand", costume="standard",
+legwear="opaque")` is what reaches `standard`'s own gradient `LEGWEAR`
+block instead. An unknown pose, costume or expression is a `KeyError`.
 
 ## Render constants
 

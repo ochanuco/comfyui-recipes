@@ -172,9 +172,9 @@ class BuildCatalogTest(unittest.TestCase):
         self.assertEqual(
             by_name["yukari"]["parts"],
             ["quality", "count", "character", "series", "artist", "identity",
-             "eye_base", "eye_quality", "legwear", "framing_tags",
+             "eye_base", "eye_quality", "framing_tags",
              "leg_display", "body_build", "action", "mouth", "mood",
-             "gesture", "costume", "cutout", "face", "style"])
+             "gesture", "costume", "legwear", "cutout", "face", "style"])
         self.assertEqual(
             by_name["yukari"]["part_groups"],
             {"quality": ["quality", "count"],

@@ -34,7 +34,7 @@ from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 from comfyui_recipes.interfaces import cli
 
 FIXTURES = Path(__file__).parent / "fixtures"
-DANCE_FIXTURE = json.loads((FIXTURES / "dance-legwear-9g7tl0.json").read_text())
+DANCE_FIXTURE = json.loads((FIXTURES / "dance-legwear-t4qwab.json").read_text())
 LEGWEAR_SHEER_GLOSS_FINAL = json.loads(
     (FIXTURES / "legwear-sheer-gloss-final.json").read_text())
 
@@ -51,8 +51,8 @@ COFFEE_POSITIVE = (
     "cup:1.35), (straw in mouth:1.25), (standing:1.2), (looking at "
     "viewer:1.1), (oversized sweatshirt:1.35), (white sweatshirt:1.2), "
     "(sleeves past wrists:1.25), (denim shorts:1.3), (sheer black "
-    "pantyhose:1.5), (dark violet tint:1.2), (see-through legwear:1.4), (thin "
-    "translucent legwear:1.3), (pantyhose:1.4), (subtle sheen on "
+    "pantyhose:1.5), (dark violet tint:1.2), (see-through legwear:1.4), (skin "
+    "visible through legwear:1.3), (pantyhose:1.4), (subtle sheen on "
     "legwear:1.05), (anime coloring:1.2), simple background, (green "
     "background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), "
     "(tareme:1.2), (thick eyelashes:1.3), (flat color:1.3), (sketch:1.3), "
@@ -93,8 +93,8 @@ AMAE_POSITIVE = (
     "(looking at viewer:1.3), (own hands clasped:1.25), (hands up:1.1), "
     "(oversized sweatshirt:1.35), (white sweatshirt:1.2), (sleeves past "
     "wrists:1.25), (denim shorts:1.3), (sheer black pantyhose:1.5), (dark "
-    "violet tint:1.2), (see-through legwear:1.4), (thin translucent "
-    "legwear:1.3), (pantyhose:1.4), (subtle sheen on legwear:1.05), (anime "
+    "violet tint:1.2), (see-through legwear:1.4), (skin visible "
+    "through legwear:1.3), (pantyhose:1.4), (subtle sheen on legwear:1.05), (anime "
     "coloring:1.2), simple background, (green background:1.3), (large "
     "eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), (thick "
     "eyelashes:1.3), (flat color:1.3), (sketch:1.3), (traditional media:1.2)"
@@ -117,7 +117,7 @@ STAND_POSITIVE = (
     "(sneakers:1.3), (white sneakers:1.2), (oversized sweatshirt:1.35), "
     "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
     "(sheer black pantyhose:1.5), (dark violet tint:1.2), (see-through "
-    "legwear:1.4), (thin translucent legwear:1.3), (pantyhose:1.4), (subtle "
+    "legwear:1.4), (skin visible through legwear:1.3), (pantyhose:1.4), (subtle "
     "sheen on legwear:1.05), (anime coloring:1.2), simple background, (green "
     "background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), "
     "(tareme:1.2), (thick eyelashes:1.3), (flat color:1.3), (sketch:1.3), "
@@ -197,8 +197,8 @@ GAO_POSITIVE = (
     "hooded cardigan:1.5), (dark violet hoodie:1.25), open cardigan, (rabbit "
     "hood:1.3), long sleeves, drawstring, (purple dress:1.25), frills, "
     "(sleeves past wrists:1.15), hood down, (sheer black pantyhose:1.5), "
-    "(dark violet tint:1.2), (see-through legwear:1.4), (thin translucent "
-    "legwear:1.3), (pantyhose:1.4), (subtle sheen on legwear:1.05), (anime "
+    "(dark violet tint:1.2), (see-through legwear:1.4), (skin visible "
+    "through legwear:1.3), (pantyhose:1.4), (subtle sheen on legwear:1.05), (anime "
     "coloring:1.2), simple background, (green background:1.3), (large "
     "eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), (thick "
     "eyelashes:1.3), (flat color:1.3), (sketch:1.3), (traditional media:1.2)"
@@ -240,7 +240,7 @@ REDRAW_STAND_POSITIVE = (
     "(sneakers:1.3), (white sneakers:1.2), (oversized sweatshirt:1.35), "
     "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
     "(sheer black pantyhose:1.5), (dark violet tint:1.2), (see-through "
-    "legwear:1.4), (thin translucent legwear:1.3), (pantyhose:1.4), (subtle "
+    "legwear:1.4), (skin visible through legwear:1.3), (pantyhose:1.4), (subtle "
     "sheen on legwear:1.05), (anime coloring:1.2), simple background, (green "
     "background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), "
     "(tareme:1.2), (thick eyelashes:1.3), (sketch:1.45), (rough sketch:1.4), "

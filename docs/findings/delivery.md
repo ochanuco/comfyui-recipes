@@ -16,8 +16,8 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
 - Rim is `#885b80`, polygonised (Douglas–Peucker, eps 0.5%) for a hand-cut
   look; eps stays well under the white band or the outline cuts inside it.
   Light-direction shading on the purple rim, 8 directions. `[all]` (a6 §Hand-cut sticker rim)
-- Matte: RMBG BiRefNet-general + 1 px key alpha + projected despill. Anima
-  bust renders on green; hair-enclosed green gets `enclosed_cut`. Cast
+- Matte: RMBG BiRefNet-general + 1 px key alpha + projected despill. Every
+  pose renders on green (grey sat too close to the pale skin at the edge); hair-enclosed green gets `enclosed_cut`. Cast
   shadows: `soft_clamped` + `shadow_cut` (#183). `[Anima]`
 - Detail density follows the redraw canvas: draw at 2560, shrink to 1536. `[IL]`
 

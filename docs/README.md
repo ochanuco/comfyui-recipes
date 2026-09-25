@@ -32,7 +32,7 @@ the archive and lives in `experiments/`, chimera or the named PR.
 
 | File | ~tok | Covers |
 |---|---|---|
-| [yukari/anima.md](yukari/anima.md) | 5k | the live recipe: blocks, poses, edit order |
+| [yukari/anima.md](yukari/anima.md) | 1k | the live recipe: where each block lives, cross-file contracts |
 | [yukari/delivery_style.md](yukari/delivery_style.md) | 4k | delivery identity and finalize settings |
 | `poses/yukari/<pose>.md` | 0.3–1.5k each | one pose's reasoning; `shared.md` for shared constants |
 
@@ -40,7 +40,7 @@ the archive and lives in `experiments/`, chimera or the named PR.
 
 | File | ~tok | Covers |
 |---|---|---|
-| [queueing.md](queueing.md) | 7k | request payloads, patches, chimera queueing |
+| [queueing.md](queueing.md) | 1.5k | request kinds, where each option is defined, cross-file rules |
 | [release.md](release.md) | 1.4k | main → production, worker deploy |
 | [remote.md](remote.md) | 1.7k | the GPU box: deploy, logon tasks, restart |
 | [local-install.md](local-install.md) | 0.9k | ComfyUI on this machine (legacy) |

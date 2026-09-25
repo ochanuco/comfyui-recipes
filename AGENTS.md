@@ -64,7 +64,7 @@ plain `stand` still wears the pre-official costume.
 
 One recipe is live, `yukari` under `src/comfyui_recipes/domain/`: the Anima
 Turbo checkpoint's identity, costumes, poses and prompt edit order.
-`docs/yukari/anima.md` is the description. `domain/yukari/delivery_style.py`
+`docs/yukari/anima.md` maps where each part lives. `domain/yukari/delivery_style.py`
 holds both the delivery identity (backdrop, purple stroke, acceptance band)
 every delivered picture wears, read by imaging, catalog, work, cli and
 repair alike, and the finalize redraw settings (stage-2 model, sampler,

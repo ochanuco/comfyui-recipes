@@ -12,6 +12,10 @@ Anima recipe itself in [`docs/yukari/anima.md`](../yukari/anima.md). Tags and
   `@yoshikawa hideaki` 0.5), not with a sketch LoRA; the sketch LoRA route is
   withdrawn. An artist the user excluded is patched out even if a default
   still carries it. `[Anima]`
+- On Turbo a weight under 1.0 still registers: `oshiki` at 0.85 keeps the
+  thick black line, `yoshikawa` at 0.5 stops the face lengthening and the
+  eyes shrinking, and also suppresses the handwritten text `oshiki` draws
+  alone. `[Anima]`
 - The AI look on IL was the recipe's own style block and texture bans, not the
   checkpoint: nine checkpoint swaps under the unchanged prompt all rated
   bad/neutral; removing the block let sketch LoRAs draw. Separate the two by

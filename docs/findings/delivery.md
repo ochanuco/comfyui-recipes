@@ -59,7 +59,12 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
 - Hue interpolation goes the short way round, or purple → skin crosses green at
   every feather. Skin restoration fires only where skin was painted. `[all]` (a5 §肌ピン自体)
 - Despill on a yellow-green key pinks the skin at the excess-24 edge; limit it
-  to the edge band. `[Anima]`
+  to the edge band. It projects onto the key's chroma instead of capping green,
+  because `(green background)` draws a teal and a green cap left a cyan rim.
+  `[Anima]`
+- Matte model: `BiRefNet-general` kept the enclosed gaps under the chin in 3
+  fragments; RMBG `BiRefNet-HR` filled them as figure and `HR-matting` split
+  the edge into 35. `[Anima]`
 - `recolor` is for the lap palette; a sketch delivery uses repin or nothing. `[all]`
 
 ## Redraw passes (IL opt-in)

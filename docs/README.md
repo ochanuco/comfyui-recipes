@@ -28,13 +28,12 @@ that starts with those words; `uv run scripts/atlas.py notes "The gradient
 direction"` prints that section alone. A pointer with no `a<n>` came after
 the archive and lives in `experiments/`, chimera or the named PR.
 
-## Recipe and poses
+## Recipe
 
 | File | ~tok | Covers |
 |---|---|---|
 | [yukari/anima.md](yukari/anima.md) | 1k | the live recipe: where each block lives, cross-file contracts |
-| [yukari/delivery_style.md](yukari/delivery_style.md) | 4k | delivery identity and finalize settings |
-| `poses/yukari/<pose>.md` | 0.3–1.5k each | one pose's reasoning; `shared.md` for shared constants |
+| [yukari/delivery_style.md](yukari/delivery_style.md) | 0.9k | delivery constants: which code reads them, cross-file contracts |
 
 ## Operations
 
@@ -42,12 +41,9 @@ the archive and lives in `experiments/`, chimera or the named PR.
 |---|---|---|
 | [queueing.md](queueing.md) | 1.5k | request kinds, where each option is defined, cross-file rules |
 | [release.md](release.md) | 1.4k | main → production, worker deploy |
-| [remote.md](remote.md) | 1.7k | the GPU box: deploy, logon tasks, restart |
-| [local-install.md](local-install.md) | 0.9k | ComfyUI on this machine (legacy) |
-| [configuration.md](configuration.md) | 0.5k | config files meant to be edited |
+| [remote.md](remote.md) | 1.3k | the GPU box: setup, logon tasks, fetching models |
 | [models.md](models.md) | 2.2k | model files and provenance |
 | [architecture.md](architecture.md) | 1k | layer dependency rule |
-| [anima-migration-inventory.md](anima-migration-inventory.md) | 1.3k | what the IL checkpoint bought, and what moved |
 
 ## Archive
 

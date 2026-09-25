@@ -70,7 +70,7 @@ class DocsBudgetTest(unittest.TestCase):
         linked = set(re.findall(r"\]\(([^)#]+\.md)", index))
         for path in live_docs():
             rel = path.relative_to(DOCS).as_posix()
-            if rel == "README.md" or rel.startswith("poses/"):
+            if rel == "README.md":
                 continue
             with self.subTest(doc=rel):
                 self.assertIn(rel, linked, f"docs/README.md does not list {rel}")

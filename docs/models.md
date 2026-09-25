@@ -81,7 +81,7 @@ Whole-folder copies of a Civitai model converted to diffusers by John6666.
 ## On the worker only (2026-09-05)
 
 Fetched straight onto the Windows box for the checkpoint and LoRA A/B rounds
-(`docs/render-notes.md`, 2026-09-05). No local copy and no SHA256 recorded;
+(`docs/archive/render-notes/6-2026-09.md`). No local copy and no SHA256 recorded;
 re-fetch from the source if they are ever needed again. Every checkpoint below
 rated bad against hassaku-il-v22 on the recipe prompt and is not used; the
 linaqruf LoRA is what `yukari-sketch` loads.

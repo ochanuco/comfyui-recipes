@@ -13,7 +13,7 @@ and fails on any change that was not told to `--accept`.
 
 When it fails, nothing is broken -- something was changed. Re-run with
 --accept to record the new fingerprint into assets/delivery-fingerprint.json,
-and write in docs/render-notes.md what the look is now.
+and write in docs/findings/delivery.md what the look is now.
 
 Exit status is 1 if anything fails, so this can gate a commit.
 """
@@ -78,7 +78,7 @@ def main() -> None:
             json.dumps({"delivery_fingerprint": got}, indent=1) + "\n",
             encoding="utf-8")
         print(f"delivery {got}   -> assets/delivery-fingerprint.json")
-        print("write in docs/render-notes.md what the look is now")
+        print("write in docs/findings/delivery.md what the look is now")
         return
 
     accepted = accepted_fingerprint()

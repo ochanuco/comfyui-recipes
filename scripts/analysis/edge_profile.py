@@ -2,7 +2,7 @@
 """How jagged a silhouette is, in three numbers, without opening the picture.
 
 Written the second time this was needed. The first version was a throwaway in
-.local/ and the numbers it produced are quoted in `docs/render-notes.md` under
+.local/ and the numbers it produced are quoted in `docs/archive/render-notes/` under
 the upscale-ratio finding; there is no way to rerun them, which is the whole
 argument for this file existing.
 

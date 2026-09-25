@@ -1,0 +1,63 @@
+# docs index
+
+Open the one file that matches the question, and stop. Sizes are rough
+tokens (`uv run scripts/atlas.py docs` prints the live numbers).
+
+## Findings — what the measurements concluded (current state)
+
+| File | ~tok | Covers |
+|---|---|---|
+| [findings/prompt.md](findings/prompt.md) | 1.6k | tag order and weight, negatives, seed and sampler |
+| [findings/face.md](findings/face.md) | 1k | ジト目, expressions, eye identity |
+| [findings/legwear-costume.md](findings/legwear-costume.md) | 1k | canonical legwear, gloss, garment colour and fit |
+| [findings/hands-feet-repair.md](findings/hands-feet-repair.md) | 1k | toes and fingers, `repair`, masked redraw |
+| [findings/composition.md](findings/composition.md) | 1.1k | canvas, framing, pose structure |
+| [findings/delivery.md](findings/delivery.md) | 1.3k | finalize, matte, stroke, backdrop, repin |
+| [findings/checkpoints.md](findings/checkpoints.md) | 0.7k | Anima vs IL, LoRA, ControlNet / region tools |
+| [findings/evaluation.md](findings/evaluation.md) | 1.1k | metrics that failed, judging and process rules |
+
+Each line carries a scope tag:
+
+- `[all]` holds on the current pipeline.
+- `[Anima]` was measured on Anima, stage 1 today.
+- `[IL]` was measured on the retired Illustrious stage 1 and matters only
+  for the opt-in IL redraw.
+
+`(a3 §The gradient direction)` points at archive file 3, at the heading
+that starts with those words; `uv run scripts/atlas.py notes "The gradient
+direction"` prints that section alone. A pointer with no `a<n>` came after
+the archive and lives in `experiments/`, chimera or the named PR.
+
+## Recipe and poses
+
+| File | ~tok | Covers |
+|---|---|---|
+| [yukari/anima.md](yukari/anima.md) | 5k | the live recipe: blocks, poses, edit order |
+| [yukari/delivery_style.md](yukari/delivery_style.md) | 4k | delivery identity and finalize settings |
+| `poses/yukari/<pose>.md` | 0.3–1.5k each | one pose's reasoning; `shared.md` for shared constants |
+
+## Operations
+
+| File | ~tok | Covers |
+|---|---|---|
+| [queueing.md](queueing.md) | 7k | request payloads, patches, chimera queueing |
+| [release.md](release.md) | 1.4k | main → production, worker deploy |
+| [remote.md](remote.md) | 1.7k | the GPU box: deploy, logon tasks, restart |
+| [local-install.md](local-install.md) | 0.9k | ComfyUI on this machine (legacy) |
+| [configuration.md](configuration.md) | 0.5k | config files meant to be edited |
+| [models.md](models.md) | 2.2k | model files and provenance |
+| [architecture.md](architecture.md) | 1k | layer dependency rule |
+| [anima-migration-inventory.md](anima-migration-inventory.md) | 1.3k | what the IL checkpoint bought, and what moved |
+
+## Archive
+
+[archive/](archive/README.md) — the measurement log the findings came from,
+frozen (~150k tokens). `a1` early / multi-character, `a2` 08-16–17,
+`a3` 08-18–19, `a4` 08-19–25, `a5` 08-26–31, `a6` 09 (Anima move). Search
+it, never open it whole.
+
+## Writing here
+
+New measurements go to `experiments/` (append-only). Docs are rewritten to
+the current conclusion; see "Writing docs" in `AGENTS.md`.
+`tests/test_docs_budget.py` enforces the caps and this index.

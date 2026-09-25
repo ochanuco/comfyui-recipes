@@ -18,6 +18,7 @@ src/comfyui_recipes/
 ├── application/         # generate, finalize and metadata workflows
 ├── domain/
 │   ├── generation/      # shared values and prompt checks
+│   ├── repair/          # repair vocabulary: regions, prompt drops, models, LoRAs, ControlNet
 │   └── yukari/          # the recipe that draws (identity, costumes, poses, prompt edit
 │                        # order) and the delivery identity (backdrop, stroke, acceptance band)
 └── infrastructure/

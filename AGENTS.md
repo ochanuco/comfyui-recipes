@@ -103,9 +103,8 @@ experiments/  one observation per JSONL record (seed, render_id, parameter,
               observations still append here. The JSONL stays the source
               of truth; chimera holds a derived index kept in sync by
               `scripts/observation_sync.py`.
-docs/         conclusions, current state only. Cross-pose lessons in
-              docs/findings/<topic>.md, per-pose reasoning in
-              docs/poses/<character>/<pose>.md, index in docs/README.md.
+docs/         conclusions, current state only. Lessons in
+              docs/findings/<topic>.md, index in docs/README.md.
               docs/archive/ is the frozen pre-split log: grep, never edit.
 tests/        invariants that must hold across models and seeds (prompt
               byte-stability is already pinned by the snapshot contract).

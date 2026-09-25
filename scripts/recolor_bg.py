@@ -1,51 +1,13 @@
 #!/usr/bin/env python3
 """Repaint the flat background of a generated portrait to an exact colour.
 
-Prompt tags such as "grey background" only get the model into the right area;
-the actual value drifts between seeds. For a plain backdrop it is cheaper to
-generate against any flat colour and set the real one here.
+Only pixels reachable from the image border are touched, so a white dress or
+a pale cape -- surrounded by the figure rather than by the edge -- is left
+alone.
 
-Only pixels reachable from the image border are touched, so a white dress or a
-pale cape -- surrounded by the figure rather than by the edge -- is left alone.
-
-**The edge is a blend and a hard threshold cannot repaint it.** Between the
-backdrop and the figure sits a ring of pixels that are part one and part the
-other -- antialiasing, plus this recipe's `(white outline:1.6)` fading into the
-backdrop behind it. Those pixels fail the tolerance test, keep the ORIGINAL
-backdrop's hue, and once the flat area around them is a different colour the
-ring reads as a dirty jagged fringe. Measured on the `pounce` print: a 3px band
-of 25,148 pixels around the figure, 100% of it closer to the old backdrop than
-to the colour that had just been painted around it. 「じゃぎってる」.
-
-So the repaint is two things. Inside the mask the colour is SET, because the
-point of this tool is a value the prompt cannot hold. Outside it, within
-`--feather` pixels, each pixel is SHIFTED by the same delta scaled by how much
-backdrop it looks like it contains. Both limits are needed: the colour ramp
-alone tints pale skin (skin sits 35 from a typical backdrop, well inside the
-band), and the spatial band alone tints the outline evenly instead of by
-coverage. `--feather 0` is the old behaviour, and it is what every print
-delivered before 2026-08-22 was made with.
-
-**The width is 1, and 2 was wrong for a reason worth keeping.** This shipped at
-2 first, and 「輪郭の雰囲気とマッチしていない」 came back. It was measured, and it
-was real: at 2 the shift reaches the `(white outline:1.6)` that this recipe
-draws around every figure, and 61,629 outline pixels went from (248,243,242) --
-warm white -- to (240,248,248), cool. The edge that is half the look had been
-tinted the backdrop's new colour.
-
-    feather 2   1px fringe 6.0% still old hue   outline moved mean 6.4  p90 21
-    feather 1   1px fringe 6.0%                 outline moved mean 3.6  p90 18
-
-Same correction, half the damage. **Two other routes were tried and both fail
-the same way**, because the backdrop (223,207,206) and the white outline
-(248,243,242) are close enough in value that nothing colorimetric divides them:
-
-  * A matte estimate -- solve p = a*bg + (1-a)*fg against the nearest figure
-    colour -- put the fringe back to 53.2%.
-  * Protecting anything brighter than the backdrop put it back to 59-69%.
-
-The fringe IS the outline's outer blend. There is no version of this that
-repaints one and not the other; there is only how far in it reaches.
+Inside the mask the colour is SET. Outside it, within `--feather` pixels,
+each pixel is SHIFTED toward the colour by how much backdrop it looks like
+it contains, instead of repainting the blended edge outright.
 """
 
 from __future__ import annotations
@@ -158,13 +120,9 @@ def repaint(
 ) -> tuple[np.ndarray, float]:
     """The repaint itself, on an int RGB array. Returns the array and the share.
 
-    Split out of `main` so the delivery step can run it in process rather than
-    through a second file on disk; `main` calls it too, so there is one
-    implementation and the CLI's defaults are the ones documented above.
-
-    The caller decides what to do with a low share. Below about 5% the backdrop
-    the flood found is not a backdrop, and repainting it anyway paints the
-    figure.
+    The caller decides what to do with a low share: below about 5% the
+    backdrop the flood found is not a backdrop, and repainting it anyway
+    paints the figure.
     """
     mask = background_mask(pixels, tolerance)
     if enclosed_tolerance >= 0:
@@ -173,16 +131,14 @@ def repaint(
 
     seed = pixels[0, 0]
     if feather > 0:
-        # How much backdrop each edge pixel looks like it holds. Linear from
-        # 1 at the tolerance the hard mask used to 0 at --feather-tolerance,
-        # and zero everywhere outside a thin band around the mask.
+        # How much backdrop each edge pixel looks like it holds: linear from 1
+        # at --tolerance down to 0 at --feather-tolerance, zero outside the band.
         band = ndimage.binary_dilation(mask, iterations=feather) & ~mask
         far = max(feather_tolerance - tolerance, 1)
         distance = np.abs(pixels - seed).max(axis=2)
         alpha = np.clip((feather_tolerance - distance) / far, 0.0, 1.0)
         alpha[~band] = 0.0
-        # SHIFTED, not set: the pixel keeps whatever figure is in it and only
-        # its backdrop component moves. Setting it would paint the outline.
+        # SHIFTED, not set: only the pixel's backdrop component moves.
         pixels = pixels + alpha[..., None] * (np.array(color) - seed)
         pixels = np.clip(pixels, 0, 255)
     pixels[mask] = color

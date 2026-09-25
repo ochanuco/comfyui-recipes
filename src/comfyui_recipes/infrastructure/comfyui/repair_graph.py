@@ -94,12 +94,7 @@ def _upstream(graph: Mapping, refs: list[list | None]) -> set[str]:
 
 
 def redraw_canvas(graph: Mapping) -> tuple[int, int]:
-    """The (width, height) of the final sampler's own canvas.
-
-    Reads whatever feeds the final KSampler's `latent_image`: a `LatentUpscale`
-    or an `ImageScale` -> `VAEEncode` pair gives the redraw's own dimensions;
-    a plain raw graph samples straight off an `EmptyLatentImage`.
-    """
+    """The (width, height) of the final sampler's own canvas."""
     decode_id = _find_decode(graph)
     sampler_id = _find_sampler(graph, decode_id)
     latent_ref = graph[sampler_id]["inputs"]["latent_image"]
@@ -359,9 +354,8 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
         if node_id not in dropped:
             tail.add(node_id)
         stack.extend(consumers.get(node_id, []))
-    # A tail node can depend on a sibling that is not itself downstream of
-    # the decode (a matte model loader feeding a background-removal node
-    # alongside the decode's own image input) -- pull those in too.
+    # A tail node can depend on a sibling not itself downstream of the decode
+    # (a matte model loader feeding a background-removal node) -- pull those in too.
     dependency_stack = [
         value[0] for node_id in tail
         for value in graph[node_id].get("inputs", {}).values()
@@ -369,10 +363,9 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
         and value[0] not in dropped]
     while dependency_stack:
         node_id = dependency_stack.pop()
-        # `result` already holds the pruned loader set `_pruned_reroll` kept,
-        # plus the reroll's own freshly allocated ids -- none of which can
-        # collide with a pre-existing node id from `graph`, so checking
-        # membership here is the same dedup `keep` would give.
+        # `result`'s ids (pruned loaders plus the reroll's fresh ones) never
+        # collide with a pre-existing id from `graph`, so this membership
+        # check is the same dedup `keep` would give.
         if node_id in result or node_id in tail or node_id in dropped:
             continue
         tail.add(node_id)

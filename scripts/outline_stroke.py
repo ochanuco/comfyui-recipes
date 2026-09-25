@@ -1,45 +1,24 @@
 #!/usr/bin/env python3
 """Draw a second marker outline outside the one the model already drew.
 
-Every figure in this recipe carries `(white outline:1.6)` -- a thick white
-marker band that the model paints itself, and that reads as the sticker edge of
-the drawing. This adds a coloured band immediately outside it: purple, at
-Yukari's own hue, so the cut-out has a second stroke around it.
+Every figure carries a white outline already; this adds a second coloured
+band immediately outside it, in Yukari's own hue. The band is added to the
+picture, not cut from it -- the drawing underneath is untouched.
 
-**Why this is not a prompt tag.** Danbooru's outline tags name one outline. Two
-concentric bands, at fixed widths, in a stated colour, is a value the model has
-no way to hold across seeds -- the same reason `recolor_bg.py` exists. The band
-is added to the picture, not cut out of it, and the drawing underneath is
-untouched: the stroke lives entirely in backdrop pixels.
-
-Run it AFTER `recolor_bg.py`. The backdrop is found the same way -- flood from
-the border, plus enclosed pockets -- so the stroke follows the figure exactly
-where the repaint stopped, including the gaps between an arm and the body.
+Run it AFTER `recolor_bg.py`. The backdrop is found the same way -- flood
+from the border, plus enclosed pockets -- so the stroke follows the figure
+exactly where the repaint stopped.
 
     uv run scripts/recolor_bg.py print.png --color '#c7e5e9'
     uv run scripts/outline_stroke.py print-bg.png
 
-**The defaults are a starting point, not the recipe.** Four widths were shown
-against the accepted `swelter` print and the thinnest won -- `#9256b8` at 6px on
-2048, an accent rather than a second band of equal weight -- with the note that
-it should be chosen per picture: 「これは絵の雰囲気で変えるべき」. So the default
-here is that pick and nothing more. Reach for a heavier stroke when the drawing
-can carry one.
+The defaults are a starting point, not the recipe; reach for a heavier
+stroke when the drawing can carry one. Width defaults to a share of the
+figure's own white band, not the canvas -- a constant canvas share looks
+thin on exactly the pictures whose band is thickest.
 
-**The width is a share of the white band, not of the canvas, and that was a
-correction.** It shipped as 0.3% of the longest side, and on a head crop the
-purple went invisible -- 「大外の紫を復旧して」. The band the stroke sits
-against is drawn by the model at a size that has nothing to do with the canvas:
-19.2px on a 2048 print and 13.2px on a 1024 head crop, i.e. 0.94% of one frame
-and 1.29% of the other. A constant share of the canvas therefore makes the
-stroke look thinner on exactly the pictures whose band is thickest. `band` is
-the default now, at 0.32 -- the share that reproduces the picked 6.1px on the
-picture the four arms were judged on. `--width-pct` and `--width` still
-override it.
-
-The outer edge gets one pixel of falloff. Without it the band is a hard step
-against a flat backdrop, which is precisely the fringe that
-`recolor_bg.py --feather` was written to stop.
+The outer edge gets one pixel of falloff, avoiding a hard step against the
+flat backdrop.
 """
 
 from __future__ import annotations
@@ -55,12 +34,10 @@ from recolor_bg import background_mask, enclosed_mask, parse_color
 
 from comfyui_recipes.domain.yukari import delivery_style
 
-# The values (and why they were picked) live in yukari/delivery_style.py;
-# these names stay because they are this tool's API -- callers read them.
+# Re-exported from yukari/delivery_style.py -- these names are this tool's API.
 DEFAULT_COLOR = delivery_style.STROKE
 DEFAULT_WIDTH_BAND = delivery_style.STROKE_WIDTH_BAND
-# This tool's own floor. The delivery sizes its bands from
-# delivery_style.WHITE_WIDTH_PCT and no longer needs one.
+# This tool's own floor when nothing else determines the width.
 DEFAULT_WIDTH_PCT = 0.3
 
 
@@ -113,9 +90,8 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-# Above this share of the contour having no line within LINE_REACH, the median
-# below is measuring the tail rather than the band. 0.5 is not a tuned number:
-# it is the point at which a median IS the tail.
+# Above this share of the contour having no line within LINE_REACH, the
+# median measures the unlined tail rather than the band.
 FAR_SHARE = 0.5
 LINE_REACH = 20.0
 
@@ -123,24 +99,12 @@ LINE_REACH = 20.0
 def band_thickness(pixels: np.ndarray, mask: np.ndarray, dark: int = 120) -> float:
     """How thick the figure's OWN white marker is, at the median of its contour.
 
-    **Measured to the LINE, not to the white.** The obvious version -- walk in
-    from the backdrop counting bright unsaturated pixels -- does not work in
-    this recipe, and the reason is worth keeping: `(pale skin:1.25)` puts her
-    face at (250,240,225), which is brighter and barely more saturated than the
-    white band at (248,243,242). There is no threshold that separates the paint
-    from the girl. It also read 1px on any repainted image, because
-    `recolor_bg`'s 1px feather tints the outermost ring toward the backdrop and
-    that alone failed the test.
-
-    The band's INNER edge is unambiguous: it is the figure's black outline. So
-    this measures, for every pixel on the backdrop's contour, the distance to
-    the nearest dark pixel, and takes the median. Stable to the repaint --
-    19.2 against 19.2 on the print, 13.2 against 13.0 on a head crop -- because
-    nothing it looks at is near the tolerance of anything.
-
-    The median and not the mean: parts of a contour have no line anywhere near
-    them (the inside of a leg, a sleeve running out of frame) and those read in
-    the hundreds. On the accepted print the quartiles are 16 and 98.
+    Measured to the line, not the white: skin tone and the white band can't be
+    told apart by threshold. The inner edge is unambiguous (the figure's black
+    outline), so this takes the median distance from each backdrop-contour
+    pixel to the nearest dark pixel -- median because unlined stretches of
+    contour (an arm's inside, a sleeve running out of frame) read in the
+    hundreds.
     """
     inward = ndimage.distance_transform_edt(~mask)
     to_line = ndimage.distance_transform_edt(pixels.mean(axis=2) >= dark)
@@ -148,16 +112,9 @@ def band_thickness(pixels: np.ndarray, mask: np.ndarray, dark: int = 120) -> flo
     if not contour.any():
         return 0.0
     distances = to_line[contour]
-    # **The median only protects while the tail is under half.** Measured on the
-    # renders that produced today's 1.0-to-12.7px spread: the share of contour
-    # with no line within 20px ran 0.3%, 18.5%, 37.7%, 44.8%, 57.6%, 81.2%, and
-    # the two past 50% are exactly the two whose estimate was absurd -- 45.5px
-    # of "band" on a print whose band is under 20. Past that point the median
-    # has crossed into the distances-to-nothing and is not measuring paint.
-    #
-    # 0.0 rather than a clamped guess: the caller has a canvas-relative default
-    # that does not depend on finding the band at all, and a number that is
-    # known to be wrong is worse than no number.
+    # Past FAR_SHARE, the median is measuring distance-to-nothing, not paint.
+    # Returns 0.0 rather than a clamped guess: the caller's canvas-relative
+    # default doesn't need this value, and a wrong number is worse than none.
     if float((distances > LINE_REACH).mean()) >= FAR_SHARE:
         return 0.0
     return float(np.median(distances))
@@ -189,12 +146,7 @@ def stroke(
     tolerance: int = 18,
     enclosed_tolerance: int = 4,
 ) -> tuple[np.ndarray, float, float]:
-    """Draw the band on a float RGB array. Returns it, the width, and the share.
-
-    Split out of `main` for the same reason `recolor_bg.repaint` is: the two
-    run back to back on every delivery and there is no reason for the second
-    one to re-read the first one's file.
-    """
+    """Draw the band on a float RGB array. Returns it, the width, and the share."""
     rgb = np.array(parse_color(color), dtype=float)
     mask = background_mask(pixels.astype(int), tolerance)
     if enclosed_tolerance >= 0:
@@ -206,18 +158,9 @@ def stroke(
     elif width is None:
         fraction = DEFAULT_WIDTH_BAND if width_band is None else width_band
         band = band_thickness(pixels, mask)
-        # **A FLOOR, not a fallback.** The two rules fail in opposite
-        # directions: the canvas share went invisible on a head crop, which is
-        # why the band share replaced it, and the band share came out at 1.0
-        # and 2.3px on prints whose siblings got 6.5 and 12.7. Taking the larger
-        # of the two fixes both, because neither is ever wrong by being too big
-        # here -- the head crop's band is thick, so the band rule wins there and
-        # the floor does not bind; a print's band is thin, so the floor does.
-        #
-        # Measured on the six renders that produced today's spread. Before:
-        # 6.5 3.5 1.0 / 12.7 2.3 3.2. After: 4.6 4.6 4.6 / 6.1 6.1 6.1 -- every
-        # arm of a comparison gets the same band, which is the property that was
-        # actually missing. 6.1 is also what the eye picked on cf978c9c.
+        # A floor, not a fallback: max() means neither term can be too big --
+        # the canvas floor only binds where the measured band is thin, and
+        # the band term wins wherever it is thick.
         width = max(band * fraction,
                     max(pixels.shape[:2]) * DEFAULT_WIDTH_PCT / 100)
 

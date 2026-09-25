@@ -1,10 +1,6 @@
 """Repair mask geometry, in the source render's own pixel space.
 
-`regions_from_pose` reads OpenPose-18 body keypoints (plus the 21-point hand
-sets when present) and returns circles around the feet and/or hands;
-`rects_from_fractions` turns caller-given fractional rectangles into the same
-pixel space. Rendering the union to a mask image is an infrastructure
-concern, not this module's.
+Rendering the region union to a mask image is not this module's concern.
 """
 
 from __future__ import annotations

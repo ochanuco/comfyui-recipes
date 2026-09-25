@@ -11,7 +11,7 @@ from ..ws import WebSocketClosed, websocket_url
 
 
 class HubClosed(WebSocketClosed):
-    """The WorkerHub socket is closed or broken."""
+    pass
 
 
 def hub_url(base_url: str) -> str:
@@ -24,8 +24,6 @@ def encode(message: dict) -> str:
 
 
 class HubConnection:
-    """One open websocket to the WorkerHub."""
-
     def __init__(self, url: str, headers: dict[str, str]) -> None:
         self.url = url
         self.headers = headers

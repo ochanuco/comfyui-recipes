@@ -1,11 +1,8 @@
 """Turn chimera's pending ExperimentRuns into generations.
 
-This is the bridge between a Cloudflare-hosted Agent (which cannot reach the
-render host) and a local `comfy-recipes generate`. A pending Run carries
-`overrides` and `base_parameters`, and finishing one means a `batch_id` gets
-attached to it -- that PATCH already happens inside `generate()`. Nothing
-about evaluation, decision, promotion, or the rest of the Experiment
-lifecycle belongs in this module.
+The bridge between a Cloudflare-hosted Agent (no render-host access) and a
+local `comfy-recipes generate`. Evaluation, decision and promotion are out
+of scope here.
 """
 
 from __future__ import annotations
@@ -51,10 +48,8 @@ def _fallback_summary(item: Mapping) -> str:
 def build_request(item: Mapping) -> dict:
     """Build a comfy-recipes request.json body from one pending Run item.
 
-    Raises SkipRun when the item's experiment names no base_recipe -- there
-    is nothing to generate from. Callers should also run the result through
-    validate_request, since a base_recipe alone does not guarantee the rest
-    of the shape (e.g. a required pose) is present.
+    Raises SkipRun when the item's experiment names no base_recipe. Callers
+    should also run the result through validate_request.
     """
     experiment = item.get("experiment") or {}
     base_recipe = experiment.get("base_recipe")
@@ -91,10 +86,9 @@ def _request_path(output_root: Path, run_id: object) -> Path:
 
 
 def poll_once(services: WatchServices, *, dry_run: bool = False) -> None:
-    # A single Run's build/validate/write/generate is isolated here so one
-    # malformed or failing Run cannot stop the rest of the batch from
-    # running. KeyboardInterrupt is a BaseException, not an Exception, so it
-    # is deliberately left uncaught and keeps propagating to watch()'s loop.
+    # Isolated per Run so one malformed/failing Run cannot stop the rest.
+    # KeyboardInterrupt is a BaseException, so it is not caught here and
+    # keeps propagating to watch()'s loop.
     response = services.management.request("GET", PENDING_RUNS_PATH)
     for item in response.get("items", []):
         run_id = item.get("id")

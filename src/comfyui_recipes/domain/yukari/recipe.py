@@ -1,10 +1,4 @@
-"""The interpreter: pose, costume and expression records into a prompt pair.
-
-A hires pass's `hires` is a target longest side; the second-pass canvas is
-computed proportionally from the pose's own canvas, and the first pass's
-prompts carry over unchanged (`HiresSpec.positive` is `None`,
-`HiresSpec.negative` is the base negative).
-"""
+"""The interpreter: pose, costume and expression records into a prompt pair."""
 
 from __future__ import annotations
 
@@ -66,20 +60,16 @@ from .prompt_style import (
 )
 
 
-# The 13 legacy part names this recipe used to join `positive()` from,
-# before the component model split each into its own patch target.
-# `PART_GROUPS` maps each one to the component names that composed it, in
-# the declaration order `_components` builds them in; `patches.py` resolves
-# a `prompt.positive.<part>` patch against them for a caller that still
-# names a legacy part.
+# `PART_GROUPS` maps each legacy part name to its component names, in the
+# order `_components` builds them. `patches.py` resolves
+# `prompt.positive.<part>` against a legacy name through this.
 PART_NAMES = ("quality", "identity", "pose", "mouth", "mood", "eyes",
               "gesture", "costume", "scene", "body", "background", "face",
               "style")
 PART_GROUPS = part_groups(PART_NAMES)
 
-# The identity vocabulary this recipe can carry, at bare-tag level: hair,
-# sidelock, eye colour, ornament, eye-shape, and the `standard` costume's
-# cardigan/hood.
+# Bare-tag form (no weight/parens) -- must match what `prompt_tags` strips
+# tags down to.
 IDENTITY_TAG_NAMES = frozenset({
     "light purple hair", "short hair with long locks", "very long sidelocks",
     "purple eyes", "hair ornament", "tareme", "jitome",

@@ -1,39 +1,17 @@
 #!/usr/bin/env python3
 """How many bodies are in a render, without opening it.
 
-Replaces `.local/_solo.py`, which counted column blocks in the figure mask and
-called each one a body. That is wrong in a way that only shows up on some poses:
-a block one pixel wide counts the same as a girl. In one session it reported
-two bodies on two `seiza` renders and four and six on two `flop` renders, and
-every one of those extra blocks was a 1-4px sliver -- a stray mark at the frame
-edge, or a `motion lines` stroke on the flat backdrop, which is a comic
-convention drawn as separate marks BY DEFINITION. A pose carrying motion lines
-could not be counted by the old tool at all.
-
-So a block has to be big enough to be a person before it is called one. The
-filter is area share, not width: a figure lying down is wide and short, one
-standing is narrow and tall, and neither is bounded usefully by a width rule.
-`--min-share` is the fraction of total figure pixels a block must hold; 2% is
-far below any real second figure (the smallest chibi clone recorded in this
-repo's notes is several percent) and far above every false positive seen.
+Filters by area share, not width: a block must hold at least `--min-share`
+of total figure pixels to count as a body.
 
     uv run scripts/headcount.py <filename-on-the-worker> ...
     uv run scripts/headcount.py --detail ...      # every block, filtered or not
 
 Filenames are fetched through `/view` -- the worker's disk is not this one.
 
-**It counts blobs, not people.** Two figures that overlap in every column are
-one block. It is a smoke alarm for the clone problem this recipe keeps hitting,
-in the direction that matters: it does not miss a second girl standing clear of
-her, which is the failure that has actually occurred here.
-
-A block that clears the floor still has to be READ, and `--detail`'s vertical
-extent is what reads it. An outstretched arm on the ground is wide and flat --
-a small share of the frame's height. A figure is tall for its width whatever it
-is doing. On `flop` 555666777 the detached block was 334x632px, 62% of the
-frame's height at 8.3% of the figure's area, which is figure-shaped and not
-limb-shaped; on the same pose's other seeds every extra block was under 1px
-wide. Neither of those needed the render to be opened.
+It counts blobs, not people: two figures that overlap in every column are
+one block. `--detail`'s height fraction (of frame height) tells a figure,
+tall for its width, from a limb lying flat.
 """
 
 from __future__ import annotations

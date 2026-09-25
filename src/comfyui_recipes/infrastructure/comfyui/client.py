@@ -105,7 +105,7 @@ class ComfyUIClient:
             return response.read()
 
     def upload_image(self, name: str, data: bytes) -> str:
-        """POST to /upload/image; returns the filename ComfyUI stored it as."""
+        """Returns the filename ComfyUI stored it as."""
         boundary = uuid.uuid4().hex
         body = b"".join([
             f'--{boundary}\r\nContent-Disposition: form-data; name="image"; '

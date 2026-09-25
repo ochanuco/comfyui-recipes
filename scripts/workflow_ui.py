@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """Convert an API-format ComfyUI graph into the litegraph ("UI") format.
 
-The API format (`{node_id: {"class_type": ..., "inputs": {...}}}`) is what
-`/prompt` accepts, but it carries no layout or widget/socket distinction, so
-the web UI cannot open it and a PNG saved from it has no `workflow` chunk to
-drop back onto the canvas. `/object_info` is the only place that distinction
-lives -- it says which of a node's declared inputs are link sockets (MODEL,
-CLIP, IMAGE, ...) versus widgets (INT, FLOAT, STRING, BOOLEAN, or a combo) --
-so the converter needs a copy of it to do its job.
+The API format carries no layout or widget/socket distinction; `/object_info`
+is the only place that distinction lives, so this needs a copy of it to do
+its job.
 """
 
 from __future__ import annotations
@@ -15,11 +11,9 @@ from __future__ import annotations
 import json
 import urllib.request
 
-# Primitive widget types. Everything else that is a plain string (MODEL,
-# CLIP, VAE, CONDITIONING, LATENT, IMAGE, MASK, CONTROL_NET, IPADAPTER, ...)
-# is a link socket. A combo is a widget too, and object_info spells it two
-# different ways: either the type slot holds the choice list directly, or it
-# holds the literal string "COMBO" with the choices under opts["options"].
+# Everything else (MODEL, CLIP, IMAGE, MASK, ...) is a link socket. A combo
+# is a widget too, spelled as the choice list itself or as "COMBO" with
+# choices under opts["options"].
 _WIDGET_PRIMITIVES = {"INT", "FLOAT", "STRING", "BOOLEAN"}
 
 
@@ -82,9 +76,8 @@ def _looks_like_link(value, prompt: dict) -> bool:
 def api_to_ui(prompt: dict[str, dict], object_info: dict) -> dict:
     node_ids = sorted(prompt, key=int)
 
-    # Pass 1: resolve each class's declared shape and, per node, which of its
-    # connected inputs are links -- in spec order, since that order becomes
-    # both widgets_values order and each input's slot index.
+    # Spec order matters: it becomes both widgets_values order and each
+    # input's slot index.
     merged_by_node: dict[str, tuple[dict, dict]] = {}
     link_names_by_node: dict[str, list[str]] = {}
     for nid in node_ids:
@@ -105,7 +98,6 @@ def api_to_ui(prompt: dict[str, dict], object_info: dict) -> dict:
             and _looks_like_link(api_inputs[name], prompt)
         ]
 
-    # Pass 2: assign link ids and record outgoing links per (node, out slot).
     links: list[list] = []
     link_id_for: dict[tuple[str, str], int] = {}
     outgoing: dict[str, dict[int, list[int]]] = {nid: {} for nid in node_ids}
@@ -122,8 +114,8 @@ def api_to_ui(prompt: dict[str, dict], object_info: dict) -> dict:
             link_id_for[(nid, name)] = link_id
             outgoing[src_node].setdefault(src_slot, []).append(link_id)
 
-    # Pass 3: topological order (Kahn's algorithm) plus a longest-path depth
-    # for column layout. Ties broken by numeric node id for determinism.
+    # Topological order (Kahn's algorithm) plus longest-path depth for column
+    # layout. Ties broken by numeric node id for determinism.
     preds: dict[str, set] = {nid: set() for nid in node_ids}
     succs: dict[str, set] = {nid: set() for nid in node_ids}
     for _link_id, src, _src_slot, dst, _dst_slot, _type in links:
@@ -145,8 +137,7 @@ def api_to_ui(prompt: dict[str, dict], object_info: dict) -> dict:
             remaining_indegree[s] -= 1
             if remaining_indegree[s] == 0:
                 ready.append(s)
-    # A cycle would leave nodes unvisited; ComfyUI would have rejected such a
-    # graph at /prompt already, but fall back to id order rather than crash.
+    # A cycle would leave nodes unvisited -- fall back to id order rather than crash.
     for nid in node_ids:
         if nid not in order_of:
             order_of[nid] = order_counter

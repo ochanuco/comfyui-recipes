@@ -1,9 +1,7 @@
 """The worker's composition root: wires a `WorkServices` from concrete adapters.
 
-`interfaces/cli.py`'s `work` command and `comfy_nodes/yukari_worker` (hosting
-the same claim loop inside ComfyUI's own process) both end up here, so the
-wiring -- which sub-service does what, the hub/progress sockets, the drain
-sentinel -- is written once.
+Shared by `interfaces/cli.py`'s `work` command and `comfy_nodes/yukari_worker`
+(same claim loop inside ComfyUI's own process), so the wiring is written once.
 """
 
 from __future__ import annotations
@@ -32,13 +30,11 @@ from ..infrastructure.persistence.run_state import JsonRunState
 from ..infrastructure.repository import discover_repository, git_metadata
 
 # deploy writes this file to ask for a drain and waits for it to go; the
-# worker removes it as its last act, so the wait ends on the worker's own
-# acknowledgement rather than on a clock.
+# worker removes it as its last act.
 DRAIN_FILE = ".local/_nogit/worker/drain"
 
-# Must track the `work` subparser's own defaults in interfaces/cli.py --
-# there is no single source both can read, so a change to one without the
-# other silently drifts.
+# Must track the `work` subparser's own defaults in interfaces/cli.py by
+# hand -- no single source both can read.
 DEFAULT_KINDS = ("generate", "finalize", "repair", "masked_redraw")
 
 
@@ -146,9 +142,8 @@ def wire_work_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
                         emit: Callable[[str], None] = print) -> WorkServices:
     """Assemble a `WorkServices` from already-built adapters.
 
-    Shared by `build_work_services` (which builds the adapters fresh) and
-    `interfaces/cli.py` (which already has them, so its `ChimeraClient` stays
-    the one it was constructed with).
+    Shared by `build_work_services` and `interfaces/cli.py`, which already
+    has its own `ChimeraClient`.
     """
     hub_factory = None
     progress_factory = None
@@ -190,9 +185,8 @@ def build_work_services(repository: Path, *, worker_id: str,
                         emit: Callable[[str], None] = print) -> WorkServices:
     """Build a complete `WorkServices` from just a repository checkout.
 
-    This is the entry point a host with no adapters of its own -- such as
-    `comfy_nodes/yukari_worker` running inside ComfyUI's process -- uses to
-    get a working claim loop.
+    The entry point for a host with no adapters of its own, such as
+    `comfy_nodes/yukari_worker` running inside ComfyUI's process.
     """
     chimera = ChimeraClient(repository)
     comfyui = ComfyUIClient()

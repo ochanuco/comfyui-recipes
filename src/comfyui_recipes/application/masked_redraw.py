@@ -39,10 +39,8 @@ def _source_short(generations: Sequence[Mapping], generation_id: str) -> str:
 def _resolve_source(batch: dict, generation_id: str) -> str:
     """The redraw generation a masked redraw actually redraws.
 
-    A finalize batch's `generations` holds the raw redraw and the delivered
-    sticker side by side; the sticker is smaller (repin/deliver crop and
-    downscale it), so the largest by pixel count is the redraw regardless of
-    which sibling the caller named.
+    A finalize batch's raw redraw and delivered sticker sit side by side;
+    the redraw is the larger one by pixel count.
     """
     if (batch.get("parameters") or {}).get("kind") != "hires-chain":
         return generation_id

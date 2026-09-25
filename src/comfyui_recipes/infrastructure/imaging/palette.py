@@ -78,7 +78,7 @@ def repin(im: np.ndarray,
           protect: np.ndarray | None = None) -> tuple[np.ndarray, list[str]]:
     """RGB array in, RGB array out, plus a report of what moved.
 
-    Saturation is compressed per V band toward tv639u's knees rather than
+    Saturation is compressed per V band toward fixed knees rather than
     scaled by a measured factor, so the curve is the same for every picture
     and a pale render passes through untouched. `protect` marks pixels kept
     verbatim; the correction fades to zero over a feathered edge.

@@ -43,9 +43,8 @@ SHEER_GLOSS_LEGWEAR = (
     "(pantyhose:1.4), (subtle sheen on legwear:1.05), "
     "(anime coloring:1.2), ")
 
-# The `sheer` legwear: see-through tights with a faint sheen, one flat tone;
-# gradient words leave the direction to the model. `recipe.negative` treats
-# it like `sheer-gloss` and adds SHEER_TONE_BAN.
+# The `sheer` legwear: one flat tone, no gradient direction words.
+# `recipe.negative` treats it like `sheer-gloss` and adds SHEER_TONE_BAN.
 SHEER_LEGWEAR = {
     costume: "(sheer black pantyhose:1.5), (see-through black tights:1.4), "
              "(skin clearly visible through pantyhose:1.4), "
@@ -86,8 +85,8 @@ class LegwearState(Enum):
 LEGWEAR_STATES = ("worn", "removing", "off")
 DEFAULT_LEGWEAR_STATE = "worn"
 
-# REMOVING follows the worn block with the act of pulling it down; OFF
-# replaces it outright -- no costume's legwear tags belong on bare legs.
+# OFF replaces the worn block outright: no costume's legwear tags belong
+# on bare legs.
 REMOVING_LEGWEAR = ("(pantyhose pull:1.3), (pulled by self:1.25), "
                     "(pantyhose around knees:1.35), "
                     "(pantyhose pulled down:1.3), (bare thighs:1.2), ")

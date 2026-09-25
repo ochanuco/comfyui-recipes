@@ -1,16 +1,7 @@
 """Tile renders into one sheet, each labelled with the prompt id that made it.
 
-Reviewing happens by quoting a prompt id back ("this one is the good one"), but
-the id is nowhere in the file: the PNG carries the graph, not the id that ran
-it. ComfyUI's /history knows both, so this asks it and writes the id under each
-tile. Without that the sheet is just pictures and the reply has to be "the third
-one in the second row".
-
-    uv run scripts/contact_sheet.py --glob 'fb-*' --out sheet-fb.png
-
-Files are ordered as given; `--glob` sorts by name, which keeps a prefix family
-together. Missing ids are labelled with the filename alone -- a render queued
-outside this session, or one old enough to have fallen out of history.
+Files are ordered as given; `--glob` sorts by name. Missing ids fall back to
+the filename alone.
 """
 
 import argparse
@@ -37,8 +28,7 @@ DIM = (150, 150, 158)
 def history_images(host: str, port: int) -> dict[str, dict]:
     """filename -> {subfolder, type, prompt_id}, from the whole history.
 
-    subfolder/type are carried alongside the prompt id because they are also
-    what /view needs to fetch the file back from a remote ComfyUI.
+    subfolder/type let a remote ComfyUI fetch the file back via /view.
     """
     url = f"http://{host}:{port}/history?max_items=2000"
     with urllib.request.urlopen(url) as response:
@@ -108,10 +98,8 @@ def main() -> None:
         # A sheet without ids still beats no sheet; ComfyUI may not be up.
         images = {}
 
-    # Files history knows about are pulled locally (a no-op when ComfyUI is
-    # local, a /view fetch when it is remote); files placed by hand under
-    # OUTPUT_DIR -- never queued through this history, e.g. copied in --
-    # are picked up by the glob below regardless.
+    # Files placed by hand under OUTPUT_DIR, never queued through history,
+    # are still picked up by the glob below.
     fetched: set[Path] = set()
     for name in sorted(n for n in images if fnmatch.fnmatch(n, pattern)):
         meta = images[name]

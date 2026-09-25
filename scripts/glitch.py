@@ -1,19 +1,9 @@
 #!/usr/bin/env python3
 """Datamosh-style digital noise over a bust render, in a purple palette.
 
-The backdrop and the figure get different treatment. The flat backdrop is
-replaced outright by a macroblock texture -- rows of wide rectangles in blue,
-violet, magenta, black and white, shifted row by row and striped -- because a
-glitch laid over a plain grey field just reads as dirt. The figure keeps its
-drawing: a few horizontal tear bands with an R/B channel offset, and sparse
-wide blocks copied sideways or stretched from one line, thinning out toward the
-face so the eyes stay legible at every strength.
-
-The backdrop is found by colour distance from the corners, so this only works on
-a render with a flat background (the `bust` / `smug` poses). `--noise-sat`
-scales the noise palette toward its luminance and shrinks the channel offset
-with it; the figure's own colours are never touched. The X icon is the `smug`
-pin at `--strength 0.3 --seed 11 --noise-sat 0.25`.
+The backdrop is found by colour distance from the corners, so this only works
+on a render with a flat background (the `bust` / `smug` poses). The figure's
+own colours are never touched by `--noise-sat`.
 
     uv run scripts/glitch.py in.png --out out.png --strength 0.3 --noise-sat 0.25
 """

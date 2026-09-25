@@ -55,6 +55,7 @@ from .prompt_style import (
     SERIES_TAG,
     SHADE_BAN,
     SHEER_BAN,
+    SHEER_GLOSS_SHINE_BAN,
     SHEER_TONE_BAN,
     SHINE_BAN,
     STEPS,
@@ -117,7 +118,7 @@ def _components(pose: str, costume: str | None = None,
         Component("eye_quality", G, L, EYE_QUALITY[e.eye_quality] + e.eyes),
         Component("gesture", G, M, p.gesture),
         Component("costume", G, M, COSTUMES[c]),
-        Component("legwear", G, L, legwear_positive),
+        Component("legwear", G, M, legwear_positive),
         Component("framing_tags", G, L, p.angle + FRAMING[p.framing].text),
         Component("leg_display", G, L, p.leg_display),
         Component("body_build", G, L, p.body if p.body is not None else BODY),
@@ -177,11 +178,16 @@ def negative(pose: str, costume: str | None = None,
             legwear_state_ban = REMOVING_LEGWEAR_BAN
         elif ls is LegwearState.OFF:
             legwear_state_ban = OFF_LEGWEAR_BAN
-    return (DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
-            + p.negative + shine_ban + GRADIENT_BAN
-            + NEGATIVE_TAIL + VIVID_BAN + hood_ban + garment_black_ban
-            + COSTUME_BAN.get(c, "") + sheer_ban + legwear_state_ban
-            + SCORE_BAN + PROPORTION_BAN)
+    result = (DIGIT_BAN + DETAIL_BAN + COLORED_LINE_BAN + THIN_BODY_BAN
+             + p.negative + shine_ban + GRADIENT_BAN
+             + NEGATIVE_TAIL + VIVID_BAN + hood_ban + garment_black_ban
+             + COSTUME_BAN.get(c, "") + sheer_ban + legwear_state_ban
+             + SCORE_BAN + PROPORTION_BAN)
+    # `sheer-gloss` only, tacked on after PROPORTION_BAN so it is the last
+    # thing in the negative prompt.
+    if lw == "sheer-gloss" and p.legwear and ls is not LegwearState.OFF:
+        result += SHEER_GLOSS_SHINE_BAN
+    return result
 
 
 def refinement_prompt(base: PromptPair) -> PromptPair:

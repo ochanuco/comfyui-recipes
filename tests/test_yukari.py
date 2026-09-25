@@ -34,77 +34,69 @@ from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
 from comfyui_recipes.interfaces import cli
 
 FIXTURES = Path(__file__).parent / "fixtures"
-GBM9OM = json.loads((FIXTURES / "gbm9om-dance.json").read_text())
+DANCE_FIXTURE = json.loads((FIXTURES / "dance-legwear-7ikakt.json").read_text())
+LEGWEAR_SHEER_GLOSS_FINAL = json.loads(
+    (FIXTURES / "legwear-sheer-gloss-final.json").read_text())
 
 COFFEE_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
     "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
-    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), "
-    "(half-closed eyes:1.3), (unamused:1.15), (sheer black pantyhose:1.5), "
-    "(see-through legwear:1.4), (thin translucent legwear:1.3), "
-    "(20 denier:1.1), (pantyhose:1.4), (shiny pantyhose:1.3), "
-    "(subtle sheen on legwear:1.15), (anime coloring:1.2), "
-    "thin sheer black pantyhose drawn in anime style: the skin shows through "
-    "as a lighter greyish purple tone on the knees and shins, "
-    "the legs darken to black toward their outlines, "
-    "and a soft white sheen highlight runs along the shin, (cowboy shot:1.3), "
-    "(thighs:1.2), (mature female:1.3), (adult:1.2), (wide hips:1.2), "
-    "(thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
-    "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
-    "(drinking:1.3), (iced coffee:1.4), (plastic cup:1.45), (clear cup:1.2), "
-    "(drinking straw:1.4), (holding cup:1.35), (straw in mouth:1.25), "
-    "(standing:1.2), (looking at viewer:1.1), (oversized sweatshirt:1.35), "
-    "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
-    "simple background, (green background:1.3), (large eyes:1.6), "
-    "(big eyes:1.3), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
-    "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
+    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), (half-closed "
+    "eyes:1.3), (unamused:1.15), (cowboy shot:1.3), (thighs:1.2), (mature "
+    "female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), (soft "
+    "thighs:1.3), (long legs:1.35), (narrow waist:1.25), adult proportions, "
+    "long torso, seven heads tall, (drinking:1.3), (iced coffee:1.4), "
+    "(plastic cup:1.45), (clear cup:1.2), (drinking straw:1.4), (holding "
+    "cup:1.35), (straw in mouth:1.25), (standing:1.2), (looking at "
+    "viewer:1.1), (oversized sweatshirt:1.35), (white sweatshirt:1.2), "
+    "(sleeves past wrists:1.25), (denim shorts:1.3), (sheer black "
+    "pantyhose:1.5), (dark violet tint:1.2), (see-through legwear:1.4), (thin "
+    "translucent legwear:1.3), (pantyhose:1.4), (subtle sheen on "
+    "legwear:1.05), (anime coloring:1.2), simple background, (green "
+    "background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), "
+    "(tareme:1.2), (thick eyelashes:1.3), (flat color:1.3), (sketch:1.3), "
+    "(traditional media:1.2)"
 )
 
 COFFEE_NEGATIVE = (
     "(extra digits:1.5), bad anatomy, bad hands, (detailed:1.3), "
-    "(intricate:1.3), (highly detailed:1.3), (fine details:1.2), "
-    "(colored lineart:1.4), (colored outline:1.3), (purple lineart:1.2), "
-    "(skinny:1.3), (thin legs:1.3), (slender legs:1.2), (slender:1.1), "
-    "(mug:1.3), (paper cup:1.2), (hot coffee:1.2), (steam:1.3), "
-    "(shiny hair:1.4), (hair highlights:1.2), (watercolor:1.3), "
-    "(ink wash:1.3), (painterly:1.3), (gradient:1.5), (soft shading:1.5), "
-    "(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
-    "(gradient eyes:1.2), (speed lines:1.45), (motion lines:1.4), "
-    "(emphasis lines:1.4), (magenta:1.45), (pink legwear:1.45), "
-    "(bright purple:1.35), (vivid colors:1.3), (neon:1.3), (red:1.3), "
-    "(maroon:1.35), (wine red:1.3), (hood:1.3), (cardigan:1.3), "
+    "(intricate:1.3), (highly detailed:1.3), (fine details:1.2), (colored "
+    "lineart:1.4), (colored outline:1.3), (purple lineart:1.2), (skinny:1.3), "
+    "(thin legs:1.3), (slender legs:1.2), (slender:1.1), (mug:1.3), (paper "
+    "cup:1.2), (hot coffee:1.2), (steam:1.3), (shiny hair:1.4), (hair "
+    "highlights:1.2), (watercolor:1.3), (ink wash:1.3), (painterly:1.3), "
+    "(gradient:1.5), (soft shading:1.5), (sparkling eyes:1.4), (glitter:1.3), "
+    "(multiple highlights:1.3), (gradient eyes:1.2), (speed lines:1.45), "
+    "(motion lines:1.4), (emphasis lines:1.4), (magenta:1.45), (pink "
+    "legwear:1.45), (bright purple:1.35), (vivid colors:1.3), (neon:1.3), "
+    "(red:1.3), (maroon:1.35), (wine red:1.3), (hood:1.3), (cardigan:1.3), "
     "(opaque legwear:1.3), (latex:1.3), (photorealistic:1.4), "
-    "(realistic:1.3), (photo:1.2), (tan skin:1.35), (dark skin:1.3), "
-    "(brown legwear:1.4), (brown pantyhose:1.4), (tan:1.2), "
-    "(beige legwear:1.3), score_1, score_2, score_3, (fat:1.35), "
-    "(chubby:1.35), (short legs:1.35), (muscular:1.3), (toned:1.2), "
-    "(child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)"
+    "(realistic:1.3), (photo:1.2), (tan skin:1.35), (dark skin:1.3), (brown "
+    "legwear:1.4), (brown pantyhose:1.4), (tan:1.2), (beige legwear:1.3), "
+    "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
+    "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
+    "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
 )
 
 AMAE_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
     "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
-    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), "
-    "(half-closed eyes:1.3), (unamused:1.15), (sheer black pantyhose:1.5), "
-    "(see-through legwear:1.4), (thin translucent legwear:1.3), "
-    "(20 denier:1.1), (pantyhose:1.4), (shiny pantyhose:1.3), "
-    "(subtle sheen on legwear:1.15), (anime coloring:1.2), "
-    "thin sheer black pantyhose drawn in anime style: the skin shows through "
-    "as a lighter greyish purple tone on the knees and shins, "
-    "the legs darken to black toward their outlines, "
-    "and a soft white sheen highlight runs along the shin, (cowboy shot:1.3), "
-    "(thighs:1.2), (mature female:1.3), (adult:1.2), (wide hips:1.2), "
-    "(thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
-    "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
-    "(standing:1.2), (smug:1.35), (doyagao:1.25), (pleading:1.15), "
-    "(head tilt:1.2), (leaning forward:1.3), (looking at viewer:1.3), "
-    "(own hands clasped:1.25), (hands up:1.1), (oversized sweatshirt:1.35), "
-    "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
-    "simple background, (green background:1.3), (large eyes:1.6), "
-    "(big eyes:1.3), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
-    "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
+    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), (half-closed "
+    "eyes:1.3), (unamused:1.15), (cowboy shot:1.3), (thighs:1.2), (mature "
+    "female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), (soft "
+    "thighs:1.3), (long legs:1.35), (narrow waist:1.25), adult proportions, "
+    "long torso, seven heads tall, (standing:1.2), (smug:1.35), "
+    "(doyagao:1.25), (pleading:1.15), (head tilt:1.2), (leaning forward:1.3), "
+    "(looking at viewer:1.3), (own hands clasped:1.25), (hands up:1.1), "
+    "(oversized sweatshirt:1.35), (white sweatshirt:1.2), (sleeves past "
+    "wrists:1.25), (denim shorts:1.3), (sheer black pantyhose:1.5), (dark "
+    "violet tint:1.2), (see-through legwear:1.4), (thin translucent "
+    "legwear:1.3), (pantyhose:1.4), (subtle sheen on legwear:1.05), (anime "
+    "coloring:1.2), simple background, (green background:1.3), (large "
+    "eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), (thick "
+    "eyelashes:1.3), (flat color:1.3), (sketch:1.3), (traditional media:1.2)"
 )
 
 AMAE_NEGATIVE = COFFEE_NEGATIVE.replace(
@@ -114,47 +106,41 @@ STAND_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
     "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
-    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), "
-    "(half-closed eyes:1.3), (unamused:1.15), (sheer black pantyhose:1.5), "
-    "(see-through legwear:1.4), (thin translucent legwear:1.3), "
-    "(20 denier:1.1), (pantyhose:1.4), (shiny pantyhose:1.3), "
-    "(subtle sheen on legwear:1.15), (anime coloring:1.2), "
-    "thin sheer black pantyhose drawn in anime style: the skin shows through "
-    "as a lighter greyish purple tone on the knees and shins, "
-    "the legs darken to black toward their outlines, "
-    "and a soft white sheen highlight runs along the shin, (from front:1.3), "
-    "(full body:1.45), (wide shot:1.3), (thighs:1.1), (mature female:1.3), "
-    "(adult:1.2), (wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), "
-    "(long legs:1.35), (narrow waist:1.25), adult proportions, long torso, "
-    "seven heads tall, (standing:1.5), (own hands together:1.3), "
-    "(hands up:1.2), (arched back:1.15), (smug:1.35), (doyagao:1.25), "
-    "(looking at viewer:1.2), (sneakers:1.3), (white sneakers:1.2), "
-    "(oversized sweatshirt:1.35), (white sweatshirt:1.2), "
-    "(sleeves past wrists:1.25), (denim shorts:1.3), simple background, "
-    "(green background:1.3), (large eyes:1.6), (big eyes:1.3), "
-    "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (flat color:1.3), "
-    "(sketch:1.3), (traditional media:1.2)"
+    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), (half-closed "
+    "eyes:1.3), (unamused:1.15), (from front:1.3), (full body:1.45), (wide "
+    "shot:1.3), (thighs:1.1), (mature female:1.3), (adult:1.2), (wide "
+    "hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
+    "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
+    "(standing:1.5), (own hands together:1.3), (hands up:1.2), (arched "
+    "back:1.15), (smug:1.35), (doyagao:1.25), (looking at viewer:1.2), "
+    "(sneakers:1.3), (white sneakers:1.2), (oversized sweatshirt:1.35), "
+    "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
+    "(sheer black pantyhose:1.5), (dark violet tint:1.2), (see-through "
+    "legwear:1.4), (thin translucent legwear:1.3), (pantyhose:1.4), (subtle "
+    "sheen on legwear:1.05), (anime coloring:1.2), simple background, (green "
+    "background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), "
+    "(tareme:1.2), (thick eyelashes:1.3), (flat color:1.3), (sketch:1.3), "
+    "(traditional media:1.2)"
 )
 
 STAND_NEGATIVE = (
     "(extra digits:1.5), bad anatomy, bad hands, (detailed:1.3), "
-    "(intricate:1.3), (highly detailed:1.3), (fine details:1.2), "
-    "(colored lineart:1.4), (colored outline:1.3), (purple lineart:1.2), "
-    "(skinny:1.3), (thin legs:1.3), (slender legs:1.2), (slender:1.1), "
-    "(sitting:1.3), (cowboy shot:1.2), (upper body:1.2), (shiny hair:1.4), "
-    "(hair highlights:1.2), (watercolor:1.3), (ink wash:1.3), "
-    "(painterly:1.3), (gradient:1.5), (soft shading:1.5), "
-    "(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
-    "(gradient eyes:1.2), (speed lines:1.45), (motion lines:1.4), "
-    "(emphasis lines:1.4), (magenta:1.45), (pink legwear:1.45), "
-    "(bright purple:1.35), (vivid colors:1.3), (neon:1.3), (red:1.3), "
-    "(maroon:1.35), (wine red:1.3), (hood:1.3), (cardigan:1.3), "
+    "(intricate:1.3), (highly detailed:1.3), (fine details:1.2), (colored "
+    "lineart:1.4), (colored outline:1.3), (purple lineart:1.2), (skinny:1.3), "
+    "(thin legs:1.3), (slender legs:1.2), (slender:1.1), (sitting:1.3), "
+    "(cowboy shot:1.2), (upper body:1.2), (shiny hair:1.4), (hair "
+    "highlights:1.2), (watercolor:1.3), (ink wash:1.3), (painterly:1.3), "
+    "(gradient:1.5), (soft shading:1.5), (sparkling eyes:1.4), (glitter:1.3), "
+    "(multiple highlights:1.3), (gradient eyes:1.2), (speed lines:1.45), "
+    "(motion lines:1.4), (emphasis lines:1.4), (magenta:1.45), (pink "
+    "legwear:1.45), (bright purple:1.35), (vivid colors:1.3), (neon:1.3), "
+    "(red:1.3), (maroon:1.35), (wine red:1.3), (hood:1.3), (cardigan:1.3), "
     "(opaque legwear:1.3), (latex:1.3), (photorealistic:1.4), "
-    "(realistic:1.3), (photo:1.2), (tan skin:1.35), (dark skin:1.3), "
-    "(brown legwear:1.4), (brown pantyhose:1.4), (tan:1.2), "
-    "(beige legwear:1.3), score_1, score_2, score_3, (fat:1.35), "
-    "(chubby:1.35), (short legs:1.35), (muscular:1.3), (toned:1.2), "
-    "(child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)"
+    "(realistic:1.3), (photo:1.2), (tan skin:1.35), (dark skin:1.3), (brown "
+    "legwear:1.4), (brown pantyhose:1.4), (tan:1.2), (beige legwear:1.3), "
+    "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
+    "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
+    "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
 )
 
 BUST_POSITIVE = (
@@ -200,101 +186,87 @@ GAO_POSITIVE = (
     "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
     "purple eyes, hair ornament, (tareme:1.2), (jitome:1.8), "
-    "(confident:1.18), (sheer black pantyhose:1.5), "
-    "(see-through legwear:1.4), (thin translucent legwear:1.3), "
-    "(20 denier:1.1), (pantyhose:1.4), (shiny pantyhose:1.3), "
-    "(subtle sheen on legwear:1.15), (anime coloring:1.2), "
-    "thin sheer black pantyhose drawn in anime style: the skin shows through "
-    "as a lighter greyish purple tone on the knees and shins, "
-    "the legs darken to black toward their outlines, "
-    "and a soft white sheen highlight runs along the shin, (from front:1.3), "
-    "(cowboy shot:1.3), (thighs:1.2), (mature female:1.3), (adult:1.2), "
-    "(wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), "
-    "(long legs:1.35), (narrow waist:1.25), adult proportions, long torso, "
-    "seven heads tall, (claw pose:1.45), (gao:1.2), (hands up:1.25), "
-    "(standing:1.3), (leaning forward:1.15), (open mouth:1.35), (fang:1.3), "
-    "(looking at viewer:1.2), (eggplant purple hooded cardigan:1.5), "
-    "(dark violet hoodie:1.25), open cardigan, (rabbit hood:1.3), "
-    "long sleeves, drawstring, (purple dress:1.25), frills, "
-    "(sleeves past wrists:1.15), hood down, simple background, "
-    "(green background:1.3), (large eyes:1.6), (big eyes:1.3), "
-    "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (flat color:1.3), "
-    "(sketch:1.3), (traditional media:1.2)"
+    "(confident:1.18), (from front:1.3), (cowboy shot:1.3), (thighs:1.2), "
+    "(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), "
+    "(soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), adult "
+    "proportions, long torso, seven heads tall, (claw pose:1.45), (gao:1.2), "
+    "(hands up:1.25), (standing:1.3), (leaning forward:1.15), (open "
+    "mouth:1.35), (fang:1.3), (looking at viewer:1.2), (eggplant purple "
+    "hooded cardigan:1.5), (dark violet hoodie:1.25), open cardigan, (rabbit "
+    "hood:1.3), long sleeves, drawstring, (purple dress:1.25), frills, "
+    "(sleeves past wrists:1.15), hood down, (sheer black pantyhose:1.5), "
+    "(dark violet tint:1.2), (see-through legwear:1.4), (thin translucent "
+    "legwear:1.3), (pantyhose:1.4), (subtle sheen on legwear:1.05), (anime "
+    "coloring:1.2), simple background, (green background:1.3), (large "
+    "eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), (thick "
+    "eyelashes:1.3), (flat color:1.3), (sketch:1.3), (traditional media:1.2)"
 )
 
 GAO_NEGATIVE = (
     "(extra digits:1.5), bad anatomy, bad hands, (detailed:1.3), "
-    "(intricate:1.3), (highly detailed:1.3), (fine details:1.2), "
-    "(colored lineart:1.4), (colored outline:1.3), (purple lineart:1.2), "
-    "(skinny:1.3), (thin legs:1.3), (slender legs:1.2), (slender:1.1), "
-    "(sitting:1.3), (upper body:1.2), (ribbed legwear:1.3), "
-    "(vertical-striped legwear:1.3), (shiny hair:1.4), (hair highlights:1.2), "
-    "(watercolor:1.3), (ink wash:1.3), (painterly:1.3), (gradient:1.5), "
-    "(soft shading:1.5), (sparkling eyes:1.4), (glitter:1.3), "
-    "(multiple highlights:1.3), (gradient eyes:1.2), (speed lines:1.45), "
-    "(motion lines:1.4), (emphasis lines:1.4), (magenta:1.45), "
-    "(pink legwear:1.45), (bright purple:1.35), (vivid colors:1.3), "
-    "(neon:1.3), (red:1.3), (maroon:1.35), (wine red:1.3), "
-    "(black jacket:1.35), (black clothes:1.3), (black hoodie:1.35), "
+    "(intricate:1.3), (highly detailed:1.3), (fine details:1.2), (colored "
+    "lineart:1.4), (colored outline:1.3), (purple lineart:1.2), (skinny:1.3), "
+    "(thin legs:1.3), (slender legs:1.2), (slender:1.1), (sitting:1.3), "
+    "(upper body:1.2), (ribbed legwear:1.3), (vertical-striped legwear:1.3), "
+    "(shiny hair:1.4), (hair highlights:1.2), (watercolor:1.3), (ink "
+    "wash:1.3), (painterly:1.3), (gradient:1.5), (soft shading:1.5), "
+    "(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
+    "(gradient eyes:1.2), (speed lines:1.45), (motion lines:1.4), (emphasis "
+    "lines:1.4), (magenta:1.45), (pink legwear:1.45), (bright purple:1.35), "
+    "(vivid colors:1.3), (neon:1.3), (red:1.3), (maroon:1.35), (wine "
+    "red:1.3), (black jacket:1.35), (black clothes:1.3), (black hoodie:1.35), "
     "(opaque legwear:1.3), (latex:1.3), (photorealistic:1.4), "
-    "(realistic:1.3), (photo:1.2), (tan skin:1.35), (dark skin:1.3), "
-    "(brown legwear:1.4), (brown pantyhose:1.4), (tan:1.2), "
-    "(beige legwear:1.3), score_1, score_2, score_3, (fat:1.35), "
-    "(chubby:1.35), (short legs:1.35), (muscular:1.3), (toned:1.2), "
-    "(child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)"
+    "(realistic:1.3), (photo:1.2), (tan skin:1.35), (dark skin:1.3), (brown "
+    "legwear:1.4), (brown pantyhose:1.4), (tan:1.2), (beige legwear:1.3), "
+    "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
+    "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
+    "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
 )
 
 REDRAW_STAND_POSITIVE = (
     "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
     "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
-    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), "
-    "(half-closed eyes:1.3), (unamused:1.15), (sheer black pantyhose:1.5), "
-    "(see-through legwear:1.4), (thin translucent legwear:1.3), "
-    "(20 denier:1.1), (pantyhose:1.4), (shiny pantyhose:1.3), "
-    "(subtle sheen on legwear:1.15), (anime coloring:1.2), "
-    "thin sheer black pantyhose drawn in anime style: the skin shows through "
-    "as a lighter greyish purple tone on the knees and shins, "
-    "the legs darken to black toward their outlines, "
-    "and a soft white sheen highlight runs along the shin, (from front:1.3), "
-    "(full body:1.45), (wide shot:1.3), (thighs:1.1), (mature female:1.3), "
-    "(adult:1.2), (wide hips:1.2), (thick thighs:1.2), (soft thighs:1.3), "
-    "(long legs:1.35), (narrow waist:1.25), adult proportions, long torso, "
-    "seven heads tall, (standing:1.5), (own hands together:1.3), "
-    "(hands up:1.2), (arched back:1.15), (smug:1.35), (doyagao:1.25), "
-    "(looking at viewer:1.2), (sneakers:1.3), (white sneakers:1.2), "
-    "(oversized sweatshirt:1.35), (white sweatshirt:1.2), "
-    "(sleeves past wrists:1.25), (denim shorts:1.3), simple background, "
-    "(green background:1.3), (large eyes:1.6), (big eyes:1.3), "
-    "(round face:1.3), (tareme:1.2), (thick eyelashes:1.3), (sketch:1.45), "
-    "(rough sketch:1.4), rough lines, sketchy lines, pencil sketch, "
-    "(unfinished:1.2), construction lines, (colored pencil (medium):1.2), "
-    "(soft shading:1.1)"
+    "purple eyes, hair ornament, (tareme:1.2), (jitome:1.4), (half-closed "
+    "eyes:1.3), (unamused:1.15), (from front:1.3), (full body:1.45), (wide "
+    "shot:1.3), (thighs:1.1), (mature female:1.3), (adult:1.2), (wide "
+    "hips:1.2), (thick thighs:1.2), (soft thighs:1.3), (long legs:1.35), "
+    "(narrow waist:1.25), adult proportions, long torso, seven heads tall, "
+    "(standing:1.5), (own hands together:1.3), (hands up:1.2), (arched "
+    "back:1.15), (smug:1.35), (doyagao:1.25), (looking at viewer:1.2), "
+    "(sneakers:1.3), (white sneakers:1.2), (oversized sweatshirt:1.35), "
+    "(white sweatshirt:1.2), (sleeves past wrists:1.25), (denim shorts:1.3), "
+    "(sheer black pantyhose:1.5), (dark violet tint:1.2), (see-through "
+    "legwear:1.4), (thin translucent legwear:1.3), (pantyhose:1.4), (subtle "
+    "sheen on legwear:1.05), (anime coloring:1.2), simple background, (green "
+    "background:1.3), (large eyes:1.6), (big eyes:1.3), (round face:1.3), "
+    "(tareme:1.2), (thick eyelashes:1.3), (sketch:1.45), (rough sketch:1.4), "
+    "rough lines, sketchy lines, pencil sketch, (unfinished:1.2), "
+    "construction lines, (colored pencil (medium):1.2), (soft shading:1.1)"
 )
 
 REDRAW_STAND_NEGATIVE = (
-    "(clean lineart:1.3), (smooth lines:1.2), (cel shading:1.2), "
-    "(flat color:1.2), (brown legwear:1.5), (brown pantyhose:1.4), "
-    "(detailed shading:1.5), (heavy shading:1.5), (impasto:1.45), "
-    "(painterly:1.45), (bad hands:1.5), (mutated hands:1.5), "
-    "(extra digits:1.5), (fused fingers:1.45), (long fingers:1.4), "
-    "(detailed shading:1.5), (heavy shading:1.5), (impasto:1.45), "
-    "(painterly:1.45), (dotted line:1.3), (dashed line:1.3), (stipple:1.3), "
-    "(halftone:1.2), (extra digits:1.5), bad anatomy, bad hands, "
-    "(skinny:1.3), (thin legs:1.3), (slender legs:1.2), (slender:1.1), "
-    "(sitting:1.3), (cowboy shot:1.2), (upper body:1.2), (shiny hair:1.4), "
-    "(hair highlights:1.2), (watercolor:1.3), (ink wash:1.3), "
-    "(painterly:1.3), (sparkling eyes:1.4), (glitter:1.3), "
+    "(clean lineart:1.3), (smooth lines:1.2), (cel shading:1.2), (flat "
+    "color:1.2), (brown legwear:1.5), (brown pantyhose:1.4), (detailed "
+    "shading:1.5), (heavy shading:1.5), (impasto:1.45), (painterly:1.45), "
+    "(bad hands:1.5), (mutated hands:1.5), (extra digits:1.5), (fused "
+    "fingers:1.45), (long fingers:1.4), (detailed shading:1.5), (heavy "
+    "shading:1.5), (impasto:1.45), (painterly:1.45), (dotted line:1.3), "
+    "(dashed line:1.3), (stipple:1.3), (halftone:1.2), (extra digits:1.5), "
+    "bad anatomy, bad hands, (skinny:1.3), (thin legs:1.3), (slender "
+    "legs:1.2), (slender:1.1), (sitting:1.3), (cowboy shot:1.2), (upper "
+    "body:1.2), (shiny hair:1.4), (hair highlights:1.2), (watercolor:1.3), "
+    "(ink wash:1.3), (painterly:1.3), (sparkling eyes:1.4), (glitter:1.3), "
     "(multiple highlights:1.3), (gradient eyes:1.2), (speed lines:1.45), "
-    "(motion lines:1.4), (emphasis lines:1.4), (magenta:1.45), "
-    "(pink legwear:1.45), (bright purple:1.35), (vivid colors:1.3), "
-    "(neon:1.3), (red:1.3), (maroon:1.35), (wine red:1.3), (hood:1.3), "
-    "(cardigan:1.3), (opaque legwear:1.3), (latex:1.3), (photorealistic:1.4), "
-    "(realistic:1.3), (photo:1.2), (tan skin:1.35), (dark skin:1.3), "
-    "(brown legwear:1.4), (brown pantyhose:1.4), (tan:1.2), "
-    "(beige legwear:1.3), score_1, score_2, score_3, (fat:1.35), "
-    "(chubby:1.35), (short legs:1.35), (muscular:1.3), (toned:1.2), "
-    "(child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)"
+    "(motion lines:1.4), (emphasis lines:1.4), (magenta:1.45), (pink "
+    "legwear:1.45), (bright purple:1.35), (vivid colors:1.3), (neon:1.3), "
+    "(red:1.3), (maroon:1.35), (wine red:1.3), (hood:1.3), (cardigan:1.3), "
+    "(opaque legwear:1.3), (latex:1.3), (photorealistic:1.4), "
+    "(realistic:1.3), (photo:1.2), (tan skin:1.35), (dark skin:1.3), (brown "
+    "legwear:1.4), (brown pantyhose:1.4), (tan:1.2), (beige legwear:1.3), "
+    "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
+    "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
+    "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
 )
 
 
@@ -442,10 +414,16 @@ class PromptTest(unittest.TestCase):
         self.assertEqual(negative("gao"), GAO_NEGATIVE)
 
     def test_dance_positive_matches_the_confirmed_render(self):
-        self.assertEqual(positive("dance"), GBM9OM["positive"])
+        self.assertEqual(positive("dance"), DANCE_FIXTURE["positive"])
 
     def test_dance_negative_matches_the_confirmed_render(self):
-        self.assertEqual(negative("dance"), GBM9OM["negative"])
+        self.assertEqual(negative("dance"), DANCE_FIXTURE["negative"])
+
+    def test_default_prompts_match_the_sheer_gloss_final_look(self):
+        for pose, fixture in LEGWEAR_SHEER_GLOSS_FINAL.items():
+            with self.subTest(pose=pose):
+                self.assertEqual(positive(pose), fixture["positive"])
+                self.assertEqual(negative(pose), fixture["negative"])
 
     def test_eye_shape_leads_the_eyes_part_for_every_expression(self):
         for expression in EXPRESSIONS:
@@ -514,9 +492,9 @@ class PartsTest(unittest.TestCase):
     def test_part_names_match_the_declared_order(self):
         self.assertEqual([name for name, _ in positive_parts("coffee")], [
             "quality", "count", "character", "series", "artist", "identity",
-            "eye_base", "eye_quality", "legwear", "framing_tags",
+            "eye_base", "eye_quality", "framing_tags",
             "leg_display", "body_build", "action", "mouth", "mood",
-            "gesture", "costume", "cutout", "face", "style"])
+            "gesture", "costume", "legwear", "cutout", "face", "style"])
         self.assertEqual(PART_NAMES, (
             "quality", "identity", "pose", "mouth", "mood", "eyes",
             "gesture", "costume", "scene", "body", "background", "face",
@@ -656,10 +634,10 @@ class RenderSpecTest(unittest.TestCase):
 
     def test_dance_render_spec_matches_the_confirmed_render(self):
         spec = render_spec("dance", 42, "p")
-        self.assertEqual(spec.prompts.positive, GBM9OM["positive"])
-        self.assertEqual(spec.prompts.negative, GBM9OM["negative"])
+        self.assertEqual(spec.prompts.positive, DANCE_FIXTURE["positive"])
+        self.assertEqual(spec.prompts.negative, DANCE_FIXTURE["negative"])
         self.assertEqual((spec.width, spec.height),
-                         (GBM9OM["width"], GBM9OM["height"]))
+                         (DANCE_FIXTURE["width"], DANCE_FIXTURE["height"]))
 
 
 class PlainRenderLegwearDefaultTest(unittest.TestCase):

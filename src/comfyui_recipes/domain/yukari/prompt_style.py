@@ -55,6 +55,10 @@ SHEER_BAN = ("(opaque legwear:1.3), (latex:1.3), (photorealistic:1.4), "
              "(beige legwear:1.3), ")
 SHEER_TONE_BAN = ("(light purple legwear:1.35), (lavender legwear:1.25), "
                   "(gradient legwear:1.3), ")
+# `sheer-gloss` only: `recipe.negative` appends this once, after everything
+# else.
+SHEER_GLOSS_SHINE_BAN = ("(glossy:1.3), (specular highlights:1.3), "
+                         "(reflection:1.2), ")
 GRADIENT_BAN = "(gradient:1.5), (soft shading:1.5), "
 NEGATIVE_TAIL = ("(sparkling eyes:1.4), (glitter:1.3), "
                   "(multiple highlights:1.3), (gradient eyes:1.2), "

@@ -35,16 +35,13 @@ LEGWEAR = {
 }
 
 # The `sheer-gloss` legwear: one block for every costume. `recipe.negative`
-# pairs it with SHEER_BAN and drops GARMENT_GLOSS_TAGS.
+# pairs it with SHEER_BAN, drops GARMENT_GLOSS_TAGS, and appends
+# SHEER_GLOSS_SHINE_BAN at the end.
 SHEER_GLOSS_LEGWEAR = (
-    "(sheer black pantyhose:1.5), (see-through legwear:1.4), "
-    "(thin translucent legwear:1.3), (20 denier:1.1), (pantyhose:1.4), "
-    "(shiny pantyhose:1.3), (subtle sheen on legwear:1.15), "
-    "(anime coloring:1.2), "
-    "thin sheer black pantyhose drawn in anime style: the skin shows "
-    "through as a lighter greyish purple tone on the knees and shins, the "
-    "legs darken to black toward their outlines, and a soft white sheen "
-    "highlight runs along the shin, ")
+    "(sheer black pantyhose:1.5), (dark violet tint:1.2), "
+    "(see-through legwear:1.4), (thin translucent legwear:1.3), "
+    "(pantyhose:1.4), (subtle sheen on legwear:1.05), "
+    "(anime coloring:1.2), ")
 
 # The `sheer` legwear: see-through tights with a faint sheen, one flat tone;
 # gradient words leave the direction to the model. `recipe.negative` treats

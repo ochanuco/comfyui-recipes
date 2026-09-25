@@ -50,9 +50,9 @@ class AssembleOrderTest(unittest.TestCase):
 
 class GeneralPriorityTableTest(unittest.TestCase):
     LEAD = frozenset({"identity", "eye_base", "eye_quality", "framing_tags",
-                      "body_build", "leg_display", "legwear"})
+                      "body_build", "leg_display"})
     MAIN = frozenset({"action", "mouth", "mood", "gesture", "costume",
-                      "cutout"})
+                      "legwear", "cutout"})
     TAIL = frozenset({"face", "style"})
 
     def test_general_components_match_the_priority_table(self):

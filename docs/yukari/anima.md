@@ -54,10 +54,11 @@ The variable part is three small record sets:
   orange). `HOODED_COSTUMES` names the
   costumes whose garments already include a hood or cardigan (`standard`).
   The request parameter `legwear` picks between `sheer-gloss`
-  (`SHEER_GLOSS_LEGWEAR`, the same low-denier block on every costume,
-  and the recipe-wide default), `opaque` (the costume's own `LEGWEAR`)
-  and `sheer` (`SHEER_LEGWEAR`: see-through tights with only a faint
-  sheen, the skin showing through, in one flat tone: black-purple on
+  (`SHEER_GLOSS_LEGWEAR` -- sheer black pantyhose with a dark violet tint,
+  see-through and thin translucent legwear, a subtle sheen, the same block
+  on every costume, and the recipe-wide default), `opaque` (the costume's
+  own `LEGWEAR`) and `sheer` (`SHEER_LEGWEAR`: see-through tights with only
+  a faint sheen, the skin showing through, in one flat tone: black-purple on
   `standard`, black elsewhere; gradient words are left out because they
   let the model pick the direction). When the request leaves `legwear`
   unset, the pose's own `legwear_kind` picks it -- every pose says
@@ -67,8 +68,12 @@ The variable part is three small record sets:
   (`GARMENT_GLOSS_TAGS`)
   and append `SHEER_BAN` (opaque legwear, latex, photo-realism, tanned or
   brown skin tones); `sheer` also appends `SHEER_TONE_BAN` (light purple,
-  lavender and gradient legwear). A pose with `legwear=False`
-  ignores the parameter on both sides.
+  lavender and gradient legwear). `sheer-gloss` alone also appends
+  `SHEER_GLOSS_SHINE_BAN` (glossy, specular highlights, reflection) at the
+  very end of the negative, after `PROPORTION_BAN` -- banning the gloss
+  words the positive block's own `subtle sheen on legwear` tag would
+  otherwise fight. A pose with `legwear=False` ignores the parameter on
+  both sides.
 
   The request parameter `legwear_state` (`LegwearState`: `worn`, the
   default, `removing` or `off`) sits alongside `legwear` on the same
@@ -146,8 +151,9 @@ model, then joins them. A component is `(name, section, priority, text)`.
 is the tie-break within a priority. `recipe._components` assigns:
 
 - `LEAD`: `identity`, `eye_base`, `eye_quality`, `framing_tags`,
-  `body_build`, `leg_display`, `legwear`
-- `MAIN`: `action`, `mouth`, `mood`, `gesture`, `costume`, `cutout`
+  `body_build`, `leg_display`
+- `MAIN`: `action`, `mouth`, `mood`, `gesture`, `costume`, `legwear`,
+  `cutout`
 - `TAIL`: `face`, `style`
 
 `recipe._components` declares one component per fixed or per-pose/costume/

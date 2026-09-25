@@ -7,7 +7,7 @@
     copying its composition, which is the one thing the prompt cannot do: this
     project's costume drifts every time the pose changes, and the whole reason
     the recipe is a stack of per-pose splices is that tags are a single argument
-    about the whole picture. See docs/render-notes.md, 2026-08-17.
+    about the whole picture. See docs/archive/render-notes/2-2026-08-16_17.md.
 
     Three things land:
 

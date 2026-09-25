@@ -63,7 +63,7 @@ SHEER_LEGWEAR["standard"] = (
     "(subtle sheen on legwear:1.15), ")
 
 LEGWEARS = ("opaque", "sheer-gloss", "sheer")
-DEFAULT_LEGWEAR = "opaque"
+DEFAULT_LEGWEAR = "sheer-gloss"
 
 
 def legwear_block(costume: str, legwear: str) -> str:

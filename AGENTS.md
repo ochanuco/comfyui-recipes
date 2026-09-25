@@ -177,23 +177,17 @@ gave you. If you find yourself about to read a file over ~5k tokens to answer
 something narrow, there is probably a command or a tool for it — and if there
 is not, adding one to `atlas.py` is cheaper than the read you were about to do.
 
-`scripts/archive/` contains scripts that ran once and are kept as a record.
-Nothing imports them and nothing maintains them; do not read them looking for
-how something works today.
-
 ## Where the GPU is
 
 **ComfyUI does not run on this Mac, and this Mac no longer talks to it.** The
 GPU box runs ComfyUI and `comfy-recipes work`; chimera is the only thing a
-session here submits to. `COMFYUI_HOST` / `COMFYUI_PORT` matter on the box and
-for the low-level tools under `scripts/`, not for a round.
+session here submits to. `COMFYUI_HOST` / `COMFYUI_PORT` matter on the box
+only.
 
 The box's address, the ssh alias for a shell on it, and the checkpoint in use
 are in `CLAUDE.local.md`, which is not tracked. Read it; do not copy what it
 says into anything this repo commits. `docs/remote.md` covers the box itself
-(deploy, the logon tasks, restarting the worker); `scripts/comfy_host.py` is
-the filesystem seam for the legacy tools — the worker's disk is not this one,
-so outputs come back over `/view` and inputs go up through `/upload/image`.
+(setup, logon tasks, fetching models); `docs/release.md` covers deploys.
 
 ## Renders reach the user through chimera; Discord is a side channel
 
@@ -357,8 +351,8 @@ fixed it was the canvas -- 768 wide leaves no room beside her -- and that was
 only reached because the crop was off the table.
 
 Post-processing that sets a value the prompt cannot hold is a different thing
-and is still fine: `recolor_bg.py` exists because the backdrop is unstable under
-any perturbation. Removing part of the picture is not that.
+and is still fine: the backdrop is repainted at delivery because the render's
+own is unstable under any perturbation. Removing part of the picture is not that.
 
 ## Reading images
 

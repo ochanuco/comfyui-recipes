@@ -1,8 +1,8 @@
 # Models
 
 No models are included in this repository, and nothing here downloads them
-automatically. Locally they live under `.local/assets`, the model root
-rendered into `extra_model_paths.yaml`.
+automatically. They live on the GPU box; [remote.md](remote.md) covers
+fetching them.
 
 ## In use now
 

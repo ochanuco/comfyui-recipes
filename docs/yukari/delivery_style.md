@@ -14,9 +14,7 @@ current.
 The render's own backdrop is unstable under any perturbation: three renders
 whose only difference was two leg-tag weights landed on `#d0d0c0`,
 `#a0a0a0` and `#909090`. So the delivered colour, `#c7e5e9`, is set after
-the fact by `recolor_bg.repaint`, always to this value. `recolor_bg` itself
-stays general (its `--color` is required, not defaulted): the identity
-belongs to the delivery, not to the tool.
+the fact by the delivery, always to this value.
 
 ## STROKE
 
@@ -46,8 +44,7 @@ gets straightened, not a straightened uniform one that is then reshaded.
 
 Width is set as a share of the white band it sits against (`0.80`), which
 is what it was actually chosen as: 12.5px on the render whose 0.32 stroke
-setting drew 6.1px, picked from a 0.32 / 0.50 / 0.80 / 1.2 ladder (see
-`outline_stroke.band_thickness`).
+setting drew 6.1px, picked from a 0.32 / 0.50 / 0.80 / 1.2 ladder.
 
 The old share-of-canvas rule, `0.3`, is kept as a FLOOR under the band rule:
 both rules only ever failed by drawing too thin, so the larger of the two

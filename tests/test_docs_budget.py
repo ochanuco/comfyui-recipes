@@ -19,10 +19,7 @@ MAX_FINDING_LINES = 150
 
 # Files over MAX_LINES when the cap arrived. Values may only go DOWN; remove
 # an entry once the file fits. Never add one.
-OVERSIZE: dict[str, int] = {
-    "queueing.md": 507,
-    "yukari/anima.md": 389,
-}
+OVERSIZE: dict[str, int] = {}
 
 ARCHIVE_SHA256 = {
     "render-notes/1-early.md":

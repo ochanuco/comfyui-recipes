@@ -124,7 +124,7 @@ once the user logs on. Changing an argument means editing the script and
 re-running it; `run_nvidia_gpu.bat` is not used. `.local/chimera-token` and
 `.local/discord-webhook` are copied onto the box by hand; they are never
 tracked. The wrapper runs `comfy-recipes work` (see
-[queueing.md](queueing.md#queue-worker)); the box must stay on a checkout
+[queueing.md](queueing.md#worker)); the box must stay on a checkout
 whose branch matches the `recipe_ref` of the rows it should serve.
 
 Two things that only show up over `ssh comfyui-worker`:

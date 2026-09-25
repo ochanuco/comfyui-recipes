@@ -24,8 +24,8 @@ Tags and `a<n> §` pointers: see [`docs/README.md`](../README.md).
 - `palette_check.py` is a gate before showing: a FAIL is withheld, a pass is
   not an approval. Its corner-flatness check is invalid on head framings and
   scenes; check after the backdrop composite, not only raw. `[all]` (a5 §是正; a5 §2026-08-29 palette_check)
-- `headcount.py` works only on a flat backdrop and without motion lines;
-  counts need an area share (≥2%), not a width. `[all]` (a3 §CORRECTION; a4 §`headcount.py` cannot read)
+- Column-block headcounts work only on a flat backdrop and without motion
+  lines; counts need an area share (≥2%), not a width. `[all]` (a3 §CORRECTION; a4 §`headcount.py` cannot read)
 - A rising skin share can mean a faded figure; pair it with saturation. `[all]` (a5 §ガードは pass 1)
 - Judge fine properties (gloss, line) on an enlarged crop, not a contact
   sheet. Judge the shipped pipeline output, not raw. `[all]` (a1 §How this was nearly missed; a4 §Two asks in one message)

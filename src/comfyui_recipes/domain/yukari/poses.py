@@ -97,8 +97,7 @@ POSES = {
         angle="(from front:1.3), ",
         leg_display="(thighs:1.1), ",
         expression="v", costume="standard",
-        negative="(sitting:1.3), (cowboy shot:1.2), (upper body:1.2), ",
-        legwear_kind="sheer-gloss"),
+        negative="(sitting:1.3), (cowboy shot:1.2), (upper body:1.2), "),
     "bust": Pose(
         action="",
         mood="",

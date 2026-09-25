@@ -55,6 +55,12 @@ SHEER_BAN = ("(opaque legwear:1.3), (latex:1.3), (photorealistic:1.4), "
              "(beige legwear:1.3), ")
 SHEER_TONE_BAN = ("(light purple legwear:1.35), (lavender legwear:1.25), "
                   "(gradient legwear:1.3), ")
+# `sheer-gloss` only: `recipe.negative` appends this once, after everything
+# else. Ribbed and vertical-striped ban the dark stripes the sheer render
+# put on the legs without them.
+SHEER_GLOSS_BAN = ("(glossy:1.3), (specular highlights:1.3), "
+                   "(reflection:1.2), (ribbed legwear:1.3), "
+                   "(vertical-striped legwear:1.3), ")
 GRADIENT_BAN = "(gradient:1.5), (soft shading:1.5), "
 NEGATIVE_TAIL = ("(sparkling eyes:1.4), (glitter:1.3), "
                   "(multiple highlights:1.3), (gradient eyes:1.2), "

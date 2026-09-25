@@ -55,8 +55,11 @@ The variable part is three small record sets:
   costumes whose garments already include a hood or cardigan (`standard`).
   The request parameter `legwear` picks between `sheer-gloss`
   (`SHEER_GLOSS_LEGWEAR` -- sheer black pantyhose with a dark violet tint,
-  see-through and thin translucent legwear, a subtle sheen, the same block
-  on every costume, and the recipe-wide default), `opaque` (the costume's
+  see-through legwear with the skin visible through it, a subtle sheen,
+  the same block on every costume, and the recipe-wide default; `thin
+  translucent legwear` is left out because it draws thin vertical lines
+  down the legs -- a second contour inside the leg outline or rib-like
+  streaks -- that no negative ban removes), `opaque` (the costume's
   own `LEGWEAR`) and `sheer` (`SHEER_LEGWEAR`: see-through tights with only
   a faint sheen, the skin showing through, in one flat tone: black-purple on
   `standard`, black elsewhere; gradient words are left out because they
@@ -72,8 +75,7 @@ The variable part is three small record sets:
   `SHEER_GLOSS_BAN` (glossy, specular highlights, reflection, ribbed
   legwear, vertical-striped legwear) at the very end of the negative,
   after `PROPORTION_BAN` -- banning the gloss words the positive block's
-  own `subtle sheen on legwear` tag would otherwise fight, and the dark
-  stripes the render put on the legs without a ban on ribbed and
+  own `subtle sheen on legwear` tag would otherwise fight, plus ribbed and
   vertical-striped legwear. A pose with `legwear=False` ignores the
   parameter on both sides.
 

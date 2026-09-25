@@ -98,7 +98,7 @@ disk looks like from over here.
 ## Running the CLI on the worker itself
 
 Since 2026-09-05 the queue runs on the GPU machine, not on the Mac: the repo
-is cloned there, `comfy-recipes work` claims chimera's requests from a logon task, and
+is cloned there, the worker inside ComfyUI claims chimera's requests, and
 `COMFYUI_HOST` stays unset so everything talks to `127.0.0.1:8188`. The Mac
 only edits recipes and reads chimera.
 
@@ -109,23 +109,23 @@ git clone https://github.com/ochanuco/comfyui-recipes.git
 uv venv --python <uv-managed 3.12 python.exe> .venv
 uv pip install --python .venv\Scripts\python.exe -e . pillow numpy opencv-python scipy websockets pytest
 $env:PYTHONPATH = "scripts"; .\.venv\Scripts\pytest.exe -q
-powershell -ExecutionPolicy Bypass -File .\scripts\worker\register-watch.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\worker\register-nodes.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\worker\register-comfyui.ps1 -PortableRoot <dir>
 ```
 
-`register-watch.ps1` registers `scripts/worker/watch.ps1` as the per-user
-task `comfyui-recipes-watch` (at logon, interactive principal, so no stored
-password) and starts it. The wrapper waits until ComfyUI answers on
-`127.0.0.1:8188`, restarts the CLI when it exits, and appends to
-`.local/_nogit/worker/watch.log`. `register-comfyui.ps1 -PortableRoot <dir>`
-registers the portable ComfyUI's `python_embeded\python.exe` with the
-launch arguments the script holds (`--listen`, `--disable-auto-launch`,
-`--cache-ram`) the same way as task `comfyui`, so a reboot brings both back
-once the user logs on. Changing an argument means editing the script and
-re-running it; `run_nvidia_gpu.bat` is not used. `.local/chimera-token` and
-`.local/discord-webhook` are copied onto the box by hand; they are never
-tracked. The wrapper runs `comfy-recipes work` (see
-[queueing.md](queueing.md#worker)); the box must stay on a checkout
-whose branch matches the `recipe_ref` of the rows it should serve.
+`register-nodes.ps1` junctions `comfy_nodes/yukari_finalize` and
+`comfy_nodes/yukari_worker` into ComfyUI's `custom_nodes/`.
+`register-comfyui.ps1` registers the portable ComfyUI as the logon task
+`comfyui` with the launch arguments the script holds and
+`COMFYUI_RECIPES_WORKER=1`, so the worker runs as a thread inside ComfyUI
+and a reboot brings both back once the user logs on. Changing an argument
+means editing the script and re-running it; `run_nvidia_gpu.bat` is not
+used. `register-watch.ps1` / `watch.ps1` still register a standalone
+`comfy-recipes work` loop for running it by hand; the deploy does not use
+them. `.local/chimera-token` and `.local/discord-webhook` are copied onto
+the box by hand; they are never tracked. The box must stay on a checkout
+whose branch matches the `recipe_ref` of the rows it should serve (see
+[queueing.md](queueing.md#worker)).
 
 Two things that only show up over `ssh comfyui-worker`:
 

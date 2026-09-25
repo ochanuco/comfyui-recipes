@@ -129,8 +129,8 @@ split those two populations with margin on the picked side.
 
 ## FIGURE_LIGHT_V / FIGURE_LIGHT_SAT_TARGET
 
-Saturation normalization is applied to the raw render (`scripts/desat.py`,
-HSV S alone) before the layered delivery. Poses drift by different amounts
+Saturation normalization is applied to the raw render
+(`infrastructure/imaging/palette.py`, HSV S alone) before the layered delivery. Poses drift by different amounts
 -- `lounge` paints the whole picture at 3x `stand`'s saturation on every
 seed (8/8), `lap` at about half that -- and no prompt lever moves it (six
 attempts on record: muted colour, limited palette, and others). So the

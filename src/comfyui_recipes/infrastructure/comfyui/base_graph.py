@@ -1,9 +1,8 @@
 """Structural resolution of a base graph's semantic roles.
 
-A base graph's node IDs are whatever the recipe or prior pass that produced
-it happened to number them: a plain yukari base samples through KSampler
-"3", a masked_redraw base through "19". Nothing here assumes a fixed ID --
-every role is found by walking the graph's own edges.
+Node IDs vary by recipe and pass (a plain base samples through "3", a
+masked_redraw base through "19"), so every role is found by walking the
+graph's own edges rather than assuming a fixed ID.
 """
 
 from __future__ import annotations
@@ -11,10 +10,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-# Nodes a finished picture can pass through, unmodified, between its decode
-# and its SaveImage. A finalize base's own matte (RemoveBackground ->
-# MaskToImage) and delivered (YukariDeliver) branches are deliberately not
-# here, so a finalize-of-a-finalize still resolves to the raw picture's save.
+# Nodes a finished picture can pass through, unmodified, between decode and
+# SaveImage. Excludes a finalize base's own matte/delivered branches, so a
+# finalize-of-a-finalize still resolves to the raw picture's save.
 PASSTHROUGH = ("JoinImageWithAlpha", "LayeredDiffusionDecode", "InpaintStitchImproved")
 
 
@@ -47,11 +45,7 @@ def reaches(graph: Mapping, consumers_map: Mapping[str, list[str]], start: str,
 
 
 def find_decode(graph: Mapping) -> str:
-    """The one VAEDecode that is the source's finished picture.
-
-    A base graph can carry a dangling first-pass VAEDecode (no consumer) and
-    a redraw VAEDecode that a later pass re-encodes -- neither is it.
-    """
+    """The one VAEDecode that is the source's finished picture."""
     consumers_map = consumers(graph)
     candidates = [
         key for key, node in graph.items()
@@ -103,12 +97,9 @@ class BaseRoles:
 
 def _saves_downstream(graph: Mapping, consumers_map: Mapping[str, list[str]],
                       node_id: str) -> list[tuple[str, bool]]:
-    """SaveImage nodes reachable from `node_id` through PASSTHROUGH only.
-
-    Each result carries whether the walk to it crossed an
-    InpaintStitchImproved -- the sampler's latent is then the inpaint crop,
-    not the whole canvas.
-    """
+    """SaveImage nodes reachable from `node_id` through PASSTHROUGH only;
+    each result's bool is whether the walk crossed InpaintStitchImproved
+    (the sampler's latent is then the inpaint crop, not the whole canvas)."""
     found: list[tuple[str, bool]] = []
     for consumer_id in consumers_map.get(node_id, []):
         class_type = graph[consumer_id].get("class_type")
@@ -122,14 +113,7 @@ def _saves_downstream(graph: Mapping, consumers_map: Mapping[str, list[str]],
 
 
 def base_roles(graph: Mapping) -> BaseRoles:
-    """Resolve a base graph's sampler, decode, save and prompt roles.
-
-    A finalize base can itself be a prior finalize's output: its decode also
-    feeds a matte SaveImage (through RemoveBackground/MaskToImage) and a
-    delivered SaveImage (through YukariDeliver). Neither class is
-    PASSTHROUGH, so the forward walk to the raw picture's SaveImage ignores
-    both and a finalize-of-a-finalize still picks the raw picture.
-    """
+    """Resolve a base graph's sampler, decode, save and prompt roles."""
     try:
         decode_id = find_decode(graph)
     except ValueError as exc:

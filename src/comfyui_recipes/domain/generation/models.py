@@ -36,12 +36,10 @@ class RenderSpec:
     filename_prefix: str
     hires: HiresSpec | None = None
     loras: tuple[tuple[str, float], ...] = ()
-    # The ordered (name, text) breakdown of `prompts.positive` -- joining the
-    # texts in order reproduces it byte for byte. Empty for a recipe that has
-    # no named parts; `patches.py` reads this to resolve
-    # `prompt.positive.<part>` targets.
+    # (name, text) breakdown of `prompts.positive`, in order -- joining the
+    # texts reproduces it byte for byte. Empty when the recipe has no named
+    # parts.
     positive_parts: tuple[tuple[str, str], ...] = ()
-    # Legacy part name -> the `positive_parts` names that composed it, for a
-    # `prompt.positive.<part>` patch that still names a legacy part instead
-    # of one of `positive_parts`. Empty for a recipe with no legacy parts.
+    # Legacy part name -> `positive_parts` names that composed it, for a
+    # `prompt.positive.<part>` patch that still names a legacy part.
     part_groups: Mapping[str, tuple[str, ...]] = field(default_factory=dict)

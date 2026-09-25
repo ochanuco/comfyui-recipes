@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
 """Re-render an existing image at low denoise, with the prompt that made it.
 
-A repaint from recolor_stripes.py is exact but flat: the new colour is pasted
-into the old shading, so the boundary lines and the gloss belong to the colour
-that used to be there. Sending it back through the sampler at a low denoise
-redraws it as a picture rather than a paste-over.
-
-The prompt is not retyped -- it is read out of /history for the prompt id that
-produced the original, so the second pass agrees with the first about what it
-is drawing. queue_img2img.py cannot do this: it loads a single-file checkpoint,
-and Hassaku is only present in diffusers form.
+The prompt is not retyped: it's read from /history for the prompt id that
+produced the original, so the second pass agrees with the first about what
+it's drawing.
 
     uv run scripts/queue_refine.py out/re-r80_00001_.png \\
         --from-prompt ce6963a6-... --denoise 0.3
@@ -43,14 +37,11 @@ def parse_args() -> argparse.Namespace:
         "stay low enough for the whole picture to survive it; with one the "
         "legwear can be redrawn hard while every other pixel is left alone",
     )
-    # With a mask the second pass only touches one garment, so it can be told
-    # something the first pass was not. The first pass's negative bans sheer
-    # legwear, among much else; reusing it verbatim asks for see-through tights
-    # while forbidding them.
+    # The inherited negative bans sheer legwear among much else; a mask-limited
+    # pass can ask for something the first pass forbade.
     parser.add_argument("--positive-extra", default="", help="appended to the positive")
-    # Appending is not enough when the second pass wants the opposite of the
-    # first. Asking for bare legs while the inherited positive still says
-    # (striped pantyhose:1.45) returns striped pantyhose, at any denoise.
+    # Appending isn't enough when the second pass wants the opposite of the
+    # first -- an inherited (striped pantyhose:1.45) wins at any denoise.
     parser.add_argument("--positive", help="replaces the positive entirely")
     parser.add_argument("--negative", help="replaces the negative entirely")
     parser.add_argument("--denoise", type=float, default=0.3)
@@ -94,8 +85,8 @@ def main() -> None:
         negative = args.negative
     loader_id, loader = find(source, "DiffusersLoader")
 
-    # ComfyUI's LoadImage only sees its own input directory; remote runs also
-    # need the file pushed through /upload/image.
+    # Remote runs need the file pushed through /upload/image; LoadImage only
+    # sees ComfyUI's own input directory.
     staged_image = stage_input(args.image, INPUT_DIR, host=args.host, port=args.port)
 
     latent_ref = ["11", 0]

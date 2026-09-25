@@ -10,9 +10,8 @@ from .models import RenderSpec
 TEXT_TARGETS = ("prompt.positive", "prompt.negative",
                 "prompt.hires.positive", "prompt.hires.negative")
 # `prompt.positive.<part>` targets one named part instead of the whole
-# joined string -- same ops and fields as a text target. `<part>` is either
-# a `RenderSpec.positive_parts` name, or a `RenderSpec.part_groups` legacy
-# name that resolves to one of its member components (see `_apply_group`).
+# joined string. `<part>` is a `RenderSpec.positive_parts` name, or a
+# `RenderSpec.part_groups` legacy name resolved via `_apply_group`.
 PART_TARGET_PREFIX = "prompt.positive."
 NUMBER_TARGETS = ("render.cfg", "render.steps", "render.width",
                   "render.height", "hires.denoise")
@@ -21,7 +20,6 @@ LORAS_TARGETS = ("render.loras",)
 TEXT_OPS = ("append", "prepend", "replace", "remove")
 _KNOWN_KEYS = frozenset({"target", "op", "value", "old", "reason"})
 
-# Read by _parse_number_patch's messages and by the published catalog.
 NUMBER_CONSTRAINTS = {
     "render.steps": "an int >= 1",
     "render.width": "an int >= 64, a multiple of 8",

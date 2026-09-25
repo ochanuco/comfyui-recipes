@@ -70,10 +70,9 @@ class Heartbeat:
 class HubListener:
     """Keeps one WorkerHub socket open: hello, ping, wake on `queued`.
 
-    Reconnects with exponential backoff (1s doubling to `backoff_max`); the
-    backoff resets once the hub has sent a frame, so a hub that accepts the
-    Upgrade and drops the socket at once does not get hammered. send_progress()
-    is a silent no-op while no socket is open.
+    Reconnects with exponential backoff (1s doubling to `backoff_max`),
+    reset once the hub sends a frame. send_progress() is a silent no-op
+    while no socket is open.
     """
 
     def __init__(self, services: WorkServices, wake: threading.Event) -> None:

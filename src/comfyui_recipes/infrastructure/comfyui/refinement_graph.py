@@ -51,16 +51,10 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
                        stroke_light: str | None, deliver_size: int | None,
                        canvas: tuple[int, int],
                        source_image: str | None = None) -> list:
-    """Appends the deliver-only chain onto `graph` (mutated): a raw SaveImage
-    of `image_ref` as-is, a matte, optional skin/recolor/repin, YukariDeliver
-    and an optional deliver_size scale. Returns the delivered picture's ref.
-
-    `image_ref` is delivered without any redraw of its own -- a plain
-    picked picture's `LoadImage` output, or a repair's own crop/stitch
-    output, run through the same tail either way. `source_image` is the
-    unedited picture `skin` reads its original tones from, loaded fresh
-    since `image_ref` may already be someone else's redraw or stitch by the
-    time this runs.
+    """Appends the deliver-only chain onto `graph` (mutated). Returns the
+    delivered picture's ref. `image_ref` may already be someone else's
+    redraw or stitch, so `source_image` -- the unedited picture `skin`
+    reads its original tones from -- is loaded fresh rather than reused.
     """
     # A raw output alongside the matte and the delivered one, same three-way
     # split finalize() classifies every other route by.
@@ -196,9 +190,9 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     next_id = max(int(key) for key in graph) + 1
     scale, encode, sample, decode = (
         str(next_id + offset) for offset in range(4))
-    # Where the model, CLIP and VAE come from is read off the base pass rather
-    # than assumed: a single DiffusersLoader answers all three from node 4, a
-    # split-file model answers them from three separate loaders.
+    # Read off the base pass rather than assumed: a single DiffusersLoader
+    # answers model/CLIP/VAE from node 4, a split-file model from three
+    # separate loaders.
     model_ref = graph[roles.sampler_id]["inputs"].get("model", ["4", 0])
     # A layerdiffuse base samples through its own LayeredDiffusionApply node,
     # so the redraw's model is what that node itself sampled, not the node.
@@ -237,10 +231,9 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     if deliver_size is not None and deliver_size < longest:
         deliver_target = (round(width * deliver_size / longest),
                           round(height * deliver_size / longest))
-    # Several routes to the bigger latent, and they do not draw the same
-    # picture. Pixel space is faithful; the latent route leaves a staircase
-    # on hard contours that the redraw turns into visible stroke, which is
-    # the hand in the line this delivery is judged on.
+    # The routes to the bigger latent draw different pictures: pixel space
+    # is faithful, the latent route leaves a staircase on hard contours
+    # that the redraw turns into visible stroke.
     if latent_route and not source_image:
         graph[scale] = {"class_type": "LatentUpscale", "inputs": {
             "samples": [roles.sampler_id, 0], "upscale_method": "bicubic",

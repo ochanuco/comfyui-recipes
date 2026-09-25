@@ -16,12 +16,10 @@ from ..ws import WebSocketClosed, websocket_url
 
 
 class FeedClosed(WebSocketClosed):
-    """The ComfyUI progress socket is closed or broken."""
+    pass
 
 
 class ProgressFeed:
-    """Connects to ComfyUI's `/ws` and yields `progress` events only."""
-
     def __init__(self, base_url: str) -> None:
         self.url = websocket_url(base_url, "/ws")
         self._socket = None

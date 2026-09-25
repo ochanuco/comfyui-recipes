@@ -39,7 +39,6 @@ def tracked(pattern: str) -> list[Path]:
 
 
 def summary(path: Path) -> str:
-    """The first line of the module docstring, which is the file's own claim."""
     try:
         doc = ast.get_docstring(ast.parse(path.read_text(encoding="utf-8")))
     except (SyntaxError, UnicodeDecodeError):
@@ -48,13 +47,11 @@ def summary(path: Path) -> str:
 
 
 def imported_by(paths: list[Path]) -> dict[str, set[str]]:
-    """Which tracked modules each file imports, by module name."""
     names = {p.stem for p in paths}
     used: dict[str, set[str]] = {p.stem: set() for p in paths}
     for path in paths:
         text = path.read_text(encoding="utf-8", errors="replace")
-        # Package imports and the package's own relative
-        # `from .model import ...` both count: credit every dotted component.
+        # Credits every dotted component, so `from .model import ...` counts too.
         for match in re.finditer(r"^\s*(?:from|import)\s+\.?([\w.]+)", text, re.M):
             for part in match.group(1).split("."):
                 if part in names and part != path.stem:

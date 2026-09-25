@@ -257,9 +257,8 @@ def _idle(services: WorkServices, wake: threading.Event | None,
           interval: float) -> None:
     """Sleep out the idle interval, cut short once a drain is asked for.
 
-    Sliced rather than waited whole: deploy waits on this worker leaving, so
-    an idle worker must not hold the deploy for the length of a poll. With no
-    drain wired there is nothing to notice, so the wait stays whole.
+    Sliced rather than waited whole so an idle worker does not hold up a
+    deploy waiting on it to leave. With no drain wired, waits whole.
     """
     if services.draining is None:
         if wake is not None:

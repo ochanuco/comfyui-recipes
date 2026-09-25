@@ -64,7 +64,7 @@ plain `stand` still wears the pre-official costume.
 
 One recipe is live, `yukari` under `src/comfyui_recipes/domain/`: the Anima
 Turbo checkpoint's identity, costumes, poses and prompt edit order.
-`docs/yukari/anima.md` is the description. `domain/yukari/delivery_style.py`
+`docs/yukari/anima.md` maps where each part lives. `domain/yukari/delivery_style.py`
 holds both the delivery identity (backdrop, purple stroke, acceptance band)
 every delivered picture wears, read by imaging, catalog, work, cli and
 repair alike, and the finalize redraw settings (stage-2 model, sampler,
@@ -103,8 +103,10 @@ experiments/  one observation per JSONL record (seed, render_id, parameter,
               observations still append here. The JSONL stays the source
               of truth; chimera holds a derived index kept in sync by
               `scripts/observation_sync.py`.
-docs/         conclusions. Cross-pose lessons in docs/render-notes.md,
-              per-pose reasoning in docs/poses/<character>/<pose>.md.
+docs/         conclusions, current state only. Cross-pose lessons in
+              docs/findings/<topic>.md, per-pose reasoning in
+              docs/poses/<character>/<pose>.md, index in docs/README.md.
+              docs/archive/ is the frozen pre-split log: grep, never edit.
 tests/        invariants that must hold across models and seeds (prompt
               byte-stability is already pinned by the snapshot contract).
 ```
@@ -136,9 +138,11 @@ Use `dev/<topic>` branches for implementation and merge only after review.
 
 ## Look things up; do not read them
 
-`docs/render-notes.md` (~68k tokens) dominates this repository, and is
-exactly what a one-line question tempts you to open whole.
-Opening it without a line range is a mistake, not a thorough approach.
+`docs/README.md` is the index: one line per doc, and it is short. Start
+there, open the one finding that matches, and stop. `docs/archive/` (~150k
+tokens) is where the findings came from; reach it only through
+`atlas.py find` / `notes <pattern>` and a line range, when a finding's
+`(a<n> §...)` pointer is not enough.
 
 For what a recipe sends and what chimera holds, ask the chimera MCP first — it
 is registered in this session as `chimera` and answers without touching the
@@ -159,8 +163,9 @@ production recipe, not this branch. For an uncommitted change, ask the code:
 
 ```bash
 uv run scripts/atlas.py                    # every script: role, size, one line  (~1.5k)
-uv run scripts/atlas.py notes              # the notes' headings + line numbers   (~2.8k)
-uv run scripts/atlas.py notes <pattern>    # just the sections that match
+uv run scripts/atlas.py docs               # every doc with its size              (~1k)
+uv run scripts/atlas.py notes              # findings headings, archive file sizes (~0.5k)
+uv run scripts/atlas.py notes <pattern>    # just the sections that match, archive included
 uv run scripts/atlas.py find <regex>       # matching lines, each under its heading
 uv run comfy-recipes yukari prompt --pose bust                    # ~0.6k, not the whole recipe
 uv run comfy-recipes catalog                                     # what `work` would publish
@@ -309,8 +314,8 @@ uv run scripts/delivery_check.py --accept   # record a change that is meant
 ```
 
 When it fails, nothing is broken — something was changed. `--accept` writes
-the new fingerprint into `assets/delivery-fingerprint.json`; write in
-`docs/render-notes.md` what the look is now.
+the new fingerprint into `assets/delivery-fingerprint.json`; rewrite
+`docs/findings/delivery.md` to say what the look is now.
 
 A rule that follows from this, learned the expensive way: **a settled design
 decision that lives only in prose is a decision the next session does not
@@ -324,14 +329,22 @@ put it in the blocks (`yukari/costumes.py`'s `COSTUMES`/`LEGWEAR`).
 
 `.local/` is untracked (`.gitignore`) and is where analysis scripts, sweeps and
 logs go — `uv run .local/foo.py`. It is not the repo: anything worth keeping
-moves into `scripts/` or `docs/render-notes.md`. Request JSON no longer lives
+moves into `scripts/`, `experiments/` or `docs/findings/`. Request JSON no longer lives
 here: a round is queued with `derive_request`, and the record on chimera is the
 reproducible artefact.
 
-`docs/render-notes.md` is the record of what was measured, including what was
-measured and came back *null*. Append to it; do not tidy it. Findings that
-contradict an earlier entry get a correction written next to them, not a
-deletion — several entries exist only to stop something being retried.
+### Writing docs: rewrite, never append
+
+A measurement, null results included, is an `experiments/` record (append-only).
+A doc holds only the conclusion that is true now:
+
+- New knowledge rewrites the finding it touches. A contradicted line is
+  replaced, not corrected underneath; the old version is in git.
+- A result that must stop a retry is kept as one line under the finding's
+  `Does not work` list, with its `(a<n> §...)` pointer.
+- `tests/test_docs_budget.py` caps each finding at 150 lines and every other
+  doc at 300, requires `docs/README.md` to list every doc, and freezes
+  `docs/archive/`. Over the cap means rewrite or split by topic, not raise it.
 
 ## No crops while the prompt is being tuned
 

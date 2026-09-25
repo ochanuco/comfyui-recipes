@@ -52,10 +52,8 @@ def _source_short(generations: Sequence[Mapping], generation_id: str) -> str:
 def _resolve_source(batch: dict, generation_id: str) -> str:
     """The redraw generation a repair actually redraws.
 
-    A finalize batch's `generations` holds the raw redraw and the delivered
-    sticker side by side; the sticker is smaller (repin/deliver crop and
-    downscale it), so the largest by pixel count is the redraw regardless of
-    which sibling the caller named.
+    A finalize batch's raw redraw and delivered sticker sit side by side;
+    the redraw is the larger one by pixel count.
     """
     if (batch.get("parameters") or {}).get("kind") != "hires-chain":
         return generation_id
@@ -98,11 +96,8 @@ def repair(generation_id: str, services: RepairServices, *,
     prefix = f"rep-{source_short}"
 
     picked = services.management.fetch_generation_image(source_id)
-    # `graph_generation_id` lets a caller that already knows better -- a
-    # finalize of a repaired raw, which must draw its reroll's prompt from
-    # the original generation rather than the repair-emphasized text baked
-    # into its own graph -- name a different generation's graph, while the
-    # picture cropped stays `source_id`'s own.
+    # `graph_generation_id` names a different generation's graph to draw the
+    # prompt from, while the picture cropped stays `source_id`'s own.
     graph_id = graph_generation_id or source_id
     # The job graph is what ran; the PNG prompt can be a cached older submission's.
     record = services.management.request(

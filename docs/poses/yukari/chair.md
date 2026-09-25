@@ -34,7 +34,7 @@ Four measurements this block carries, all of them costly:
 - Nine tags, and the ninth is load-bearing in both directions. At twelve the
   pale thighhighs are pushed out and one dark tights is drawn instead -- the
   legwear is the first thing this block spends.
-- Bare `full body`, NOT `(full body:1.4)`. render-notes recommends the
+- Bare `full body`, NOT `(full body:1.4)`. The render-notes archive recommends the
   raised form off three seeds, and `pick/yk-chair-gradient` records the same
   substitution alone collapsing the two legwear layers into one stocking.
   Ported with the raised form first and the collapse reproduced on

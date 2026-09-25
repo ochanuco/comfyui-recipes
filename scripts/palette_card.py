@@ -72,8 +72,7 @@ def main() -> None:
             d.text((PAD + 2 * CHIP + 22, y + CHIP // 4 - 6), label,
                    fill="#222222")
         else:
-            # A saturation ruler 0..255 in the dress hue, with the markers
-            # that delivery actually uses drawn on it.
+            # A saturation ruler 0..255 in the dress hue, with delivery's own markers.
             x0, x1 = PAD, W - PAD
             for x in range(x0, x1):
                 s = int((x - x0) / (x1 - x0) * 255)

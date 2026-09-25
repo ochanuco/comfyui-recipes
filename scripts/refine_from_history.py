@@ -3,20 +3,15 @@
 
 The earlier passes are taken verbatim from /history, so the composition they
 decided is the composition that gets redrawn -- no reconstruction from the
-recipe, and no chance of a tag-order difference changing the picture.
+recipe.
 
     refine_from_history.py <prompt_id>                       # second pass, 2048
     refine_from_history.py <prompt_id> --chain               # append to a refined one
     refine_from_history.py <prompt_id> --chain --denoise 0.60
 
-`--chain` appends onto a render that already has a second pass instead of
-replacing it.
-
-**A cheap pass deletes; it does not add.** At 0.35 the chained pass removed a
-button placket the recipe had since banned and left newly-added halter straps as
-a faint suggestion. 0.60 drew the straps properly and the approved shading still
-survived. Removing something the prompt now forbids is nearly free; drawing
-something the base does not contain costs real denoise.
+A cheap pass deletes; it does not add: removing what the prompt now forbids
+is nearly free, but drawing something the base doesn't contain costs real
+denoise.
 """
 import argparse
 import json
@@ -72,15 +67,8 @@ def chain_pass(base, size, denoise, prefix, prompt=None):
                     "inputs": {"clip": ["4", 1], "text": prompt[1]}}
         pos, neg = [p_pos, 0], [p_neg, 0]
     tail = last_decode(g)
-    # Aspect, not a square. This read `width: size, height: size`, which is the
-    # same number for the square renders it had only ever been run on and a
-    # squash for anything else -- found when `kick` arrived at 1024x1536. The
-    # sizes() helper is what the other two routes already use.
-    #
-    # And it read `sizes(g)`, which ignored this function's own `size`
-    # argument and always scaled to 2048. Every existing caller passes 2048,
-    # so nothing already measured moves; what it unlocks is a chain whose
-    # passes run at DIFFERENT sizes -- a rough at 1024, coloured at 2048.
+    # Preserves aspect ratio (not width=height=size), and uses this call's own
+    # size so a chain's passes can each target a different resolution.
     w, h = sizes(g, size)
     g[scale] = {"class_type": "ImageScale", "inputs": {
         "image": [tail, 0], "upscale_method": "lanczos",
@@ -107,7 +95,7 @@ def sizes(base, size=HIRES):
 
 
 def latent_route(base, denoise, prefix):
-    """The recipe's own --hires path: bicubic on the latent, denoise 0.60."""
+    """The recipe's own --hires path: bicubic upscale on the latent."""
     g = json.loads(json.dumps(base))
     w, h = sizes(base)
     g["10"] = {"class_type": "LatentUpscale", "inputs": {
@@ -124,8 +112,7 @@ def latent_route(base, denoise, prefix):
 
 
 def image_route(base, denoise, prefix):
-    """The nape session's path: decode, resample in image space with lanczos,
-    encode back. The resampler gets eight times the detail to interpolate."""
+    """Decode, resample in image space with lanczos, then re-encode."""
     g = json.loads(json.dumps(base))
     w, h = sizes(base)
     g["8"]["inputs"]["samples"] = ["3", 0]          # decode the first pass

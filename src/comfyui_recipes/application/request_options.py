@@ -44,11 +44,9 @@ _RECIPE_DIALS = {
     "yukari": DIALS,
 }
 
-# The finalize/repair option keys a recipe may define dial words for -- kept
-# in sync by hand with the resolve_dial() call sites in finalize_arguments()
-# and repair_arguments(); a key resolved there and missing here is reported
-# unresolved in resolved_options. Public: interfaces/cli.py reads them too,
-# to resolve the same keys' words from the args it already parsed.
+# Kept in sync by hand with the resolve_dial() call sites in
+# finalize_arguments()/repair_arguments(). Public: interfaces/cli.py reads
+# them too, to resolve the same keys' words from its own parsed args.
 FINALIZE_DIAL_KEYS = ("denoise", "keep_legwear", "repair_denoise", "repair_lora")
 REPAIR_DIAL_KEYS = ("denoise", "lora")
 _MASKED_REDRAW_DIAL_KEYS = ("denoise",)
@@ -74,18 +72,15 @@ def resolve_dial(key: str, value: object,
 def _resolved_options(options: Mapping, arguments: Mapping,
                       dial_keys: tuple[str, ...]) -> dict:
     """The request's own options, with each dial-eligible key's value
-    replaced by what `finalize_arguments()`/`repair_arguments()`/
-    `masked_redraw_arguments()` actually resolved it to in `arguments` --
-    the single source of truth for what the request ran with, rather than a
-    second independent word/`true` resolution that could drift from it.
+    replaced by what `arguments` actually resolved it to -- the single
+    source of truth for what the request ran with.
     """
     return {key: (arguments[key] if key in dial_keys else value)
            for key, value in options.items()}
 
 
-# Shared by `finalize_arguments`' `repair`/`repair_*` options and
-# `repair_arguments`' own -- both validate the same reroll geometry, just
-# under different option names and defaults.
+# Shared by finalize_arguments' repair/repair_* options and
+# repair_arguments' own, under different option names and defaults.
 def _parts_argument(value: object, *, key: str = "parts") -> list[str]:
     if (not isinstance(value, list)
             or any(not isinstance(part, str) for part in value)):
@@ -160,9 +155,8 @@ def _repair_seeds_argument(value: object, *, key: str = "repair_seeds") -> int:
     return value
 
 
-# Shared by `finalize_arguments`'s `repair_lora` and `repair_arguments`'s own
-# `lora` -- both select the part-LoRA weight the reroll's `LoraLoader` chain
-# runs at.
+# Shared by finalize_arguments' repair_lora and repair_arguments' own lora:
+# both select the reroll's LoraLoader chain weight.
 def _part_lora_argument(value: object, *, key: str = "lora") -> float | None:
     if value is True:
         return DEFAULT_PART_LORA_WEIGHT
@@ -207,11 +201,8 @@ def finalize_arguments(options: Mapping,
                        dials: Mapping[str, Mapping[str, float]] | None = None) -> dict:
     """Validate a finalize request's `options` and map it to finalize() kwargs.
 
-    Every key in the return value is a finalize() kwarg. Missing keys mean
-    false/null; unknown keys or a wrong type raise ValueError naming the
-    offending key. `dials` is the source recipe's `dials.finalize`
-    vocabulary (option key -> word -> number); a dial-eligible key given a
-    word absent there raises the same way.
+    Missing keys mean false/null; unknown keys or a wrong type raise
+    ValueError naming the offending key.
     """
     if not isinstance(options, Mapping):
         raise ValueError(
@@ -323,9 +314,8 @@ def finalize_arguments(options: Mapping,
         resolve_dial("repair_denoise", options.get("repair_denoise", 0.6), dials),
         key="repair_denoise")
     repair_pad = _pad_argument(options.get("repair_pad", 1.0), key="repair_pad")
-    # `None` (an absent key) reaches finalize() as its own "caller omitted
-    # this" sentinel, which on the deliver_only + repair_seeds path resolves
-    # to 1536/1024 by the picked picture's own size rather than a fixed 1024.
+    # None (an absent key) reaches finalize() as its own "caller omitted
+    # this" sentinel; deliver_only + repair_seeds resolves it by picture size.
     repair_size = (_crop_size_argument(options["repair_size"], key="repair_size")
                   if "repair_size" in options else None)
     repair_lora = _part_lora_argument(
@@ -369,9 +359,7 @@ def repair_arguments(options: Mapping,
                      dials: Mapping[str, Mapping[str, float]] | None = None) -> dict:
     """Validate a repair request's `options` and map it to repair() kwargs.
 
-    Every key in the return value is a repair() kwarg; unknown keys or a
-    wrong type raise ValueError naming the offending key. `dials` is the
-    source recipe's `dials.repair` vocabulary (option key -> word -> number).
+    Unknown keys or a wrong type raise ValueError naming the offending key.
     """
     if not isinstance(options, Mapping):
         raise ValueError(
@@ -416,10 +404,8 @@ def masked_redraw_arguments(options: Mapping,
     """Validate a masked_redraw request's `options` and map it to
     masked_redraw() kwargs.
 
-    Every key in the return value is a masked_redraw() kwarg; unknown keys or
-    a wrong type raise ValueError naming the offending key. `dials` is the
-    source recipe's `dials.repair` vocabulary -- masked_redraw's own
-    `denoise` shares repair's, rather than defining its own.
+    `dials` is the source recipe's `dials.repair` vocabulary; masked_redraw
+    has no `dials.masked_redraw` of its own and shares repair's `denoise`.
     """
     if not isinstance(options, Mapping):
         raise ValueError(

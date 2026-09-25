@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Push experiments/**/*.jsonl records into chimera's Observation index.
 
-experiments/ stays the source of truth and the write path; this script syncs
-a derived, queryable copy to chimera. See AGENTS.md "Where information
-lives" and experiments/README.md.
+experiments/ stays the source of truth and the write path; this syncs a
+derived, queryable copy to chimera.
 """
 
 from __future__ import annotations
@@ -15,10 +14,8 @@ from pathlib import Path
 from comfyui_recipes.infrastructure.chimera.client import ChimeraClient
 from comfyui_recipes.infrastructure.repository import discover_repository
 
-# Five records carry neither the character nor the component they belong to:
-# the A/B-round records shaped {date, model, axis, arms, ...}. Neither field
-# is derived from the path -- delivery_style.jsonl alone carries four
-# components of its own, and line 48 is a prompt-BODY-block round.
+# Manual overrides for records whose character/component can't be derived
+# from the file path alone.
 ENVELOPE: dict[tuple[str, int], dict[str, str]] = {
     ("experiments/yukari/prompt_style.jsonl", 33):
         {"character": "yukari", "component": "prompt_style"},

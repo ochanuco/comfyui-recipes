@@ -22,11 +22,10 @@ BODY = ("(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), 
         "(soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), "
         "adult proportions, long torso, seven heads tall, ")
 BACKGROUND = "simple background, (green background:1.3), "
-# Leads every expression's eyes block: this far forward jitome's weight
-# flattens the upper lid step by step, while the same tag in FACE, behind the
-# background, does not reach the eyes at any weight. The flat weight is for
-# expressions with no half-closed eyes of their own; on the others it takes
-# the mouth's smile with it.
+# Leads every expression's eyes block: placed behind BACKGROUND (as FACE
+# is) the tag stops reaching the eyes at any weight. EYE_SHAPE_FLAT is for
+# expressions with no half-closed eyes of their own; on others it also
+# flattens the mouth's smile.
 EYE_SHAPE = "(tareme:1.2), (jitome:1.4), "
 EYE_SHAPE_FLAT = "(tareme:1.2), (jitome:1.8), "
 FACE = ("(large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), "

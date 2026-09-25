@@ -41,9 +41,7 @@ the archive and lives in `experiments/`, chimera or the named PR.
 |---|---|---|
 | [queueing.md](queueing.md) | 1.5k | request kinds, where each option is defined, cross-file rules |
 | [release.md](release.md) | 1.4k | main → production, worker deploy |
-| [remote.md](remote.md) | 1.7k | the GPU box: deploy, logon tasks, restart |
-| [local-install.md](local-install.md) | 0.9k | ComfyUI on this machine (legacy) |
-| [configuration.md](configuration.md) | 0.5k | config files meant to be edited |
+| [remote.md](remote.md) | 1.3k | the GPU box: setup, logon tasks, fetching models |
 | [models.md](models.md) | 2.2k | model files and provenance |
 | [architecture.md](architecture.md) | 1k | layer dependency rule |
 

@@ -83,8 +83,6 @@ also stops the render in flight, which is why the drain sentinel
 
 ## Migration rule
 
-`comfy-recipes` is the only public application entry point. The old
-`scripts/generate.py` module is a temporary compatibility facade and must
-not acquire new domain or orchestration logic. Other files under `scripts/`
-are operator or research utilities, not alternate application entry points;
-they are being grouped separately as the migration continues.
+`comfy-recipes` is the only public application entry point. Files under
+`scripts/` are checks and manual utilities that import the package; none is
+an alternate entry point.

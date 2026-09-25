@@ -10,9 +10,7 @@ Calibration measurements behind each number are in
 docs/yukari/delivery_style.md.
 """
 
-# The backdrop every delivered picture is repainted to, via
-# recolor_bg.repaint; recolor_bg's own --color stays required, not
-# defaulted, since backdrop identity belongs to the delivery, not the tool.
+# The backdrop every delivered picture is repainted to.
 BACKDROP = "#c7e5e9"
 
 # White band against the figure's die-cut edge, as a share of the longest

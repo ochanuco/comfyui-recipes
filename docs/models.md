@@ -1,10 +1,24 @@
 # Models
 
 No models are included in this repository, and nothing here downloads them
-automatically. This is the list of what the recipes in
-[queueing.md](queueing.md) were tuned against, so they can be assembled on
-whichever machine serves ComfyUI. Locally they live under `.local/assets`, the
-model root rendered into `extra_model_paths.yaml`.
+automatically. They live on the GPU box; [remote.md](remote.md) covers
+fetching them.
+
+## In use now
+
+The code names the files; this is where to look.
+
+| Role | File | Named in |
+|---|---|---|
+| Stage 1 | `diffusion_models/anima-turbo-v1.1.safetensors` (`circlestone-labs/Anima`) + `qwen_3_06b_base` + `qwen_image_vae` | `domain/yukari/prompt_style.py` `MODEL` |
+| Opt-in finalize redraw | `diffusers/hassaku-il-v22` | `domain/yukari/delivery_style.py` `FINALIZE_MODEL` |
+| Repair reroll models | `sudachiAnima_v10`, `hassakuAnima_v13`, `anima_baseV10` | `domain/repair/models.py` |
+| Repair part LoRAs | `feet-xl-ill`, `hands-xl-ill` | `domain/repair/loras.py` |
+| Repair ControlNet | `noob-lineart-anime-fp16` | `domain/repair/controlnet.py` |
+
+`anima-turbo-v1.1` and the three repair checkpoints are not in the verified
+inventory below. Everything else in the inventory was used by retired
+recipes and is kept only for provenance.
 
 Each has its own upstream license — the Illustrious-family checkpoints are
 mostly [FAIPL-1.0-SD](https://freedevproject.org/faipl-1.0-sd/) — which this
@@ -82,9 +96,9 @@ Whole-folder copies of a Civitai model converted to diffusers by John6666.
 
 Fetched straight onto the Windows box for the checkpoint and LoRA A/B rounds
 (`docs/archive/render-notes/6-2026-09.md`). No local copy and no SHA256 recorded;
-re-fetch from the source if they are ever needed again. Every checkpoint below
-rated bad against hassaku-il-v22 on the recipe prompt and is not used; the
-linaqruf LoRA is what `yukari-sketch` loads.
+re-fetch from the source if they are ever needed again. None of them is used:
+the checkpoints rated bad against hassaku-il-v22, and the sketch LoRAs served
+the retired `yukari-sketch` recipe.
 
 | file | source |
 |---|---|
@@ -97,6 +111,6 @@ linaqruf LoRA is what `yukari-sketch` loads.
 | `checkpoints/AAM_XL_Anime_Mix.safetensors` | `Lykon/AAM_XL_AnimeMix` |
 | `checkpoints/novaMoeXL_v10.safetensors` | Civitai Nova Moe XL / v1.0 (version 2242867) |
 | `checkpoints/novaRetroXL_v10.safetensors` | Civitai Nova Retro XL / v1.0 (version 2229136) |
-| `loras/sketch-style-xl-linaqruf.safetensors` | `Linaqruf/sketch-style-xl-lora :: sketch-style-xl.safetensors` — **in use** (`yukari-sketch`, 0.8) |
+| `loras/sketch-style-xl-linaqruf.safetensors` | `Linaqruf/sketch-style-xl-lora :: sketch-style-xl.safetensors` — used by the retired `yukari-sketch` at 0.8 |
 | `loras/sketch-worthyhuman.safetensors` | `WorthyHuman1/Sketch_LoRA :: Sketch_LoRA.safetensors` — no visible effect |
 | `loras/anime-sketch-muapi.safetensors` | `Muapi/anime-sketch-style-sdxl-sd1.5` — good raw, collapses in the redraw |

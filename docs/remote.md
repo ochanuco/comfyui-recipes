@@ -1,36 +1,44 @@
-# Rendering on another machine
+# The GPU box
 
-The GPU doing the work does not have to be the one you are typing on.
-`COMFYUI_HOST` points every queue script at a ComfyUI elsewhere on the network:
+ComfyUI and the worker run on the Windows GPU box; the Mac only edits recipes
+and reads chimera. The box's address and ssh alias are in the untracked
+`CLAUDE.local.md`. Deploys and restarts are in [release.md](release.md).
 
-```bash
-export COMFYUI_HOST=192.168.x.x   # COMFYUI_PORT too, if it is not 8188
-uv run comfy-recipes generate --request request.json
+## Setting it up
+
+```powershell
+git clone https://github.com/ochanuco/comfyui-recipes.git
+uv venv --python <uv-managed 3.12 python.exe> .venv
+uv pip install --python .venv\Scripts\python.exe -e . pillow numpy opencv-python scipy websockets pytest
+$env:PYTHONPATH = "scripts"; .\.venv\Scripts\pytest.exe -q
+powershell -ExecutionPolicy Bypass -File .\scripts\worker\register-nodes.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\worker\register-comfyui.ps1 -PortableRoot <dir>
 ```
 
-Unset it and everything falls back to `127.0.0.1:8188`, which is what the
-scripts did before this existed. `--host`/`--port` still win where a script
-exposes them. The far end has to have been started with `--listen`, or it only
-answers itself.
+`register-nodes.ps1` junctions `comfy_nodes/yukari_finalize` and
+`comfy_nodes/yukari_worker` into ComfyUI's `custom_nodes/`.
+`register-comfyui.ps1` registers the portable ComfyUI as the logon task
+`comfyui` with the launch arguments the script holds and
+`COMFYUI_RECIPES_WORKER=1`, so the worker runs as a thread inside ComfyUI
+and a reboot brings both back once the user logs on. Changing an argument
+means editing the script and re-running it; `run_nvidia_gpu.bat` is not
+used. `register-watch.ps1` / `watch.ps1` still register a standalone
+`comfy-recipes work` loop for running it by hand; the deploy does not use
+them. `.local/chimera-token` and `.local/discord-webhook` are copied onto
+the box by hand; they are never tracked. The box must stay on a checkout
+whose branch matches the `recipe_ref` of the rows it should serve (see
+[queueing.md](queueing.md#worker)).
 
-## The one assumption that breaks
+Two things that only show up over `ssh comfyui-worker`:
 
-The scripts and ComfyUI stop sharing a filesystem. `SaveImage` writes to the
-other machine's `output/`, and `LoadImage` reads the other machine's `input/`.
-
-`scripts/comfy_host.py` closes that at the two points where it matters.
-`ensure_local()` pulls a render back through `/view` into the local
-`.local/ComfyUI/output` before anything opens it, and `stage_input()` pushes an
-input through `/upload/image` after making the usual local copy. Both do nothing
-when the server is local — they do not open a socket at all — which is why the
-post-processing scripts (`recolor_bg.py`, `analysis/legcrop.py`, `analysis/inpaint_composite.py`
-and the rest) needed no changes. What reaches them is still a plain local path.
-
-Uploads are capped at 100MB by the server.
-
-Custom nodes are per-machine as well, so a remote box without them cannot run
-the IPAdapter (`--ref-image`) or ControlNet (`--trace-mode`) paths. txt2img and
-img2img need nothing past the checkpoint.
+- Reparse points do not resolve in that session. The WinGet `uv.exe` link
+  fails with "no application is associated", and uv's
+  `cpython-3.12-windows-x86_64-none` alias is a junction that fails with
+  "untrusted mount point". Call the package's own `uv.exe` and point
+  `uv venv` at the versioned `cpython-3.12.<patch>-...` directory instead.
+- The locale encoding is cp932. Text I/O in this repo passes
+  `encoding="utf-8"` explicitly, and the wrapper sets `PYTHONUTF8=1` for
+  the CLI's stdout.
 
 ## Getting models onto it
 
@@ -39,9 +47,8 @@ put them there. `/experiment/models` is read-only, there is no download
 endpoint, and no standard node fetches a URL. Short of ComfyUI-Manager, that
 leaves running a command over there.
 
-[models.md](models.md) is the inventory to work from: every model these recipes
-were tuned against, with the Hugging Face repo or Civitai version it came from
-and its SHA256. `scripts/fetch-models-windows.ps1` automates that pull for a
+[models.md](models.md) is the inventory to work from, with the Hugging Face
+repo or Civitai version each model came from and its SHA256. `scripts/fetch-models-windows.ps1` automates that pull for a
 Windows portable install, but only for hassaku-il-v22 and two LoRAs, so anything
 else still needs a command by hand.
 
@@ -94,46 +101,3 @@ curl -s http://$COMFYUI_HOST:8188/system_stats
 `/object_info` is also the honest answer to "does it have the models" — an empty
 `CheckpointLoaderSimple` list means an empty `models/checkpoints`, whatever the
 disk looks like from over here.
-
-## Running the CLI on the worker itself
-
-Since 2026-09-05 the queue runs on the GPU machine, not on the Mac: the repo
-is cloned there, `comfy-recipes work` claims chimera's requests from a logon task, and
-`COMFYUI_HOST` stays unset so everything talks to `127.0.0.1:8188`. The Mac
-only edits recipes and reads chimera.
-
-Setting the box up:
-
-```powershell
-git clone https://github.com/ochanuco/comfyui-recipes.git
-uv venv --python <uv-managed 3.12 python.exe> .venv
-uv pip install --python .venv\Scripts\python.exe -e . pillow numpy opencv-python scipy websockets pytest
-$env:PYTHONPATH = "scripts"; .\.venv\Scripts\pytest.exe -q
-powershell -ExecutionPolicy Bypass -File .\scripts\worker\register-watch.ps1
-```
-
-`register-watch.ps1` registers `scripts/worker/watch.ps1` as the per-user
-task `comfyui-recipes-watch` (at logon, interactive principal, so no stored
-password) and starts it. The wrapper waits until ComfyUI answers on
-`127.0.0.1:8188`, restarts the CLI when it exits, and appends to
-`.local/_nogit/worker/watch.log`. `register-comfyui.ps1 -PortableRoot <dir>`
-registers the portable ComfyUI's `python_embeded\python.exe` with the
-launch arguments the script holds (`--listen`, `--disable-auto-launch`,
-`--cache-ram`) the same way as task `comfyui`, so a reboot brings both back
-once the user logs on. Changing an argument means editing the script and
-re-running it; `run_nvidia_gpu.bat` is not used. `.local/chimera-token` and
-`.local/discord-webhook` are copied onto the box by hand; they are never
-tracked. The wrapper runs `comfy-recipes work` (see
-[queueing.md](queueing.md#worker)); the box must stay on a checkout
-whose branch matches the `recipe_ref` of the rows it should serve.
-
-Two things that only show up over `ssh comfyui-worker`:
-
-- Reparse points do not resolve in that session. The WinGet `uv.exe` link
-  fails with "no application is associated", and uv's
-  `cpython-3.12-windows-x86_64-none` alias is a junction that fails with
-  "untrusted mount point". Call the package's own `uv.exe` and point
-  `uv venv` at the versioned `cpython-3.12.<patch>-...` directory instead.
-- The locale encoding is cp932. Text I/O in this repo passes
-  `encoding="utf-8"` explicitly, and the wrapper sets `PYTHONUTF8=1` for
-  the CLI's stdout.

@@ -13,14 +13,8 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-# Runtime dependencies are NOT declared here on purpose. scripts/update-comfyui.sh
-# installs the pinned upstream ComfyUI checkout's requirements.txt into .venv;
-# leaving uv unmanaged stops `uv run` / `uv sync` from treating those packages as
-# extraneous and uninstalling them.
-#
-# The mac stopped running ComfyUI in 2026-08, so .venv currently holds only what
-# the client scripts import -- pillow, numpy, opencv-python, scipy. See the
-# Python Environment section of README.md.
+# Runtime dependencies are installed explicitly into .venv (see ci.yml);
+# unmanaged keeps `uv sync` from uninstalling them.
 [tool.uv]
 managed = false
 

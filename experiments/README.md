@@ -86,5 +86,4 @@ one of them. Their records use `"component": "<module name>"` in place of
 (or alongside, when a record also names the pose it was measured under)
 `"pose"`, everything else following the same schema. Added under this
 scheme: `costumes.jsonl`, `prompt_style.jsonl`, `delivery_style.jsonl` and
-`recipe.jsonl`. The narrative reasoning for each of these modules lives in
-`docs/yukari/<module>.md`, matching `docs/poses/yukari/<pose>.md`.
+`recipe.jsonl`. Conclusions drawn from them live in `docs/findings/`.

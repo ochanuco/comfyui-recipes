@@ -36,7 +36,7 @@ FORBIDDEN = {
 }
 
 # A current-state constraint fits in a few lines. Anything longer is telling
-# a story, and stories live in docs/poses/.
+# a story: the record goes to experiments/, the conclusion to docs/findings/.
 MAX_COMMENT_BLOCK_LINES = 8
 
 
@@ -89,7 +89,7 @@ class CommentDisciplineTest(unittest.TestCase):
                         violations.append(
                             f"{rel}:{block_start}: comment block of "
                             f"{block_len} lines (max {MAX_COMMENT_BLOCK_LINES})"
-                            " -- move the story to docs/poses/")
+                            " -- record it in experiments/ instead")
                     block_start, block_len = line, 1
                 prev = line
         self.assertEqual(violations, [], "\n" + "\n".join(violations))

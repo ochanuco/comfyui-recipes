@@ -14,10 +14,7 @@ queueing; actual generation always uses a recorded request.
 
 **The GPU box is the only executor.** `comfy-recipes work` runs there next to
 ComfyUI, claims request rows from chimera, and renders them; a session on any
-other machine queues rows and reads results, and never talks to ComfyUI. The
-low-level scripts still take `COMFYUI_HOST` for a ComfyUI on another machine,
-with `scripts/comfy_host.py` closing the filesystem gap through `/view` and
-`/upload/image`.
+other machine queues rows and reads results, and never talks to ComfyUI.
 
 ```bash
 uv run comfy-recipes work                # on the GPU box: serve chimera's queue
@@ -35,32 +32,24 @@ uv run scripts/atlas.py docs        # every doc with its size
 uv run scripts/atlas.py notes       # findings and archive by heading, with line numbers
 ```
 
-`config/`, `docs/`, `manifests/`, `scripts/` and `workflows/` are tracked;
-`.local/` is not, and is where a ComfyUI checkout, the models, the cached
-`input/`/`output/` pair and a session's throwaway scripts live.
-`scripts/archive/` is scripts that answered one question and were kept as a
-record rather than as tools.
+`.local/` is untracked and holds a session's throwaway scripts and logs.
 
-[`docs/`](docs/) holds the operating notes — queueing, remote and local install,
-configuration, model provenance. [`docs/findings/`](docs/findings/) is what the
+[`docs/`](docs/) holds the operating notes — queueing, the GPU box,
+releases, model provenance. [`docs/findings/`](docs/findings/) is what the
 measurements concluded, one topic per file; `experiments/` is the measurements
 themselves, and `docs/archive/` the original log they were distilled from. They
 are the point of the repository; the scripts are how they were produced.
 
 ## What it runs on
 
-Python 3.12 and [uv](https://github.com/astral-sh/uv), plus a ComfyUI reachable
-over HTTP — on this machine or another one. The client environment is the
-packages below; nothing here imports torch.
+Python 3.12 and [uv](https://github.com/astral-sh/uv). Nothing here imports
+torch. The same environment runs the tests, as CI does:
 
 ```bash
 uv venv --python 3.12 .venv
-VIRTUAL_ENV=.venv uv pip install -e . pillow numpy opencv-python scipy
+uv pip install --python .venv/bin/python -e . pillow numpy opencv-python scipy pytest websockets
+PYTHONPATH=scripts .venv/bin/pytest -q
 ```
-
-The image packages are needed by `comfy-recipes finalize`, which opens the
-print to flatten the backdrop and stroke the figure. The editable install adds
-the single CLI while keeping this personal environment under uv's control.
 
 Models are not included and not downloaded automatically.
 [`docs/models.md`](docs/models.md) lists the exact upstream and SHA256 of every

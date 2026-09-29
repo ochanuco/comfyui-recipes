@@ -415,26 +415,49 @@ def _polygon_coverage(region: np.ndarray, eps_pct: float,
                       interpolation=cv2.INTER_AREA).astype(float) / 255
 
 
-def _directional_region(mask: np.ndarray, w_min: float, w_max: float,
-                        light: tuple[float, float], smooth: float) -> np.ndarray:
-    """The region grown out from `mask`, its width shaded by `light`.
+def _extruded_region(mask: np.ndarray, w_min: float, w_max: float,
+                     light: tuple[float, float]) -> np.ndarray:
+    """The uniform-width band at `w_min` around `mask`, extruded away from
+    `light` out to `w_max`.
 
-    Same width field as `directional_stroke_alpha` -- thin where the
-    outline's own outward normal faces `light`, thick opposite -- but
-    thresholded to a hard region instead of ramped: `_polygon_coverage` is
-    the edge treatment for this region, not a gaussian ramp.
+    The union of that band shifted 1 px at a time along `(-light)`, so the
+    side facing the light keeps the `w_min` edge while the opposite side
+    reads as a straight-walled extrusion -- `_polygon_coverage` is the edge
+    treatment for this region, not a gaussian ramp.
     """
-    distance = ndimage.distance_transform_edt(~mask)
-    field = ndimage.gaussian_filter(distance, smooth)
-    ny, nx = np.gradient(field)
-    norm = np.hypot(nx, ny)
-    norm[norm == 0] = 1.0
-    facing = (nx / norm) * light[0] + (ny / norm) * light[1]
-    k = (1.0 - facing) / 2.0
-    k = k * k * (3 - 2 * k)
-    width = w_min + (w_max - w_min) * k
-    width = ndimage.gaussian_filter(width, smooth / 2)
-    return distance <= width
+    base = ndimage.distance_transform_edt(~mask) <= w_min
+    region = base.copy()
+    length = w_max - w_min
+    dx, dy = -light[0], -light[1]
+    full_steps = int(np.floor(length))
+    for step in range(1, full_steps + 1):
+        region |= ndimage.shift(base, (dy * step, dx * step),
+                                order=0, mode="constant", cval=False)
+    if length > full_steps:
+        region |= ndimage.shift(base, (dy * length, dx * length),
+                                order=0, mode="constant", cval=False)
+    return region
+
+
+def _shadow_shift(light: tuple[float, float],
+                  purple_w: float) -> tuple[float, float]:
+    """The `(dy, dx)` an `ndimage.shift` throws a sticker's own shape by.
+
+    Away from `light` (image coords), plus a perpendicular skew whose sign
+    is picked so that shifting away from due north (`light` = (0, -1))
+    skews toward +x.
+    """
+    dx, dy = -light[0], -light[1]
+    px, py = dy, -dx
+    off = purple_w * delivery_style.STICKER_SHADOW_OFFSET
+    skew = delivery_style.STICKER_SHADOW_SKEW
+    return off * dy + off * skew * py, off * dx + off * skew * px
+
+
+def _shadow_coverage(region: np.ndarray, eps_pct: float) -> np.ndarray:
+    if eps_pct <= 0:
+        return region.astype(float)
+    return _polygon_coverage(region, eps_pct)
 
 
 def keep_scene(data: bytes, matte: bytes) -> tuple[bytes, str]:
@@ -492,10 +515,9 @@ def band_alphas(figure: np.ndarray, light: str | None = None,
     if light_vec is None:
         purple_region = ndimage.distance_transform_edt(~white_mask) <= purple_w
     else:
-        purple_region = _directional_region(
+        purple_region = _extruded_region(
             white_mask, purple_w * delivery_style.STROKE_LIGHT_THIN,
-            purple_w * delivery_style.STROKE_LIGHT_THICK, light_vec,
-            delivery_style.STROKE_LIGHT_SMOOTH * purple_w)
+            purple_w * delivery_style.STROKE_LIGHT_THICK, light_vec)
     purple_a = _polygon_coverage(purple_region, eps)
     white_a = np.where(figure, 0.0, white_a)
     purple_a = np.where(figure, 0.0, purple_a)
@@ -525,7 +547,8 @@ def _bands_over(white_a: np.ndarray, purple_a: np.ndarray,
 
 def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
            backdrop_rgb, light: str | None = None,
-           outline: np.ndarray | None = None) -> np.ndarray:
+           outline: np.ndarray | None = None,
+           shadow: bool = False) -> np.ndarray:
     """Frame `figure` on `backdrop_rgb`, white band then purple band outside it.
 
     `coverage` is the figure's own per-pixel alpha in 0..1; the composite is
@@ -533,12 +556,23 @@ def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
     `outline` (default `figure`) alone decides where the bands sit --
     coverage may be soft at the edge the bands are drawn from a hard
     boundary. A pocket window is passed in with the figure so the bands
-    wrap the patterned side too instead of running through it.
+    wrap the patterned side too instead of running through it. `shadow`
+    with `light` throws a translucent drop shadow of the sticker's own shape
+    onto the backdrop, away from the light.
     """
-    white_a, purple_a = band_alphas(figure if outline is None else outline, light)
+    outline_used = figure if outline is None else outline
+    white_a, purple_a = band_alphas(outline_used, light)
     # backdrop_rgb may be a 3-vector or a full (H, W, 3) pattern; either
     # broadcasts onto px.shape unchanged.
     flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
+    if shadow and light is not None:
+        _, purple_w = _band_widths(*outline_used.shape)
+        region = outline_used | (white_a >= 0.5) | (purple_a >= 0.5)
+        shift = _shadow_shift(delivery_style.STROKE_LIGHTS[light], purple_w)
+        shifted = ndimage.shift(region, shift, order=0, mode="constant", cval=False)
+        shadow_a = _shadow_coverage(shifted, delivery_style.STROKE_CUT_EPS_PCT) \
+            * (1 - np.clip(white_a + purple_a, 0.0, 1.0))
+        flat = flat * (1 - shadow_a[..., None] * delivery_style.STICKER_SHADOW_DARKEN)
     bands = _bands_over(white_a, purple_a, flat)
     return bands + coverage[..., None] * (px - bands)
 
@@ -586,7 +620,8 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     if window is not None:
         backdrop_rgb = np.where(window[..., None], backdrop_rgb, key)
         outline = figure | window
-    composite = sticker(px, figure, coverage, backdrop_rgb, light, outline)
+    composite = sticker(px, figure, coverage, backdrop_rgb, light, outline,
+                        shadow=True)
     white_w, purple_w = _band_widths(height, width)
 
     keyed = _key_excess(key) >= delivery_style.KEY_DESPILL_MIN_EXCESS
@@ -595,7 +630,7 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     tag = (f"clean-w{white_w:.0f}-p{purple_w:.0f}"
           + _backdrop_tag_suffix(backdrop) + _cut_tag_suffix()
           + ("-key" if keyed else ""))
-    return output.getvalue(), tag + (f"-light-{light}" if light else "")
+    return output.getvalue(), tag + (f"-light-{light}-shadow" if light else "")
 
 
 # Below FLOOR the band-less compose drops a pixel outright (a layerdiffuse

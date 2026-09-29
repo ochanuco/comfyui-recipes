@@ -12,7 +12,7 @@ in [`findings/delivery.md`](../findings/delivery.md).
 |---|---|
 | `BACKDROP`, `STROKE`, `WHITE_WIDTH_PCT`, `STROKE_WIDTH_*` | band drawing in `infrastructure/imaging/delivery.py` |
 | `STROKE_CUT_EPS_PCT`, `STROKE_EDGE_SMOOTH` | `band_alphas`: hand-cut outline and edge rounding |
-| `STROKE_LIGHT_*`, `STROKE_LIGHTS` | the `stroke_light` finalize option |
+| `STROKE_LIGHT_*`, `STROKE_LIGHTS`, `STICKER_SHADOW_*` | the `stroke_light` finalize option |
 | `STRIPES_*`, `WAVEFORM_*`, `EARS_*`, `BACKDROP_*` | named backdrops in `infrastructure/imaging/backdrops.py` |
 | `SAT_BAND`, `BG_SAT_MAX`, `FIGURE_SAT_*`, `BACKDROP_SPREAD_MAX` | `measure`/`verdict` in `palette.py`: the gate at ingest and in `palette_check.py` |
 | `FIGURE_LIGHT_*`, `PALETTE_WINDOWS`, `REPIN_*` | `repin` in `infrastructure/imaging/palette.py` |
@@ -28,8 +28,11 @@ in [`findings/delivery.md`](../findings/delivery.md).
   canvas. The canvas share is a floor.
 - `STROKE_CUT_EPS_PCT = 0` reproduces the smooth ramp exactly, and
   `band_alphas` branches on it. The epsilon stays well under
-  `WHITE_WIDTH_PCT`. With `stroke_light`, the purple band is shaded first and
-  then simplified. The white band is never shaded.
+  `WHITE_WIDTH_PCT`. With `stroke_light`, the purple band is extruded away
+  from the light first and then simplified. The white band is never shaded.
+- The `stroke_light` drop shadow darkens only `clean_background`'s backdrop.
+  `compose` and `transparent` never draw it, and `outside_mask` does not
+  count it: `cut_backdrop` cuts by the flat backdrop colour.
 - `STROKE_EDGE_SMOOTH` counts 2x-supersample pixels, not band widths.
 - A palette gate pass is not an approval; a FAIL never goes forward.
   `FIGURE_SAT_*` measures only pixels at V ≥ `FIGURE_MIDTONE_V`, so black

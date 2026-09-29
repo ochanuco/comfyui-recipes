@@ -27,9 +27,11 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     graph_from_png,
     keep_scene,
     keyed_coverage,
+    outside_mask,
     parse_color,
     refine_matte,
     shadow_cut,
+    sticker,
     stroke_alpha,
     transparent,
     unpremultiply,
@@ -377,6 +379,25 @@ class DeliveryTest(unittest.TestCase):
         thick_side = band_width(-r, r)   # away from it, sw
         self.assertGreater(thick_side, thin_side * 2)
 
+    def test_band_alphas_extrusion_widths_match_thin_and_thick_multiples(self):
+        figure, cy, cx, radius = self._disc_figure(size=400, radius=80)
+        white_w = max(400, 400) * delivery_style.WHITE_WIDTH_PCT / 100
+        purple_w = white_w * delivery_style.STROKE_WIDTH_BAND
+        white, purple = band_alphas(figure, light="n")
+        visible_purple = (purple >= 0.5) & (white < 0.5)
+        column = int(cx)
+        above = visible_purple[:int(cy) - radius, column]
+        below = visible_purple[int(cy) + radius:, column]
+
+        def run_length(covered: np.ndarray) -> int:
+            indices = np.nonzero(covered)[0]
+            return 0 if indices.size == 0 else int(indices.max() - indices.min() + 1)
+
+        above_width = run_length(above)   # toward the "n" light: thin
+        below_width = run_length(below)   # away from it: thick
+        self.assertLess(abs(above_width - purple_w * delivery_style.STROKE_LIGHT_THIN), 2)
+        self.assertLess(abs(below_width - purple_w * delivery_style.STROKE_LIGHT_THICK), 2)
+
     def test_band_alphas_antialiases_the_purple_edge_on_a_diagonal(self):
         # The rows around a disc's own 45-degree point are the worst case for
         # staircasing. Ramping off the raw distance transform inherits the
@@ -463,7 +484,7 @@ class DeliveryTest(unittest.TestCase):
         pixels[8:24, 10:22] = (40, 40, 40)
         _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)),
                                   light="sw")
-        self.assertRegex(tag, r"^clean-w\d+-p\d+-cut0\.5-light-sw$")
+        self.assertRegex(tag, r"^clean-w\d+-p\d+-cut0\.5-light-sw-shadow$")
 
     def test_clean_background_backdrop_stripes_tag_and_pattern(self):
         pixels = np.full((64, 64, 3), (210, 230, 235), dtype=np.uint8)
@@ -606,7 +627,7 @@ class DeliveryTest(unittest.TestCase):
         _, light_tag = clean_background(
             png(pixels), matte((height, width), box),
             backdrop=backdrop_hex, light="ne")
-        self.assertRegex(light_tag, r"-key-light-ne$")
+        self.assertRegex(light_tag, r"-key-light-ne-shadow$")
 
     def test_figure_rim_is_the_outermost_band_and_the_whole_figure_without_one(self):
         figure = np.zeros((64, 64), dtype=bool)
@@ -636,6 +657,64 @@ class DeliveryTest(unittest.TestCase):
         self.assertNotIn("-key", tag)
         arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB"))
         np.testing.assert_array_equal(arr[16, 16], (40, 40, 40))
+
+    def _sticker_inputs(self, size=240, half=40):
+        pixels = np.zeros((size, size, 3))
+        figure = np.zeros((size, size), dtype=bool)
+        centre = size // 2
+        figure[centre - half:centre + half, centre - half:centre + half] = True
+        coverage = figure.astype(float)
+        backdrop_rgb = np.full((size, size, 3), 200.0)
+        return pixels, figure, coverage, backdrop_rgb, centre, half
+
+    # Just past the thick (away-from-light) band's own reach, where only the
+    # shadow's shift -- not the band itself -- can still darken a pixel.
+    _SHADOW_ROWS = slice(8, 12)
+
+    def test_sticker_light_darkens_the_backdrop_away_from_the_light(self):
+        pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
+        composite = sticker(pixels, figure, coverage, backdrop_rgb, light="n", shadow=True)
+        below = composite[centre + half + self._SHADOW_ROWS.start:
+                         centre + half + self._SHADOW_ROWS.stop,
+                         centre - 10:centre + 10]
+        self.assertTrue((below < 199.0).any())
+
+    def test_sticker_light_leaves_the_backdrop_on_the_light_side_unchanged(self):
+        pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
+        composite = sticker(pixels, figure, coverage, backdrop_rgb, light="n", shadow=True)
+        above = composite[centre - half - 40:centre - half - 20,
+                          centre - 10:centre + 10]
+        np.testing.assert_allclose(above, 200.0)
+
+    def test_sticker_without_light_leaves_the_backdrop_outside_the_bands_unchanged(self):
+        pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
+        composite = sticker(pixels, figure, coverage, backdrop_rgb, light=None, shadow=True)
+        below = composite[centre + half + self._SHADOW_ROWS.start:
+                         centre + half + self._SHADOW_ROWS.stop,
+                         centre - 10:centre + 10]
+        above = composite[centre - half - 40:centre - half - 20,
+                          centre - 10:centre + 10]
+        np.testing.assert_allclose(below, 200.0)
+        np.testing.assert_allclose(above, 200.0)
+
+    def test_sticker_throws_no_shadow_unless_asked(self):
+        pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
+        composite = sticker(pixels, figure, coverage, backdrop_rgb, light="n")
+        below = composite[centre + half + self._SHADOW_ROWS.start:
+                         centre + half + self._SHADOW_ROWS.stop,
+                         centre - 10:centre + 10]
+        np.testing.assert_allclose(below, 200.0)
+
+    def test_outside_mask_reports_the_shadowed_pixels_as_outside(self):
+        pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
+        # The same rows `sticker` darkens with the drop shadow: the shadow
+        # lives only in the composite, not in the band geometry `outside_mask`
+        # reports, so those pixels stay outside.
+        shadow_row = slice(centre + half + self._SHADOW_ROWS.start,
+                           centre + half + self._SHADOW_ROWS.stop)
+        shadow_cols = slice(centre - 10, centre + 10)
+        lit = outside_mask(figure, light="n")
+        self.assertTrue(lit[shadow_row, shadow_cols].all())
 
 
 def rgba_png(pixels: np.ndarray, alpha: np.ndarray) -> bytes:

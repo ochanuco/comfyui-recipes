@@ -29,11 +29,21 @@ STROKE_WIDTH_BAND = 0.80
 # branches on this.
 STROKE_CUT_EPS_PCT = 0.5
 
-# Purple width on the lit and the shadow side, as multiples of the uniform width.
-STROKE_LIGHT_THIN = 0.5
+# Purple width on the side facing the light / length of the extrusion away
+# from it, in uniform widths.
+STROKE_LIGHT_THIN = 1.0
 STROKE_LIGHT_THICK = 2.8
-# Sigma of the distance-field blur the outline normal is read from, in purple widths.
+# Sigma of the distance-field blur the outline normal is read from, in purple
+# widths -- the smooth-ramp path (STROKE_CUT_EPS_PCT 0) only; the hand-cut
+# extrusion sweeps a uniform band instead and does not use it.
 STROKE_LIGHT_SMOOTH = 1.0
+
+# Drop shadow throw, in purple widths, along the direction away from the light.
+STICKER_SHADOW_OFFSET = 1.6
+# Perpendicular skew of the throw, as a share of STICKER_SHADOW_OFFSET.
+STICKER_SHADOW_SKEW = 0.35
+# How much the shadow darkens the backdrop under it, 0..1.
+STICKER_SHADOW_DARKEN = 0.28
 # Sigma of the distance-field blur each band's edge ramps from, in 2x
 # supersample pixels -- fixed, not a share of band width: the staircase
 # being rounded off is always one source pixel high regardless of band

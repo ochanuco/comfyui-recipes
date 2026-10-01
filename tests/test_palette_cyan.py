@@ -5,7 +5,9 @@ import unittest
 import numpy as np
 from PIL import Image
 
-from comfyui_recipes.domain.yukari.delivery_style import REPIN_DARK, REPIN_LIGHT
+from comfyui_recipes.domain.yukari.delivery_style import (
+    REPIN_DARK, REPIN_LIGHT, REPIN_SKIN_CAP,
+)
 from comfyui_recipes.infrastructure.imaging.palette import palette_window, repin
 
 KNEE, RATIO = REPIN_LIGHT
@@ -83,6 +85,20 @@ class CyanWindowTest(unittest.TestCase):
         center = center_hsv(rgb)
         self.assertAlmostEqual(center[..., 1].mean(), 70, delta=2)
 
+    def test_saturated_light_skin_is_capped(self):
+        knee, ratio = REPIN_SKIN_CAP
+        pixels = swatch((5, 120, 245))
+        rgb, _ = repin(pixels)
+        center = center_hsv(rgb)
+        self.assertAlmostEqual(center[..., 1].mean(),
+                               knee + (120 - knee) * ratio, delta=3)
+
+    def test_shadowed_skin_is_below_the_cap(self):
+        pixels = swatch((5, 120, 150))
+        rgb, _ = repin(pixels)
+        center = center_hsv(rgb)
+        self.assertAlmostEqual(center[..., 1].mean(), 120, delta=2)
+
     def test_pink_purple_seam_is_compressed_once(self):
         pixels = swatch((225, 150, 170))
         rgb, _ = repin(pixels)
@@ -90,10 +106,10 @@ class CyanWindowTest(unittest.TestCase):
         self.assertAlmostEqual(center[..., 1].mean(), compressed(150), delta=3)
 
     def test_warm_skin_is_outside_the_pink_window(self):
-        pixels = swatch((18, 80, 240))
+        pixels = swatch((18, 60, 240))
         rgb, _ = repin(pixels)
         center = center_hsv(rgb)
-        self.assertAlmostEqual(center[..., 1].mean(), 80, delta=2)
+        self.assertAlmostEqual(center[..., 1].mean(), 60, delta=2)
 
     def test_palette_window_skin_is_the_entry_repin_skin_png_uses(self):
         window = palette_window("skin")

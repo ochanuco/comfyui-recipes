@@ -20,7 +20,9 @@ from ...domain.yukari.delivery_style import (
     ACCENT_KEEP, ACCENT_RAMP, ACCENT_VALUE_RAMP, BACKDROP_SPREAD_MAX, BG_SAT_MAX,
     FIGURE_LIGHT_SAT_TARGET, FIGURE_LIGHT_V, FIGURE_MIDTONE_V,
     FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX, PALETTE_WINDOWS, REPIN_CHROMA_WINDOWS,
-    REPIN_DARK, REPIN_DARK_EXEMPT, REPIN_LIGHT, REPIN_MID, REPIN_SKIN_WINDOW,
+    REPIN_DARK, REPIN_DARK_EXEMPT, REPIN_LIGHT, REPIN_MID, REPIN_SAT_ONLY_V_MAX,
+    REPIN_SAT_ONLY_WINDOWS, REPIN_SKIN_CAP, REPIN_SKIN_CAP_V,
+    REPIN_SKIN_WINDOW,
     SAT_BAND, SKIN_PIN_BLEND, SKIN_PIN_MIN_AREA, SKIN_PIN_MIN_SHARE,
     SKIN_SOURCE_S_MAX, SKIN_SOURCE_S_MIN, SKIN_SOURCE_V_MIN,
 )
@@ -107,20 +109,32 @@ def repin(im: np.ndarray,
     target_c = wl * compress(REPIN_LIGHT) + (1 - wl) * compress(REPIN_MID)
     target_d = compress(REPIN_DARK)
 
-    s_delta = np.zeros_like(S)
+    w_sat = np.zeros_like(S)
     ease_sum = np.zeros_like(H)
     ease_target = np.zeros_like(H)
     for name in REPIN_CHROMA_WINDOWS:
         window = palette_window(name)
         w_chroma_i = window_w(H, *window["hue"]) * w_base * (1 - wd)
-        s_delta = s_delta + w_chroma_i * (target_c - S)
+        w_sat = np.maximum(w_sat, w_chroma_i)
         ease_i = w_chroma_i * H_TARGET_BLEND * (1 - accent)
         ease_sum = ease_sum + ease_i
         ease_target = ease_target + ease_i * window["hue_target"]
+    below = smoothstep((REPIN_SAT_ONLY_V_MAX - V) / 20.0)
+    for lo, hi in REPIN_SAT_ONLY_WINDOWS:
+        w_sat = np.maximum(w_sat, window_w(H, lo, hi) * below * w_base * (1 - wd))
+    s_delta = w_sat * (target_c - S)
 
     w_dark = w_base * wd
     for lo, hi in REPIN_DARK_EXEMPT:
         w_dark = w_dark * (1 - window_w(H, lo, hi))
+
+    w_skin = np.zeros_like(S)
+    for lo, hi in (palette_window(REPIN_SKIN_WINDOW)["hue"],
+                   *REPIN_SAT_ONLY_WINDOWS):
+        w_skin = np.maximum(w_skin, window_w(H, lo, hi))
+    w_skin = (w_skin * fig * (1 - keep)
+              * smoothstep((V - REPIN_SKIN_CAP_V) / 20.0))
+    s_delta = s_delta + w_skin * np.minimum(compress(REPIN_SKIN_CAP) - S - s_delta, 0)
 
     new_S = S + s_delta + w_dark * (target_d - S)
     new_H = H * (1 - ease_sum) + ease_target

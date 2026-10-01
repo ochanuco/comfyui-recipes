@@ -38,8 +38,12 @@ in [`findings/delivery.md`](../findings/delivery.md).
   `FIGURE_SAT_*` measures only pixels at V ≥ `FIGURE_MIDTONE_V`, so black
   tights and coat are exempt.
 - The repin factor is at most 1.0, so a pale render is never pushed up.
-  Palette windows do not overlap. The dark band greys every hue except
-  `REPIN_DARK_EXEMPT`.
+  Palette windows do not overlap. `REPIN_SAT_ONLY_WINDOWS` borders the
+  purple window and is compressed on the same curve with its hue left alone,
+  only below `REPIN_SAT_ONLY_V_MAX`; where they meet, a pixel is compressed
+  once. The dark band greys every hue
+  except `REPIN_DARK_EXEMPT`. Light skin (from `REPIN_SKIN_CAP_V`) is
+  capped on `REPIN_SKIN_CAP`; shadowed skin is not.
 - The matte is cut from the raw render, never from repinned colour.
 - Only the outermost `KEY_EDGE_RING_PX` of the figure is soft. Despill runs
   on the rim only, and only when the corner key's dominant channel clears the

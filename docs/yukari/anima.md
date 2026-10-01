@@ -24,7 +24,7 @@ production worker sees it.
 |---|---|
 | `prompt_style.py` | blocks every pose wears (`QUALITY`, `CHARACTER`, `BODY`, `BACKGROUND`, `FACE`, `STYLE`), the negative bans, render constants (model, canvas, steps, cfg, sampler) |
 | `poses.py` | one `Pose` per pose: action, mood, gesture, framing, angle, default expression/costume/legwear, optional body/style/negative/canvas/loras |
-| `costumes.py` | garment block per costume, `LEGWEAR` per costume, the legwear kinds (`sheer-gloss` default, `opaque`, `sheer`) and states (`worn`, `removing`, `off`) with their negative edits |
+| `costumes.py` | garment block per costume, `LEGWEAR` per costume, the legwear kinds (`sheer` default, `sheer-gloss`, `opaque`) and states (`worn`, `removing`, `off`) with their negative edits |
 | `expressions.py` | mouth/eyes per expression and the `EyeQuality` routing |
 | `framing.py` | shot tags per `Framing` kind; `BUST` also carries its canvas |
 | `components.py` | the component model: `(name, section, priority, text)`, legacy part groups |

@@ -276,25 +276,25 @@ REDRAW_STAND_NEGATIVE = (
 
 class PromptTest(unittest.TestCase):
     def test_coffee_positive_matches_the_confirmed_render(self):
-        self.assertEqual(positive("coffee"), COFFEE_POSITIVE)
+        self.assertEqual(positive("coffee", legwear="sheer-gloss"), COFFEE_POSITIVE)
 
     def test_coffee_negative_matches_the_confirmed_render(self):
-        self.assertEqual(negative("coffee"), COFFEE_NEGATIVE)
+        self.assertEqual(negative("coffee", legwear="sheer-gloss"), COFFEE_NEGATIVE)
 
     def test_amae_positive_matches_the_confirmed_render(self):
-        self.assertEqual(positive("amae"), AMAE_POSITIVE)
+        self.assertEqual(positive("amae", legwear="sheer-gloss"), AMAE_POSITIVE)
 
     def test_amae_negative_drops_the_coffee_vessel_ban(self):
-        self.assertEqual(negative("amae"), AMAE_NEGATIVE)
+        self.assertEqual(negative("amae", legwear="sheer-gloss"), AMAE_NEGATIVE)
 
     def test_stand_positive_matches_the_confirmed_render(self):
-        self.assertEqual(positive("stand"), STAND_POSITIVE)
+        self.assertEqual(positive("stand", legwear="sheer-gloss"), STAND_POSITIVE)
 
     def test_stand_negative_matches_the_confirmed_render(self):
-        self.assertEqual(negative("stand"), STAND_NEGATIVE)
+        self.assertEqual(negative("stand", legwear="sheer-gloss"), STAND_NEGATIVE)
 
     def test_bust_positive_matches_the_confirmed_render(self):
-        self.assertEqual(positive("bust"), BUST_POSITIVE)
+        self.assertEqual(positive("bust", legwear="sheer-gloss"), BUST_POSITIVE)
 
     def test_bust_negative_tag_set_matches_the_confirmed_render(self):
         self.assertEqual(set(prompt_tags(negative("bust"))),
@@ -363,15 +363,19 @@ class PromptTest(unittest.TestCase):
         for costume in COSTUMES:
             with self.subTest(costume=costume):
                 text = positive("stand", costume=costume, legwear="sheer")
-                self.assertIn(SHEER_LEGWEAR[costume], text)
+                self.assertIn(SHEER_LEGWEAR, text)
                 self.assertNotIn("(opaque pantyhose", text)
                 self.assertIn(COSTUMES[costume], text)
 
-    def test_sheer_legwear_carries_no_gradient_words(self):
-        self.assertIn("(sheer dark purple pantyhose:1.5), ", SHEER_LEGWEAR["standard"])
-        for costume in COSTUMES:
-            with self.subTest(costume=costume):
-                self.assertNotIn("gradient", SHEER_LEGWEAR[costume])
+    def test_sheer_legwear_is_black_purple_without_gradient_words(self):
+        self.assertIn("(sheer dark purple pantyhose:1.5), ", SHEER_LEGWEAR)
+        self.assertNotIn("gradient", SHEER_LEGWEAR)
+
+    def test_default_legwear_is_sheer(self):
+        for pose in ("stand", "gao", "coffee", "dance"):
+            with self.subTest(pose=pose):
+                self.assertEqual(positive(pose), positive(pose, legwear="sheer"))
+                self.assertEqual(negative(pose), negative(pose, legwear="sheer"))
 
     def test_sheer_legwear_drops_the_garment_gloss_bans_only(self):
         text = negative("gao", legwear="sheer")
@@ -412,22 +416,24 @@ class PromptTest(unittest.TestCase):
         self.assertNotIn("(unamused:1.3), (half-closed eyes:1.3), ", overridden)
 
     def test_gao_positive_matches_the_confirmed_render(self):
-        self.assertEqual(positive("gao"), GAO_POSITIVE)
+        self.assertEqual(positive("gao", legwear="sheer-gloss"), GAO_POSITIVE)
 
     def test_gao_negative_matches_the_confirmed_render(self):
-        self.assertEqual(negative("gao"), GAO_NEGATIVE)
+        self.assertEqual(negative("gao", legwear="sheer-gloss"), GAO_NEGATIVE)
 
     def test_dance_positive_matches_the_confirmed_render(self):
-        self.assertEqual(positive("dance"), DANCE_FIXTURE["positive"])
+        self.assertEqual(positive("dance", legwear="sheer-gloss"), DANCE_FIXTURE["positive"])
 
     def test_dance_negative_matches_the_confirmed_render(self):
-        self.assertEqual(negative("dance"), DANCE_FIXTURE["negative"])
+        self.assertEqual(negative("dance", legwear="sheer-gloss"), DANCE_FIXTURE["negative"])
 
     def test_default_prompts_match_the_sheer_gloss_final_look(self):
         for pose, fixture in LEGWEAR_SHEER_GLOSS_FINAL.items():
             with self.subTest(pose=pose):
-                self.assertEqual(positive(pose), fixture["positive"])
-                self.assertEqual(negative(pose), fixture["negative"])
+                self.assertEqual(positive(pose, legwear="sheer-gloss"),
+                                 fixture["positive"])
+                self.assertEqual(negative(pose, legwear="sheer-gloss"),
+                                 fixture["negative"])
 
     def test_eye_shape_leads_the_eyes_part_for_every_expression(self):
         for expression in EXPRESSIONS:
@@ -490,7 +496,8 @@ class PartsTest(unittest.TestCase):
                               (STAND_POSITIVE, "stand"), (BUST_POSITIVE, "bust"),
                               (GAO_POSITIVE, "gao")):
             with self.subTest(pose=pose):
-                joined = "".join(text for _, text in positive_parts(pose))
+                joined = "".join(text for _, text in positive_parts(
+                    pose, legwear="sheer-gloss"))
                 self.assertEqual(joined, fixture)
 
     def test_part_names_match_the_declared_order(self):
@@ -547,7 +554,7 @@ class PoseTableTest(unittest.TestCase):
         self.assertIn("dance", POSES)
         self.assertEqual(POSES["dance"].expression, "v")
         self.assertEqual(POSES["dance"].costume, "standard")
-        self.assertEqual(POSES["dance"].legwear_kind, "sheer-gloss")
+        self.assertEqual(POSES["dance"].legwear_kind, "sheer")
 
     def test_brush_and_sofa_are_retired(self):
         self.assertNotIn("brush", POSES)
@@ -567,13 +574,13 @@ class PoseTableTest(unittest.TestCase):
         self.assertIsNone(POSES["gao"].canvas)
         self.assertTrue(POSES["gao"].legwear)
 
-    def test_every_pose_defaults_to_sheer_gloss_legwear(self):
+    def test_every_pose_defaults_to_sheer_legwear(self):
         for pose, p in POSES.items():
             if not p.legwear:
                 continue
             with self.subTest(pose=pose):
                 text = positive(pose)
-                self.assertIn(SHEER_GLOSS_LEGWEAR, text)
+                self.assertIn(SHEER_LEGWEAR, text)
                 self.assertNotIn("gradient legwear", text)
                 self.assertNotIn("opaque pantyhose", text)
 
@@ -637,7 +644,7 @@ class RenderSpecTest(unittest.TestCase):
                 self.assertEqual(render_spec(pose, 42, "p").loras, ())
 
     def test_dance_render_spec_matches_the_confirmed_render(self):
-        spec = render_spec("dance", 42, "p")
+        spec = render_spec("dance", 42, "p", legwear="sheer-gloss")
         self.assertEqual(spec.prompts.positive, DANCE_FIXTURE["positive"])
         self.assertEqual(spec.prompts.negative, DANCE_FIXTURE["negative"])
         self.assertEqual((spec.width, spec.height),
@@ -657,15 +664,15 @@ class PlainRenderLegwearDefaultTest(unittest.TestCase):
         spec = request_graph(generation, 42, "p", render_spec, lambda spec: spec)
         return spec.prompts.positive
 
-    def test_plain_dance_render_defaults_to_sheer_gloss_legwear(self):
-        self.assertIn(SHEER_GLOSS_LEGWEAR, self._plain_positive("dance"))
+    def test_plain_dance_render_defaults_to_sheer_legwear(self):
+        self.assertIn(SHEER_LEGWEAR, self._plain_positive("dance"))
 
-    def test_plain_render_defaults_to_sheer_gloss_legwear_for_every_pose(self):
+    def test_plain_render_defaults_to_sheer_legwear_for_every_pose(self):
         for pose in POSES:
             if not POSES[pose].legwear:
                 continue
             with self.subTest(pose=pose):
-                self.assertIn(SHEER_GLOSS_LEGWEAR, self._plain_positive(pose))
+                self.assertIn(SHEER_LEGWEAR, self._plain_positive(pose))
 
     def test_plain_stand_render_with_explicit_opaque_legwear_yields_the_opaque_block(self):
         text = self._plain_positive("stand", legwear="opaque")
@@ -688,8 +695,8 @@ class LegwearStateTest(unittest.TestCase):
     def test_removing_follows_the_worn_block_with_the_pull_down_tags(self):
         worn = positive("stand", legwear_state="worn")
         removing = positive("stand", legwear_state="removing")
-        self.assertIn(SHEER_GLOSS_LEGWEAR, worn)
-        self.assertIn(SHEER_GLOSS_LEGWEAR + REMOVING_LEGWEAR, removing)
+        self.assertIn(SHEER_LEGWEAR, worn)
+        self.assertIn(SHEER_LEGWEAR + REMOVING_LEGWEAR, removing)
 
     def test_off_drops_the_legwear_block_for_bare_legs(self):
         text = positive("stand", legwear_state="off")
@@ -898,8 +905,8 @@ class CliTest(unittest.TestCase):
             cli.main(["yukari", "prompt", "--pose", "amae", "--json"])
         chimera_class.assert_not_called()
         payload = json.loads(output.getvalue())
-        self.assertEqual(payload["positive"], AMAE_POSITIVE)
-        self.assertEqual(payload["negative"], AMAE_NEGATIVE)
+        self.assertEqual(payload["positive"], positive("amae"))
+        self.assertEqual(payload["negative"], negative("amae"))
 
     def test_yukari_prompt_accepts_legwear_state(self):
         output = io.StringIO()

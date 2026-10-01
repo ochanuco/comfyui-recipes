@@ -6,9 +6,9 @@ Tags and `a<n> §` pointers: see [`docs/README.md`](../README.md).
 
 - One garment on the leg. The official design draws one; two layers (tights
   under knee-highs / thighhighs) are retired after long failure. `[all]` (a2 §Two garments on one leg)
-- Canonical legwear is black sheer-gloss for every pose (`LEGWEAR` in
-  `yukari/costumes.py`); axes opaque / sheer-gloss / sheer (PR #230, #239).
-  `[Anima]`
+- Canonical legwear is the black-purple `sheer` block, one block for every
+  pose and costume (`SHEER_LEGWEAR` in `yukari/costumes.py`); axes opaque /
+  sheer-gloss / sheer (PR #230, #239). `[Anima]`
 - `thin translucent legwear` draws vertical stripes on the leg and no negative
   removes them; the block uses `skin visible through legwear` (PR #253). `[Anima]`
 - Gloss: `shiny pantyhose` 1.3 is the ceiling, and an IL redraw evens the

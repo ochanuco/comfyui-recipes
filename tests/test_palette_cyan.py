@@ -70,15 +70,21 @@ class CyanWindowTest(unittest.TestCase):
         self.assertAlmostEqual(center_eased[..., 0].mean(), expected_h, delta=2)
 
     def test_bright_pink_is_compressed_without_hue_easing(self):
-        pixels = swatch((240, 150, 200))
+        pixels = swatch((240, 150, 170))
         input_h = center_hsv(pixels)[..., 0].mean()
         rgb, _ = repin(pixels)
         center = center_hsv(rgb)
         self.assertAlmostEqual(center[..., 1].mean(), compressed(150), delta=3)
         self.assertAlmostEqual(center[..., 0].mean(), input_h, delta=1)
 
+    def test_light_pink_skin_shading_is_left_alone(self):
+        pixels = swatch((248, 70, 232))
+        rgb, _ = repin(pixels)
+        center = center_hsv(rgb)
+        self.assertAlmostEqual(center[..., 1].mean(), 70, delta=2)
+
     def test_pink_purple_seam_is_compressed_once(self):
-        pixels = swatch((225, 150, 230))
+        pixels = swatch((225, 150, 170))
         rgb, _ = repin(pixels)
         center = center_hsv(rgb)
         self.assertAlmostEqual(center[..., 1].mean(), compressed(150), delta=3)

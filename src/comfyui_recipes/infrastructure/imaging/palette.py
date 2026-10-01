@@ -20,7 +20,8 @@ from ...domain.yukari.delivery_style import (
     ACCENT_KEEP, ACCENT_RAMP, ACCENT_VALUE_RAMP, BACKDROP_SPREAD_MAX, BG_SAT_MAX,
     FIGURE_LIGHT_SAT_TARGET, FIGURE_LIGHT_V, FIGURE_MIDTONE_V,
     FIGURE_SAT_MEAN_MAX, FIGURE_SAT_P90_MAX, PALETTE_WINDOWS, REPIN_CHROMA_WINDOWS,
-    REPIN_DARK, REPIN_DARK_EXEMPT, REPIN_LIGHT, REPIN_MID, REPIN_SAT_ONLY_WINDOWS,
+    REPIN_DARK, REPIN_DARK_EXEMPT, REPIN_LIGHT, REPIN_MID, REPIN_SAT_ONLY_V_MAX,
+    REPIN_SAT_ONLY_WINDOWS,
     REPIN_SKIN_WINDOW,
     SAT_BAND, SKIN_PIN_BLEND, SKIN_PIN_MIN_AREA, SKIN_PIN_MIN_SHARE,
     SKIN_SOURCE_S_MAX, SKIN_SOURCE_S_MIN, SKIN_SOURCE_V_MIN,
@@ -118,8 +119,9 @@ def repin(im: np.ndarray,
         ease_i = w_chroma_i * H_TARGET_BLEND * (1 - accent)
         ease_sum = ease_sum + ease_i
         ease_target = ease_target + ease_i * window["hue_target"]
+    below = smoothstep((REPIN_SAT_ONLY_V_MAX - V) / 20.0)
     for lo, hi in REPIN_SAT_ONLY_WINDOWS:
-        w_sat = np.maximum(w_sat, window_w(H, lo, hi) * w_base * (1 - wd))
+        w_sat = np.maximum(w_sat, window_w(H, lo, hi) * below * w_base * (1 - wd))
     s_delta = w_sat * (target_c - S)
 
     w_dark = w_base * wd

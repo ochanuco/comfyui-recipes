@@ -39,8 +39,9 @@ in [`findings/delivery.md`](../findings/delivery.md).
   tights and coat are exempt.
 - The repin factor is at most 1.0, so a pale render is never pushed up.
   Palette windows do not overlap. `REPIN_SAT_ONLY_WINDOWS` borders the
-  purple window and is compressed on the same curve with its hue left alone;
-  where they meet, a pixel is compressed once. The dark band greys every hue
+  purple window and is compressed on the same curve with its hue left alone,
+  only below `REPIN_SAT_ONLY_V_MAX`; where they meet, a pixel is compressed
+  once. The dark band greys every hue
   except `REPIN_DARK_EXEMPT`.
 - The matte is cut from the raw render, never from repinned colour.
 - Only the outermost `KEY_EDGE_RING_PX` of the figure is soft. Despill runs

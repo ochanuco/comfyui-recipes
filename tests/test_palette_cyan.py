@@ -69,6 +69,26 @@ class CyanWindowTest(unittest.TestCase):
         expected_h = input_h * (1 - 0.7) + 0.7 * 191
         self.assertAlmostEqual(center_eased[..., 0].mean(), expected_h, delta=2)
 
+    def test_bright_pink_is_compressed_without_hue_easing(self):
+        pixels = swatch((240, 150, 200))
+        input_h = center_hsv(pixels)[..., 0].mean()
+        rgb, _ = repin(pixels)
+        center = center_hsv(rgb)
+        self.assertAlmostEqual(center[..., 1].mean(), compressed(150), delta=3)
+        self.assertAlmostEqual(center[..., 0].mean(), input_h, delta=1)
+
+    def test_pink_purple_seam_is_compressed_once(self):
+        pixels = swatch((225, 150, 230))
+        rgb, _ = repin(pixels)
+        center = center_hsv(rgb)
+        self.assertAlmostEqual(center[..., 1].mean(), compressed(150), delta=3)
+
+    def test_warm_skin_is_outside_the_pink_window(self):
+        pixels = swatch((18, 80, 240))
+        rgb, _ = repin(pixels)
+        center = center_hsv(rgb)
+        self.assertAlmostEqual(center[..., 1].mean(), 80, delta=2)
+
     def test_palette_window_skin_is_the_entry_repin_skin_png_uses(self):
         window = palette_window("skin")
         self.assertEqual(window["hue"], (0.0, 48.0))

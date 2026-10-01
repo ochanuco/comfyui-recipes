@@ -284,6 +284,8 @@ PALETTE_WINDOWS = (
 
 # The windows `repin` compresses and hue-eases, by name into PALETTE_WINDOWS.
 REPIN_CHROMA_WINDOWS = ("purple", "cyan")
+# Hue ranges `repin` compresses on the same curve without easing their hue.
+REPIN_SAT_ONLY_WINDOWS = ((225.0, 255.0),)
 # The window `repin_skin_png` / `skin_mask` read skin from.
 REPIN_SKIN_WINDOW = "skin"
 

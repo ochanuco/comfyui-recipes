@@ -757,7 +757,7 @@ class LegwearStateTest(unittest.TestCase):
 
 class GraphTest(unittest.TestCase):
     def test_build_graph_node_shape(self):
-        spec = render_spec("coffee", 42, "p")
+        spec = replace(render_spec("coffee", 42, "p"), guided_steps=None)
         graph = anima_graph.build_graph(spec)
         self.assertEqual(graph["1"]["class_type"], "UNETLoader")
         self.assertEqual(graph["1"]["inputs"]["unet_name"], ps.MODEL)
@@ -806,7 +806,7 @@ class GraphTest(unittest.TestCase):
     def test_zero_strength_lora_drops_out_of_the_chain(self):
         spec = replace(render_spec("coffee", 42, "p"), loras=(
             ("anima-sketch-style-chosen.safetensors", 0),
-            ("anima-handdrawn-feel-chosen.safetensors", 0.6)))
+            ("anima-handdrawn-feel-chosen.safetensors", 0.6)), guided_steps=None)
         graph = anima_graph.build_graph(spec)
         self.assertEqual(graph["10"]["inputs"]["lora_name"],
                          "anima-handdrawn-feel-chosen.safetensors")
@@ -825,7 +825,7 @@ class GraphTest(unittest.TestCase):
         self.assertEqual(graph["3"]["inputs"]["model"], ["11", 0])
 
     def test_hires_appends_a_latent_upscale_and_second_sampler(self):
-        spec = render_spec("stand", 42, "p", hires=2048)
+        spec = replace(render_spec("stand", 42, "p", hires=2048), guided_steps=None)
         graph = anima_graph.build_graph(spec)
         self.assertEqual(graph["10"]["class_type"], "LatentUpscale")
         self.assertEqual(graph["10"]["inputs"], {
@@ -844,7 +844,8 @@ class GraphTest(unittest.TestCase):
 
     def test_hires_with_a_lora_pose_does_not_collide_ids(self):
         spec = replace(render_spec("bust", 7, "p", hires=2048),
-                       loras=(("anima-sketch-style-chosen.safetensors", 0.8),))
+                       loras=(("anima-sketch-style-chosen.safetensors", 0.8),),
+                       guided_steps=None)
         graph = anima_graph.build_graph(spec)
         self.assertEqual(graph["10"]["class_type"], "LoraLoaderModelOnly")
         self.assertEqual(graph["11"]["class_type"], "LatentUpscale")
@@ -865,6 +866,123 @@ class GraphTest(unittest.TestCase):
             sampler=("euler", "normal"),
             canvas=(spec.width, spec.height))
         self.assertIsInstance(out, dict)
+
+
+class GuidedStepsTest(unittest.TestCase):
+    """`render_spec`'s default now draws on SilvermoonMix with `guided_steps`
+    set, sampling the leading steps at CFG and the rest at CFG 1.0."""
+
+    def test_default_spec_is_silvermoon_with_guided_steps(self):
+        spec = render_spec("coffee", 42, "p")
+        self.assertEqual(spec.model_path, ps.MODEL)
+        self.assertEqual(spec.model_path,
+                         "silvermoonmixAnimaEvolved_v2329BTurbo.safetensors")
+        self.assertEqual(spec.guided_steps, 4)
+
+    def test_default_spec_builds_a_two_stage_graph(self):
+        spec = render_spec("coffee", 42, "p")
+        graph = anima_graph.build_graph(spec)
+        self.assertEqual(graph["10"]["class_type"], "KSamplerAdvanced")
+        self.assertEqual(graph["10"]["inputs"]["add_noise"], "enable")
+        self.assertEqual(graph["10"]["inputs"]["noise_seed"], spec.seed)
+        self.assertEqual(graph["10"]["inputs"]["cfg"], spec.cfg)
+        self.assertEqual(graph["10"]["inputs"]["start_at_step"], 0)
+        self.assertEqual(graph["10"]["inputs"]["end_at_step"], spec.guided_steps)
+        self.assertEqual(graph["10"]["inputs"]["return_with_leftover_noise"],
+                         "enable")
+        self.assertEqual(graph["10"]["inputs"]["latent_image"], ["5", 0])
+        self.assertEqual(graph["3"]["class_type"], "KSamplerAdvanced")
+        self.assertEqual(graph["3"]["inputs"]["add_noise"], "disable")
+        self.assertEqual(graph["3"]["inputs"]["noise_seed"], spec.seed)
+        self.assertEqual(graph["3"]["inputs"]["cfg"], 1.0)
+        self.assertEqual(graph["3"]["inputs"]["start_at_step"], spec.guided_steps)
+        self.assertEqual(graph["3"]["inputs"]["end_at_step"], 10000)
+        self.assertEqual(graph["3"]["inputs"]["return_with_leftover_noise"],
+                         "disable")
+        self.assertEqual(graph["3"]["inputs"]["latent_image"], ["10", 0])
+        self.assertEqual(graph["3"]["inputs"]["model"], ["1", 0])
+        self.assertEqual(graph["10"]["inputs"]["model"], ["1", 0])
+        self.assertEqual(graph["8"]["inputs"]["samples"], ["3", 0])
+
+    def test_guided_steps_none_matches_todays_plain_graph(self):
+        spec = render_spec("coffee", 42, "p")
+        guided = anima_graph.build_graph(spec)
+        plain = anima_graph.build_graph(replace(spec, guided_steps=None))
+        self.assertEqual(plain["3"]["class_type"], "KSampler")
+        self.assertNotEqual(guided, plain)
+
+    def test_guided_steps_zero_is_byte_identical_to_none(self):
+        spec = replace(render_spec("coffee", 42, "p"), guided_steps=None)
+        self.assertEqual(anima_graph.build_graph(spec),
+                         anima_graph.build_graph(replace(spec, guided_steps=0)))
+
+    def test_guided_steps_at_or_above_total_steps_is_byte_identical_to_none(self):
+        spec = replace(render_spec("coffee", 42, "p"), guided_steps=None)
+        for guided_steps in (spec.steps, spec.steps + 4):
+            with self.subTest(guided_steps=guided_steps):
+                self.assertEqual(
+                    anima_graph.build_graph(spec),
+                    anima_graph.build_graph(replace(spec, guided_steps=guided_steps)))
+
+    def test_guided_steps_with_lora_does_not_collide_ids(self):
+        spec = replace(render_spec("coffee", 42, "p"), loras=(
+            ("anima-sketch-style-chosen.safetensors", 0.8),))
+        graph = anima_graph.build_graph(spec)
+        self.assertEqual(graph["10"]["class_type"], "LoraLoaderModelOnly")
+        self.assertEqual(graph["11"]["class_type"], "KSamplerAdvanced")
+        self.assertEqual(graph["11"]["inputs"]["model"], ["10", 0])
+        self.assertEqual(graph["11"]["inputs"]["latent_image"], ["5", 0])
+        self.assertEqual(graph["3"]["class_type"], "KSamplerAdvanced")
+        self.assertEqual(graph["3"]["inputs"]["model"], ["10", 0])
+        self.assertEqual(graph["3"]["inputs"]["latent_image"], ["11", 0])
+
+    def test_guided_steps_with_hires_does_not_collide_ids(self):
+        spec = render_spec("stand", 42, "p", hires=2048)
+        graph = anima_graph.build_graph(spec)
+        self.assertEqual(graph["10"]["class_type"], "KSamplerAdvanced")
+        self.assertEqual(graph["11"]["class_type"], "LatentUpscale")
+        self.assertEqual(graph["11"]["inputs"]["samples"], ["3", 0])
+        self.assertEqual(graph["12"]["class_type"], "KSampler")
+        self.assertEqual(graph["12"]["inputs"]["latent_image"], ["11", 0])
+        self.assertEqual(graph["12"]["inputs"]["cfg"], spec.cfg)
+        self.assertEqual(graph["8"]["inputs"]["samples"], ["12", 0])
+
+    def test_guided_steps_with_lora_and_hires_does_not_collide_ids(self):
+        spec = replace(render_spec("bust", 7, "p", hires=2048),
+                       loras=(("anima-sketch-style-chosen.safetensors", 0.8),))
+        graph = anima_graph.build_graph(spec)
+        self.assertEqual(graph["10"]["class_type"], "LoraLoaderModelOnly")
+        self.assertEqual(graph["11"]["class_type"], "KSamplerAdvanced")
+        self.assertEqual(graph["12"]["class_type"], "LatentUpscale")
+        self.assertEqual(graph["13"]["class_type"], "KSampler")
+        self.assertEqual(graph["3"]["inputs"]["model"], ["10", 0])
+        self.assertEqual(graph["11"]["inputs"]["model"], ["10", 0])
+        self.assertEqual(graph["13"]["inputs"]["model"], ["10", 0])
+        self.assertEqual(graph["12"]["inputs"]["samples"], ["3", 0])
+        self.assertEqual(graph["13"]["inputs"]["latent_image"], ["12", 0])
+        self.assertEqual(graph["8"]["inputs"]["samples"], ["13", 0])
+
+    def test_render_guided_steps_patch_applies(self):
+        from comfyui_recipes.domain.generation.patches import (
+            apply_patches, parse_patches,
+        )
+        spec = render_spec("coffee", 42, "p")
+        patches = parse_patches([
+            {"target": "render.guided_steps", "op": "set", "value": 0,
+             "reason": "disable"}])
+        result = apply_patches(spec, patches)
+        self.assertEqual(result.guided_steps, 0)
+        graph = anima_graph.build_graph(result)
+        self.assertEqual(graph["3"]["class_type"], "KSampler")
+
+    def test_render_guided_steps_patch_rejects_negative_and_non_int(self):
+        from comfyui_recipes.domain.generation.patches import parse_patches
+        for value in (-1, 2.5, True):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    parse_patches([
+                        {"target": "render.guided_steps", "op": "set",
+                         "value": value, "reason": "r"}])
 
 
 class ValidateRequestTest(unittest.TestCase):

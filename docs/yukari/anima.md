@@ -3,7 +3,7 @@
 > Yuzuki Yukari belongs to her original creators and rights holders -- see
 > [Derivative work](../../README.md#derivative-work) in the README.
 
-The one live recipe, drawn on Anima Turbo (`anima-turbo-v1.1.safetensors`).
+The one live recipe, drawn on SilvermoonMix Anima Turbo (`silvermoonmixAnimaEvolved_v2329BTurbo.safetensors`).
 The code is the description. This page maps where things are; the reasons
 behind the values are in [`docs/findings/`](../findings/).
 

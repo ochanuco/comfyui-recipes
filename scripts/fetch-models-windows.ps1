@@ -3,11 +3,12 @@
     Put Yukari's models on a Windows ComfyUI box.
 
 .DESCRIPTION
-    The recipe in scripts/yukari_recipe.py needs exactly one thing: the
-    hassaku-il-v22 diffusers folder. The Civitai files are optional: two
-    legacy IL LoRAs, the repair part LoRAs and a reserve stage-1 model. The ControlNet adapter is
-    for the repair reroll's `control=lineart` option and is not required for
-    plain generation.
+    The recipe in scripts/yukari_recipe.py draws stage 1 on
+    silvermoonmixAnimaEvolved_v2329BTurbo, a Civitai file, and redraws
+    (opt-in) through the hassaku-il-v22 diffusers folder. The other Civitai
+    files are optional: two legacy IL LoRAs, the repair part LoRAs and a
+    reserve stage-1 model. The ControlNet adapter is for the repair reroll's
+    `control=lineart` option and is not required for plain generation.
 
     Every SHA256 below was taken from the mac's own copy and matched against
     the Hugging Face mirror, so what lands here is bit-for-bit the model the
@@ -135,6 +136,15 @@ $LoraFiles = @(
         Sha256     = 'aca019d4aa9196c8ac363a693a90f201ef68fff2708d0c0a3f4968390464b98c'
         CivitaiUrl = 'https://civitai.com/api/download/models/3078189'
         Title      = 'Fn-Moment Anima-Turbo v2.0'
+    }
+    @{
+        Name       = 'silvermoonmixAnimaEvolved_v2329BTurbo.safetensors'
+        Dir        = 'diffusion_models'
+        VersionId  = 3335132
+        Size       = 5843204174
+        Sha256     = '84abc9577777a9d6335256d0f4745b85f7a734ea054c9e6ee093f7ca9ab289f0'
+        CivitaiUrl = 'https://civitai.com/api/download/models/3335132?fileId=3221561'
+        Title      = 'SilvermoonMix-Anima-Evolved v2.3_2.9B_Turbo'
     }
 )
 
@@ -283,10 +293,11 @@ elseif (-not $CivitaiToken) {
         Write-Host "    sha256 $($lora.Sha256)"
     }
     Write-Host ""
-    Write-Host "The Yukari recipe does not require these optional files."
+    Write-Host "silvermoonmixAnimaEvolved_v2329BTurbo is the Yukari recipe's"
+    Write-Host "stage-1 model; the rest of this list is optional."
 }
 else {
-    Write-Step "LoRAs and Fn-Moment (~5.8 GB) from Civitai"
+    Write-Step "LoRAs, Fn-Moment and SilvermoonMix (~11.2 GB) from Civitai"
 
     foreach ($lora in $LoraFiles) {
         $dir = if ($lora.Dir) { Join-Path $modelsDir $lora.Dir } else { $lorasDir }
@@ -298,7 +309,8 @@ else {
             continue
         }
 
-        $url = "$($lora.CivitaiUrl)?token=$CivitaiToken"
+        $separator = if ($lora.CivitaiUrl.Contains('?')) { '&' } else { '?' }
+        $url = "$($lora.CivitaiUrl)${separator}token=$CivitaiToken"
         Get-RemoteFile -Url $url -Destination $target
         Assert-Hash -Path $target -Sha256 $lora.Sha256 -Size $lora.Size
     }

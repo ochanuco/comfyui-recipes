@@ -13,7 +13,7 @@ from ..domain.repair.prompt import repair_prompt
 from ..domain.repair.regions import rects_from_fractions, regions_from_pose, scale_circles
 from ..domain.yukari import delivery_style
 from ..domain.yukari.recipe import refinement_prompt
-from ..infrastructure.comfyui.base_graph import BaseRoles, base_roles
+from ..infrastructure.comfyui.base_graph import BaseRoles, base_roles, sampler_settings
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
 from ..infrastructure.comfyui.refinement_graph import sizes
 from ..infrastructure.comfyui.repair_graph import redraw_canvas, splice_repair
@@ -224,7 +224,7 @@ def _resolve_plan(source: _Source, generation_id: str, *,
         # A stitched base's sampler latent is the inpaint crop, not the
         # whole picture, so only the pixel route is correct.
         latent_route = False
-    seed = source.graph[source.roles.sampler_id]["inputs"]["seed"]
+    seed = sampler_settings(source.graph, source.roles.sampler_id)["seed"]
     prefix = f"fin-{generation_id}"
     base_prompt = PromptPair(
         source.graph[source.roles.positive_id]["inputs"]["text"],

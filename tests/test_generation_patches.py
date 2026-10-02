@@ -388,11 +388,12 @@ class ApplyPatchesTest(unittest.TestCase):
         self.assertEqual(self.spec.prompts.positive, original_positive)
 
     def test_encoded_graph_reflects_cfg_and_hires_denoise_patches(self):
+        spec = replace(self.hires_spec, guided_steps=None)
         patches = parse_patches([
             _patch(target="render.cfg", op="set", value=4.5, reason="r"),
             _patch(target="hires.denoise", op="set", value=0.4, reason="r"),
         ])
-        patched = apply_patches(self.hires_spec, patches)
+        patched = apply_patches(spec, patches)
         graph = anima_graph.build_graph(patched)
         self.assertEqual(graph["3"]["inputs"]["cfg"], 4.5)
         self.assertEqual(graph["11"]["inputs"]["denoise"], 0.4)

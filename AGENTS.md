@@ -24,8 +24,9 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
 
 ## The pipeline is two stages, and it is the user's
 
-1. **Anima draws.** A new picture starts on `yukari` -- Anima Turbo
-   (`anima-turbo-v1.1`, 10 steps, CFG 2) with the artist tags
+1. **Anima draws.** A new picture starts on `yukari` -- SilvermoonMix Anima
+   Turbo (`silvermoonmixAnimaEvolved_v2329BTurbo`, 10 steps, CFG 2 for the
+   first 4 then 1.0) with the artist tags
    `(@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5)` and no style LoRA:
    composition, proportion and hands obey the prompt there, and the artist
    tags set the face and line.

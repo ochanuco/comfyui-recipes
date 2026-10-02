@@ -10,16 +10,20 @@ The code names the files; this is where to look.
 
 | Role | File | Named in |
 |---|---|---|
-| Stage 1 | `diffusion_models/anima-turbo-v1.1.safetensors` (`circlestone-labs/Anima`) + `qwen_3_06b_base` + `qwen_image_vae` | `domain/yukari/prompt_style.py` `MODEL` |
+| Stage 1 | `diffusion_models/silvermoonmixAnimaEvolved_v2329BTurbo.safetensors` (SilvermoonMix-Anima-Evolved v2.3_2.9B_Turbo) + `qwen_3_06b_base` + `qwen_image_vae` | `domain/yukari/prompt_style.py` `MODEL`, `GUIDED_STEPS` |
 | Opt-in finalize redraw | `diffusers/hassaku-il-v22` | `domain/yukari/delivery_style.py` `FINALIZE_MODEL` |
 | Repair reroll models | `sudachiAnima_v10`, `hassakuAnima_v13`, `anima_baseV10` | `domain/repair/models.py` |
 | Repair part LoRAs | `feet-xl-ill`, `hands-xl-ill` | `domain/repair/loras.py` |
 | Repair ControlNet | `noob-lineart-anime-fp16` | `domain/repair/controlnet.py` |
 | Stage 1 reserve, opt-in by `render.model` patch | `diffusion_models/fnMomentAnimaTurbo_v20.safetensors` | — |
 
-`anima-turbo-v1.1` and the three repair checkpoints are not in the verified
-inventory below. Everything else in the inventory was used by retired
-recipes and is kept only for provenance.
+`silvermoonmixAnimaEvolved_v2329BTurbo` is sampled with `render.guided_steps`:
+the leading steps at the recipe's own CFG, the rest at CFG 1.0 off the same
+noise. It needs a ComfyUI build that loads a 2.9B UNET; the pinned v0.37.0
+does. `anima-turbo-v1.1`, the previous stage-1 model, stays on the box. It
+is not in the verified inventory below, and neither are the three repair
+checkpoints. Everything else in the
+inventory was used by retired recipes and is kept only for provenance.
 
 Each has its own upstream license — the Illustrious-family checkpoints are
 mostly [FAIPL-1.0-SD](https://freedevproject.org/faipl-1.0-sd/) — which this
@@ -40,6 +44,9 @@ hash and have not been verified against a local copy.
 
 `diffusion_models/fnMomentAnimaTurbo_v20.safetensors` was hashed on the GPU
 box (2026-10-02) and matches the Civitai API hash.
+
+`diffusion_models/silvermoonmixAnimaEvolved_v2329BTurbo.safetensors` was
+hashed on the GPU box (2026-10-02) and matches the Civitai API hash.
 
 ### Hugging Face
 
@@ -75,6 +82,7 @@ Whole-folder copies of a Civitai model converted to diffusers by John6666.
 | `checkpoints/miaomiaoPixel_vPred11.safetensors` | 6.46 GB | MiaoMiao Pixel / V-Pred_1.1 | [1180112/2316419](https://civitai.com/models/1180112?modelVersionId=2316419) |
 | `checkpoints/novaAnimeXL_ilV170.safetensors` | 6.46 GB | Nova Anime XL / IL V17.0 | [376130/2741698](https://civitai.com/models/376130?modelVersionId=2741698) |
 | `diffusion_models/fnMomentAnimaTurbo_v20.safetensors` | 3.90 GB | Fn-Moment Anima-Turbo / v2.0 | [2733842/3078189](https://civitai.com/models/2733842?modelVersionId=3078189) |
+| `diffusion_models/silvermoonmixAnimaEvolved_v2329BTurbo.safetensors` | 5.44 GB | SilvermoonMix-Anima-Evolved [2.9B/2B] / v2.3_2.9B_Turbo | [2639339/3335132](https://civitai.com/models/2639339?modelVersionId=3335132) |
 | `loras/add-micro-details-ill-v6.safetensors` | 218 MB | Add Micro Details - Concept (Illustrious \| Pony \| NoobAI) / v6.0_Illustrious | [1377820/2832991](https://civitai.com/models/1377820?modelVersionId=2832991) |
 | `loras/anima-handdrawn-feel-chosen.safetensors` | 175 MB | 手绘质感增强/Hand-drawn feel, trigger `Hand-drawn feel` / v2.0 anima | [2529114/3267407](https://civitai.com/models/2529114?modelVersionId=3267407) |
 | `loras/anima-sketch-style-chosen.safetensors` | 175 MB | 草稿线条风格/sketch style, trigger `sketch style` / v2.0 anima | [2061990/3218039](https://civitai.com/models/2061990?modelVersionId=3218039) |

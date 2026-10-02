@@ -14,10 +14,12 @@ from dataclasses import dataclass, replace
 
 from .base_graph import (
     PASSTHROUGH as _PASSTHROUGH,
+    chain_origin as _chain_origin,
     consumers as _consumers,
     find_decode as _find_decode,
     find_sampler as _find_sampler,
     is_ref as _is_ref,
+    sampler_settings as _sampler_settings,
     source_prompts,
 )
 from .refinement_graph import _deliver_only_tail
@@ -97,7 +99,8 @@ def redraw_canvas(graph: Mapping) -> tuple[int, int]:
     """The (width, height) of the final sampler's own canvas."""
     decode_id = _find_decode(graph)
     sampler_id = _find_sampler(graph, decode_id)
-    latent_ref = graph[sampler_id]["inputs"]["latent_image"]
+    origin_id = _chain_origin(graph, sampler_id)
+    latent_ref = graph[origin_id]["inputs"]["latent_image"]
     node = graph[latent_ref[0]]
     class_type = node.get("class_type")
     if class_type in ("LatentUpscale", "EmptyLatentImage"):
@@ -213,17 +216,18 @@ def _redraw_pass(graph: Mapping) -> dict:
     apply_node = graph.get(model_ref[0], {})
     if apply_node.get("class_type") == "LayeredDiffusionApply":
         model_ref = apply_node["inputs"]["model"]
+    settings = _sampler_settings(graph, sampler_id)
     return {
         "decode_id": decode_id,
         "model_ref": model_ref,
         "positive_clip_ref": graph[sampler_inputs["positive"][0]]["inputs"]["clip"],
         "negative_clip_ref": graph[sampler_inputs["negative"][0]]["inputs"]["clip"],
         "vae_ref": graph[decode_id]["inputs"]["vae"],
-        "steps": sampler_inputs["steps"],
-        "cfg": sampler_inputs["cfg"],
-        "sampler_name": sampler_inputs["sampler_name"],
-        "scheduler": sampler_inputs["scheduler"],
-        "seed": sampler_inputs["seed"],
+        "steps": settings["steps"],
+        "cfg": settings["cfg"],
+        "sampler_name": settings["sampler_name"],
+        "scheduler": settings["scheduler"],
+        "seed": settings["seed"],
     }
 
 

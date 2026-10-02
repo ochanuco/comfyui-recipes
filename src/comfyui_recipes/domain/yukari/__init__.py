@@ -1,4 +1,4 @@
-"""Yukari recipe domain: the Anima Turbo (anima-turbo-v1.1) checkpoint, and
+"""Yukari recipe domain: the SilvermoonMix Anima Turbo checkpoint, and
 `delivery_style.py`, the delivery identity every delivered picture wears."""
 
 from .costumes import COSTUMES

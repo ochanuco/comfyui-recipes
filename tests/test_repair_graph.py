@@ -14,6 +14,8 @@ import unittest
 from dataclasses import replace
 from pathlib import Path
 
+from comfyui_recipes.domain.yukari.recipe import render_spec
+from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.base_graph import base_roles
 from comfyui_recipes.infrastructure.comfyui.repair_graph import (
     DELIVERED_SUFFIX,
@@ -651,6 +653,45 @@ class SpliceRepairRawTest(unittest.TestCase):
         crop = next(node for node in graph.values()
                    if node["class_type"] == "InpaintCropImproved")
         self.assertEqual(crop["inputs"]["image"], ["8", 0])
+
+
+class GuidedStepsBaseTest(unittest.TestCase):
+    """repair/masked_redraw must redraw a guided two-stage Anima base at its
+    guided cfg (the first stage's own), not the final stage's own 1.0."""
+
+    def setUp(self):
+        spec = render_spec("coffee", 42, "p")
+        self.spec = spec
+        self.base = anima_graph.build_graph(spec)
+
+    def test_redraw_canvas_reads_the_origin_stages_empty_latent(self):
+        self.assertEqual(
+            redraw_canvas(self.base), (self.spec.width, self.spec.height))
+
+    def test_splice_repair_reports_the_guided_cfg_not_the_final_stages_one(self):
+        graph = splice_repair(
+            self.base, mask_name="mask.png", positive="p", negative="n",
+            denoise=0.6, size=512)
+        sample = next(
+            node for node in graph.values()
+            if node["class_type"] == "KSampler" and node["inputs"]["denoise"] == 0.6)
+        self.assertEqual(sample["inputs"]["cfg"], self.spec.cfg)
+        self.assertNotEqual(sample["inputs"]["cfg"], 1.0)
+        self.assertEqual(sample["inputs"]["steps"], self.spec.steps)
+        self.assertEqual(sample["inputs"]["seed"], self.spec.seed)
+        self.assertEqual(sample["inputs"]["sampler_name"], self.spec.sampler_name)
+        self.assertEqual(sample["inputs"]["scheduler"], self.spec.scheduler)
+
+    def test_repair_graph_reports_the_guided_cfg_not_the_final_stages_one(self):
+        graph = repair_graph(
+            self.base, image_name="i.png", mask_name="m.png",
+            positive="p", negative="n", seed=99, denoise=0.6, size=512,
+            prefix="rep")
+        sample = next(
+            node for node in graph.values()
+            if node["class_type"] == "KSampler" and node["inputs"]["denoise"] == 0.6)
+        self.assertEqual(sample["inputs"]["cfg"], self.spec.cfg)
+        self.assertEqual(sample["inputs"]["steps"], self.spec.steps)
 
 
 if __name__ == "__main__":

@@ -796,6 +796,23 @@ class GraphTest(unittest.TestCase):
             "strength_model": 0.8})
         self.assertEqual(graph["3"]["inputs"]["model"], ["10", 0])
 
+    def test_zero_strength_loras_leave_the_graph_byte_identical(self):
+        spec = render_spec("coffee", 42, "p")
+        zeroed = replace(spec, loras=(
+            ("anima-sketch-style-chosen.safetensors", 0),))
+        self.assertEqual(anima_graph.build_graph(spec),
+                         anima_graph.build_graph(zeroed))
+
+    def test_zero_strength_lora_drops_out_of_the_chain(self):
+        spec = replace(render_spec("coffee", 42, "p"), loras=(
+            ("anima-sketch-style-chosen.safetensors", 0),
+            ("anima-handdrawn-feel-chosen.safetensors", 0.6)))
+        graph = anima_graph.build_graph(spec)
+        self.assertEqual(graph["10"]["inputs"]["lora_name"],
+                         "anima-handdrawn-feel-chosen.safetensors")
+        self.assertEqual(graph["10"]["inputs"]["model"], ["1", 0])
+        self.assertNotIn("11", graph)
+
     def test_two_loras_chain_in_order(self):
         spec = replace(render_spec("coffee", 42, "p"), loras=(
             ("anima-sketch-style-chosen.safetensors", 0.8),

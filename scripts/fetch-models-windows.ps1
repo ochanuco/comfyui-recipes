@@ -4,8 +4,8 @@
 
 .DESCRIPTION
     The recipe in scripts/yukari_recipe.py needs exactly one thing: the
-    hassaku-il-v22 diffusers folder. The two LoRAs are legacy optional files
-    and are not used by the current Yukari recipe. The ControlNet adapter is
+    hassaku-il-v22 diffusers folder. The Civitai files are optional: two
+    legacy IL LoRAs, the repair part LoRAs and a reserve stage-1 model. The ControlNet adapter is
     for the repair reroll's `control=lineart` option and is not required for
     plain generation.
 
@@ -96,22 +96,6 @@ $CheckpointFiles = @(
 # way in -- keep the left column exactly as it is or the graph will not build.
 $LoraFiles = @(
     @{
-        Name       = 'anima-sketch-style-chosen.safetensors'
-        VersionId  = 3218039
-        Size       = 183625016
-        Sha256     = 'af001933a8fa4c0e7950594171f9c4c77e5dd499364761b298b2c726bb22d4d6'
-        CivitaiUrl = 'https://civitai.com/api/download/models/3218039'
-        Title      = 'sketch style anima v2.0'
-    }
-    @{
-        Name       = 'anima-handdrawn-feel-chosen.safetensors'
-        VersionId  = 3267407
-        Size       = 183606224
-        Sha256     = '5c61afd609cad8ee9853e0d27543da08b938f84dcaea08debcdfb15dd3260dd9'
-        CivitaiUrl = 'https://civitai.com/api/download/models/3267407'
-        Title      = 'Hand-drawn feel anima v2.0'
-    }
-    @{
         Name       = 'perfect-eyes-ill.safetensors'
         VersionId  = 2066663
         Size       = 228457660
@@ -142,6 +126,15 @@ $LoraFiles = @(
         Sha256     = '66e5a79120e47a9625dca3fb9db0607e1a267a0de9bb5aa0b0633637c5098730'
         CivitaiUrl = 'https://civitai.com/api/download/models/2212079'
         Title      = 'Hands XL - Hands Illu v1.1'
+    }
+    @{
+        Name       = 'fnMomentAnimaTurbo_v20.safetensors'
+        Dir        = 'diffusion_models'
+        VersionId  = 3078189
+        Size       = 4182401760
+        Sha256     = 'aca019d4aa9196c8ac363a693a90f201ef68fff2708d0c0a3f4968390464b98c'
+        CivitaiUrl = 'https://civitai.com/api/download/models/3078189'
+        Title      = 'Fn-Moment Anima-Turbo v2.0'
     }
 )
 
@@ -279,11 +272,12 @@ elseif (-not $CivitaiToken) {
     Write-Host ""
     Write-Host "Civitai needs an API token for downloads. Either rerun with"
     Write-Host "  -CivitaiToken <token>       (get one at https://civitai.com/user/account)"
-    Write-Host "or download these by hand in a browser and drop them in $lorasDir"
-    Write-Host "under EXACTLY these names:"
+    Write-Host "or download these by hand in a browser and drop them under $modelsDir"
+    Write-Host "with EXACTLY these paths:"
     Write-Host ""
     foreach ($lora in $LoraFiles) {
-        Write-Host "  $($lora.Name)" -ForegroundColor White
+        $dir = if ($lora.Dir) { $lora.Dir } else { 'loras' }
+        Write-Host "  $dir\$($lora.Name)" -ForegroundColor White
         Write-Host "    $($lora.Title)"
         Write-Host "    https://civitai.com/models?modelVersionId=$($lora.VersionId)"
         Write-Host "    sha256 $($lora.Sha256)"
@@ -292,10 +286,11 @@ elseif (-not $CivitaiToken) {
     Write-Host "The Yukari recipe does not require these optional files."
 }
 else {
-    Write-Step "LoRAs (~0.7 GB) from Civitai"
+    Write-Step "LoRAs and Fn-Moment (~5.8 GB) from Civitai"
 
     foreach ($lora in $LoraFiles) {
-        $target = Join-Path $lorasDir $lora.Name
+        $dir = if ($lora.Dir) { Join-Path $modelsDir $lora.Dir } else { $lorasDir }
+        $target = Join-Path $dir $lora.Name
         Write-Host "  $($lora.Name)  <- $($lora.Title)"
 
         if (Test-Existing -Path $target -Size $lora.Size -Sha256 $lora.Sha256) {

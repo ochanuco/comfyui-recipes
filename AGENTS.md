@@ -57,8 +57,9 @@ the decision of the round that made it — a legwear rewrite, a ban, a
 canvas — so inheriting one silently applies a look nobody asked for this
 time. Read what comes along before you queue it.
 
-Where inherited patches load `anima-sketch-style-chosen.safetensors`,
-append `render.loras` at strength `0` (the patch rejects an empty list) and
+Where inherited patches load `anima-sketch-style-chosen.safetensors`
+(deleted from the worker), append `render.loras` at strength `0` (the patch
+rejects an empty list; a zero-strength LoRA is left out of the graph) and
 remove `(sketch style:1.2), ` from `prompt.positive.style`. The recipe's
 plain `stand` still wears the pre-official costume.
 

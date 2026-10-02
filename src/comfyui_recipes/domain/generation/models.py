@@ -36,6 +36,9 @@ class RenderSpec:
     filename_prefix: str
     hires: HiresSpec | None = None
     loras: tuple[tuple[str, float], ...] = ()
+    # Leading steps sampled at `cfg`, the rest at CFG 1.0, same noise
+    # schedule. None or 0 means a plain single KSampler.
+    guided_steps: int | None = None
     # (name, text) breakdown of `prompts.positive`, in order -- joining the
     # texts reproduces it byte for byte. Empty when the recipe has no named
     # parts.

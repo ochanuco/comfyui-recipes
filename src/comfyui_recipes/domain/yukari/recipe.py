@@ -34,6 +34,7 @@ from .prompt_style import (
     GARMENT_BLACK_BAN,
     GARMENT_GLOSS_TAGS,
     GRADIENT_BAN,
+    GUIDED_STEPS,
     HAND_BAN,
     HEIGHT,
     HIRES_DENOISE,
@@ -226,4 +227,5 @@ def render_spec(pose: str, seed: int, prefix: str, hires: int = 0,
         part_groups=PART_GROUPS,
         width=width, height=height, seed=seed, steps=STEPS, cfg=CFG,
         sampler_name=SAMPLER, scheduler=SCHEDULER, denoise=1.0,
-        filename_prefix=prefix, hires=hires_spec, loras=POSES[pose].loras)
+        filename_prefix=prefix, hires=hires_spec, loras=POSES[pose].loras,
+        guided_steps=GUIDED_STEPS)

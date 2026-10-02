@@ -58,11 +58,15 @@ def find_decode(graph: Mapping) -> str:
     return candidates[0]
 
 
+_SAMPLER_CLASSES = ("KSampler", "KSamplerAdvanced")
+
+
 def find_sampler(graph: Mapping, decode_id: str) -> str:
-    """The KSampler feeding `decode_id`, through any Latent*/SetLatentNoiseMask hop."""
+    """The KSampler/KSamplerAdvanced feeding `decode_id`, through any
+    Latent*/SetLatentNoiseMask hop."""
     node_id = graph[decode_id]["inputs"]["samples"][0]
     seen: set[str] = set()
-    while graph[node_id].get("class_type") != "KSampler":
+    while graph[node_id].get("class_type") not in _SAMPLER_CLASSES:
         if node_id in seen:
             raise ValueError(
                 f"could not trace a KSampler upstream of VAEDecode {decode_id!r}")
@@ -73,6 +77,39 @@ def find_sampler(graph: Mapping, decode_id: str) -> str:
                 f"could not trace a KSampler upstream of VAEDecode {decode_id!r}")
         node_id = inputs["samples"][0]
     return node_id
+
+
+def chain_origin(graph: Mapping, sampler_id: str) -> str:
+    """`sampler_id` itself, or the first (noise-adding) stage of a guided
+    KSamplerAdvanced pair whose `latent_image` chains back to it."""
+    node_id = sampler_id
+    while True:
+        inputs = graph[node_id].get("inputs", {})
+        latent_ref = inputs.get("latent_image")
+        if not (is_ref(latent_ref) and latent_ref[0] in graph):
+            return node_id
+        if graph[latent_ref[0]].get("class_type") != "KSamplerAdvanced":
+            return node_id
+        node_id = latent_ref[0]
+
+
+_SETTINGS_KEYS = ("seed", "steps", "cfg", "sampler_name", "scheduler")
+
+
+def sampler_settings(graph: Mapping, sampler_id: str) -> dict:
+    """The seed/steps/cfg/sampler/scheduler the picture at `sampler_id` was
+    drawn with; for a guided KSamplerAdvanced pair, seed and cfg come from
+    the first stage. Keys absent from the node are absent here."""
+    inputs = graph[sampler_id]["inputs"]
+    settings = {key: inputs[key] for key in _SETTINGS_KEYS if key in inputs}
+    if graph[sampler_id].get("class_type") != "KSamplerAdvanced":
+        return settings
+    origin_inputs = graph[chain_origin(graph, sampler_id)]["inputs"]
+    if "noise_seed" in origin_inputs:
+        settings["seed"] = origin_inputs["noise_seed"]
+    if "cfg" in origin_inputs:
+        settings["cfg"] = origin_inputs["cfg"]
+    return settings
 
 
 def source_prompts(graph: Mapping) -> tuple[str, str]:

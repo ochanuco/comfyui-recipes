@@ -7,7 +7,7 @@ from collections.abc import Callable
 
 from ...domain.yukari.delivery_style import STROKE_LIGHTS
 from ..imaging import backdrops
-from .base_graph import base_roles
+from .base_graph import base_roles, sampler_settings
 
 # Both images come out of one submission, so the matte is the redraw's own
 # alpha rather than a second pass's guess at it.
@@ -281,7 +281,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
     # Steps, cfg and seed are the base pass's own: a checkpoint that was tuned
     # at a different cfg must be redrawn the way it was drawn. The sampler is
     # the base pass's own too, unless the caller overrides it.
-    base_sampler = graph[roles.sampler_id]["inputs"]
+    base_sampler = sampler_settings(graph, roles.sampler_id)
     sampler_name, scheduler = (
         sampler if sampler is not None
         else (base_sampler.get("sampler_name", "dpmpp_2m"),

@@ -120,6 +120,7 @@ retired `yukari-sketch` recipe.
 | `loras/anime-sketch-muapi.safetensors` | `Muapi/anime-sketch-style-sdxl-sd1.5` — good raw, collapses in the redraw |
 | `diffusion_models/qwen_image_layered_fp8mixed.safetensors`, `text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors`, `vae/qwen_image_layered_vae.safetensors` | not recorded — Qwen-Image-Layered for ComfyUI |
 | `background_removal/birefnet.safetensors` | unknown |
+| `loras/anima-sketch-style-chosen.safetensors`, `loras/anima-handdrawn-feel-chosen.safetensors` | Civitai, see the inventory above — a `render.loras` patch at strength `0` drops the loader, so inherited patches still render |
 
 The worker's NoobAI-XL, IP-Adapter, CLIP-ViT-H and `noob-openpose-fp16` copies
 were deleted the same day; their upstreams are in the inventory above.

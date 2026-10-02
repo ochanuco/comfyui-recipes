@@ -32,9 +32,10 @@ def build_graph(spec: RenderSpec) -> dict[str, dict]:
             "images": ["8", 0], "filename_prefix": spec.filename_prefix}},
     }
     loader_id = 10
-    if spec.loras:
+    loras = [(name, weight) for name, weight in spec.loras if weight]
+    if loras:
         model_ref = ["1", 0]
-        for lora_name, weight in spec.loras:
+        for lora_name, weight in loras:
             node_id = str(loader_id)
             graph[node_id] = {"class_type": "LoraLoaderModelOnly", "inputs": {
                 "model": model_ref, "lora_name": lora_name,

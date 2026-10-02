@@ -97,17 +97,16 @@ Whole-folder copies of a Civitai model converted to diffusers by John6666.
 `checkpoints/NoobAI-XL-v1.1.safetensors` is on Civitai as well
 (833294/1116447) but Hugging Face is the better source for it.
 
-## On the worker only (2026-09-05)
+## Removed from the worker (2026-10-02)
 
 Fetched straight onto the Windows box for the checkpoint and LoRA A/B rounds
-(`docs/archive/render-notes/6-2026-09.md`). No local copy and no SHA256 recorded;
-re-fetch from the source if they are ever needed again. None of them is used:
-the checkpoints rated bad against hassaku-il-v22, and the sketch LoRAs served
-the retired `yukari-sketch` recipe.
+(`docs/archive/render-notes/6-2026-09.md`), then deleted. No local copy and no
+SHA256 recorded; re-fetch from the source if they are ever needed again. The
+checkpoints rated bad against hassaku-il-v22, and the sketch LoRAs served the
+retired `yukari-sketch` recipe.
 
 | file | source |
 |---|---|
-| `checkpoints/NoobAI-XL-v1.1.safetensors` | `Laxhar/noobai-XL-1.1` |
 | `checkpoints/Illustrious-XL-v0.1.safetensors` | `OnomaAIResearch/Illustrious-xl-early-release-v0` |
 | `checkpoints/blue_pencil-XL-v7.0.0.safetensors` | `bluepen5805/blue_pencil-XL` |
 | `checkpoints/animagine-xl-3.1.safetensors` | `cagliostrolab/animagine-xl-3.1` |
@@ -119,3 +118,8 @@ the retired `yukari-sketch` recipe.
 | `loras/sketch-style-xl-linaqruf.safetensors` | `Linaqruf/sketch-style-xl-lora :: sketch-style-xl.safetensors` — used by the retired `yukari-sketch` at 0.8 |
 | `loras/sketch-worthyhuman.safetensors` | `WorthyHuman1/Sketch_LoRA :: Sketch_LoRA.safetensors` — no visible effect |
 | `loras/anime-sketch-muapi.safetensors` | `Muapi/anime-sketch-style-sdxl-sd1.5` — good raw, collapses in the redraw |
+| `diffusion_models/qwen_image_layered_fp8mixed.safetensors`, `text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors`, `vae/qwen_image_layered_vae.safetensors` | not recorded — Qwen-Image-Layered for ComfyUI |
+| `background_removal/birefnet.safetensors` | unknown |
+
+The worker's NoobAI-XL, IP-Adapter, CLIP-ViT-H and `noob-openpose-fp16` copies
+were deleted the same day; their upstreams are in the inventory above.

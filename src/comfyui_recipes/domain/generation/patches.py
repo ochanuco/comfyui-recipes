@@ -14,7 +14,7 @@ TEXT_TARGETS = ("prompt.positive", "prompt.negative",
 # `RenderSpec.part_groups` legacy name resolved via `_apply_group`.
 PART_TARGET_PREFIX = "prompt.positive."
 NUMBER_TARGETS = ("render.cfg", "render.steps", "render.width",
-                  "render.height", "hires.denoise")
+                  "render.height", "render.guided_steps", "hires.denoise")
 STRING_TARGETS = ("render.model", "render.sampler", "render.scheduler")
 LORAS_TARGETS = ("render.loras",)
 TEXT_OPS = ("append", "prepend", "replace", "remove")
@@ -25,6 +25,7 @@ NUMBER_CONSTRAINTS = {
     "render.width": "an int >= 64, a multiple of 8",
     "render.height": "an int >= 64, a multiple of 8",
     "render.cfg": "> 0",
+    "render.guided_steps": "an int >= 0 (0 means off)",
     "hires.denoise": "0 < value <= 1",
 }
 
@@ -86,6 +87,9 @@ def _parse_number_patch(patch: dict, target: str,
     constraint = NUMBER_CONSTRAINTS[target]
     if target == "render.steps":
         if not isinstance(value, int) or value < 1:
+            _fail(target, f"{target} value must be {constraint}")
+    elif target == "render.guided_steps":
+        if not isinstance(value, int) or value < 0:
             _fail(target, f"{target} value must be {constraint}")
     elif target in ("render.width", "render.height"):
         if not isinstance(value, int) or value < 64 or value % 8:
@@ -257,6 +261,8 @@ def _apply_one(spec: RenderSpec, patch: Patch) -> RenderSpec:
         return replace(spec, cfg=float(patch.value))
     if patch.target == "render.steps":
         return replace(spec, steps=patch.value)
+    if patch.target == "render.guided_steps":
+        return replace(spec, guided_steps=patch.value)
     if patch.target == "render.width":
         return replace(spec, width=patch.value)
     if patch.target == "render.height":

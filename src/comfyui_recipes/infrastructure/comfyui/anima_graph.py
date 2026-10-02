@@ -43,6 +43,24 @@ def build_graph(spec: RenderSpec) -> dict[str, dict]:
             model_ref = [node_id, 0]
             loader_id += 1
         graph["3"]["inputs"]["model"] = model_ref
+    if spec.guided_steps and 0 < spec.guided_steps < spec.steps:
+        model_ref = graph["3"]["inputs"]["model"]
+        stage1_id = str(loader_id)
+        loader_id += 1
+        graph[stage1_id] = {"class_type": "KSamplerAdvanced", "inputs": {
+            "model": model_ref, "positive": ["6", 0], "negative": ["7", 0],
+            "latent_image": ["5", 0], "add_noise": "enable",
+            "noise_seed": spec.seed, "steps": spec.steps, "cfg": spec.cfg,
+            "sampler_name": spec.sampler_name, "scheduler": spec.scheduler,
+            "start_at_step": 0, "end_at_step": spec.guided_steps,
+            "return_with_leftover_noise": "enable"}}
+        graph["3"] = {"class_type": "KSamplerAdvanced", "inputs": {
+            "model": model_ref, "positive": ["6", 0], "negative": ["7", 0],
+            "latent_image": [stage1_id, 0], "add_noise": "disable",
+            "noise_seed": spec.seed, "steps": spec.steps, "cfg": 1.0,
+            "sampler_name": spec.sampler_name, "scheduler": spec.scheduler,
+            "start_at_step": spec.guided_steps, "end_at_step": 10000,
+            "return_with_leftover_noise": "disable"}}
     if spec.hires is not None:
         model_ref = graph["3"]["inputs"]["model"]
         upscale_id, sampler_id = str(loader_id), str(loader_id + 1)

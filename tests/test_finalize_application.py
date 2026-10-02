@@ -227,6 +227,18 @@ class FinalizeApplicationTest(unittest.TestCase):
             self.assertEqual(generation_calls[1][3][3], b"delivered-bytes")
             self.assertEqual(result["generation_ids"], ["generation", "generation"])
 
+    def test_two_stage_guided_base_resolves_seed_from_the_guided_stage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            spec = render_spec("coffee", 777, "p")
+            guided_base = anima_graph.build_graph(spec)
+            services = base_services(
+                directory, graph_from_png=lambda data: guided_base)
+            finalize("gen-id", services)
+            posts = {call[1]: call[2] for call in services.management.calls
+                     if call[0] == "POST" and call[2]}
+            self.assertEqual(
+                posts["/api/v1/batches/batch-id/jobs"]["seed"], spec.seed)
+
     def test_a_missing_output_aborts(self):
         class NoMatte(ComfyFake):
             def wait_for(self, prompt_id):
@@ -393,7 +405,9 @@ class FinalizeApplicationTest(unittest.TestCase):
 
     def test_anima_base_submitted_graph_carries_the_il_redraw(self):
         with tempfile.TemporaryDirectory() as directory:
-            spec = render_spec("stand", 42, "fin-nare8p-il-rough")
+            spec = dataclass_replace(
+                render_spec("stand", 42, "fin-nare8p-il-rough"),
+                guided_steps=None)
             anima_base = anima_graph.build_graph(spec)
             submitted = []
 

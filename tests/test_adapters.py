@@ -15,7 +15,9 @@ from unittest.mock import MagicMock, call, patch
 import numpy as np
 from PIL import Image
 
+from comfyui_recipes.domain.yukari.recipe import render_spec
 from comfyui_recipes.infrastructure.chimera.client import ChimeraClient
+from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.client import ComfyUIClient, as_png
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import (
     DELIVERED_SUFFIX, MATTE_SUFFIX, chain_pass,
@@ -992,6 +994,35 @@ class AdapterTest(unittest.TestCase):
                 state.save(failed, {"value": 2})
             self.assertEqual(sorted(item.name for item in root.iterdir()),
                              ["state.json"])
+
+
+class ChainPassGuidedStepsBaseTest(unittest.TestCase):
+    """`chain_pass` must redraw a guided two-stage Anima base at its guided
+    cfg (the first stage's own), not the final stage's own cfg of 1.0."""
+
+    def setUp(self):
+        self.spec = render_spec("coffee", 42, "p")
+        self.base = anima_graph.build_graph(self.spec)
+
+    def test_pixel_route_reports_the_guided_cfg(self):
+        graph = chain_pass(self.base, 2048, 0.45, "fin",
+                           canvas=(self.spec.width, self.spec.height))
+        sample = next(node for node in graph.values()
+                     if node["class_type"] == "KSampler")
+        self.assertEqual(sample["inputs"]["cfg"], self.spec.cfg)
+        self.assertNotEqual(sample["inputs"]["cfg"], 1.0)
+        self.assertEqual(sample["inputs"]["steps"], self.spec.steps)
+        self.assertEqual(sample["inputs"]["seed"], self.spec.seed)
+
+    def test_latent_route_reports_the_guided_cfg(self):
+        graph = chain_pass(self.base, 2048, 0.45, "fin", latent_route=True,
+                           canvas=(self.spec.width, self.spec.height))
+        sample = next(node for node in graph.values()
+                     if node["class_type"] == "KSampler")
+        self.assertEqual(sample["inputs"]["cfg"], self.spec.cfg)
+        self.assertNotEqual(sample["inputs"]["cfg"], 1.0)
+        self.assertEqual(sample["inputs"]["steps"], self.spec.steps)
+        self.assertEqual(sample["inputs"]["seed"], self.spec.seed)
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ The code names the files; this is where to look.
 | Repair reroll models | `sudachiAnima_v10`, `hassakuAnima_v13`, `anima_baseV10` | `domain/repair/models.py` |
 | Repair part LoRAs | `feet-xl-ill`, `hands-xl-ill` | `domain/repair/loras.py` |
 | Repair ControlNet | `noob-lineart-anime-fp16` | `domain/repair/controlnet.py` |
+| Stage 1 reserve, opt-in by `render.model` patch | `diffusion_models/fnMomentAnimaTurbo_v20.safetensors` | — |
 
 `anima-turbo-v1.1` and the three repair checkpoints are not in the verified
 inventory below. Everything else in the inventory was used by retired
@@ -36,6 +37,9 @@ them later. `manifests/models-sha256.txt` carries the full hashes in
 `loras/feet-xl-ill.safetensors` and `loras/hands-xl-ill.safetensors` are not
 on any local machine yet, so their SHA256 rows carry the upstream Civitai API
 hash and have not been verified against a local copy.
+
+`diffusion_models/fnMomentAnimaTurbo_v20.safetensors` was hashed on the GPU
+box (2026-10-02) and matches the Civitai API hash.
 
 ### Hugging Face
 
@@ -70,6 +74,7 @@ Whole-folder copies of a Civitai model converted to diffusers by John6666.
 |---|---|---|---|
 | `checkpoints/miaomiaoPixel_vPred11.safetensors` | 6.46 GB | MiaoMiao Pixel / V-Pred_1.1 | [1180112/2316419](https://civitai.com/models/1180112?modelVersionId=2316419) |
 | `checkpoints/novaAnimeXL_ilV170.safetensors` | 6.46 GB | Nova Anime XL / IL V17.0 | [376130/2741698](https://civitai.com/models/376130?modelVersionId=2741698) |
+| `diffusion_models/fnMomentAnimaTurbo_v20.safetensors` | 3.90 GB | Fn-Moment Anima-Turbo / v2.0 | [2733842/3078189](https://civitai.com/models/2733842?modelVersionId=3078189) |
 | `loras/add-micro-details-ill-v6.safetensors` | 218 MB | Add Micro Details - Concept (Illustrious \| Pony \| NoobAI) / v6.0_Illustrious | [1377820/2832991](https://civitai.com/models/1377820?modelVersionId=2832991) |
 | `loras/anima-handdrawn-feel-chosen.safetensors` | 175 MB | 手绘质感增强/Hand-drawn feel, trigger `Hand-drawn feel` / v2.0 anima | [2529114/3267407](https://civitai.com/models/2529114?modelVersionId=3267407) |
 | `loras/anima-sketch-style-chosen.safetensors` | 175 MB | 草稿线条风格/sketch style, trigger `sketch style` / v2.0 anima | [2061990/3218039](https://civitai.com/models/2061990?modelVersionId=3218039) |

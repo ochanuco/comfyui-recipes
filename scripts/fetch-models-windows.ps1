@@ -143,6 +143,15 @@ $LoraFiles = @(
         CivitaiUrl = 'https://civitai.com/api/download/models/2212079'
         Title      = 'Hands XL - Hands Illu v1.1'
     }
+    @{
+        Name       = 'fnMomentAnimaTurbo_v20.safetensors'
+        Dir        = 'diffusion_models'
+        VersionId  = 3078189
+        Size       = 4182401760
+        Sha256     = 'aca019d4aa9196c8ac363a693a90f201ef68fff2708d0c0a3f4968390464b98c'
+        CivitaiUrl = 'https://civitai.com/api/download/models/3078189'
+        Title      = 'Fn-Moment Anima-Turbo v2.0'
+    }
 )
 
 # ---------------------------------------------------------------------------
@@ -279,11 +288,12 @@ elseif (-not $CivitaiToken) {
     Write-Host ""
     Write-Host "Civitai needs an API token for downloads. Either rerun with"
     Write-Host "  -CivitaiToken <token>       (get one at https://civitai.com/user/account)"
-    Write-Host "or download these by hand in a browser and drop them in $lorasDir"
-    Write-Host "under EXACTLY these names:"
+    Write-Host "or download these by hand in a browser and drop them under $modelsDir"
+    Write-Host "with EXACTLY these paths:"
     Write-Host ""
     foreach ($lora in $LoraFiles) {
-        Write-Host "  $($lora.Name)" -ForegroundColor White
+        $dir = if ($lora.Dir) { $lora.Dir } else { 'loras' }
+        Write-Host "  $dir\$($lora.Name)" -ForegroundColor White
         Write-Host "    $($lora.Title)"
         Write-Host "    https://civitai.com/models?modelVersionId=$($lora.VersionId)"
         Write-Host "    sha256 $($lora.Sha256)"
@@ -292,10 +302,11 @@ elseif (-not $CivitaiToken) {
     Write-Host "The Yukari recipe does not require these optional files."
 }
 else {
-    Write-Step "LoRAs (~0.7 GB) from Civitai"
+    Write-Step "LoRAs and Fn-Moment (~6.4 GB) from Civitai"
 
     foreach ($lora in $LoraFiles) {
-        $target = Join-Path $lorasDir $lora.Name
+        $dir = if ($lora.Dir) { Join-Path $modelsDir $lora.Dir } else { $lorasDir }
+        $target = Join-Path $dir $lora.Name
         Write-Host "  $($lora.Name)  <- $($lora.Title)"
 
         if (Test-Existing -Path $target -Size $lora.Size -Sha256 $lora.Sha256) {

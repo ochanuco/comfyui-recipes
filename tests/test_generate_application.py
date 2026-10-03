@@ -15,10 +15,10 @@ from comfyui_recipes.application.generate import (
     _image_output_path,
     _output_directory,
     apply_presets,
-    batch_payload,
     generate,
     request_generation,
     request_graph,
+    resolution_payload,
     validate_request,
 )
 
@@ -26,15 +26,16 @@ from comfyui_recipes.application.generate import (
 class ManagementFake:
     def __init__(self):
         self.calls = []
-        self.batch_jobs = None
+        self.resolution_jobs = None
 
     def request(self, method, path, payload=None, multipart=None):
         self.calls.append((method, path, payload, multipart))
-        if method == "POST" and path == "/api/v1/batches":
-            batch = {"id": "batch-id", "short_id": "batch"}
-            if self.batch_jobs is not None:
-                batch["jobs"] = self.batch_jobs
-            return batch
+        is_resolution = method == "PUT" and path.endswith("/resolution")
+        if is_resolution or (method == "POST" and path == "/api/v1/requests"):
+            request = {"id": "request-id", "short_id": "req"}
+            if is_resolution and self.resolution_jobs is not None:
+                request["jobs"] = self.resolution_jobs
+            return request
         if path.endswith("/generations"):
             return {"id": "generation", "short_id": "gen", "canonical_url": "https://example/g"}
         if method == "POST" and path.endswith("/jobs"):
@@ -374,54 +375,53 @@ class GenerateApplicationTest(unittest.TestCase):
         graph = request_graph(generation, 42, "prefix", builder, encode)
         self.assertEqual(graph["6"]["inputs"]["text"], "base positive, extra tag")
 
-    def test_batch_payload_forwards_experiment(self):
+    def test_resolution_payload_does_not_forward_experiment_refinement_or_story(self):
         request = base_request()
-        request["experiment"] = {
-            "experiment_id": "exp-1", "run_id": "run-1",
-            "overrides": {"patches": [
-                {"target": "render.cfg", "op": "set", "value": 4.5,
-                 "reason": "test"}]}}
-        payload = batch_payload(request, {"commit": "c", "dirty": False}, "key")
-        self.assertEqual(payload["experiment"], request["experiment"])
+        request["experiment"] = {"experiment_id": "exp-1", "run_id": "run-1"}
+        request["refinement"] = {"actor": "human"}
+        request["story"] = {"title": "t"}
+        payload = resolution_payload(request, {"commit": "c", "dirty": False})
+        for key in ("experiment", "refinement", "story", "idempotency_key"):
+            self.assertNotIn(key, payload)
 
-    def test_batch_payload_carries_patches_and_pose_fingerprint(self):
+    def test_resolution_payload_carries_patches_and_pose_fingerprint(self):
         request = base_request()
         resolved = dict(request["generation"])
         resolved["patches"] = [{"target": "render.cfg", "op": "set",
                                 "value": 4.5, "reason": "test"}]
         resolved["parameters"] = {**resolved["parameters"], "pose": "resolved-pose"}
-        payload = batch_payload(
-            request, {"commit": "c", "dirty": False}, "key",
+        payload = resolution_payload(
+            request, {"commit": "c", "dirty": False},
             generation=resolved, pose_fingerprint="sha256:abc")
         self.assertEqual(payload["patches"], resolved["patches"])
         self.assertEqual(payload["pose_fingerprint"], "sha256:abc")
         self.assertEqual(payload["parameters"]["pose"], "resolved-pose")
 
-    def test_batch_payload_records_only_the_requests_own_patches(self):
+    def test_resolution_payload_records_only_the_requests_own_patches(self):
         request = base_request()
         own = [{"target": "render.cfg", "op": "set", "value": 4.5,
                 "reason": "the alpha"}]
         resolved = dict(request["generation"])
         resolved["patches"] = [{"target": "render.steps", "op": "set",
                                 "value": 30, "reason": "from the preset"}] + own
-        payload = batch_payload(
-            request, {"commit": "c", "dirty": False}, "key",
+        payload = resolution_payload(
+            request, {"commit": "c", "dirty": False},
             generation=resolved, patches=own)
         self.assertEqual(payload["patches"], own)
 
-    def test_batch_payload_omits_patches_when_the_request_added_none(self):
+    def test_resolution_payload_omits_patches_when_the_request_added_none(self):
         request = base_request()
         resolved = dict(request["generation"])
         resolved["patches"] = [{"target": "render.steps", "op": "set",
                                 "value": 30, "reason": "from the preset"}]
-        payload = batch_payload(
-            request, {"commit": "c", "dirty": False}, "key",
+        payload = resolution_payload(
+            request, {"commit": "c", "dirty": False},
             generation=resolved, patches=[])
         self.assertNotIn("patches", payload)
 
-    def test_batch_payload_omits_patches_and_fingerprint_when_absent(self):
+    def test_resolution_payload_omits_patches_and_fingerprint_when_absent(self):
         request = base_request()
-        payload = batch_payload(request, {"commit": "c", "dirty": False}, "key")
+        payload = resolution_payload(request, {"commit": "c", "dirty": False})
         self.assertNotIn("patches", payload)
         self.assertNotIn("pose_fingerprint", payload)
 
@@ -477,11 +477,11 @@ class GenerateApplicationTest(unittest.TestCase):
     def test_output_paths_must_remain_inside_configured_directories(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
-            self.assertEqual(_output_directory(root, "batch"), root / "batch")
+            self.assertEqual(_output_directory(root, "req"), root / "req")
             for identifier in ("../escape", "/tmp/escape", r"..\escape"):
                 with self.subTest(identifier=identifier), self.assertRaises(ValueError):
                     _output_directory(root, identifier)
-            output = root / "batch"
+            output = root / "req"
             output.mkdir()
             self.assertEqual(
                 _image_output_path(output, "render.png"), output / "render.png")
@@ -562,7 +562,7 @@ class GenerateApplicationTest(unittest.TestCase):
             management = ManagementFake()
             comfy = ComfyFake()
             state = StateFake({
-                "idempotency_key": "fixed-key", "batch_id": "old-batch",
+                "idempotency_key": "fixed-key", "request_id": "old-request",
                 "seeds": [42], "jobs": [{"idempotency_key": "job-key",
                                            "job_id": "job-id",
                                            "comfy_prompt_id": "old-prompt",
@@ -578,8 +578,9 @@ class GenerateApplicationTest(unittest.TestCase):
             self.assertEqual(comfy.waits, [])
             self.assertEqual(comfy.fetches, [])
             self.assertFalse(any(call[1].endswith("/jobs") for call in management.calls))
-            self.assertTrue(any(call[1] == "/api/v1/batches/batch-id" and call[2] == {"status": "completed"}
-                                for call in management.calls))
+            self.assertFalse(any(
+                call[0] == "PATCH" and call[1].startswith("/api/v1/requests/")
+                for call in management.calls))
 
     def test_generate_resume_skips_registered_output(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -757,7 +758,7 @@ class GenerateApplicationTest(unittest.TestCase):
             generate(path, services)
             self.assertEqual(state.state["jobs"][0]["status"], "ingested")
 
-    def test_generate_attaches_batch_to_experiment_run(self):
+    def test_generate_never_patches_experiment_runs(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"
             request = base_request()
@@ -776,33 +777,11 @@ class GenerateApplicationTest(unittest.TestCase):
                 lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
                 Path(directory), lambda message: None)
             generate(path, services)
-            self.assertIn(
-                ("PATCH", "/api/v1/experiment-runs/run-1",
-                 {"batch_id": "batch-id"}, None),
-                management.calls)
-
-    def test_generate_skips_experiment_run_patch_when_absent(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "request.json"
-            path.write_text(json.dumps(base_request()), encoding="utf-8")
-            management = ManagementFake()
-            comfy = ComfyFake()
-            state = StateFake({
-                "idempotency_key": "fixed-key", "seeds": [42],
-                "jobs": [{"idempotency_key": "job-key", "job_id": "job-id",
-                          "comfy_prompt_id": "old-prompt", "status": "ingested"}],
-            })
-            services = GenerateServices(
-                management, comfy, state, NullNotifier(),
-                lambda generation, seed, prefix: {"6": {"inputs": {"text": "x"}}},
-                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
-                Path(directory), lambda message: None)
-            generate(path, services)
             self.assertFalse(any(
                 call[1].startswith("/api/v1/experiment-runs/")
                 for call in management.calls))
 
-    def test_generate_probe_stops_before_batch_creation(self):
+    def test_generate_probe_stops_before_request_resolution(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"
             patches = [{"target": "render.cfg", "op": "set", "value": 4.5,
@@ -823,9 +802,9 @@ class GenerateApplicationTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 generate(path, services)
             self.assertFalse(
-                any(call[1] == "/api/v1/batches" for call in management.calls))
+                any(call[1].startswith("/api/v1/requests") for call in management.calls))
 
-    def test_generate_preset_probe_stops_before_batch_creation(self):
+    def test_generate_preset_probe_stops_before_request_resolution(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"
             request = base_request(
@@ -852,7 +831,7 @@ class GenerateApplicationTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 generate(path, services)
             self.assertFalse(
-                any(call[1] == "/api/v1/batches" for call in management.calls))
+                any(call[1].startswith("/api/v1/requests") for call in management.calls))
 
     def test_generate_lint_waiver_suppresses_conflict_raise(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -900,7 +879,7 @@ class GenerateApplicationTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 generate(path, services)
         self.assertEqual(
-            [call for call in management.calls if call[1] == "/api/v1/batches"],
+            [call for call in management.calls if call[1].startswith("/api/v1/requests")],
             [])
 
     def test_generate_fails_before_rendering_when_identity_tags_are_missing(self):
@@ -929,7 +908,7 @@ class GenerateApplicationTest(unittest.TestCase):
             self.assertIn("purple eyes", str(ctx.exception))
             self.assertIn("identity_override", str(ctx.exception))
             self.assertFalse(
-                any(call[1] == "/api/v1/batches" for call in management.calls))
+                any(call[1].startswith("/api/v1/requests") for call in management.calls))
 
     def test_generate_renders_and_records_identity_override(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -958,13 +937,6 @@ class GenerateApplicationTest(unittest.TestCase):
                 identity_tags=lambda *_: frozenset({"purple eyes", "tareme"}))
             generate(path, services)
             self.assertTrue(any("purple eyes" in message for message in emits))
-            batch_call = next(
-                call for call in management.calls
-                if call[0] == "POST" and call[1] == "/api/v1/batches")
-            payload = batch_call[2]
-            self.assertEqual(payload["identity_override"], "deliberate crop")
-            self.assertEqual(sorted(payload["identity_removed"]),
-                             ["purple eyes", "tareme"])
             semantic_call = next(
                 call for call in management.calls if call[0] == "semantic")
             self.assertEqual(
@@ -976,7 +948,7 @@ class GenerateApplicationTest(unittest.TestCase):
 
     def test_generate_does_not_record_an_unused_identity_override(self):
         # identity_override set defensively, but nothing was actually
-        # removed -- it must not be stamped onto the Batch or the semantic
+        # removed -- it must not be stamped onto the semantic
         # attributes as if it had excused a real drop.
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"
@@ -1002,11 +974,6 @@ class GenerateApplicationTest(unittest.TestCase):
                 Path(directory), lambda message: None,
                 identity_tags=lambda *_: frozenset({"purple eyes", "tareme"}))
             generate(path, services)
-            batch_call = next(
-                call for call in management.calls
-                if call[0] == "POST" and call[1] == "/api/v1/batches")
-            self.assertNotIn("identity_override", batch_call[2])
-            self.assertNotIn("identity_removed", batch_call[2])
             semantic_call = next(
                 call for call in management.calls if call[0] == "semantic")
             self.assertNotIn(
@@ -1112,15 +1079,15 @@ class GenerateApplicationTest(unittest.TestCase):
                 pose_fingerprint=lambda *_: "sha256:test",
                 identity_tags=_identity_tags)
             generate(path, services)
-            batch_call = next(
-                call for call in management.calls
-                if call[0] == "POST" and call[1] == "/api/v1/batches")
-            removed = set(batch_call[2]["identity_removed"])
-            self.assertTrue({"purple eyes", "jitome"} <= removed)
+            semantic_call = next(
+                call for call in management.calls if call[0] == "semantic")
+            attributes = semantic_call[2]["attributes"]
+            self.assertTrue(
+                {"purple eyes", "jitome"} <= set(attributes["identity_removed"]))
             self.assertEqual(
-                batch_call[2]["identity_override"], "deliberate repair crop")
+                attributes["identity_override"], "deliberate repair crop")
 
-    def test_generate_returns_batch_id_and_generation_ids(self):
+    def test_generate_returns_generation_ids_only(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "request.json"
             path.write_text(json.dumps(base_request()), encoding="utf-8")
@@ -1139,7 +1106,7 @@ class GenerateApplicationTest(unittest.TestCase):
                 lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
                 Path(directory), lambda message: None)
             result = generate(path, services)
-            self.assertEqual(result, {"batch_id": "batch-id", "generation_ids": ["generation"]})
+            self.assertEqual(result, {"generation_ids": ["generation"]})
 
     def test_generate_returns_none_on_dry_run(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1155,37 +1122,100 @@ class GenerateApplicationTest(unittest.TestCase):
                 Path(directory), lambda message: None)
             self.assertIsNone(generate(path, services, dry_run=True))
 
-    def test_key_prefix_overrides_batch_job_and_generation_keys(self):
+    def _generate_once(self, directory, *, state=None, request=None, **kwargs):
+        path = Path(directory) / "request.json"
+        path.write_text(json.dumps(request or base_request()), encoding="utf-8")
+        management = ManagementFake()
+        comfy = ComfyFake()
+        comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
+        state = state or StateFake({"idempotency_key": "own-key", "jobs": []})
+        services = GenerateServices(
+            management, comfy, state, RecordingNotifier(),
+            lambda generation, seed, prefix: {
+                "6": {"inputs": {"text": "x"}}, "7": {"inputs": {"text": "y"}}},
+            lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+            Path(directory), lambda message: None)
+        generate(path, services, **kwargs)
+        return management, comfy
+
+    def test_worker_request_reports_resolution_then_creates_jobs(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "request.json"
-            path.write_text(json.dumps(base_request()), encoding="utf-8")
-            management = ManagementFake()
-            comfy = ComfyFake()
-            comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
-            state = StateFake({"idempotency_key": "stale-key", "jobs": []})
-            services = GenerateServices(
-                management, comfy, state, RecordingNotifier(),
-                lambda generation, seed, prefix: {
-                    "6": {"inputs": {"text": "x"}}, "7": {"inputs": {"text": "y"}}},
-                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
-                Path(directory), lambda message: None)
-            generate(path, services, key_prefix="request:req-1")
+            management, comfy = self._generate_once(
+                directory, key_prefix="request:req-1", request_id="req-1")
+            paths = [(call[0], call[1]) for call in management.calls
+                     if call[0] in ("PUT", "POST") and "/requests" in call[1]]
+            self.assertEqual(paths, [
+                ("PUT", "/api/v1/requests/req-1/resolution"),
+                ("POST", "/api/v1/requests/request-id/jobs")])
+            resolution = management.calls[
+                [call[1] for call in management.calls].index(
+                    "/api/v1/requests/req-1/resolution")][2]
+            self.assertEqual(resolution["recipe"], "yukari")
+            self.assertEqual(resolution["git_commit"], "commit")
+            self.assertNotIn("idempotency_key", resolution)
+            self.assertNotIn("kind", resolution)
+            self.assertEqual(len(comfy.submits), 1)
 
-            batch_call = next(
-                call for call in management.calls
-                if call[0] == "POST" and call[1] == "/api/v1/batches")
-            self.assertEqual(batch_call[2]["idempotency_key"], "request:req-1")
-
+    def test_worker_request_keys_follow_the_request_prefix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management, _ = self._generate_once(
+                directory, key_prefix="request:req-1", request_id="req-1")
             job_call = next(
                 call for call in management.calls
                 if call[0] == "POST" and call[1].endswith("/jobs"))
             self.assertEqual(job_call[2]["idempotency_key"], "request:req-1:job:0")
-
+            self.assertNotIn("source_generation_id", job_call[2])
             generation_call = next(
                 call for call in management.calls
                 if call[0] == "POST" and call[1].endswith("/generations"))
             self.assertEqual(
                 generation_call[3][0]["idempotency_key"], "request:req-1:job:0:gen:0")
+
+    def test_standalone_run_creates_an_import_request(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management, _ = self._generate_once(directory)
+            create = next(
+                call for call in management.calls
+                if call[0] == "POST" and call[1] == "/api/v1/requests")
+            self.assertEqual(create[2]["kind"], "import")
+            self.assertEqual(create[2]["status"], "done")
+            self.assertEqual(create[2]["idempotency_key"], "own-key")
+            self.assertEqual(create[2]["recipe"], "yukari")
+            self.assertFalse(any(call[0] == "PUT" for call in management.calls))
+            job_call = next(
+                call for call in management.calls
+                if call[0] == "POST" and call[1].endswith("/jobs"))
+            self.assertEqual(job_call[1], "/api/v1/requests/request-id/jobs")
+            self.assertNotIn("source_generation_id", job_call[2])
+
+    def test_standalone_experiment_run_links_its_run_on_the_import_request(self):
+        request = {**base_request(),
+                   "experiment": {"experiment_id": "exp-1", "run_id": "run-1"}}
+        with tempfile.TemporaryDirectory() as directory:
+            management, _ = self._generate_once(directory, request=request)
+            create = next(
+                call for call in management.calls
+                if call[0] == "POST" and call[1] == "/api/v1/requests")
+            self.assertEqual(create[2]["run_id"], "run-1")
+            self.assertNotIn("experiment", create[2])
+            self.assertFalse(any(
+                call[1].startswith("/api/v1/experiment-runs")
+                for call in management.calls))
+
+    def test_worker_request_does_not_send_run_id(self):
+        request = {**base_request(),
+                   "experiment": {"experiment_id": "exp-1", "run_id": "run-1"}}
+        with tempfile.TemporaryDirectory() as directory:
+            management, _ = self._generate_once(
+                directory, request=request,
+                key_prefix="request:req-1", request_id="req-1")
+            put = next(call for call in management.calls if call[0] == "PUT")
+            self.assertNotIn("run_id", put[2])
+
+    def test_output_directory_and_comfy_prefix_use_the_request_short_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, comfy = self._generate_once(directory)
+            self.assertTrue((Path(directory) / "req").is_dir())
 
     def test_resend_jobs_adopts_seeds_when_state_has_none(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1196,7 +1226,7 @@ class GenerateApplicationTest(unittest.TestCase):
             path.write_text(json.dumps(request), encoding="utf-8")
 
             management = ManagementFake()
-            management.batch_jobs = [
+            management.resolution_jobs = [
                 {"id": "job-0", "index": 0, "seed": 111, "status": "ingested",
                  "comfy_prompt_id": "old-prompt",
                  "generations": [{"id": "gen-0", "comfy_output_index": 0}]},
@@ -1209,7 +1239,8 @@ class GenerateApplicationTest(unittest.TestCase):
                 lambda generation, seed, prefix: {"6": {"inputs": {"text": "x"}}},
                 lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
                 Path(directory), lambda message: None)
-            generate(path, services, key_prefix="request:req-2")
+            generate(path, services, key_prefix="request:req-2",
+                     request_id="req-2")
 
             self.assertEqual(state.state["seeds"], [111, 222])
             self.assertEqual(state.state["jobs"][0]["status"], "ingested")

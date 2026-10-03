@@ -28,16 +28,16 @@ from comfyui_recipes.application.worker_channels import Heartbeat, HubListener, 
 
 class ManagementFake:
     def __init__(self, claim_responses=None, dry_run_items=None,
-                context=None, batch=None):
+                context=None):
         self.calls = []
         self.claim_responses = list(claim_responses or [])
         self.claim_error = None
         self.dry_run_items = dry_run_items or []
         self.running_items = []
         # A finalize/repair/masked_redraw row's dial resolution fetches the
-        # source generation's context, then its batch, for `batch.recipe`.
-        self.context = context if context is not None else {"batch": {"id": "batch-1"}}
-        self.batch = batch if batch is not None else {"id": "batch-1", "recipe": "yukari"}
+        # source generation's context for `request.recipe`.
+        self.context = context if context is not None else {
+            "request": {"id": "request-1", "recipe": "yukari"}, "generations": []}
 
     def request(self, method, path, payload=None, multipart=None):
         self.calls.append((method, path, payload, multipart))
@@ -58,8 +58,6 @@ class ManagementFake:
             return {}
         if method == "GET" and path.endswith("/context"):
             return self.context
-        if method == "GET" and path.startswith("/api/v1/batches/"):
-            return self.batch
         raise AssertionError(f"unexpected management call: {method} {path}")
 
 
@@ -297,14 +295,15 @@ class ExecuteTest(unittest.TestCase):
             calls = []
 
             def fake_generate(path, generate_services, *, key_prefix=None, **kwargs):
-                calls.append((path, key_prefix))
-                return {"batch_id": "b1", "generation_ids": ["g1"]}
+                calls.append((path, key_prefix, kwargs))
+                return {"generation_ids": ["g1"]}
 
             services = make_services(directory, ManagementFake(), generate=fake_generate)
             result = execute(services, generate_row())
-            self.assertEqual(result, {"batch_id": "b1", "generation_ids": ["g1"]})
+            self.assertEqual(result, {"generation_ids": ["g1"]})
             self.assertEqual(len(calls), 1)
-            path, key_prefix = calls[0]
+            path, key_prefix, kwargs = calls[0]
+            self.assertEqual(kwargs["request_id"], "req-1")
             self.assertEqual(path, Path(directory) / "requests" / "req-1.json")
             self.assertTrue(path.exists())
             self.assertEqual(key_prefix, "request:req-1")
@@ -315,7 +314,7 @@ class ExecuteTest(unittest.TestCase):
 
             def fake_finalize(generation_id, finalize_services, **kwargs):
                 finalize_calls.append((generation_id, finalize_services, kwargs))
-                return {"batch_id": "b2", "generation_ids": ["g2"]}
+                return {"generation_ids": ["g2"]}
 
             services = make_services(
                 directory, ManagementFake(), finalize=fake_finalize,
@@ -326,10 +325,12 @@ class ExecuteTest(unittest.TestCase):
             })
             result = execute(services, row)
             self.assertEqual(result, {
-                "batch_id": "b2", "generation_ids": ["g2"],
+                "generation_ids": ["g2"],
                 "resolved_options": {"repin": True, "keep_legwear": 0.62, "route": "pixel"},
             })
             self.assertEqual(finalize_calls[0][0], "gen-1")
+            self.assertEqual(finalize_calls[0][2]["request_id"], "req-2")
+            self.assertEqual(finalize_calls[0][2]["key_prefix"], "request:req-2")
             self.assertEqual(finalize_calls[0][1], "finalize-services-sentinel")
             self.assertEqual(finalize_calls[0][2]["apply_repin"], True)
             self.assertEqual(finalize_calls[0][2]["keep_legwear"], 0.62)
@@ -357,14 +358,15 @@ class ExecuteTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 execute(services, row)
 
-    def test_finalize_resolves_words_against_the_source_batchs_recipe(self):
+    def test_finalize_resolves_words_against_the_source_requests_recipe(self):
         with tempfile.TemporaryDirectory() as directory:
             management = ManagementFake(
-                batch={"id": "batch-1", "recipe": "yukari"})
+                context={"request": {"id": "request-1", "recipe": "yukari"},
+                         "generations": []})
             services = make_services(
                 directory, management,
                 finalize=lambda generation_id, finalize_services, **kwargs: {
-                    "batch_id": "b2", "generation_ids": ["g2"]})
+                    "generation_ids": ["g2"]})
             row = finalize_row(payload={
                 "generation_id": "gen-1",
                 "options": {"denoise": "keep", "repin": True, "keep_legwear": True},
@@ -391,13 +393,13 @@ class ExecuteTest(unittest.TestCase):
             services = make_services(
                 directory, ManagementFake(),
                 finalize=lambda generation_id, finalize_services, **kwargs: {
-                    "batch_id": "b2", "generation_ids": ["g2"]})
+                    "generation_ids": ["g2"]})
             row = finalize_row(payload={
                 "generation_id": "gen-1", "options": {},
                 "profile": {"name": "cinema-tidy", "version": 3},
             })
             result = execute(services, row)
-            self.assertEqual(result["batch_id"], "b2")
+            self.assertEqual(result["generation_ids"], ["g2"])
 
     def test_unsupported_kind_fails(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -411,7 +413,7 @@ class ExecuteTest(unittest.TestCase):
 
             def fake_repair(generation_id, repair_services, **kwargs):
                 repair_calls.append((generation_id, repair_services, kwargs))
-                return {"batch_id": "b3", "generation_ids": ["g3"]}
+                return {"generation_ids": ["g3"]}
 
             services = make_services(
                 directory, ManagementFake(), repair=fake_repair,
@@ -422,7 +424,7 @@ class ExecuteTest(unittest.TestCase):
             })
             result = execute(services, row)
             self.assertEqual(result, {
-                "batch_id": "b3", "generation_ids": ["g3"],
+                "generation_ids": ["g3"],
                 "resolved_options": {"parts": ["feet"], "seeds": [7]},
             })
             self.assertEqual(repair_calls[0][0], "gen-1")
@@ -430,7 +432,7 @@ class ExecuteTest(unittest.TestCase):
             self.assertEqual(repair_calls[0][2]["parts"], ["feet"])
             self.assertEqual(repair_calls[0][2]["seeds"], [7])
             self.assertIn("context", repair_calls[0][2])
-            self.assertIn("batch", repair_calls[0][2])
+            self.assertEqual(repair_calls[0][2]["request_id"], "req-3")
 
     def test_repair_kind_with_bad_options_fails_before_repairing(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -458,7 +460,7 @@ class ExecuteTest(unittest.TestCase):
 
             def fake_masked_redraw(generation_id, masked_redraw_services, **kwargs):
                 masked_redraw_calls.append((generation_id, masked_redraw_services, kwargs))
-                return {"batch_id": "b4", "generation_ids": ["g4"]}
+                return {"generation_ids": ["g4"]}
 
             services = make_services(
                 directory, ManagementFake(), masked_redraw=fake_masked_redraw,
@@ -470,7 +472,7 @@ class ExecuteTest(unittest.TestCase):
             })
             result = execute(services, row)
             self.assertEqual(result, {
-                "batch_id": "b4", "generation_ids": ["g4"],
+                "generation_ids": ["g4"],
                 "resolved_options": {"regions": [[0.1, 0.1, 0.5, 0.5]],
                                      "prompt_patch": "a dress", "seeds": [7]},
             })
@@ -480,7 +482,7 @@ class ExecuteTest(unittest.TestCase):
             self.assertEqual(masked_redraw_calls[0][2]["prompt_patch"], "a dress")
             self.assertEqual(masked_redraw_calls[0][2]["seeds"], [7])
             self.assertIn("context", masked_redraw_calls[0][2])
-            self.assertIn("batch", masked_redraw_calls[0][2])
+            self.assertEqual(masked_redraw_calls[0][2]["request_id"], "req-4")
 
     def test_masked_redraw_kind_with_bad_options_fails_before_running(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -520,7 +522,7 @@ class WorkOnceTest(unittest.TestCase):
             management = ManagementFake(claim_responses=[row])
 
             def fake_generate(path, generate_services, *, key_prefix=None, **kwargs):
-                return {"batch_id": "b1", "generation_ids": ["g1"]}
+                return {"generation_ids": ["g1"]}
 
             services = make_services(directory, management, generate=fake_generate)
             self.assertTrue(work_once(services))
@@ -529,7 +531,7 @@ class WorkOnceTest(unittest.TestCase):
                 if call[0] == "PATCH" and call[1] == "/api/v1/requests/req-1")
             self.assertEqual(
                 patch_call[2],
-                {"status": "done", "result": {"batch_id": "b1", "generation_ids": ["g1"]},
+                {"status": "done", "result": {"generation_ids": ["g1"]},
                  "worker_id": "test-worker"})
 
     def test_failed_row_patches_status_failed_with_the_error_message(self):
@@ -573,7 +575,7 @@ class WorkOnceTest(unittest.TestCase):
 
             def fake_generate(path, generate_services, *, key_prefix=None, **kwargs):
                 self.assertEqual(heartbeats[0].events, ["start"])
-                return {"batch_id": "b1", "generation_ids": []}
+                return {"generation_ids": []}
 
             services = make_services(
                 directory, management, heartbeats=heartbeats, generate=fake_generate)
@@ -626,7 +628,7 @@ class WorkLoopTest(unittest.TestCase):
             management = ManagementFake(claim_responses=[row])
 
             def fake_generate(path, generate_services, *, key_prefix=None, **kwargs):
-                return {"batch_id": "b1", "generation_ids": []}
+                return {"generation_ids": []}
 
             def no_sleep(seconds):
                 raise AssertionError("must not sleep when --once")
@@ -816,7 +818,7 @@ class DrainTest(unittest.TestCase):
 
             def fake_generate(path, generate_services, **kwargs):
                 asked.append(True)
-                return {"batch_id": "b", "generation_ids": ["g"]}
+                return {"generation_ids": ["g"]}
 
             services = dataclasses.replace(
                 make_services(Path(directory), management,
@@ -1069,7 +1071,7 @@ class WorkWithHubTest(unittest.TestCase):
 
             def fake_generate(path, generate_services, *, key_prefix=None, **kwargs):
                 claimed.append(1)
-                return {"batch_id": "b1", "generation_ids": []}
+                return {"generation_ids": []}
 
             services = make_services(directory, management, generate=fake_generate)
             services = dataclasses.replace(
@@ -1107,7 +1109,7 @@ class WorkOnceHubTest(unittest.TestCase):
                     sent.append((request_id, phase))
 
             def fake_generate(path, generate_services, *, key_prefix=None, **kwargs):
-                return {"batch_id": "b1", "generation_ids": []}
+                return {"generation_ids": []}
 
             services = make_services(directory, management, generate=fake_generate)
             work_once(services, listener=RecordingListener())
@@ -1124,7 +1126,7 @@ class WorkOnceHubTest(unittest.TestCase):
                     sent.append((request_id, phase))
 
             def fake_finalize(generation_id, finalize_services, **kwargs):
-                return {"batch_id": "b2", "generation_ids": []}
+                return {"generation_ids": []}
 
             services = make_services(directory, management, finalize=fake_finalize)
             work_once(services, listener=RecordingListener())
@@ -1143,7 +1145,7 @@ class WorkOnceHubTest(unittest.TestCase):
 
             def fake_generate(path, generate_services, *, key_prefix=None, **kwargs):
                 observed["during"] = relay.current
-                return {"batch_id": "b1", "generation_ids": []}
+                return {"generation_ids": []}
 
             services = make_services(directory, management, generate=fake_generate)
             work_once(services, relay=relay)

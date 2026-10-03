@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import io
+import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from comfyui_recipes.interfaces import cli
@@ -18,6 +20,33 @@ class CliTest(unittest.TestCase):
         self.assertEqual(str(run_generate.call_args.args[0]), "request.json")
         self.assertEqual(run_generate.call_args.kwargs,
                          {"dry_run": True, "force": True})
+
+    @patch.object(cli, "git_metadata", return_value={"commit": "c", "dirty": False})
+    @patch.object(cli, "import_images")
+    @patch.object(cli, "ChimeraClient")
+    def test_import_registers_images_with_a_content_derived_key(
+            self, chimera_class, run_import, git_metadata):
+        with tempfile.TemporaryDirectory() as directory:
+            image = Path(directory) / "a.png"
+            image.write_bytes(b"png")
+            with redirect_stdout(io.StringIO()):
+                run_import.return_value = {"generation_ids": ["g1"]}
+                cli.main(["import", str(image), "--recipe", "yukari",
+                          "--parameters", '{"pose": "bust"}',
+                          "--references",
+                          '[{"source_generation_id": "src", "purpose": "rebuild"}]'])
+                cli.main(["import", str(image), "--recipe", "yukari"])
+        first, second = run_import.call_args_list
+        self.assertIs(first.args[0], chimera_class.return_value)
+        self.assertEqual(first.kwargs["images"], [image])
+        self.assertEqual(first.kwargs["resolution"], {
+            "recipe": "yukari", "raw_instruction": "",
+            "parameters": {"pose": "bust"},
+            "git_commit": "c", "git_dirty": False,
+            "references": [{"source_generation_id": "src", "purpose": "rebuild"}]})
+        self.assertTrue(first.kwargs["idempotency_key"].startswith("import:"))
+        self.assertEqual(first.kwargs["idempotency_key"],
+                         second.kwargs["idempotency_key"])
 
     @patch.object(cli, "watch")
     @patch.object(cli, "ChimeraClient")
@@ -136,8 +165,8 @@ class CliTest(unittest.TestCase):
     @patch.object(cli, "ChimeraClient")
     def test_finalize_denoise_word_resolves_through_the_source_recipe(
             self, chimera_class, run_finalize, fetch_source, dials_scope):
-        context, batch = object(), object()
-        fetch_source.return_value = (context, batch, "yukari")
+        context = object()
+        fetch_source.return_value = (context, "yukari")
         dials_scope.return_value = {"denoise": {"tidy": 0.65}}
         cli.main(["finalize", "gen-1", "--denoise", "tidy"])
         fetch_source.assert_called_once_with(chimera_class.return_value, "gen-1")
@@ -154,7 +183,7 @@ class CliTest(unittest.TestCase):
     @patch.object(cli, "ChimeraClient")
     def test_finalize_unknown_word_exits_before_finalizing(
             self, chimera_class, run_finalize, fetch_source, dials_scope):
-        fetch_source.return_value = ({}, {}, "yukari")
+        fetch_source.return_value = ({}, "yukari")
         dials_scope.return_value = {"denoise": {"keep": 0.4}}
         with self.assertRaises(SystemExit):
             cli.main(["finalize", "gen-1", "--denoise", "blurry"])
@@ -177,8 +206,8 @@ class CliTest(unittest.TestCase):
     @patch.object(cli, "ChimeraClient")
     def test_repair_denoise_and_lora_words_resolve_through_the_source_recipe(
             self, chimera_class, run_repair, fetch_source, dials_scope):
-        context, batch = object(), object()
-        fetch_source.return_value = (context, batch, "yukari")
+        context = object()
+        fetch_source.return_value = (context, "yukari")
         dials_scope.return_value = {"denoise": {"keep": 0.6}, "lora": {"on": 0.8}}
         cli.main(["repair", "gen-1", "--denoise", "keep", "--lora", "on"])
         fetch_source.assert_called_once_with(chimera_class.return_value, "gen-1")
@@ -186,10 +215,9 @@ class CliTest(unittest.TestCase):
         args, kwargs = run_repair.call_args
         self.assertEqual(kwargs["denoise"], 0.6)
         self.assertEqual(kwargs["lora"], 0.8)
-        # The context/batch fetch_source already made are passed through so
-        # repair() does not fetch either again.
+        # The context fetch_source already made is passed through so
+        # repair() does not fetch it again.
         self.assertIs(kwargs["context"], context)
-        self.assertIs(kwargs["batch"], batch)
 
     @patch.object(cli, "fetch_source")
     @patch.object(cli, "repair")
@@ -201,7 +229,6 @@ class CliTest(unittest.TestCase):
         kwargs = run_repair.call_args.kwargs
         self.assertEqual(kwargs["denoise"], 0.7)
         self.assertIsNone(kwargs["context"])
-        self.assertIsNone(kwargs["batch"])
 
     @patch.object(cli, "work")
     @patch.object(cli, "ChimeraClient")

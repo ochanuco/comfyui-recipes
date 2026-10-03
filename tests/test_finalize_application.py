@@ -86,26 +86,24 @@ MASKED_REDRAW_GRAPH = {
 
 
 class ManagementFake:
-    def __init__(self, *, batch_parameters=None, generation_records=None):
+    def __init__(self, *, request_parameters=None, generation_records=None):
         self.calls = []
-        self.context = {"batch": {"id": "source-batch"}}
-        self.batch_parameters = batch_parameters or {}
+        self.context = {"request": {"id": "source-request", "recipe": "yukari",
+                                    "parameters": request_parameters or {}},
+                        "generations": []}
         self.generation_records = generation_records or {}
 
     def request(self, method, path, payload=None, multipart=None):
         self.calls.append((method, path, payload, multipart))
         if path.endswith("/context"):
             return self.context
-        if (method == "GET"
-                and path == f"/api/v1/batches/{self.context['batch']['id']}"):
-            return {"id": self.context["batch"]["id"],
-                    "parameters": self.batch_parameters}
         if (method == "GET" and path.startswith("/api/v1/generations/")
                 and path.count("/") == 4):
             generation_id = path.rsplit("/", 1)[1]
             return self.generation_records.get(generation_id, {"id": generation_id})
-        if method == "POST" and path == "/api/v1/batches":
-            return {"id": "batch-id", "short_id": "batch"}
+        is_resolution = method == "PUT" and path.endswith("/resolution")
+        if is_resolution or (method == "POST" and path == "/api/v1/requests"):
+            return {"id": "request-id", "short_id": "req"}
         if method == "POST" and path.endswith("/jobs"):
             return {"id": "job-id"}
         if path.endswith("/generations"):
@@ -174,10 +172,11 @@ def base_services(directory, **overrides):
     return FinalizeServices(**kwargs)
 
 
-def batch_call(services):
+def resolution_call(services):
     return next(
         call for call in services.management.calls
-        if call[0] == "POST" and call[1] == "/api/v1/batches")
+        if call[1] == "/api/v1/requests"
+        or call[1].endswith("/resolution"))
 
 
 class FinalizeApplicationTest(unittest.TestCase):
@@ -237,7 +236,7 @@ class FinalizeApplicationTest(unittest.TestCase):
             posts = {call[1]: call[2] for call in services.management.calls
                      if call[0] == "POST" and call[2]}
             self.assertEqual(
-                posts["/api/v1/batches/batch-id/jobs"]["seed"], spec.seed)
+                posts["/api/v1/requests/request-id/jobs"]["seed"], spec.seed)
 
     def test_a_missing_output_aborts(self):
         class NoMatte(ComfyFake):
@@ -259,17 +258,17 @@ class FinalizeApplicationTest(unittest.TestCase):
                 with self.assertRaises(SystemExit):
                     finalize("gen-id", services)
 
-    def test_batch_parameters_record_repin_flag(self):
+    def test_request_parameters_record_repin_flag(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             finalize("gen-id", services, apply_repin=True)
-            self.assertIs(batch_call(services)[2]["parameters"]["repin"], True)
+            self.assertIs(resolution_call(services)[2]["parameters"]["repin"], True)
 
-    def test_batch_parameters_repin_false_when_disabled(self):
+    def test_request_parameters_repin_false_when_disabled(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             finalize("gen-id", services, apply_repin=False)
-            self.assertIs(batch_call(services)[2]["parameters"]["repin"], False)
+            self.assertIs(resolution_call(services)[2]["parameters"]["repin"], False)
 
     def test_recolor_wins_over_repin(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -283,7 +282,7 @@ class FinalizeApplicationTest(unittest.TestCase):
             finalize("gen-id", services, apply_repin=True, apply_recolor=True)
             self.assertIs(calls[-1]["repin"], False)
             self.assertIs(calls[-1]["recolor"], True)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertIs(parameters["repin"], False)
             self.assertIs(parameters["recolor"], True)
 
@@ -325,7 +324,7 @@ class FinalizeApplicationTest(unittest.TestCase):
             finalize("gen-id", services, keep_legwear=0.4, keep_scene=True)
             self.assertEqual(calls[-1]["keep_legwear"], 0.4)
             self.assertIs(calls[-1]["keep_scene"], True)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertEqual(parameters["keep_legwear"], 0.4)
             self.assertIs(parameters["keep_scene"], True)
 
@@ -333,7 +332,7 @@ class FinalizeApplicationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             finalize("gen-id", services)
-            self.assertNotIn("keep_scene", batch_call(services)[2]["parameters"])
+            self.assertNotIn("keep_scene", resolution_call(services)[2]["parameters"])
 
     def test_non_sketch_base_defaults_transparent_false_and_omits_parameter(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -348,7 +347,7 @@ class FinalizeApplicationTest(unittest.TestCase):
                 graph_from_png=lambda data: GRAPH)
             finalize("gen-id", services, deliver_only=True)
             self.assertIs(calls[-1]["transparent"], False)
-            self.assertNotIn("transparent", batch_call(services)[2]["parameters"])
+            self.assertNotIn("transparent", resolution_call(services)[2]["parameters"])
 
     def test_keep_scene_forces_transparent_false_on_a_sketch_base(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -377,7 +376,7 @@ class FinalizeApplicationTest(unittest.TestCase):
                 graph_from_png=lambda data: SKETCH_GRAPH)
             finalize("gen-id", services, deliver_only=True, transparent=False)
             self.assertIs(calls[-1]["transparent"], False)
-            self.assertNotIn("transparent", batch_call(services)[2]["parameters"])
+            self.assertNotIn("transparent", resolution_call(services)[2]["parameters"])
 
     def test_repin_and_skin_default_off_and_sampler_passed_to_chain_pass(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -458,7 +457,7 @@ class FinalizeApplicationTest(unittest.TestCase):
                  delivery_style.FINALIZE_CFG))
 
             self.assertEqual(
-                batch_call(services)[2]["parameters"]["finalizer"],
+                resolution_call(services)[2]["parameters"]["finalizer"],
                 delivery_style.FINALIZE_MODEL)
 
     def test_anima_base_honors_an_explicit_finalizer(self):
@@ -476,7 +475,7 @@ class FinalizeApplicationTest(unittest.TestCase):
 
             self.assertEqual(chain_pass_calls[-1]["loader"], "other-checkpoint")
             self.assertEqual(
-                batch_call(services)[2]["parameters"]["finalizer"],
+                resolution_call(services)[2]["parameters"]["finalizer"],
                 "other-checkpoint")
 
     def test_anima_base_with_a_lora_loader_model_only_still_classifies_as_anima(self):
@@ -504,30 +503,62 @@ class FinalizeApplicationTest(unittest.TestCase):
             self.assertEqual(
                 chain_pass_calls[-1]["sampler"], delivery_style.FINALIZE_SAMPLER)
 
-    def test_returns_batch_id_and_generation_ids(self):
+    def test_returns_generation_ids_only(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(
                 directory, graph_from_png=lambda data: copy.deepcopy(ANIMA_GRAPH))
             result = finalize("gen-id", services, deliver_only=False)
-            self.assertEqual(result["batch_id"], "batch-id")
+            self.assertNotIn("batch_id", result)
             self.assertEqual(result["generation_ids"], ["generation", "generation"])
 
     def test_a_given_context_skips_the_context_fetch(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
-            finalize("gen-id", services, context={"batch": {"id": "source-batch"}})
+            finalize("gen-id", services, context={"request": {"parameters": {}}})
             context_calls = [call for call in services.management.calls
                              if call[0] == "GET" and call[1].endswith("/context")]
             self.assertEqual(context_calls, [])
 
-    def test_key_prefix_derives_batch_and_job_keys(self):
+    def test_worker_request_reports_resolution_and_job_sources_the_generation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            result = finalize("gen-id", services, key_prefix="request:r1",
+                              request_id="r1")
+            calls = services.management.calls
+            self.assertFalse(any(call[1] == "/api/v1/requests" for call in calls))
+            resolution = next(
+                call for call in calls
+                if call[1] == "/api/v1/requests/r1/resolution")
+            self.assertEqual(resolution[0], "PUT")
+            self.assertEqual(
+                resolution[2]["references"][0]["source_generation_id"], "gen-id")
+            job_call = next(call for call in calls if call[1].endswith("/jobs"))
+            self.assertEqual(job_call[2]["source_generation_id"], "gen-id")
+            self.assertEqual(
+                [call[1] for call in calls].index(resolution[1]),
+                [call[1] for call in calls].index(job_call[1]) - 1)
+            self.assertEqual(result["generation_ids"], ["generation", "generation"])
+
+    def test_standalone_run_imports_and_jobs_carry_no_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            finalize("gen-id", services)
+            calls = services.management.calls
+            create = next(call for call in calls if call[1] == "/api/v1/requests")
+            self.assertEqual(create[2]["kind"], "import")
+            self.assertEqual(create[2]["status"], "done")
+            self.assertTrue(create[2]["idempotency_key"])
+            job_call = next(call for call in calls if call[1].endswith("/jobs"))
+            self.assertNotIn("source_generation_id", job_call[2])
+
+    def test_key_prefix_derives_request_and_job_keys(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             finalize("gen-id", services, key_prefix="request:r1")
             posts = {call[1]: call[2] for call in services.management.calls
                      if call[0] == "POST" and call[2]}
-            self.assertEqual(posts["/api/v1/batches"]["idempotency_key"], "request:r1")
-            self.assertEqual(posts["/api/v1/batches/batch-id/jobs"]["idempotency_key"],
+            self.assertEqual(posts["/api/v1/requests"]["idempotency_key"], "request:r1")
+            self.assertEqual(posts["/api/v1/requests/request-id/jobs"]["idempotency_key"],
                              "request:r1:job:0")
             generation_call = next(
                 call for call in services.management.calls
@@ -598,18 +629,18 @@ class FinalizeApplicationTest(unittest.TestCase):
             finalize("gen-id", services, upscale="nearest-exact")
             self.assertEqual(calls[-1]["upscale"], "nearest-exact")
 
-    def test_batch_parameters_record_upscale_when_given(self):
+    def test_request_parameters_record_upscale_when_given(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory, graph_from_png=lambda data: ANIMA_GRAPH)
             finalize("gen-id", services, upscale="nearest-exact")
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertEqual(parameters["upscale"], "nearest-exact")
 
-    def test_batch_parameters_omit_upscale_when_not_given(self):
+    def test_request_parameters_omit_upscale_when_not_given(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             finalize("gen-id", services)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertNotIn("upscale", parameters)
 
     def test_deliver_size_defaults_to_none_for_a_non_sketch_base(self):
@@ -638,11 +669,11 @@ class FinalizeApplicationTest(unittest.TestCase):
             finalize("gen-id", services, deliver_only=True, deliver_size=2048)
             self.assertEqual(calls[-1]["deliver_size"], 2048)
 
-    def test_batch_parameters_omit_deliver_size_for_a_non_sketch_base(self):
+    def test_request_parameters_omit_deliver_size_for_a_non_sketch_base(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             finalize("gen-id", services)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertNotIn("deliver_size", parameters)
 
     def test_stroke_light_reaches_chain_pass(self):
@@ -669,18 +700,18 @@ class FinalizeApplicationTest(unittest.TestCase):
             finalize("gen-id", services)
             self.assertIsNone(calls[-1]["stroke_light"])
 
-    def test_batch_parameters_record_stroke_light_when_given(self):
+    def test_request_parameters_record_stroke_light_when_given(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             finalize("gen-id", services, stroke_light="ne")
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertEqual(parameters["stroke_light"], "ne")
 
-    def test_batch_parameters_omit_stroke_light_when_not_given(self):
+    def test_request_parameters_omit_stroke_light_when_not_given(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             finalize("gen-id", services)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertNotIn("stroke_light", parameters)
 
     def test_backdrop_reaches_chain_pass_and_forces_transparent_false(self):
@@ -751,7 +782,7 @@ class FinalizeRecipeDefaultTest(unittest.TestCase):
             finalize("gen-id", services, deliver_only=RECIPE_DEFAULT,
                      apply_repin=RECIPE_DEFAULT, stroke_light=RECIPE_DEFAULT,
                      backdrop=RECIPE_DEFAULT)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertIs(parameters["deliver_only"], True)
             self.assertIs(parameters["repin"], True)
             self.assertEqual(parameters["stroke_light"], "n")
@@ -911,23 +942,23 @@ class FinalizeDeliverOnlyTest(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "upscale"):
                 finalize("gen-id", services, deliver_only=True, upscale="lanczos")
 
-    def test_batch_parameters_record_deliver_only_and_omit_redraw_fields(self):
+    def test_request_parameters_record_deliver_only_and_omit_redraw_fields(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             finalize("gen-id", services, deliver_only=True)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertIs(parameters["deliver_only"], True)
             self.assertNotIn("size", parameters)
             self.assertNotIn("denoise", parameters)
             self.assertNotIn("route", parameters)
             self.assertNotIn("finalizer", parameters)
 
-    def test_batch_parameters_omit_deliver_only_when_not_requested(self):
+    def test_request_parameters_omit_deliver_only_when_not_requested(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(
                 directory, graph_from_png=lambda data: copy.deepcopy(ANIMA_GRAPH))
             finalize("gen-id", services, denoise=0.5)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertNotIn("deliver_only", parameters)
             self.assertIn("size", parameters)
             self.assertIn("denoise", parameters)
@@ -1105,7 +1136,7 @@ class FinalizeRepairTest(unittest.TestCase):
                               if name.endswith("-source.png")]
             self.assertEqual(len(source_uploads), 1)
 
-    def test_batch_parameters_record_repair_when_requested(self):
+    def test_request_parameters_record_repair_when_requested(self):
         with tempfile.TemporaryDirectory() as directory:
             comfy = RepairComfyFake()
             _, splice_repair = self._splice_recorder()
@@ -1116,7 +1147,7 @@ class FinalizeRepairTest(unittest.TestCase):
                 graph_from_png=lambda data: ANIMA_GRAPH)
             finalize("gen-id", services, deliver_only=False, repair=["feet"],
                      repair_pad=1.5, repair_lora=0.8)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertEqual(parameters["repair"]["parts"], ["feet"])
             self.assertEqual(parameters["repair"]["regions"], [])
             self.assertEqual(parameters["repair"]["denoise"], 0.6)
@@ -1125,11 +1156,11 @@ class FinalizeRepairTest(unittest.TestCase):
             self.assertEqual(parameters["repair"]["lora"], 0.8)
             self.assertIn("mask_bbox", parameters["repair"])
 
-    def test_batch_parameters_omit_repair_when_not_requested(self):
+    def test_request_parameters_omit_repair_when_not_requested(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             finalize("gen-id", services)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertNotIn("repair", parameters)
 
     def test_repair_mask_uploaded_as_an_asset_on_the_raw_generation(self):
@@ -1222,7 +1253,7 @@ class PlainSourceResolutionTest(unittest.TestCase):
 
 
 class RepairedRawSourceResolutionTest(unittest.TestCase):
-    def test_repair_batch_resolves_base_from_the_base_generation(self):
+    def test_repair_request_resolves_base_from_the_base_generation(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []
 
@@ -1231,7 +1262,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
                 return {}
 
             management = ManagementFake(
-                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                request_parameters={"kind": "repair", "base_generation": "raw-1"},
                 generation_records={"raw-1": {"comfy_job": {"graph": SKETCH_GRAPH}}})
             services = base_services(
                 directory, management=management, chain_pass=recording_chain_pass)
@@ -1240,7 +1271,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
             self.assertEqual(base, SKETCH_GRAPH)
             self.assertIs(kwargs["latent_route"], False)
 
-    def test_masked_redraw_batch_also_resolves_base_from_the_base_generation(self):
+    def test_masked_redraw_request_also_resolves_base_from_the_base_generation(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []
 
@@ -1249,7 +1280,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
                 return {}
 
             management = ManagementFake(
-                batch_parameters={"kind": "masked_redraw", "base_generation": "raw-2"},
+                request_parameters={"kind": "masked_redraw", "base_generation": "raw-2"},
                 generation_records={"raw-2": {"comfy_job": {"graph": SKETCH_GRAPH}}})
             services = base_services(
                 directory, management=management, chain_pass=recording_chain_pass)
@@ -1266,7 +1297,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
                 return {}
 
             management = ManagementFake(
-                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                request_parameters={"kind": "repair", "base_generation": "raw-1"},
                 generation_records={"raw-1": {"comfy_job": {"graph": SKETCH_GRAPH}}})
             services = base_services(
                 directory, management=management, chain_pass=recording_chain_pass)
@@ -1284,7 +1315,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
                 return {}
 
             management = ManagementFake(
-                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                request_parameters={"kind": "repair", "base_generation": "raw-1"},
                 generation_records={"raw-1": {}})
             services = base_services(
                 directory, management=management, chain_pass=recording_chain_pass,
@@ -1302,7 +1333,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
                 return {}
 
             management = ManagementFake(
-                batch_parameters={"kind": "repair", "base_generation": "raw-3"},
+                request_parameters={"kind": "repair", "base_generation": "raw-3"},
                 generation_records={"raw-3": {"comfy_job": {"graph": ANIMA_GRAPH}}})
             services = base_services(
                 directory, management=management, chain_pass=recording_chain_pass)
@@ -1321,7 +1352,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
 
             comfy = ComfyFake()
             management = ManagementFake(
-                batch_parameters={"kind": "repair", "base_generation": "raw-3"},
+                request_parameters={"kind": "repair", "base_generation": "raw-3"},
                 generation_records={"raw-3": {"comfy_job": {"graph": ANIMA_GRAPH}}})
             services = base_services(
                 directory, management=management, chain_pass=recording_chain_pass,
@@ -1336,7 +1367,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
     def test_repaired_raw_on_a_layerdiffuse_base_is_rejected_even_with_latent_route(self):
         with tempfile.TemporaryDirectory() as directory:
             management = ManagementFake(
-                batch_parameters={"kind": "repair", "base_generation": "raw-4"},
+                request_parameters={"kind": "repair", "base_generation": "raw-4"},
                 generation_records={
                     "raw-4": {"comfy_job": {"graph": LAYERDIFFUSE_SKETCH_GRAPH}}})
             services = base_services(directory, management=management)
@@ -1352,7 +1383,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
                 return {}
 
             management = ManagementFake(
-                batch_parameters={"kind": "hires-chain", "base_generation": "gen-id"})
+                request_parameters={"kind": "hires-chain", "base_generation": "gen-id"})
             services = base_services(
                 directory, management=management, chain_pass=recording_chain_pass,
                 graph_from_png=lambda data: ANIMA_GRAPH)
@@ -1361,7 +1392,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
             self.assertEqual(base, ANIMA_GRAPH)
             self.assertIsNone(kwargs["source_image"])
 
-    def test_a_plain_raw_batch_uses_graph_from_png_as_before(self):
+    def test_a_plain_raw_request_uses_graph_from_png_as_before(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []
 
@@ -1369,7 +1400,7 @@ class RepairedRawSourceResolutionTest(unittest.TestCase):
                 calls.append((base, kwargs))
                 return {}
 
-            management = ManagementFake(batch_parameters={"kind": "generate"})
+            management = ManagementFake(request_parameters={"kind": "generate"})
             services = base_services(
                 directory, management=management, chain_pass=recording_chain_pass,
                 graph_from_png=lambda data: ANIMA_GRAPH)
@@ -1410,20 +1441,20 @@ class KeepRegionsTest(unittest.TestCase):
             uploaded_names = [name for name, _data in services.comfyui.uploaded]
             self.assertFalse(any(name.endswith("-keep-mask.png") for name in uploaded_names))
 
-    def test_keep_regions_and_strength_are_recorded_in_batch_parameters(self):
+    def test_keep_regions_and_strength_are_recorded_in_request_parameters(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory, graph_from_png=lambda data: ANIMA_GRAPH)
             finalize("gen-id", services, keep_regions=[[0.1, 0.1, 0.4, 0.4]],
                      keep_strength=0.4)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertEqual(parameters["keep_regions"], [[0.1, 0.1, 0.4, 0.4]])
             self.assertEqual(parameters["keep_strength"], 0.4)
 
-    def test_keep_regions_default_is_not_recorded_in_batch_parameters(self):
+    def test_keep_regions_default_is_not_recorded_in_request_parameters(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             finalize("gen-id", services)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertNotIn("keep_regions", parameters)
             self.assertNotIn("keep_strength", parameters)
 
@@ -1436,7 +1467,7 @@ class KeepRegionsTest(unittest.TestCase):
                 return {}
 
             management = ManagementFake(
-                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                request_parameters={"kind": "repair", "base_generation": "raw-1"},
                 generation_records={"raw-1": {"comfy_job": {"graph": ANIMA_GRAPH}}})
             services = base_services(
                 directory, management=management, chain_pass=recording_chain_pass)
@@ -1456,7 +1487,7 @@ class FinalizeDeliverOnlyRepairRoutingTest(unittest.TestCase):
 
         def fake_repair_use_case(generation_id, repair_services, **kwargs):
             calls.append((generation_id, kwargs))
-            return result or {"batch_id": "repair-batch-id", "generation_ids": ["g1", "g2"]}
+            return result or {"generation_ids": ["g1", "g2"]}
 
         return calls, fake_repair_use_case
 
@@ -1484,7 +1515,7 @@ class FinalizeDeliverOnlyRepairRoutingTest(unittest.TestCase):
             self.assertIsNone(kwargs["backdrop"])
             self.assertIsNone(kwargs["graph_generation_id"])
             self.assertEqual(
-                result, {"batch_id": "repair-batch-id", "generation_ids": ["g1", "g2"]})
+                result, {"generation_ids": ["g1", "g2"]})
 
     def test_repair_regions_alone_also_routes(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1583,7 +1614,7 @@ class FinalizeDeliverOnlyRepairRoutingTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             calls, fake = self._recorder()
             management = ManagementFake(
-                batch_parameters={"kind": "repair", "base_generation": "raw-1"},
+                request_parameters={"kind": "repair", "base_generation": "raw-1"},
                 generation_records={"raw-1": {"comfy_job": {"graph": SKETCH_GRAPH}}})
             services = base_services(
                 directory, management=management, repair_use_case=fake)
@@ -1624,7 +1655,7 @@ class FinalizeDeliverOnlyRepairEndToEndTest(unittest.TestCase):
                 self.assertIn("YukariDeliver", class_types)
             self.assertEqual(len(result["generation_ids"]), 4)
 
-    def test_records_a_repair_kind_batch_with_raw_and_delivered_per_seed(self):
+    def test_records_a_repair_kind_request_with_raw_and_delivered_per_seed(self):
         with tempfile.TemporaryDirectory() as directory:
             comfy = RepairComfyFake()
             services = base_services(
@@ -1633,10 +1664,10 @@ class FinalizeDeliverOnlyRepairEndToEndTest(unittest.TestCase):
                 image_size=lambda data: (800, 1000))
             finalize("gen-id", services, deliver_only=True, repair=["feet"],
                      repair_seeds=2)
-            batch_calls = [call for call in services.management.calls
-                          if call[0] == "POST" and call[1] == "/api/v1/batches"]
-            self.assertEqual(len(batch_calls), 1)
-            parameters = batch_calls[0][2]["parameters"]
+            request_calls = [call for call in services.management.calls
+                          if call[0] == "POST" and call[1] == "/api/v1/requests"]
+            self.assertEqual(len(request_calls), 1)
+            parameters = request_calls[0][2]["parameters"]
             self.assertEqual(parameters["kind"], "repair")
             self.assertEqual(parameters["base_generation"], "gen-id")
             self.assertIs(parameters["deliver_only"], True)

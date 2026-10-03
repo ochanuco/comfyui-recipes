@@ -1,4 +1,4 @@
-"""Redraw an arbitrary caller-given region of a generation, recorded as a batch."""
+"""Redraw an arbitrary caller-given region of a generation, recorded as a request."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from ..domain.repair.regions import rects_from_fractions
 from ..infrastructure.comfyui.repair_graph import masked_redraw_graph, source_prompts
 from ..infrastructure.imaging.masks import mask_bbox_fraction, render_mask_png
 from ..infrastructure.persistence.run_state import JsonRunState, operation_state_path
-from .ingest import ingest_seed_render
+from .ingest import ingest_seed_render, open_request
 
 
 @dataclass(frozen=True)
@@ -36,16 +36,16 @@ def _source_short(generations: Sequence[Mapping], generation_id: str) -> str:
     return generation_id
 
 
-def _resolve_source(batch: dict, generation_id: str) -> str:
+def _resolve_source(context: dict, generation_id: str) -> str:
     """The redraw generation a masked redraw actually redraws.
 
-    A finalize batch's raw redraw and delivered sticker sit side by side;
+    A finalize request's raw redraw and delivered sticker sit side by side;
     the redraw is the larger one by pixel count.
     """
-    if (batch.get("parameters") or {}).get("kind") != "hires-chain":
+    if (context["request"].get("parameters") or {}).get("kind") != "hires-chain":
         return generation_id
     return max(
-        batch["generations"],
+        context["generations"],
         key=lambda g: g["image_width"] * g["image_height"])["id"]
 
 
@@ -55,7 +55,8 @@ def masked_redraw(generation_id: str, services: MaskedRedrawServices, *,
                   mask_feather: int = 32, size: int = 1024,
                   seeds: Sequence[int] = (1, 2, 3, 4),
                   key_prefix: str | None = None,
-                  context: dict | None = None, batch: dict | None = None) -> dict:
+                  request_id: str | None = None,
+                  context: dict | None = None) -> dict:
     state_path = operation_state_path(
         services.output_root, "masked-redraw", key_prefix)
     if state_path:
@@ -66,11 +67,8 @@ def masked_redraw(generation_id: str, services: MaskedRedrawServices, *,
     if context is None:
         context = services.management.request(
             "GET", f"/api/v1/generations/{generation_id}/context")
-    if batch is None:
-        batch = services.management.request(
-            "GET", f"/api/v1/batches/{context['batch']['id']}")
-    source_id = _resolve_source(batch, generation_id)
-    source_short = _source_short(batch.get("generations") or [], source_id)
+    source_id = _resolve_source(context, generation_id)
+    source_short = _source_short(context.get("generations") or [], source_id)
     prefix = f"mrd-{source_short}"
 
     picked = services.management.fetch_generation_image(source_id)
@@ -93,10 +91,9 @@ def masked_redraw(generation_id: str, services: MaskedRedrawServices, *,
     positive = masked_redraw_prompt(base_positive, prompt_patch)
 
     git = services.git_metadata()
-    batch_payload = {
-        "idempotency_key": key_prefix or str(uuid.uuid4()),
+    resolution = {
         "raw_instruction": prompt_patch,
-        "recipe": batch.get("recipe", "yukari"),
+        "recipe": context["request"].get("recipe") or "yukari",
         "parameters": {
             "kind": "masked_redraw",
             "base_generation": source_id,
@@ -114,10 +111,10 @@ def masked_redraw(generation_id: str, services: MaskedRedrawServices, *,
         "references": [{"source_generation_id": source_id,
                         "purpose": "rebuild", "aspect": "masked_redraw",
                         "instruction": prompt_patch}],
-        "refinement": {"source_batch_id": batch["id"], "actor": "human",
-                       "reason": prompt_patch},
     }
-    created = services.management.request("POST", "/api/v1/batches", batch_payload)
+    created = open_request(
+        services.management, request_id=request_id,
+        idempotency_key=key_prefix or str(uuid.uuid4()), resolution=resolution)
     services.output_root.mkdir(parents=True, exist_ok=True)
 
     ids: list[str] = []
@@ -144,22 +141,21 @@ def masked_redraw(generation_id: str, services: MaskedRedrawServices, *,
         result = ingest_seed_render(
             comfyui=services.comfyui, management=services.management,
             output_root=services.output_root, emit=services.emit,
-            batch_id=created["id"], key_prefix=key_prefix, index=index,
+            request_id=created["id"], key_prefix=key_prefix, index=index,
             seed=seed, prompt_id=prompt_id, graph=graph, job_prefix=job_prefix,
-            mask_png=mask_png)
+            mask_png=mask_png,
+            source_generation_id=source_id if request_id else None)
         ids.extend(result["generation_ids"])
         urls.extend(result["generation_urls"])
         last_raw_filename, last_raw = result["raw_filename"], result["raw"]
 
-    services.management.request(
-        "PATCH", f"/api/v1/batches/{created['id']}", {"status": "completed"})
     services.notifier.send(
         f"**masked_redraw** `{generation_id}`\n"
         f"**patch** {prompt_patch}\n"
         f"**chimera** {urls[-1]}",
         last_raw_filename, last_raw)
-    services.emit(f"batch {created.get('short_id', created['id'])} done")
-    result = {"batch_id": created["id"], "generation_ids": ids}
+    services.emit(f"request {created.get('short_id') or created['id']} done")
+    result = {"generation_ids": ids}
     if state_path:
         state.update({"status": "completed", "result": result})
         services.state.save(state_path, state)

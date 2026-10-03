@@ -8,13 +8,13 @@ positive prompt, so it carries no trailing comma.
 
 from __future__ import annotations
 
-QUALITY_TAG = "masterpiece, best quality, score_7, "
+QUALITY_TAG = ""
 COUNT_TAG = "1girl, solo, "
 QUALITY = QUALITY_TAG + COUNT_TAG
 
 CHARACTER_TAG = "yuzuki yukari, "
 SERIES_TAG = "vocaloid, voiceroid, "
-ARTIST_TAG = "(@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+ARTIST_TAG = "(@oshiki hitoshi:1.3), (@yoshikawa hideaki:0.5), "
 CHARACTER = CHARACTER_TAG + SERIES_TAG + ARTIST_TAG
 IDENTITY = ("light purple hair, short hair with long locks, very long "
             "sidelocks, (dark greyish purple eyes:1.4), (dark irises:1.2), "
@@ -71,6 +71,8 @@ VIVID_BAN = ("(magenta:1.45), (pink legwear:1.45), (bright purple:1.35), "
 SCORE_BAN = "score_1, score_2, score_3"
 PROPORTION_BAN = (", (fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3), "
                   "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2)")
+TEXT_BAN = (", (text:1.3), (speech bubble:1.3), (onomatopoeia:1.3), "
+            "(english text:1.2), signature, watermark")
 
 MODEL = "silvermoonmixAnimaEvolved_v2329BTurbo.safetensors"
 WIDTH, HEIGHT = 1024, 1640

@@ -35,13 +35,11 @@ CLAIM_PATH = "/api/v1/requests/claim"
 DRY_RUN_PATH = "/api/v1/requests?status=queued&limit=1"
 
 
-def fetch_source(management: Management, generation_id: str) -> tuple[dict, dict, str]:
-    """The requested generation's context, its batch, and that batch's recipe."""
+def fetch_source(management: Management, generation_id: str) -> tuple[dict, str]:
+    """The requested generation's context and its request's recipe."""
     context = management.request(
         "GET", f"/api/v1/generations/{generation_id}/context")
-    batch = management.request(
-        "GET", f"/api/v1/batches/{context['batch']['id']}")
-    return context, batch, batch.get("recipe") or ""
+    return context, context["request"].get("recipe") or ""
 
 
 @dataclass(frozen=True)
@@ -83,8 +81,9 @@ def _execute_generate(services: WorkServices, row: Mapping) -> dict:
         json.dumps(row.get("payload") or {}, indent=2, ensure_ascii=False),
         encoding="utf-8")
     result = services.generate(
-        path, services.generate_services, key_prefix=f"request:{request_id}")
-    return result or {"batch_id": None, "generation_ids": []}
+        path, services.generate_services, key_prefix=f"request:{request_id}",
+        request_id=request_id)
+    return result or {"generation_ids": []}
 
 
 def _execute_finalize(services: WorkServices, row: Mapping) -> dict:
@@ -92,7 +91,7 @@ def _execute_finalize(services: WorkServices, row: Mapping) -> dict:
     generation_id = payload.get("generation_id")
     if not generation_id:
         raise SystemExit("finalize payload.generation_id is required")
-    context, _batch, recipe = fetch_source(services.management, generation_id)
+    context, recipe = fetch_source(services.management, generation_id)
     dials = dials_scope(recipe, "finalize")
     options = payload.get("options") or {}
     try:
@@ -100,7 +99,8 @@ def _execute_finalize(services: WorkServices, row: Mapping) -> dict:
     except ValueError as error:
         raise SystemExit(str(error)) from error
     result = services.finalize(generation_id, services.finalize_services,
-                               key_prefix=f"request:{row['id']}", context=context,
+                               key_prefix=f"request:{row['id']}",
+                               request_id=row["id"], context=context,
                                **arguments)
     result["resolved_options"] = _resolved_options(options, arguments, FINALIZE_DIAL_KEYS)
     return result
@@ -111,7 +111,7 @@ def _execute_repair(services: WorkServices, row: Mapping) -> dict:
     generation_id = payload.get("generation_id")
     if not generation_id:
         raise SystemExit("repair payload.generation_id is required")
-    context, batch, recipe = fetch_source(services.management, generation_id)
+    context, recipe = fetch_source(services.management, generation_id)
     dials = dials_scope(recipe, "repair")
     options = payload.get("options") or {}
     try:
@@ -119,8 +119,9 @@ def _execute_repair(services: WorkServices, row: Mapping) -> dict:
     except ValueError as error:
         raise SystemExit(str(error)) from error
     result = services.repair(generation_id, services.repair_services,
-                             key_prefix=f"request:{row['id']}", context=context,
-                             batch=batch, **arguments)
+                             key_prefix=f"request:{row['id']}",
+                             request_id=row["id"], context=context,
+                             **arguments)
     result["resolved_options"] = _resolved_options(options, arguments, REPAIR_DIAL_KEYS)
     return result
 
@@ -130,7 +131,7 @@ def _execute_masked_redraw(services: WorkServices, row: Mapping) -> dict:
     generation_id = payload.get("generation_id")
     if not generation_id:
         raise SystemExit("masked_redraw payload.generation_id is required")
-    context, batch, recipe = fetch_source(services.management, generation_id)
+    context, recipe = fetch_source(services.management, generation_id)
     dials = dials_scope(recipe, "repair")
     options = payload.get("options") or {}
     try:
@@ -138,8 +139,9 @@ def _execute_masked_redraw(services: WorkServices, row: Mapping) -> dict:
     except ValueError as error:
         raise SystemExit(str(error)) from error
     result = services.masked_redraw(generation_id, services.masked_redraw_services,
-                                    key_prefix=f"request:{row['id']}", context=context,
-                                    batch=batch, **arguments)
+                                    key_prefix=f"request:{row['id']}",
+                                    request_id=row["id"], context=context,
+                                    **arguments)
     result["resolved_options"] = _resolved_options(
         options, arguments, _MASKED_REDRAW_DIAL_KEYS)
     return result

@@ -41,14 +41,13 @@ def _pose_outputs() -> dict:
 
 
 class ManagementFake:
-    def __init__(self, *, batch_parameters=None, generations=None,
-                batch_recipe="yukari"):
+    def __init__(self, *, request_parameters=None, generations=None,
+                request_recipe="yukari"):
         self.calls = []
-        self.context = {"batch": {"id": "source-batch"}}
-        self.batch = {
-            "id": "source-batch", "short_id": "srcbatch",
-            "recipe": batch_recipe,
-            "parameters": batch_parameters or {},
+        self.context = {
+            "request": {"id": "source-request", "short_id": "srcreq",
+                        "recipe": request_recipe,
+                        "parameters": request_parameters or {}},
             "generations": generations or [],
         }
         self._job_counter = 0
@@ -61,10 +60,9 @@ class ManagementFake:
         if method == "GET" and path.startswith("/api/v1/generations/") \
                 and path.count("/") == 4:
             return {"id": path.rsplit("/", 1)[1], "comfy_job": self.job_graph}
-        if method == "GET" and path == f"/api/v1/batches/{self.batch['id']}":
-            return self.batch
-        if method == "POST" and path == "/api/v1/batches":
-            return {"id": "repair-batch-id", "short_id": "repbatch"}
+        is_resolution = method == "PUT" and path.endswith("/resolution")
+        if is_resolution or (method == "POST" and path == "/api/v1/requests"):
+            return {"id": "repair-request-id", "short_id": "reprequest"}
         if method == "POST" and path.endswith("/jobs"):
             self._job_counter += 1
             return {"id": f"job-{self._job_counter}"}
@@ -139,18 +137,19 @@ def base_services(directory, **overrides):
     return RepairServices(**kwargs)
 
 
-def batch_call(services):
+def resolution_call(services):
     return next(
         call for call in services.management.calls
-        if call[0] == "POST" and call[1] == "/api/v1/batches")
+        if call[1] == "/api/v1/requests"
+        or call[1].endswith("/resolution"))
 
 
 class RepairApplicationTest(unittest.TestCase):
-    def test_hires_chain_batch_picks_the_largest_sibling(self):
+    def test_hires_chain_request_picks_the_largest_sibling(self):
         with tempfile.TemporaryDirectory() as directory:
             fetched = []
             management = ManagementFake(
-                batch_parameters={"kind": "hires-chain"},
+                request_parameters={"kind": "hires-chain"},
                 generations=[
                     {"id": "raw-gen", "short_id": "rawshort",
                      "image_width": 1280, "image_height": 2560},
@@ -164,27 +163,24 @@ class RepairApplicationTest(unittest.TestCase):
                   parts=[], regions=[[0.0, 0.0, 0.1, 0.1]])
             self.assertEqual(fetched, ["raw-gen"])
 
-    def test_non_hires_chain_batch_uses_the_given_generation(self):
+    def test_non_hires_chain_request_uses_the_given_generation(self):
         with tempfile.TemporaryDirectory() as directory:
             fetched = []
-            management = ManagementFake(batch_parameters={"kind": "generate"})
+            management = ManagementFake(request_parameters={"kind": "generate"})
             management.fetch_generation_image = lambda gid: (
                 fetched.append(gid) or b"picked")
             services = base_services(directory, management=management)
             repair("gen-1", services, parts=[], regions=[[0.0, 0.0, 0.1, 0.1]])
             self.assertEqual(fetched, ["gen-1"])
 
-    def test_a_given_context_and_batch_skip_their_fetch(self):
+    def test_a_given_context_skips_its_fetch(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             repair("gen-1", services, parts=[], regions=[[0.0, 0.0, 0.1, 0.1]],
-                  context={"batch": {"id": "source-batch"}},
-                  batch=services.management.batch)
+                  context=services.management.context)
             fetch_calls = [
                 call for call in services.management.calls
-                if call[0] == "GET" and (
-                    call[1].endswith("/context")
-                    or call[1] == f"/api/v1/batches/{services.management.batch['id']}")]
+                if call[0] == "GET" and call[1].endswith("/context")]
             self.assertEqual(fetch_calls, [])
 
     def test_no_regions_found_raises_system_exit(self):
@@ -274,12 +270,12 @@ class RepairApplicationTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 repair("gen-1", services, parts=["feet"], seeds=[7])
 
-    def test_batch_parameters_record_the_request(self):
+    def test_request_parameters_record_the_request(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             repair("gen-1", services, parts=["feet"], regions=[[0.1, 0.2, 0.3, 0.4]],
                   denoise=0.7, seeds=[5], size=768, pad=1.5)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertEqual(parameters["kind"], "repair")
             self.assertEqual(parameters["base_generation"], "gen-1")
             self.assertEqual(parameters["requested_generation"], "gen-1")
@@ -291,15 +287,15 @@ class RepairApplicationTest(unittest.TestCase):
             self.assertEqual(parameters["seeds"], [5])
             self.assertIn("mask_bbox", parameters)
 
-    def test_key_prefix_derives_batch_and_job_keys(self):
+    def test_key_prefix_derives_request_and_job_keys(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             repair("gen-1", services, parts=["feet"], seeds=[1], key_prefix="request:r1")
             posts = {call[1]: call[2] for call in services.management.calls
                      if call[0] == "POST" and call[2]}
-            self.assertEqual(posts["/api/v1/batches"]["idempotency_key"], "request:r1")
+            self.assertEqual(posts["/api/v1/requests"]["idempotency_key"], "request:r1")
             self.assertEqual(
-                posts["/api/v1/batches/repair-batch-id/jobs"]["idempotency_key"],
+                posts["/api/v1/requests/repair-request-id/jobs"]["idempotency_key"],
                 "request:r1:job:0")
             generation_call = next(
                 call for call in services.management.calls
@@ -314,12 +310,48 @@ class RepairApplicationTest(unittest.TestCase):
                 asset_call[3][0]["idempotency_key"],
                 "request:r1:job:0:asset:repair-mask")
 
-    def test_returns_batch_id_and_generation_ids(self):
+    def test_returns_generation_ids_only(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             result = repair("gen-1", services, parts=["feet"], seeds=[1, 2])
-            self.assertEqual(result["batch_id"], "repair-batch-id")
+            self.assertNotIn("batch_id", result)
             self.assertEqual(len(result["generation_ids"]), 2)
+
+    def test_worker_request_reports_resolution_and_jobs_source_the_redraw(self):
+        with tempfile.TemporaryDirectory() as directory:
+            management = ManagementFake(
+                request_parameters={"kind": "hires-chain"},
+                generations=[
+                    {"id": "raw-gen", "short_id": "rawshort",
+                     "image_width": 1280, "image_height": 2560},
+                    {"id": "delivered-gen", "short_id": "delshort",
+                     "image_width": 768, "image_height": 1536}])
+            services = base_services(directory, management=management)
+            repair("delivered-gen", services, parts=["feet"], seeds=[1, 2],
+                   key_prefix="request:r1", request_id="r1")
+            calls = management.calls
+            self.assertFalse(any(call[1] == "/api/v1/requests" for call in calls))
+            resolution = next(
+                call for call in calls if call[1] == "/api/v1/requests/r1/resolution")
+            self.assertEqual(resolution[0], "PUT")
+            self.assertEqual(
+                resolution[2]["references"][0]["source_generation_id"], "raw-gen")
+            jobs = [call for call in calls if call[1].endswith("/jobs")]
+            self.assertEqual(len(jobs), 2)
+            for job in jobs:
+                self.assertEqual(job[1], "/api/v1/requests/repair-request-id/jobs")
+                self.assertEqual(job[2]["source_generation_id"], "raw-gen")
+
+    def test_standalone_run_imports_and_jobs_carry_no_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(directory)
+            repair("gen-1", services, parts=["feet"], seeds=[1])
+            calls = services.management.calls
+            create = next(call for call in calls if call[1] == "/api/v1/requests")
+            self.assertEqual(create[2]["kind"], "import")
+            self.assertEqual(create[2]["status"], "done")
+            job_call = next(call for call in calls if call[1].endswith("/jobs"))
+            self.assertNotIn("source_generation_id", job_call[2])
 
     def test_lora_reaches_the_graph_builder(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -345,18 +377,18 @@ class RepairApplicationTest(unittest.TestCase):
             repair("gen-1", services, parts=["feet"], seeds=[1])
             self.assertEqual(seen["loras"], ())
 
-    def test_lora_is_recorded_in_batch_parameters(self):
+    def test_lora_is_recorded_in_request_parameters(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             repair("gen-1", services, parts=["feet"], seeds=[1], lora=0.8)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertEqual(parameters["lora"], 0.8)
 
-    def test_lora_defaults_to_none_in_batch_parameters(self):
+    def test_lora_defaults_to_none_in_request_parameters(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             repair("gen-1", services, parts=["feet"], seeds=[1])
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertIsNone(parameters["lora"])
 
     def test_model_reaches_the_graph_builder_as_a_model_hook(self):
@@ -395,18 +427,18 @@ class RepairApplicationTest(unittest.TestCase):
             repair("gen-1", services, parts=["feet"], seeds=[1], lora=0.8, model="anima")
             self.assertEqual(seen["loras"], ())
 
-    def test_model_is_recorded_in_batch_parameters(self):
+    def test_model_is_recorded_in_request_parameters(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             repair("gen-1", services, parts=["feet"], seeds=[1], model="anima")
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertEqual(parameters["model"], "anima")
 
-    def test_model_defaults_to_none_in_batch_parameters(self):
+    def test_model_defaults_to_none_in_request_parameters(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             repair("gen-1", services, parts=["feet"], seeds=[1])
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertIsNone(parameters["model"])
 
     def test_control_reaches_the_graph_builder_as_a_conditioning_hook(self):
@@ -448,38 +480,36 @@ class RepairApplicationTest(unittest.TestCase):
             names = [name for name, _data in services.comfyui.uploaded]
             self.assertFalse(any(name.endswith("-control.png") for name in names))
 
-    def test_control_is_recorded_in_batch_parameters(self):
+    def test_control_is_recorded_in_request_parameters(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             repair("gen-1", services, parts=["feet"], seeds=[1],
                   control="lineart", control_strength=0.5)
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertEqual(parameters["control"], "lineart")
             self.assertEqual(parameters["control_strength"], 0.5)
 
-    def test_control_defaults_to_none_in_batch_parameters(self):
+    def test_control_defaults_to_none_in_request_parameters(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             repair("gen-1", services, parts=["feet"], seeds=[1])
-            parameters = batch_call(services)[2]["parameters"]
+            parameters = resolution_call(services)[2]["parameters"]
             self.assertIsNone(parameters["control"])
             self.assertIsNone(parameters["control_strength"])
 
-    def test_notifier_is_sent_once_after_the_batch_completes(self):
+    def test_notifier_is_sent_once_after_the_request_completes(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             repair("gen-1", services, parts=["feet"], seeds=[1, 2])
             self.assertEqual(len(services.notifier.calls), 1)
 
-    def test_batch_marked_completed_after_all_jobs(self):
+    def test_the_request_is_never_patched(self):
         with tempfile.TemporaryDirectory() as directory:
             services = base_services(directory)
             repair("gen-1", services, parts=["feet"], seeds=[1, 2])
-            completed = [call for call in services.management.calls
-                        if call[0] == "PATCH"
-                        and call[1] == "/api/v1/batches/repair-batch-id"
-                        and call[2] == {"status": "completed"}]
-            self.assertEqual(len(completed), 1)
+            self.assertFalse(any(
+                call[0] == "PATCH" and call[1].startswith("/api/v1/requests/")
+                for call in services.management.calls))
 
 
 if __name__ == "__main__":

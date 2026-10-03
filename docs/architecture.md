@@ -56,7 +56,7 @@ each recipe's `dials` block.
 
 ## Application
 
-`src/comfyui_recipes/application/` owns use cases: generate and record a batch,
+`src/comfyui_recipes/application/` owns use cases: generate and record a request,
 finalize a selected generation, and manage its metadata. It coordinates domain
 rules and concrete adapters without reimplementing either.
 

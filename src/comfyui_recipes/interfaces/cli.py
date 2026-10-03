@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -12,6 +13,7 @@ from ..application.catalog import build_catalog
 from ..application.catalog import publish_catalog as publish_catalog_document
 from ..application.finalize import finalize
 from ..application.generate import generate
+from ..application.ingest import import_images
 from ..application.masked_redraw import masked_redraw
 from ..application.repair import repair
 from ..application.request_options import (
@@ -56,16 +58,16 @@ def _number_or_word(raw: str) -> float | str:
 
 
 def _resolve_word_args(chimera: ChimeraClient, generation_id: str, scope: str,
-                       values: dict) -> tuple[dict | None, dict | None, dict]:
+                       values: dict) -> tuple[dict | None, dict]:
     """Resolve any word (string) values in `values` against the source
     generation's recipe dials for `scope`; numbers and `None` pass through.
 
-    Returns the `context`/`batch` `fetch_source` fetched, or `(None, None)`
-    if no word was given, so the caller can reuse them without re-fetching.
+    Returns the `context` `fetch_source` fetched, or `None`
+    if no word was given, so the caller can reuse it without re-fetching.
     """
     if not any(isinstance(value, str) for value in values.values()):
-        return None, None, values
-    context, batch, recipe = fetch_source(chimera, generation_id)
+        return None, values
+    context, recipe = fetch_source(chimera, generation_id)
     dials = dials_scope(recipe, scope)
     resolved = {}
     for key, value in values.items():
@@ -73,7 +75,7 @@ def _resolve_word_args(chimera: ChimeraClient, generation_id: str, scope: str,
             resolved[key] = resolve_dial(key, value, dials)
         except ValueError as error:
             raise SystemExit(str(error)) from error
-    return context, batch, resolved
+    return context, resolved
 
 
 def _positive_finite_seconds(raw: str) -> float:
@@ -92,10 +94,25 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="comfy-recipes")
     commands = root.add_subparsers(dest="command", required=True)
 
-    generate_parser = commands.add_parser("generate", help="run and record a batch")
+    generate_parser = commands.add_parser("generate", help="run and record a request")
     generate_parser.add_argument("--request", required=True, type=Path)
     generate_parser.add_argument("--dry-run", action="store_true")
     generate_parser.add_argument("--force", action="store_true")
+
+    import_parser = commands.add_parser(
+        "import", help="register image files as an import request")
+    import_parser.add_argument("images", nargs="+", type=Path)
+    import_parser.add_argument("--recipe")
+    import_parser.add_argument(
+        "--parameters", default="{}", help="JSON object recorded as the request's parameters")
+    import_parser.add_argument("--raw-instruction", default="")
+    import_parser.add_argument(
+        "--references", default="[]",
+        help="JSON list of {source_generation_id, purpose, aspect?, instruction?}")
+    import_parser.add_argument("--seed", type=int, default=0)
+    import_parser.add_argument(
+        "--idempotency-key",
+        help="defaults to a digest of the image bytes, so a resend registers nothing twice")
 
     watch_parser = commands.add_parser(
         "watch", help="poll chimera for pending ExperimentRuns and generate them")
@@ -364,6 +381,22 @@ def main(argv: list[str] | None = None) -> None:
             chimera, comfyui, notifier, repository, repository_metadata)
         generate(args.request, services, dry_run=args.dry_run, force=args.force)
         return
+    if args.command == "import":
+        git = repository_metadata()
+        key = args.idempotency_key or "import:" + hashlib.sha256(
+            b"".join(path.read_bytes() for path in args.images)).hexdigest()
+        resolution = {
+            "recipe": args.recipe,
+            "raw_instruction": args.raw_instruction,
+            "parameters": json.loads(args.parameters),
+            "git_commit": git["commit"], "git_dirty": git["dirty"],
+            "references": json.loads(args.references),
+        }
+        result = import_images(
+            chimera, print, images=args.images, resolution=resolution,
+            idempotency_key=key, seed=args.seed)
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return
     if args.command == "watch":
         services = build_generate_services(
             chimera, comfyui, notifier, repository, repository_metadata)
@@ -390,7 +423,7 @@ def main(argv: list[str] | None = None) -> None:
                           for region in (args.repair_regions or [])]
         keep_regions = [[float(value) for value in region.split(",")]
                        for region in (args.keep_regions or [])]
-        context, _batch, dial_values = _resolve_word_args(
+        context, dial_values = _resolve_word_args(
             chimera, args.generation_id, "finalize",
             {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
         finalize(args.generation_id, services, denoise=dial_values["denoise"],
@@ -435,14 +468,14 @@ def main(argv: list[str] | None = None) -> None:
         regions = [[float(value) for value in region.split(",")]
                   for region in (args.regions or [])]
         seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
-        context, batch, dial_values = _resolve_word_args(
+        context, dial_values = _resolve_word_args(
             chimera, args.generation_id, "repair",
             {key: getattr(args, key) for key in REPAIR_DIAL_KEYS})
         repair(args.generation_id, services, parts=parts, regions=regions,
               denoise=dial_values["denoise"], seeds=seeds, size=args.size,
               pad=args.pad, lora=dial_values["lora"], model=args.model,
               control=args.control, control_strength=args.control_strength,
-              context=context, batch=batch)
+              context=context)
         return
     if args.command == "masked_redraw":
         services = build_masked_redraw_services(

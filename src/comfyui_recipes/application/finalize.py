@@ -1,4 +1,4 @@
-"""Finalize one selected generation as a recorded refinement batch."""
+"""Finalize one selected generation as a recorded refinement request."""
 
 from __future__ import annotations
 
@@ -32,6 +32,7 @@ from .ingest import (
     attach_asset,
     classify_outputs,
     generation_key,
+    open_request,
     record_job,
     upload_generation,
 )
@@ -70,7 +71,6 @@ class FinalizeServices:
 class _Source:
     context: dict
     picked: bytes
-    batch: dict
     is_repaired_raw: bool
     base_generation_id: str
     graph: dict
@@ -138,11 +138,9 @@ def _load_source(generation_id: str, services: FinalizeServices,
         context = services.management.request(
             "GET", f"/api/v1/generations/{generation_id}/context")
     picked = services.management.fetch_generation_image(generation_id)
-    source_batch = services.management.request(
-        "GET", f"/api/v1/batches/{context['batch']['id']}")
-    source_kind = (source_batch.get("parameters") or {}).get("kind")
-    is_repaired_raw = source_kind in ("repair", "masked_redraw")
-    base_generation_id = (source_batch["parameters"]["base_generation"]
+    source_parameters = context["request"].get("parameters") or {}
+    is_repaired_raw = source_parameters.get("kind") in ("repair", "masked_redraw")
+    base_generation_id = (source_parameters["base_generation"]
                           if is_repaired_raw else generation_id)
     base_record = services.management.request(
         "GET", f"/api/v1/generations/{base_generation_id}")
@@ -159,7 +157,7 @@ def _load_source(generation_id: str, services: FinalizeServices,
     # source finalize redraws; others require deliver_only.
     is_anima = any(node.get("class_type") == "UNETLoader"
                    for node in base.values())
-    return _Source(context=context, picked=picked, batch=source_batch,
+    return _Source(context=context, picked=picked,
                    is_repaired_raw=is_repaired_raw,
                    base_generation_id=base_generation_id, graph=base,
                    roles=roles, is_anima=is_anima)
@@ -269,7 +267,8 @@ def _resolve_plan(source: _Source, generation_id: str, *,
 
 def _deliver_with_repair(generation_id: str, services: FinalizeServices,
                          source: _Source, plan: _Plan,
-                         key_prefix: str | None) -> dict:
+                         key_prefix: str | None,
+                         request_id: str | None) -> dict:
     # deliver_only has no whole-canvas sampler for splice_repair to splice
     # into, so this routes through repair() once per seed instead.
     seeds_count = plan.repair_seeds if plan.repair_seeds is not None else 4
@@ -295,7 +294,8 @@ def _deliver_with_repair(generation_id: str, services: FinalizeServices,
         backdrop=plan.backdrop, stroke_light=plan.stroke_light,
         transparent=plan.transparent, deliver_size=plan.deliver_size,
         graph_generation_id=source.base_generation_id if source.is_repaired_raw else None,
-        key_prefix=key_prefix, context=source.context, batch=source.batch)
+        key_prefix=key_prefix, request_id=request_id,
+        context=source.context)
 
 
 def _stage_inputs(services: FinalizeServices, source: _Source, plan: _Plan,
@@ -420,7 +420,7 @@ def _collect_outputs(services: FinalizeServices, prefix: str,
                     matte=matte, delivered_name=delivered_name, delivered=delivered)
 
 
-def _batch_parameters(generation_id: str, plan: _Plan,
+def _request_parameters(generation_id: str, plan: _Plan,
                       repair_mask_bbox: tuple | None) -> dict:
     return {"kind": "hires-chain",
            "base_generation": generation_id,
@@ -454,23 +454,26 @@ def _batch_parameters(generation_id: str, plan: _Plan,
 
 def _record(services: FinalizeServices, generation_id: str, source: _Source,
            plan: _Plan, staged: _Staged, graph: dict, prompt_id: str,
-           outputs: _Outputs, batch_parameters: dict, seed: int,
-           repair_mask_png: bytes | None, key_prefix: str | None) -> dict:
+           outputs: _Outputs, request_parameters: dict, seed: int,
+           repair_mask_png: bytes | None, key_prefix: str | None,
+           request_id: str | None) -> dict:
     git = services.git_metadata()
-    batch = services.management.request("POST", "/api/v1/batches", {
-        "idempotency_key": key_prefix or str(uuid.uuid4()),
-        "raw_instruction": f"{generation_id} を高解像度化",
-        "recipe": "yukari",
-        "parameters": batch_parameters,
-        "git_commit": git["commit"], "git_dirty": git["dirty"],
-        "references": [{"source_generation_id": generation_id,
-                        "purpose": "rebuild", "aspect": "composition",
-                        "instruction": "この生成の 2048 プリント"}],
-        "refinement": {"source_batch_id": source.context["batch"]["id"],
-                       "actor": "human", "reason": "採用作の高解像度化"},
-    })
-    job = record_job(services.management, batch["id"], key_prefix=key_prefix,
-                     index=0, seed=seed, prompt_id=prompt_id, graph=graph)
+    request = open_request(
+        services.management, request_id=request_id,
+        idempotency_key=key_prefix or str(uuid.uuid4()),
+        resolution={
+            "raw_instruction": f"{generation_id} を高解像度化",
+            "recipe": "yukari",
+            "parameters": request_parameters,
+            "git_commit": git["commit"], "git_dirty": git["dirty"],
+            "references": [{"source_generation_id": generation_id,
+                            "purpose": "rebuild", "aspect": "composition",
+                            "instruction": "この生成の 2048 プリント"}],
+        })
+    job = record_job(services.management, request["id"], key_prefix=key_prefix,
+                     index=0, seed=seed, prompt_id=prompt_id, graph=graph,
+                     source_generation_id=(generation_id if request_id
+                                           else None))
     uploads = ([(outputs.delivered_name, outputs.delivered)] if plan.deliver_only
               else [(outputs.image_filename, outputs.raw),
                     (outputs.delivered_name, outputs.delivered)])
@@ -497,14 +500,12 @@ def _record(services: FinalizeServices, generation_id: str, source: _Source,
         services.emit(f"{mask_filename} -> repair-mask on {ids[0]}")
     services.management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
-    services.management.request(
-        "PATCH", f"/api/v1/batches/{batch['id']}", {"status": "completed"})
     services.notifier.send(
         f"**finalize** `{generation_id}`\n"
         f"**file** `{outputs.delivered_name}`\n"
         f"**chimera** {urls[-1]}", outputs.delivered_name, outputs.delivered)
-    services.emit(f"batch {batch.get('short_id', batch['id'])} done")
-    return {"batch_id": batch["id"], "generation_ids": ids}
+    services.emit(f"request {request.get('short_id') or request['id']} done")
+    return {"generation_ids": ids}
 
 
 def finalize(generation_id: str, services: FinalizeServices, *,
@@ -517,6 +518,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              size: int | None = None, latent_route: bool | None = None,
              finalizer: str | None = None,
              key_prefix: str | None = None,
+             request_id: str | None = None,
              backdrop: str | None | object = None,
              upscale: str | None = None,
              deliver_size: int | None = None,
@@ -556,7 +558,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
 
     if plan.deliver_only and plan.repair_requested:
         return _deliver_with_repair(
-            generation_id, services, source, plan, key_prefix)
+            generation_id, services, source, plan, key_prefix, request_id)
 
     if plan.repair_size is None:
         plan = replace(plan, repair_size=1024)
@@ -577,10 +579,11 @@ def finalize(generation_id: str, services: FinalizeServices, *,
     services.emit(f"{prefix} {prompt_id}")
     outputs = _collect_outputs(services, prefix, prompt_id)
 
-    batch_parameters = _batch_parameters(generation_id, plan, repair_mask_bbox)
+    request_parameters = _request_parameters(
+        generation_id, plan, repair_mask_bbox)
     result = _record(services, generation_id, source, plan, staged, graph,
-                     prompt_id, outputs, batch_parameters, seed,
-                     repair_mask_png, key_prefix)
+                     prompt_id, outputs, request_parameters, seed,
+                     repair_mask_png, key_prefix, request_id)
     if state_path:
         state.update({"status": "completed", "result": result})
         services.state.save(state_path, state)

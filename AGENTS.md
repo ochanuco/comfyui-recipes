@@ -100,7 +100,7 @@ experiments/  one observation per JSONL record (seed, render_id, parameter,
               value, outcome accepted|rejected|inconclusive, reason).
               Append-only: a refuted hypothesis gets a NEW record, the old
               one is never rewritten. Schema in experiments/README.md.
-              An A/B round with arms and a chimera Batch is recorded as a
+              An A/B round with arms and a chimera Request is recorded as a
               chimera Experiment/Run instead of a JSONL record; plain
               observations still append here. The JSONL stays the source
               of truth; chimera holds a derived index kept in sync by
@@ -154,8 +154,8 @@ list_generations                      find a starting ID: published=true is ever
                                       look, each carrying its look:<pose> tag
 list_catalog                          every recipe's pose / costume names + patch/dial vocabulary (~2k)
 get_catalog_pose recipe pose          one pose: canvas, default costume, assembled prompts    (~1k)
-get_generation <short_id>             rating, semantic, batch prompt + parameters, seed
-list_batch <short_id>                 every arm of a batch with rating and semantic summary
+get_generation <short_id>             rating, semantic, request prompt + parameters, seed
+list_batch <short_id>                 every generation of the same request with rating and semantic summary
 get_generation_lineage <short_id>     what it was derived or finalized from, and what came after
 ```
 
@@ -215,7 +215,7 @@ derive_request        from a rated generation: same recipe, parameters and
                       → human rates on chimera →
 finalize_generation   the pick, delivered: one ComfyUI graph that redraws at
                       2048, cuts a matte and composites the backdrop and purple
-                      stroke; recorded as a refinement batch of the source.
+                      stroke; recorded as a request that refines the source.
 repair_generation     optional: a masked local redraw of hands / feet.
 get_request           status of any of the above; list_requests for the queue.
 ```
@@ -291,9 +291,9 @@ tracked file.
   `generation.graph` / `generation.prompt`（`negative_prompt` も同様）とは
   併用できない — 二つの入口で適用順序が曖昧になるため。上書きの正本は
   chimera 側の ExperimentRun であり、worker は取り込んで既存の patch 機構に
-  流すだけ。バッチ作成後、worker は `PATCH /api/v1/experiment-runs/{run_id}`
-  に `batch_id` のみを送る。generation_id は代表選定が人間/エージェントの
-  仕事なので worker は推測しない。
+  流すだけ。ブロック自体は chimera へ転送しない。worker を通らない実行
+  （watch）では `run_id` だけを import Request の作成時に送り、Run との対応は
+  chimera が requests.run_id で持つ。
 
 ## The delivery identity is a contract, not a preference
 

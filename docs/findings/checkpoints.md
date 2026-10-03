@@ -6,8 +6,18 @@ Anima recipe itself in [`docs/yukari/anima.md`](../yukari/anima.md). Tags and
 
 ## Holds
 
-- Stage 1 is Anima Turbo (10 steps, CFG 2, euler, ~33 s a picture). CFG 1
-  switches the negative off. `[Anima]`
+- Stage 1 is SilvermoonMix-Anima-Evolved 2.9B Turbo: 10 steps, euler, CFG 2
+  for the first 4 steps and CFG 1 after (~35 s a picture). CFG 1 switches
+  the negative off; CFG 2 on all 10 steps draws nearly the same picture. `[Anima]`
+- On SilvermoonMix the hair gloss comes from `masterpiece, best quality,
+  score_7`: removing them alone gives a flat fill and an even green backdrop
+  on bust; on full-body anyo the change is small and the soles lose toe detail.
+  Not the default. `[Anima]` (`experiments/yukari/prompt_style.jsonl`)
+- On SilvermoonMix `@oshiki hitoshi` carries the black line and shadow,
+  `@yoshikawa hideaki` the round face, younger look and gloss. `[Anima]`
+- A LoRA trained on 2B Anima barely moves the 2.9B layer expansion even at
+  1.8 although ComfyUI attaches its patches; the same LoRA overpowers
+  anima-turbo-v1.1. Check a LoRA's base (2B or 2.9B) before downloading. `[Anima]`
 - Style on Anima moves with artist tags (`@oshiki hitoshi` 0.85,
   `@yoshikawa hideaki` 0.5), not with a sketch LoRA; the sketch LoRA route is
   withdrawn. An artist the user excluded is patched out even if a default
@@ -45,6 +55,22 @@ Anima recipe itself in [`docs/yukari/anima.md`](../yukari/anima.md). Tags and
 - LayerDiffuse removes redrawn furniture that negatives cannot; the LD alpha's
   white haze is cut. `[all]`
 
+## Checking a new stage-1 model
+
+Run each on bust (the style reference) and one full-body pose, two seeds,
+control re-rendered in the same ComfyUI process:
+
+1. Quality tags: render with and without `masterpiece, best quality, score_7`.
+   They decided the gloss on SilvermoonMix when no style word did.
+2. Artist tags: each artist alone and both at 1.2/0.8; note which carries line,
+   face and gloss.
+3. Hand-drawn line: does any line word move the main line at all? If not, the
+   line has to come from a LoRA matched to the model's size, or the IL redraw.
+4. LoRAs in use: confirm each one visibly moves the picture at 1.0.
+5. Sampler and CFG: the model card's sampler under our guided-steps CFG 1
+   tail, and the time per picture.
+6. Green backdrop: flat and saturated enough for the key.
+
 ## Does not work
 
 - IPAdapter for costume transfer: across 4 poses, no palette gain and a 7–15%
@@ -52,3 +78,12 @@ Anima recipe itself in [`docs/yukari/anima.md`](../yukari/anima.md). Tags and
 - Checkpoint swaps to fix a look the recipe's own blocks were causing. `[IL]` (a6 §The AI look)
 - Krea2: tag prompts draw someone else, CG paint. `[all]`
 - Detail Daemon: numbers rise, the picture does not improve. `[IL]` (a1 §Detail Daemon)
+- SilvermoonMix gloss through words: flat color 1.6 or at the head, cel /
+  minimal / two-tone shading, no highlights / matte hair, a stronger shiny-hair
+  negative. `[Anima]`
+- SilvermoonMix line through words: sketch 1.6, rough / loose / uneven
+  linework, hand-drawn, oekaki, pencil underdrawing, traditional media. The
+  main line stays a clean digital line. `[Anima]`
+- er_sde under the CFG 1 tail: grain at 10 steps, speckle that grows with steps. `[Anima]`
+- Repainting the SilvermoonMix latent with anima-turbo-v1.1: only d0.65 drops
+  the gloss, ~3x the time. `[Anima]`

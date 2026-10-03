@@ -62,8 +62,8 @@ tools (`derive_request`, `finalize_generation`, `repair_generation`) or
 `POST /api/v1/requests` — and `comfy-recipes work` on the GPU box is the one
 command that executes it. Inside the worker, a `generate` row runs the same
 code as `comfy-recipes generate --request`: it validates the request, submits
-the graph, and records the batch in the Management API on the way through —
-Batch and Job registration, image ingest into R2, and a Discord notification
+the graph, and records the request in the Management API on the way through —
+the resolved values, Job registration, image ingest into R2, and a Discord notification
 that carries the generation's canonical URL. Running `generate` by hand is a
 worker-box operation for replaying a recorded request file, not a way to
 queue work.
@@ -90,9 +90,12 @@ the cache (mode 0600) and later runs stay unattended. The values are
 credentials: they never go into a tracked file.
 
 A run writes `<request>.state.json` next to the request. That file is what
-makes re-running the same command safe — it holds the idempotency keys, batch
+makes re-running the same command safe — it holds the idempotency keys, request
 and job ids, and the seeds, so a retry resumes from wherever the last run
 stopped instead of creating duplicates.
+
+`comfy-recipes import IMAGE... --recipe R --parameters JSON` registers existing image
+files as an import request with one job, idempotent by `--idempotency-key`.
 
 ## What this is, and what it is not
 

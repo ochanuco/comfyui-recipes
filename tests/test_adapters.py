@@ -67,7 +67,7 @@ class AdapterTest(unittest.TestCase):
         with patch("urllib.request.urlopen",
                    side_effect=urllib.error.URLError("offline")) as urlopen, \
                 patch("time.sleep") as sleep, self.assertRaises(SystemExit):
-            client.request("POST", "/api/v1/batches", {"recipe": "yukari"})
+            client.request("POST", "/api/v1/requests", {"recipe": "yukari"})
         self.assertEqual(urlopen.call_count, 1)
         sleep.assert_not_called()
 
@@ -83,8 +83,8 @@ class AdapterTest(unittest.TestCase):
                    side_effect=[urllib.error.URLError("offline"), response]) as urlopen, \
                 patch("time.sleep") as sleep:
             self.assertEqual(
-                client.request("POST", "/api/v1/batches",
-                               {"idempotency_key": "batch-key"}),
+                client.request("POST", "/api/v1/requests",
+                               {"idempotency_key": "request-key"}),
                 {"ok": True})
         self.assertEqual(urlopen.call_count, 2)
         sleep.assert_called_once_with(2)

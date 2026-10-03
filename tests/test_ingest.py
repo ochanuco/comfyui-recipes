@@ -112,6 +112,7 @@ class OpenRequestTests(unittest.TestCase):
         self.assertEqual(payload["kind"], "import")
         self.assertEqual(payload["status"], "done")
         self.assertEqual(payload["idempotency_key"], "k")
+        self.assertEqual(payload["created_by"], "system")
         self.assertEqual(payload["recipe"], "yukari")
 
 

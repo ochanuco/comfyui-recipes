@@ -105,9 +105,9 @@ POSES = {
         framing=Framing.BUST,
         angle="(from front:1.3), ",
         leg_display="",
-        expression="smile", costume="standard",
+        expression="jitome", costume="standard",
         negative=("(sitting:1.3), (wavy mouth:1.4), (:3:1.3), (pout:1.3), "
-                  "(pursed lips:1.3), (puckered lips:1.2), "),
+                  "(pursed lips:1.3), (puckered lips:1.2), (smile:1.2), "),
         legwear=False,
         body="(mature female:1.3), (adult:1.2), adult proportions, "),
     "gao": Pose(

@@ -154,8 +154,7 @@ list_generations                      find a starting ID: published=true is ever
                                       look, each carrying its look:<pose> tag
 list_catalog                          every recipe's pose / costume names + patch/dial vocabulary (~2k)
 get_catalog_pose recipe pose          one pose: canvas, default costume, assembled prompts    (~1k)
-get_generation <short_id>             rating, semantic, request prompt + parameters, seed
-list_batch <short_id>                 every generation of the same request with rating and semantic summary
+get_generation <short_id>             rating, semantic, request prompt + parameters, seed, the request's other generations
 get_generation_lineage <short_id>     what it was derived or finalized from, and what came after
 ```
 
@@ -278,7 +277,7 @@ tracked file.
 - chimera への全リクエストに User-Agent の明示が必須（urllib のデフォルトは
   Cloudflare が 403/1010 で弾く）。MCP 経由は気にしなくてよい。
 - rating（bad/neutral/good）を書くのは人間だけ。エージェントは人間の rating と
-  semantic を `get_generation` / `list_batch` で読んで改善を進める。AI が
+  semantic を `get_generation` / `list_generations` で読んで改善を進める。AI が
   画像を開く検品は、rating と semantic だけでは判断できない場合の最終手段
   （トークン消費が理由）。
 - Service Token は 1Password `chimera-claude-agent`。取得後は untracked の

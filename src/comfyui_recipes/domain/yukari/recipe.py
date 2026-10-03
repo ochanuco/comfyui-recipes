@@ -30,6 +30,7 @@ from .prompt_style import (
     DETAIL_BAN,
     DIGIT_BAN,
     DOT_BAN,
+    EYE_SHAPE,
     FACE,
     GARMENT_BLACK_BAN,
     GARMENT_GLOSS_TAGS,
@@ -73,7 +74,7 @@ PART_GROUPS = part_groups(PART_NAMES)
 # tags down to.
 IDENTITY_TAG_NAMES = frozenset({
     "light purple hair", "short hair with long locks", "very long sidelocks",
-    "purple eyes", "hair ornament", "tareme", "jitome",
+    "dark greyish purple eyes", "hair ornament", "tareme", "jitome",
     "eggplant purple hooded cardigan", "rabbit hood",
 })
 
@@ -105,7 +106,7 @@ def _components(pose: str, costume: str | None = None,
         Component("action", G, M, p.action),
         Component("mouth", G, M, e.mouth),
         Component("mood", G, M, p.mood),
-        Component("eye_base", G, L, e.eye_shape),
+        Component("eye_base", G, L, EYE_SHAPE),
         Component("eye_quality", G, L, EYE_QUALITY[e.eye_quality] + e.eyes),
         Component("gesture", G, M, p.gesture),
         Component("costume", G, M, COSTUMES[c]),

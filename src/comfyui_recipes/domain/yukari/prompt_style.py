@@ -17,19 +17,17 @@ SERIES_TAG = "vocaloid, voiceroid, "
 ARTIST_TAG = "(@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
 CHARACTER = CHARACTER_TAG + SERIES_TAG + ARTIST_TAG
 IDENTITY = ("light purple hair, short hair with long locks, very long "
-            "sidelocks, purple eyes, hair ornament, ")
+            "sidelocks, (dark greyish purple eyes:1.4), (dark irises:1.2), "
+            "hair ornament, ")
 BODY = ("(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), "
         "(soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), "
         "adult proportions, long torso, seven heads tall, ")
 BACKGROUND = "simple background, (green background:1.3), "
 # Leads every expression's eyes block: placed behind BACKGROUND (as FACE
-# is) the tag stops reaching the eyes at any weight. EYE_SHAPE_FLAT is for
-# expressions with no half-closed eyes of their own; on others it also
-# flattens the mouth's smile.
-EYE_SHAPE = "(tareme:1.2), (jitome:1.4), "
-EYE_SHAPE_FLAT = "(tareme:1.2), (jitome:1.8), "
-FACE = ("(large eyes:1.6), (big eyes:1.3), (round face:1.3), (tareme:1.2), "
-        "(thick eyelashes:1.3), ")
+# is) the tag stops reaching the eyes at any weight.
+EYE_SHAPE = "(jitome:2.0), (tareme:1.2), (long eyes:1.25), "
+FACE = ("(large eyes:1.2), (round face:1.3), (tareme:1.2), "
+        "(thick eyelashes:1.3), (long eyelashes:1.15), ")
 STYLE = "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
 
 DIGIT_BAN = "(extra digits:1.5), bad anatomy, bad hands, "
@@ -63,7 +61,8 @@ GRADIENT_BAN = "(gradient:1.5), (soft shading:1.5), "
 NEGATIVE_TAIL = ("(sparkling eyes:1.4), (glitter:1.3), "
                   "(multiple highlights:1.3), (gradient eyes:1.2), "
                   "(speed lines:1.45), (motion lines:1.4), "
-                  "(emphasis lines:1.4), ")
+                  "(emphasis lines:1.4), (light purple eyes:1.3), "
+                  "(bright eyes:1.2), (pink eyes:1.2), ")
 HOOD_BAN = "(hood:1.3), (cardigan:1.3), "
 GARMENT_BLACK_BAN = "(black jacket:1.35), (black clothes:1.3), (black hoodie:1.35), "
 VIVID_BAN = ("(magenta:1.45), (pink legwear:1.45), (bright purple:1.35), "

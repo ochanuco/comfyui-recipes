@@ -1020,10 +1020,12 @@ class GenerateApplicationTest(unittest.TestCase):
         strip_patch = [
             {"target": "prompt.positive.identity", "op": "remove",
              "old": ("light purple hair, short hair with long locks, very "
-                     "long sidelocks, purple eyes, hair ornament, "),
+                     "long sidelocks, (dark greyish purple eyes:1.4), "
+                     "(dark irises:1.2), hair ornament, "),
              "reason": "repair crop"},
             {"target": "prompt.positive.eyes", "op": "remove",
-             "old": "(tareme:1.2), (jitome:1.8), ", "reason": "repair crop"},
+             "old": "(jitome:2.0), (tareme:1.2), (long eyes:1.25), ",
+             "reason": "repair crop"},
         ]
 
         def _request(**extra):
@@ -1051,7 +1053,7 @@ class GenerateApplicationTest(unittest.TestCase):
             with self.assertRaises(SystemExit) as ctx:
                 generate(path, services)
             message = str(ctx.exception)
-            for tag in ("purple eyes", "light purple hair",
+            for tag in ("dark greyish purple eyes", "light purple hair",
                        "short hair with long locks", "very long sidelocks",
                        "hair ornament", "jitome"):
                 self.assertIn(tag, message)
@@ -1083,7 +1085,8 @@ class GenerateApplicationTest(unittest.TestCase):
                 call for call in management.calls if call[0] == "semantic")
             attributes = semantic_call[2]["attributes"]
             self.assertTrue(
-                {"purple eyes", "jitome"} <= set(attributes["identity_removed"]))
+                {"dark greyish purple eyes", "jitome"}
+                <= set(attributes["identity_removed"]))
             self.assertEqual(
                 attributes["identity_override"], "deliberate repair crop")
 

@@ -38,9 +38,25 @@ DANCE_FIXTURE = json.loads((FIXTURES / "dance-legwear-t4qwab.json").read_text())
 LEGWEAR_SHEER_GLOSS_FINAL = json.loads(
     (FIXTURES / "legwear-sheer-gloss-final.json").read_text())
 
+
+def _current_defaults(fixture):
+    out = dict(fixture)
+    out["positive"] = (fixture["positive"]
+                       .replace("masterpiece, best quality, score_7, ", "")
+                       .replace("hitoshi:0.85)", "hitoshi:1.3)"))
+    out["negative"] = fixture["negative"].replace(
+        "(aged down:1.2)", "(aged down:1.2), (text:1.3), (speech bubble:1.3), (onomatopoeia:1.3), "
+        "(english text:1.2), signature, watermark", 1)
+    return out
+
+
+DANCE_FIXTURE = _current_defaults(DANCE_FIXTURE)
+LEGWEAR_SHEER_GLOSS_FINAL = {pose: _current_defaults(f)
+                             for pose, f in LEGWEAR_SHEER_GLOSS_FINAL.items()}
+
 COFFEE_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "1girl, solo, yuzuki yukari, "
+    "vocaloid, voiceroid, (@oshiki hitoshi:1.3), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
     "(dark greyish purple eyes:1.4), (dark irises:1.2), hair ornament, "
     "(jitome:2.0), (tareme:1.2), (long eyes:1.25), (half-closed "
@@ -78,13 +94,16 @@ COFFEE_NEGATIVE = (
     "legwear:1.4), (brown pantyhose:1.4), (tan:1.2), (beige legwear:1.3), "
     "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
     "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
-    "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
+    "down:1.2)"
+    ", (text:1.3), (speech bubble:1.3), (onomatopoeia:1.3), "
+    "(english text:1.2), signature, watermark"
+    "(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
     "(ribbed legwear:1.3), (vertical-striped legwear:1.3), "
 )
 
 AMAE_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "1girl, solo, yuzuki yukari, "
+    "vocaloid, voiceroid, (@oshiki hitoshi:1.3), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
     "(dark greyish purple eyes:1.4), (dark irises:1.2), hair ornament, "
     "(jitome:2.0), (tareme:1.2), (long eyes:1.25), (half-closed "
@@ -108,8 +127,8 @@ AMAE_NEGATIVE = COFFEE_NEGATIVE.replace(
     "(mug:1.3), (paper cup:1.2), (hot coffee:1.2), (steam:1.3), ", "")
 
 STAND_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "1girl, solo, yuzuki yukari, "
+    "vocaloid, voiceroid, (@oshiki hitoshi:1.3), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
     "(dark greyish purple eyes:1.4), (dark irises:1.2), hair ornament, "
     "(jitome:2.0), (tareme:1.2), (long eyes:1.25), (half-closed "
@@ -147,13 +166,16 @@ STAND_NEGATIVE = (
     "legwear:1.4), (brown pantyhose:1.4), (tan:1.2), (beige legwear:1.3), "
     "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
     "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
-    "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
+    "down:1.2)"
+    ", (text:1.3), (speech bubble:1.3), (onomatopoeia:1.3), "
+    "(english text:1.2), signature, watermark"
+    "(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
     "(ribbed legwear:1.3), (vertical-striped legwear:1.3), "
 )
 
 BUST_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, vocaloid, "
-    "voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "1girl, solo, yuzuki yukari, vocaloid, "
+    "voiceroid, (@oshiki hitoshi:1.3), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
     "(dark greyish purple eyes:1.4), (dark irises:1.2), hair ornament, "
     "(jitome:2.0), (tareme:1.2), (long eyes:1.25), (half-closed eyes:1.35), "
@@ -188,14 +210,15 @@ BUST_NEGATIVE_TAG_SOURCE = (
     "(maroon:1.35), (wine red:1.3), (black jacket:1.35), (black clothes:1.3),"
     " (black hoodie:1.35), score_1, score_2, score_3, (fat:1.35),"
     " (chubby:1.35), (short legs:1.35), (muscular:1.3), (toned:1.2), "
-    "(child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2), (wavy mouth:1.4),"
+    "(child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2), (text:1.3), (speech bubble:1.3), (onomatopoeia:1.3),"
+    " (english text:1.2), signature, watermark, (wavy mouth:1.4),"
     " (:3:1.3), (pout:1.3), (pursed lips:1.3), (puckered lips:1.2), "
     "(smile:1.2), "
 )
 
 GAO_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "1girl, solo, yuzuki yukari, "
+    "vocaloid, voiceroid, (@oshiki hitoshi:1.3), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
     "(dark greyish purple eyes:1.4), (dark irises:1.2), hair ornament, "
     "(jitome:2.0), (tareme:1.2), (long eyes:1.25), "
@@ -235,13 +258,16 @@ GAO_NEGATIVE = (
     "legwear:1.4), (brown pantyhose:1.4), (tan:1.2), (beige legwear:1.3), "
     "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
     "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
-    "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
+    "down:1.2)"
+    ", (text:1.3), (speech bubble:1.3), (onomatopoeia:1.3), "
+    "(english text:1.2), signature, watermark"
+    "(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
     "(ribbed legwear:1.3), (vertical-striped legwear:1.3), "
 )
 
 REDRAW_STAND_POSITIVE = (
-    "masterpiece, best quality, score_7, 1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:0.85), (@yoshikawa hideaki:0.5), "
+    "1girl, solo, yuzuki yukari, "
+    "vocaloid, voiceroid, (@oshiki hitoshi:1.3), (@yoshikawa hideaki:0.5), "
     "light purple hair, short hair with long locks, very long sidelocks, "
     "(dark greyish purple eyes:1.4), (dark irises:1.2), hair ornament, "
     "(jitome:2.0), (tareme:1.2), (long eyes:1.25), (half-closed "
@@ -284,7 +310,10 @@ REDRAW_STAND_NEGATIVE = (
     "legwear:1.4), (brown pantyhose:1.4), (tan:1.2), (beige legwear:1.3), "
     "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
     "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
-    "down:1.2)(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
+    "down:1.2)"
+    ", (text:1.3), (speech bubble:1.3), (onomatopoeia:1.3), "
+    "(english text:1.2), signature, watermark"
+    "(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
     "(ribbed legwear:1.3), (vertical-striped legwear:1.3), "
 )
 

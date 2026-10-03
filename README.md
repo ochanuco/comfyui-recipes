@@ -8,7 +8,7 @@ ComfyUI, and pulls the result back.
 Two things make it more than a thin API wrapper:
 
 **The defaults are the recipe.** The Yukari domain owns the checkpoint,
-sampler, resolution and prompt blocks that took batches of rendering to find.
+sampler, resolution and prompt blocks that took many rounds of rendering to find.
 `comfy-recipes yukari prompt --pose bust` inspects the exact prompt without
 queueing; actual generation always uses a recorded request.
 

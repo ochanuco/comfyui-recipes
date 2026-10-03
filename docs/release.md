@@ -57,7 +57,7 @@ left behind would drain the next worker the moment it started.
 
 The bound is `-DrainSeconds`, 300 by default. What it has to cover is one
 request, not the queue: the worker claims nothing new once the file appears.
-A sketch seed takes about 45 seconds, a finalize about 90, a four-seed batch a
+A sketch seed takes about 45 seconds, a finalize about 90, a four-seed request a
 few minutes. The ceiling above it is the deploy job's own `timeout-minutes:
 15`, which also has to hold `git fetch` and the `uv pip install`.
 

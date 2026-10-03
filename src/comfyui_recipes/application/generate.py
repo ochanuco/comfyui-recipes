@@ -598,7 +598,8 @@ def generate(request_path: Path, services: GenerateServices, *,
         idempotency_key=state["idempotency_key"],
         resolution=resolution_payload(
             req, git, generation=generation, patches=request_patches,
-            pose_fingerprint=fingerprint))
+            pose_fingerprint=fingerprint),
+        run_id=(req.get("experiment") or {}).get("run_id"))
     state["request_id"] = request["id"]
     _adopt_resend_jobs(state, request.get("jobs"), key_prefix)
     state.setdefault("seeds", _seeds(req))

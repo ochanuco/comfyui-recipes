@@ -32,16 +32,18 @@ def classify_outputs(outputs: list) -> tuple[list, list, list]:
 
 
 def open_request(management, *, request_id: str | None,
-                 idempotency_key: str, resolution: dict) -> dict:
+                 idempotency_key: str, resolution: dict,
+                 run_id: str | None = None) -> dict:
     """Report a request's resolved values, creating an import request when
     no worker-claimed request exists."""
     if request_id is not None:
         return management.request(
             "PUT", f"/api/v1/requests/{request_id}/resolution", resolution)
-    return management.request(
-        "POST", "/api/v1/requests",
-        {"kind": "import", "status": "done", "created_by": "claude",
-         "idempotency_key": idempotency_key, **resolution})
+    payload = {"kind": "import", "status": "done", "created_by": "claude",
+               "idempotency_key": idempotency_key, **resolution}
+    if run_id is not None:
+        payload["run_id"] = run_id
+    return management.request("POST", "/api/v1/requests", payload)
 
 
 def create_job(management, request_id: str, *, idempotency_key: str, seed: int,

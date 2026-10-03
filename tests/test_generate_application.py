@@ -1122,9 +1122,9 @@ class GenerateApplicationTest(unittest.TestCase):
                 Path(directory), lambda message: None)
             self.assertIsNone(generate(path, services, dry_run=True))
 
-    def _generate_once(self, directory, *, state=None, **kwargs):
+    def _generate_once(self, directory, *, state=None, request=None, **kwargs):
         path = Path(directory) / "request.json"
-        path.write_text(json.dumps(base_request()), encoding="utf-8")
+        path.write_text(json.dumps(request or base_request()), encoding="utf-8")
         management = ManagementFake()
         comfy = ComfyFake()
         comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
@@ -1187,6 +1187,30 @@ class GenerateApplicationTest(unittest.TestCase):
                 if call[0] == "POST" and call[1].endswith("/jobs"))
             self.assertEqual(job_call[1], "/api/v1/requests/request-id/jobs")
             self.assertNotIn("source_generation_id", job_call[2])
+
+    def test_standalone_experiment_run_links_its_run_on_the_import_request(self):
+        request = {**base_request(),
+                   "experiment": {"experiment_id": "exp-1", "run_id": "run-1"}}
+        with tempfile.TemporaryDirectory() as directory:
+            management, _ = self._generate_once(directory, request=request)
+            create = next(
+                call for call in management.calls
+                if call[0] == "POST" and call[1] == "/api/v1/requests")
+            self.assertEqual(create[2]["run_id"], "run-1")
+            self.assertNotIn("experiment", create[2])
+            self.assertFalse(any(
+                call[1].startswith("/api/v1/experiment-runs")
+                for call in management.calls))
+
+    def test_worker_request_does_not_send_run_id(self):
+        request = {**base_request(),
+                   "experiment": {"experiment_id": "exp-1", "run_id": "run-1"}}
+        with tempfile.TemporaryDirectory() as directory:
+            management, _ = self._generate_once(
+                directory, request=request,
+                key_prefix="request:req-1", request_id="req-1")
+            put = next(call for call in management.calls if call[0] == "PUT")
+            self.assertNotIn("run_id", put[2])
 
     def test_output_directory_and_comfy_prefix_use_the_request_short_id(self):
         with tempfile.TemporaryDirectory() as directory:

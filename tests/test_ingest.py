@@ -115,6 +115,19 @@ class OpenRequestTests(unittest.TestCase):
         self.assertEqual(payload["recipe"], "yukari")
 
 
+    def test_an_import_request_carries_its_run_id(self):
+        management = ManagementFake()
+        open_request(management, request_id=None, idempotency_key="k",
+                     resolution=self.RESOLUTION, run_id="run-1")
+        self.assertEqual(management.calls[0][2]["run_id"], "run-1")
+
+    def test_a_claimed_request_never_sends_run_id(self):
+        management = ManagementFake()
+        open_request(management, request_id="req-9", idempotency_key="k",
+                     resolution=self.RESOLUTION, run_id="run-1")
+        self.assertNotIn("run_id", management.calls[0][2])
+
+
 class ImportImagesTests(unittest.TestCase):
     def test_registers_each_image_under_one_import_request_and_job(self):
         with tempfile.TemporaryDirectory() as directory:

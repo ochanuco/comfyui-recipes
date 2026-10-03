@@ -291,8 +291,9 @@ tracked file.
   `generation.graph` / `generation.prompt`（`negative_prompt` も同様）とは
   併用できない — 二つの入口で適用順序が曖昧になるため。上書きの正本は
   chimera 側の ExperimentRun であり、worker は取り込んで既存の patch 機構に
-  流すだけ。このブロックは chimera へ転送しない（Run との対応は chimera が
-  requests.run_id で持つ）。
+  流すだけ。ブロック自体は chimera へ転送しない。worker を通らない実行
+  （watch）では `run_id` だけを import Request の作成時に送り、Run との対応は
+  chimera が requests.run_id で持つ。
 
 ## The delivery identity is a contract, not a preference
 

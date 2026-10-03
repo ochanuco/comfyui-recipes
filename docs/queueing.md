@@ -54,13 +54,13 @@ Options, defaults and ranges live here:
   `upscale`); combining it with one explicitly is an error. `repair` and
   `repair_regions` are not redraw-shaping.
 - `deliver_only` + `repair` runs `repair_seeds` reroll seeds through the
-  delivery tail in one submission and records one `kind: "repair"` batch.
+  delivery tail in one submission and records one request with `parameters.kind: "repair"`.
 - Dial words (`"keep"`, `"on"`, …) are accepted wherever a number is. The
   row's result carries `resolved_options` with what actually ran.
 
 ### Repair and masked redraw
 
-- Pointed at a finalize batch, repair redraws the largest sibling (the raw
+- Pointed at a finalize request's output, repair redraws the largest sibling (the raw
   redraw), not the delivered sticker.
 - Finalizing a repair or masked_redraw output reads recipe, prompts, seed and
   loaders from `parameters.base_generation`. The repaired pixels are what
@@ -85,6 +85,6 @@ Options, defaults and ranges live here:
 - After all edits, every identity tag of the unpatched prompt must still be
   in the positive, compared bare. Otherwise the request fails, unless
   `generation.identity_override` gives a reason, which is recorded on the
-  generation and the batch.
+  generation.
 - `experiment.overrides.patches` (from a chimera ExperimentRun) uses the
   same vocabulary and is exclusive with `generation.patches`.

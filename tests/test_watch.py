@@ -53,7 +53,6 @@ def base_item(**overrides):
         "experiment_id": "exp-1",
         "run_index": 2,
         "parent_run_id": None,
-        "batch_id": None,
         "generation_id": None,
         "overrides": {"patches": [
             {"target": "prompt.positive", "op": "append",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from pathlib import Path
 
 from ..infrastructure.comfyui.refinement_graph import DELIVERED_SUFFIX, MATTE_SUFFIX
@@ -30,13 +31,36 @@ def classify_outputs(outputs: list) -> tuple[list, list, list]:
     return pictures, delivereds, mattes
 
 
-def record_job(management, batch_id: str, *, key_prefix: str | None, index: int,
-               seed: int, prompt_id: str, graph: dict) -> dict:
+def open_request(management, *, request_id: str | None,
+                 idempotency_key: str, resolution: dict) -> dict:
+    """Report a request's resolved values, creating an import request when
+    no worker-claimed request exists."""
+    if request_id is not None:
+        return management.request(
+            "PUT", f"/api/v1/requests/{request_id}/resolution", resolution)
+    return management.request(
+        "POST", "/api/v1/requests",
+        {"kind": "import", "status": "done", "created_by": "claude",
+         "idempotency_key": idempotency_key, **resolution})
+
+
+def create_job(management, request_id: str, *, idempotency_key: str, seed: int,
+               index: int, source_generation_id: str | None = None) -> dict:
+    payload = {"idempotency_key": idempotency_key, "seed": seed, "index": index}
+    if source_generation_id is not None:
+        payload["source_generation_id"] = source_generation_id
+    return management.request(
+        "POST", f"/api/v1/requests/{request_id}/jobs", payload)
+
+
+def record_job(management, request_id: str, *, key_prefix: str | None,
+               index: int, seed: int, prompt_id: str, graph: dict,
+               source_generation_id: str | None = None) -> dict:
     job_key = (f"{key_prefix}:job:{index}"
                if key_prefix is not None else str(uuid.uuid4()))
-    job = management.request(
-        "POST", f"/api/v1/batches/{batch_id}/jobs",
-        {"idempotency_key": job_key, "seed": seed, "index": index})
+    job = create_job(management, request_id, idempotency_key=job_key,
+                     seed=seed, index=index,
+                     source_generation_id=source_generation_id)
     management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}",
         {"status": "queued", "comfy_prompt_id": prompt_id, "graph": graph})
@@ -68,9 +92,10 @@ def attach_asset(management, generation_id: str, *, role: str, name: str,
 
 
 def ingest_seed_render(*, comfyui, management, output_root: Path, emit,
-                       batch_id: str, key_prefix: str | None, index: int,
+                       request_id: str, key_prefix: str | None, index: int,
                        seed: int, prompt_id: str, graph: dict, job_prefix: str,
-                       mask_png: bytes) -> dict:
+                       mask_png: bytes,
+                       source_generation_id: str | None = None) -> dict:
     outputs = comfyui.wait_for(prompt_id)
     pictures, delivereds, mattes = classify_outputs(outputs)
     if not pictures:
@@ -79,8 +104,9 @@ def ingest_seed_render(*, comfyui, management, output_root: Path, emit,
     raw = comfyui.fetch(raw_out)
     (output_root / raw_out["filename"]).write_bytes(raw)
 
-    job = record_job(management, batch_id, key_prefix=key_prefix, index=index,
-                     seed=seed, prompt_id=prompt_id, graph=graph)
+    job = record_job(management, request_id, key_prefix=key_prefix,
+                     index=index, seed=seed, prompt_id=prompt_id, graph=graph,
+                     source_generation_id=source_generation_id)
 
     ids: list[str] = []
     urls: list[str] = []
@@ -122,3 +148,29 @@ def ingest_seed_render(*, comfyui, management, output_root: Path, emit,
 
     return {"generation_ids": ids, "generation_urls": urls,
             "raw_filename": raw_out["filename"], "raw": raw}
+
+
+def import_images(management, emit, *, images: Sequence[Path],
+                  resolution: dict, idempotency_key: str,
+                  seed: int = 0) -> dict:
+    """Register image files as one import request with a single job.
+
+    Resending the same key and resolution registers nothing twice.
+    """
+    request = open_request(management, request_id=None,
+                           idempotency_key=idempotency_key,
+                           resolution=resolution)
+    job = create_job(management, request["id"],
+                     idempotency_key=f"{idempotency_key}:job:0",
+                     seed=seed, index=0)
+    ids: list[str] = []
+    urls: list[str] = []
+    for index, path in enumerate(images):
+        rendered = upload_generation(
+            management, emit, job["id"], seed=seed, name=path.name,
+            data=path.read_bytes(), index=index,
+            idempotency_key=generation_key(idempotency_key, 0, index))
+        ids.append(rendered["id"])
+        urls.append(rendered["canonical_url"])
+    return {"request_id": request["id"], "short_id": request.get("short_id"),
+            "generation_ids": ids, "generation_urls": urls}

@@ -14,6 +14,7 @@ from ..domain.generation.models import PromptPair, RenderSpec
 from ..domain.generation.patches import apply_patches, parse_patches
 from ..domain.generation.prompt_lint import tags as prompt_tags
 from ..domain.yukari.dials import DIALS
+from .ingest import create_job, open_request
 
 PresetFetcher = Callable[[str, str, str, int], dict]
 
@@ -364,39 +365,27 @@ def graph_prompts(graph: dict) -> tuple[str | None, str | None]:
     return text("positive"), text("negative")
 
 
-def batch_payload(req: dict, git: dict, idempotency_key: str,
-                  prompts: tuple[str | None, str | None] = (None, None),
-                  *, generation: dict | None = None,
-                  patches: list | None = None,
-                  pose_fingerprint: str | None = None,
-                  identity_removed: list | None = None) -> dict:
+def resolution_payload(req: dict, git: dict, *,
+                       generation: dict | None = None,
+                       patches: list | None = None,
+                       pose_fingerprint: str | None = None) -> dict:
     # A preset resolves recipe_pose after validation; req's raw generation
     # would misreport what actually rendered.
     generation = req["generation"] if generation is None else generation
     # Preset patches are recorded as the pin; counting them here would
-    # apply them twice on anything derived from this Batch.
+    # apply them twice on anything derived from this Request.
     patches = generation.get("patches") if patches is None else patches
     payload = {
-        "idempotency_key": idempotency_key,
         "raw_instruction": req["request"]["instruction"],
         "recipe": generation["recipe"],
         "parameters": generation.get("parameters", {}),
         "git_commit": git["commit"],
         "git_dirty": git["dirty"],
     }
-    for key, rendered in zip(("prompt", "negative_prompt"), prompts):
-        value = generation.get(key) or rendered
-        if value:
-            payload[key] = value
     if patches:
         payload["patches"] = patches
     if pose_fingerprint is not None:
         payload["pose_fingerprint"] = pose_fingerprint
-    # Only stamp identity_override when it actually excused a removal, not
-    # whenever a caller sets it defensively.
-    if identity_removed:
-        payload["identity_override"] = generation["identity_override"]
-        payload["identity_removed"] = identity_removed
     if req.get("references"):
         payload["references"] = [
             {**{key: value for key, value in reference.items()
@@ -404,9 +393,6 @@ def batch_payload(req: dict, git: dict, idempotency_key: str,
              "source_generation_id": reference["generation_id"]}
             for reference in req["references"]
         ]
-    for key in ("refinement", "story", "experiment"):
-        if req.get(key):
-            payload[key] = req[key]
     return payload
 
 
@@ -436,7 +422,7 @@ def _generation_key(key_prefix: str | None, index: int, output_index: int) -> st
 
 
 def _adopt_resend_jobs(state: dict, jobs: list | None, key_prefix: str | None) -> None:
-    """Fold a batch resend's jobs[] into state."""
+    """Fold a resolution resend's jobs[] into state."""
     if not jobs:
         return
     ordered = sorted(jobs, key=lambda job: job.get("index", 0))
@@ -476,11 +462,11 @@ def _output_directory(root: Path, identifier: object) -> Path:
     if (not isinstance(identifier, str) or not identifier
             or identifier in (".", "..")
             or "/" in identifier or "\\" in identifier):
-        raise ValueError(f"invalid batch output identifier: {identifier!r}")
+        raise ValueError(f"invalid output identifier: {identifier!r}")
     resolved_root = root.resolve()
     output_dir = (root / identifier).resolve()
     if output_dir.parent != resolved_root:
-        raise ValueError(f"batch output escapes output root: {identifier!r}")
+        raise ValueError(f"output escapes output root: {identifier!r}")
     return output_dir
 
 
@@ -490,7 +476,7 @@ def _image_output_path(output_dir: Path, filename: object) -> Path:
     resolved_dir = output_dir.resolve()
     output_path = (output_dir / filename).resolve()
     if output_path == resolved_dir or not output_path.is_relative_to(resolved_dir):
-        raise ValueError(f"ComfyUI output escapes batch directory: {filename!r}")
+        raise ValueError(f"ComfyUI output escapes output directory: {filename!r}")
     return output_path
 
 
@@ -531,7 +517,8 @@ def _check_identity(generation: dict, services: GenerateServices) -> list[str]:
 
 def generate(request_path: Path, services: GenerateServices, *,
              dry_run: bool = False, force: bool = False,
-             key_prefix: str | None = None) -> dict | None:
+             key_prefix: str | None = None,
+             request_id: str | None = None) -> dict | None:
     req = json.loads(request_path.read_text(encoding="utf-8"))
     validate_request(req)
     generation = request_generation(req)
@@ -574,21 +561,20 @@ def generate(request_path: Path, services: GenerateServices, *,
                 fingerprint = services.pose_fingerprint(generation["recipe"], pose)
             except Exception as error:
                 services.emit(f"  ! pose fingerprint failed: {error}")
-    # A Batch carrying patches is promotion material, and a promoted version
+    # A Request carrying patches is promotion material, and a promoted version
     # without a fingerprint can never be checked against base drift.
     if request_patches and not fingerprint:
         raise SystemExit(
-            "a Batch with patches must carry pose_fingerprint, and this "
+            "a Request with patches must carry pose_fingerprint, and this "
             "request's pose could not be fingerprinted")
     if dry_run:
         seeds = _seeds(req)
         graph = services.graph_builder(generation, seeds[0], "chimera-dryrun-0")
-        services.emit("batch payload:")
+        services.emit("resolution payload:")
         services.emit(json.dumps(
-            batch_payload(req, git, "<uuid4>", graph_prompts(graph),
-                          generation=generation, patches=request_patches,
-                          pose_fingerprint=fingerprint,
-                          identity_removed=identity_removed),
+            resolution_payload(req, git, generation=generation,
+                               patches=request_patches,
+                               pose_fingerprint=fingerprint),
             indent=2, ensure_ascii=False))
         services.emit(f"seeds: {seeds}")
         # A hires graph has suffixed node ids (6b, 7b); a plain int key dies.
@@ -604,34 +590,21 @@ def generate(request_path: Path, services: GenerateServices, *,
 
     state_path = request_path.with_suffix(request_path.suffix + ".state.json")
     state = services.state.load(state_path)
-    if key_prefix is not None:
-        state["idempotency_key"] = key_prefix
     for reference in req.get("references") or []:
         services.management.request(
             "GET", f"/api/v1/generations/{reference['generation_id']}/context")
-    batch = services.management.request(
-        "POST", "/api/v1/batches",
-        batch_payload(req, git, state["idempotency_key"],
-                      graph_prompts(services.graph_builder(
-                          generation, 0, "chimera-probe")),
-                      generation=generation, patches=request_patches,
-                      pose_fingerprint=fingerprint,
-                      identity_removed=identity_removed),
-    )
-    state["batch_id"] = batch["id"]
-    _adopt_resend_jobs(state, batch.get("jobs"), key_prefix)
+    request = open_request(
+        services.management, request_id=request_id,
+        idempotency_key=state["idempotency_key"],
+        resolution=resolution_payload(
+            req, git, generation=generation, patches=request_patches,
+            pose_fingerprint=fingerprint))
+    state["request_id"] = request["id"]
+    _adopt_resend_jobs(state, request.get("jobs"), key_prefix)
     state.setdefault("seeds", _seeds(req))
     services.state.save(state_path, state)
-    short = batch.get("short_id", batch["id"][:8])
-    services.emit(f"batch {batch['id']} ({short})")
-    if req.get("experiment"):
-        # Only batch_id: the representative generation is a human/agent pick
-        # made after reviewing the batch, not the CLI's to guess.
-        services.management.request(
-            "PATCH", f"/api/v1/experiment-runs/{req['experiment']['run_id']}",
-            {"batch_id": state["batch_id"]})
-    services.management.request(
-        "PATCH", f"/api/v1/batches/{state['batch_id']}", {"status": "running"})
+    short = request.get("short_id") or request["id"][:8]
+    services.emit(f"request {request['id']} ({short})")
 
     output_dir = _output_directory(services.output_root, short)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -649,11 +622,10 @@ def generate(request_path: Path, services: GenerateServices, *,
             continue
         try:
             if "job_id" not in job:
-                created = services.management.request(
-                    "POST", f"/api/v1/batches/{state['batch_id']}/jobs",
-                    {"idempotency_key": job["idempotency_key"],
-                     "seed": seed, "index": index},
-                )
+                created = create_job(
+                    services.management, state["request_id"],
+                    idempotency_key=job["idempotency_key"],
+                    seed=seed, index=index)
                 job["job_id"] = created["id"]
                 services.state.save(state_path, state)
             if "comfy_prompt_id" in job:
@@ -774,11 +746,7 @@ def generate(request_path: Path, services: GenerateServices, *,
         services.state.save(state_path, state)
 
     done = sum(1 for job in state["jobs"] if job.get("status") == "ingested")
-    status = ("completed" if done == len(state["seeds"])
-              else "partial" if done else "failed")
-    services.management.request(
-        "PATCH", f"/api/v1/batches/{state['batch_id']}", {"status": status})
-    services.emit(f"batch {status}: {done}/{len(state['seeds'])} jobs ingested")
+    services.emit(f"{done}/{len(state['seeds'])} jobs ingested")
     generation_ids = [gen["id"] for job in state["jobs"]
                       for gen in job.get("generations", []) if gen.get("id")]
-    return {"batch_id": state["batch_id"], "generation_ids": generation_ids}
+    return {"generation_ids": generation_ids}

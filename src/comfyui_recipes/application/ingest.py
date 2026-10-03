@@ -39,7 +39,7 @@ def open_request(management, *, request_id: str | None,
     if request_id is not None:
         return management.request(
             "PUT", f"/api/v1/requests/{request_id}/resolution", resolution)
-    payload = {"kind": "import", "status": "done", "created_by": "claude",
+    payload = {"kind": "import", "status": "done", "created_by": "system",
                "idempotency_key": idempotency_key, **resolution}
     if run_id is not None:
         payload["run_id"] = run_id

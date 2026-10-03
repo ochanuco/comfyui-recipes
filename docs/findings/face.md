@@ -9,9 +9,17 @@ Tags and `a<n> §` pointers: see [`docs/README.md`](../README.md).
   (`jitome`, `narrowed eyes`, `tsurime`, `droopy`) lost every blind round on
   IL. `[IL]` (a5 §第3弾ピック; a5 §目の種類シート)
 - On Anima, `jitome` works only at the head of the eyes part, where its weight
-  counts; `half-closed eyes` is what removes the round eye. smile/gao take
-  1.8 without half-closed, other expressions 1.4 (1.8 kills the doya smile).
-  `[Anima]` (PR #217)
+  counts; `half-closed eyes` is what removes the round eye. A high weight
+  (1.8 and up) flattens a smile on expressions that also carry half-closed
+  eyes. `[Anima]` (PR #217)
+- On SilvermoonMix the jitome the user wants (wide eye, flat upper lid) comes
+  from `large eyes` at 1.2 with `big eyes` gone, `jitome` 2.0 leading the
+  eyes part, and no smile: `light smile` / `confident` keep the lid up
+  whatever lid words are added. `thick eyelashes` stays — removing it only
+  thins the lashes. `[Anima]`
+- Eye colour moves only when `purple eyes` is replaced: adding
+  `dark greyish purple eyes` next to it barely darkens the iris even at 1.6.
+  `[Anima]`
 - Bust eye size does not move with `large eyes` / `big eyes` weight or
   position on Anima; dropping `half-closed eyes` opens them a little. `[Anima]`
 - Two settled states on IL: resting = `unamused` + `half-closed eyes` (1.3
@@ -59,5 +67,7 @@ Tags and `a<n> §` pointers: see [`docs/README.md`](../README.md).
   edges and hair; the eye decided in one look. `[all]` (a3 §2026-08-19 — `flop` takes 1.15)
 - Optimising eye-to-face ratio as the quality target; everything unmeasured
   drifted. `[all]` (a1 §Correction: eye ratio)
-- `smirk` on Anima bust: it draws a duck mouth. `light smile` 1.25 +
-  `jitome` 1.4 is the bust look. `[Anima]`
+- `smirk` on Anima bust: it draws a duck mouth. `[Anima]`
+- On SilvermoonMix, full-body floor poses carrying `unamused` / `bored` drew
+  floating white jitome blobs in 4 of 8 renders; negative `floating heads` /
+  `extra faces` / `mascot` / `ghost` did not remove them. `[Anima]`

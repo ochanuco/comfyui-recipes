@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from .prompt_style import EYE_SHAPE, EYE_SHAPE_FLAT
-
 
 class EyeQuality(Enum):
     COLD = "cold"
@@ -25,7 +23,6 @@ EYE_QUALITY = {
 class Expression:
     mouth: str
     eyes: str = ""
-    eye_shape: str = EYE_SHAPE
     eye_quality: EyeQuality = EyeQuality.COLD
 
 
@@ -39,10 +36,12 @@ EXPRESSIONS = {
     "v": Expression(mouth="(:v:1.5), "),
     "smile": Expression(
         mouth="(closed mouth:1.2), (light smile:1.25), ",
-        eyes="(confident:1.18), ", eye_shape=EYE_SHAPE_FLAT,
-        eye_quality=EyeQuality.BLANK),
+        eyes="(confident:1.18), ", eye_quality=EyeQuality.BLANK),
     "gao": Expression(
         mouth="(open mouth:1.35), (fang:1.3), ",
-        eyes="(confident:1.18), ", eye_shape=EYE_SHAPE_FLAT,
+        eyes="(confident:1.18), ", eye_quality=EyeQuality.BLANK),
+    "jitome": Expression(
+        mouth="(closed mouth:1.2), ",
+        eyes="(half-closed eyes:1.35), (unamused:1.35), (expressionless:1.2), ",
         eye_quality=EyeQuality.BLANK),
 }

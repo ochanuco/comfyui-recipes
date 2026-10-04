@@ -251,7 +251,7 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument(
         "--hires-denoise", type=float, default=None, metavar="DENOISE",
         help="with --hires: denoise of the second pass, 0 < d <= 1 "
-             "(default 0.35)")
+             "(default 0.45)")
     finalize_parser.add_argument(
         "--matte-model", default=None,
         help="matte source for the delivery: a core background-removal "

@@ -1758,7 +1758,7 @@ class HiresFinalizeTest(unittest.TestCase):
             hires_submitted = comfy.submitted[0]
             self.assertEqual(hires_submitted["10"]["class_type"], "LatentUpscale")
             self.assertEqual(hires_submitted["10"]["inputs"]["width"], 1280)
-            self.assertEqual(hires_submitted["11"]["inputs"]["denoise"], 0.35)
+            self.assertEqual(hires_submitted["11"]["inputs"]["denoise"], 0.45)
             self.assertEqual(
                 hires_submitted["9"]["inputs"]["filename_prefix"], "hires-gen-id")
             self.assertEqual(comfy.uploaded[0][1], b"hires-bytes")
@@ -1781,7 +1781,7 @@ class HiresFinalizeTest(unittest.TestCase):
             finalize("gen-id", services, deliver_only=True, hires=2048)
             parameters = resolution_call(services)[2]["parameters"]
             self.assertEqual(parameters["hires"], 2048)
-            self.assertEqual(parameters["hires_denoise"], 0.35)
+            self.assertEqual(parameters["hires_denoise"], 0.45)
 
     def test_explicit_hires_denoise_is_used_and_recorded(self):
         with tempfile.TemporaryDirectory() as directory:

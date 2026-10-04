@@ -63,7 +63,7 @@ Options, defaults and ranges live here:
   stored graph (a graph-mode source is fine) and cannot combine with
   `repair`, `repair_regions` or `repair_seeds`. The canvas is never changed
   directly: the stored graph gets a latent upscale and a second pass with the
-  same seed. `hires_denoise` (0 < d <= 1, default 0.35) needs `hires`.
+  same seed. `hires_denoise` (0 < d <= 1, default 0.45) needs `hires`.
 - Dial words (`"keep"`, `"on"`, …) are accepted wherever a number is. The
   row's result carries `resolved_options` with what actually ran.
 

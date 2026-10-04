@@ -49,7 +49,7 @@ from .repair import repair as repair_use_case
 KEEP_FEATHER_FRACTION = 0.03
 
 # Applies when `hires` is given without `hires_denoise`.
-HIRES_DENOISE = 0.35
+HIRES_DENOISE = 0.45
 
 
 def hires_pixels(hires: int) -> int:

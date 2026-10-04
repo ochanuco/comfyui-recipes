@@ -8,6 +8,7 @@ graph's own edges rather than assuming a fixed ID.
 from __future__ import annotations
 
 import copy
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 
@@ -176,11 +177,12 @@ def base_roles(graph: Mapping) -> BaseRoles:
         negative_id=sampler_inputs["negative"][0], stitched=stitched)
 
 
-def hires_graph(graph: Mapping, roles: BaseRoles, longest: int, denoise: float,
+def hires_graph(graph: Mapping, roles: BaseRoles, pixels: int, denoise: float,
                 prefix: str) -> dict:
     """A copy of `graph` that latent-upscales the finished sampler's output
-    to `longest` px on its long side and re-samples it with the first-pass
-    seed, before the decode. The EmptyLatentImage is left untouched."""
+    to `pixels` in area, keeping its aspect ratio, and re-samples it with the
+    first-pass seed, before the decode. The EmptyLatentImage is left
+    untouched."""
     if any(node.get("class_type") == "LatentUpscale" for node in graph.values()):
         raise ValueError("この graph は既に hires 済みです")
     result = copy.deepcopy(dict(graph))
@@ -191,8 +193,9 @@ def hires_graph(graph: Mapping, roles: BaseRoles, longest: int, denoise: float,
         raise ValueError("元の canvas (EmptyLatentImage) を特定できません")
     canvas = result[latent_ref[0]]["inputs"]
     width, height = canvas["width"], canvas["height"]
-    target_width = round(longest * width / max(width, height) / 8) * 8
-    target_height = round(longest * height / max(width, height) / 8) * 8
+    scale = math.sqrt(pixels / (width * height))
+    target_width = round(width * scale / 8) * 8
+    target_height = round(height * scale / 8) * 8
     if target_width < 8 or target_height < 8:
         raise ValueError(
             f"hires の大きさが小さすぎます: {target_width}x{target_height}")

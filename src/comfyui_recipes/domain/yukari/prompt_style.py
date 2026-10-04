@@ -22,7 +22,7 @@ IDENTITY = ("light purple hair, short hair with long locks, very long "
 BODY = ("(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), "
         "(soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), "
         "adult proportions, long torso, seven heads tall, ")
-BACKGROUND = "simple background, (green background:1.3), "
+BACKGROUND = "simple background, (green background:1.3), (white outline:1.3), "
 # Leads every expression's eyes block: placed behind BACKGROUND (as FACE
 # is) the tag stops reaching the eyes at any weight.
 EYE_SHAPE = "(jitome:2.0), (tareme:1.2), (long eyes:1.25), "

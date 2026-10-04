@@ -7,6 +7,8 @@ import unittest
 
 from comfyui_recipes.infrastructure.comfyui.base_graph import base_roles, hires_graph
 
+PORTRAIT_2048 = 1280 * 2048
+
 
 def plain_graph(width=1024, height=1640):
     return {
@@ -46,7 +48,7 @@ def guided_graph():
 class HiresGraphTest(unittest.TestCase):
     def test_wires_an_upscale_and_a_second_pass_before_the_decode(self):
         graph = plain_graph()
-        result = hires_graph(graph, base_roles(graph), 2048, 0.35, "hires-x")
+        result = hires_graph(graph, base_roles(graph), PORTRAIT_2048, 0.35, "hires-x")
         self.assertEqual(result["10"], {"class_type": "LatentUpscale", "inputs": {
             "samples": ["3", 0], "upscale_method": "bicubic",
             "width": 1280, "height": 2048, "crop": "disabled"}})
@@ -60,20 +62,25 @@ class HiresGraphTest(unittest.TestCase):
 
     def test_target_sides_are_rounded_to_multiples_of_eight(self):
         graph = plain_graph(1000, 1500)
-        result = hires_graph(graph, base_roles(graph), 2048, 0.35, "p")
+        result = hires_graph(graph, base_roles(graph), PORTRAIT_2048, 0.35, "p")
         upscale = result["10"]["inputs"]
-        self.assertEqual((upscale["width"], upscale["height"]), (1365 // 8 * 8 + 8, 2048))
-        self.assertEqual(upscale["width"] % 8, 0)
+        self.assertEqual((upscale["width"], upscale["height"]), (1320, 1984))
+
+    def test_square_canvas_gets_the_same_area_not_the_same_long_side(self):
+        graph = plain_graph(1280, 1280)
+        result = hires_graph(graph, base_roles(graph), PORTRAIT_2048, 0.35, "p")
+        upscale = result["10"]["inputs"]
+        self.assertEqual((upscale["width"], upscale["height"]), (1616, 1616))
 
     def test_landscape_canvas_scales_the_width(self):
         graph = plain_graph(1640, 1024)
-        result = hires_graph(graph, base_roles(graph), 2048, 0.35, "p")
+        result = hires_graph(graph, base_roles(graph), PORTRAIT_2048, 0.35, "p")
         upscale = result["10"]["inputs"]
         self.assertEqual((upscale["width"], upscale["height"]), (2048, 1280))
 
     def test_guided_graph_takes_seed_and_cfg_from_the_first_pass(self):
         graph = guided_graph()
-        result = hires_graph(graph, base_roles(graph), 2048, 0.5, "p")
+        result = hires_graph(graph, base_roles(graph), PORTRAIT_2048, 0.5, "p")
         resample = result["12"]
         self.assertEqual(resample["class_type"], "KSampler")
         self.assertEqual(resample["inputs"]["seed"], 99)
@@ -86,17 +93,17 @@ class HiresGraphTest(unittest.TestCase):
         graph = plain_graph()
         graph["10"] = {"class_type": "LatentUpscale", "inputs": {}}
         with self.assertRaisesRegex(ValueError, "hires 済み"):
-            hires_graph(graph, base_roles(graph), 2048, 0.35, "p")
+            hires_graph(graph, base_roles(graph), PORTRAIT_2048, 0.35, "p")
 
     def test_does_not_mutate_its_input(self):
         graph = plain_graph()
         snapshot = copy.deepcopy(graph)
-        hires_graph(graph, base_roles(graph), 2048, 0.35, "p")
+        hires_graph(graph, base_roles(graph), PORTRAIT_2048, 0.35, "p")
         self.assertEqual(graph, snapshot)
 
     def test_all_node_ids_stay_decimal_strings(self):
         graph = plain_graph()
-        result = hires_graph(graph, base_roles(graph), 2048, 0.35, "p")
+        result = hires_graph(graph, base_roles(graph), PORTRAIT_2048, 0.35, "p")
         self.assertTrue(all(key.isdecimal() for key in result))
 
 

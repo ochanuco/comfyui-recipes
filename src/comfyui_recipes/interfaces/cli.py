@@ -243,14 +243,15 @@ def parser() -> argparse.ArgumentParser:
         help="how much the redraw still touches a --keep-region, 0 < s < 1; "
              "lower keeps more of the source pixels")
     finalize_parser.add_argument(
-        "--hires", type=int, default=None, metavar="LONGEST",
+        "--hires", type=int, default=None, metavar="SIZE",
         help="with --deliver-only on an Anima render: first re-render the "
-             "picture at this long side in px (latent upscale + same-seed "
+             "picture at the area a 1024x1640 canvas has with this long side "
+             "in px, keeping its own aspect ratio (latent upscale + same-seed "
              "pass over its stored graph), then deliver that picture")
     finalize_parser.add_argument(
         "--hires-denoise", type=float, default=None, metavar="DENOISE",
         help="with --hires: denoise of the second pass, 0 < d <= 1 "
-             "(default 0.35)")
+             "(default 0.45)")
     finalize_parser.add_argument(
         "--matte-model", default=None,
         help="matte source for the delivery: a core background-removal "

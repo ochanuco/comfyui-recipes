@@ -1758,12 +1758,22 @@ class HiresFinalizeTest(unittest.TestCase):
             hires_submitted = comfy.submitted[0]
             self.assertEqual(hires_submitted["10"]["class_type"], "LatentUpscale")
             self.assertEqual(hires_submitted["10"]["inputs"]["width"], 1280)
-            self.assertEqual(hires_submitted["11"]["inputs"]["denoise"], 0.35)
+            self.assertEqual(hires_submitted["11"]["inputs"]["denoise"], 0.45)
             self.assertEqual(
                 hires_submitted["9"]["inputs"]["filename_prefix"], "hires-gen-id")
             self.assertEqual(comfy.uploaded[0][1], b"hires-bytes")
             self.assertEqual(calls[0][0]["8"]["inputs"]["samples"], ["11", 0])
             self.assertEqual(len(comfy.submitted), 2)
+
+    def test_hires_gives_a_square_picture_the_portrait_area(self):
+        square = copy.deepcopy(HIRES_GRAPH)
+        square["5"]["inputs"].update(width=1280, height=1280)
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = HiresComfyFake()
+            services = self._services(directory, graph=square, comfyui=comfy)
+            finalize("gen-id", services, deliver_only=True, hires=2048)
+            upscale = comfy.submitted[0]["10"]["inputs"]
+            self.assertEqual((upscale["width"], upscale["height"]), (1616, 1616))
 
     def test_request_parameters_record_the_resolved_hires_options(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1771,7 +1781,7 @@ class HiresFinalizeTest(unittest.TestCase):
             finalize("gen-id", services, deliver_only=True, hires=2048)
             parameters = resolution_call(services)[2]["parameters"]
             self.assertEqual(parameters["hires"], 2048)
-            self.assertEqual(parameters["hires_denoise"], 0.35)
+            self.assertEqual(parameters["hires_denoise"], 0.45)
 
     def test_explicit_hires_denoise_is_used_and_recorded(self):
         with tempfile.TemporaryDirectory() as directory:

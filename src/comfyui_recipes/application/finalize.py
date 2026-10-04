@@ -51,7 +51,7 @@ RECIPE_DEFAULT = object()
 class FinalizeServices:
     management: object
     comfyui: object
-    graph_from_png: Callable[[bytes], dict]
+    graph_from_png: Callable[[bytes], dict | None]
     chain_pass: Callable[..., dict]
     git_metadata: Callable[[], dict]
     notifier: object
@@ -74,7 +74,7 @@ class _Source:
     is_repaired_raw: bool
     base_generation_id: str
     graph: dict
-    roles: BaseRoles
+    roles: BaseRoles | None
     is_anima: bool
 
 
@@ -149,6 +149,11 @@ def _load_source(generation_id: str, services: FinalizeServices,
         base = services.graph_from_png(
             services.management.fetch_generation_image(base_generation_id)
             if is_repaired_raw else picked)
+    if base is None:
+        return _Source(context=context, picked=picked,
+                       is_repaired_raw=is_repaired_raw,
+                       base_generation_id=base_generation_id, graph={},
+                       roles=None, is_anima=False)
     roles = base_roles(base)
     if any(node.get("class_type") == "LayeredDiffusionApply"
            for node in base.values()):
@@ -201,6 +206,14 @@ def _resolve_plan(source: _Source, generation_id: str, *,
     if deliver_only and redraw_shaping_conflicts:
         raise SystemExit(
             "deliver_only cannot combine with " + ", ".join(redraw_shaping_conflicts))
+    if source.roles is None:
+        if not deliver_only:
+            raise SystemExit(
+                "この絵には ComfyUI の graph が無いので、描き直しはできません。"
+                "deliver_only（描き直し無しの納品）なら finalize できます")
+        if repair or repair_regions or repair_seeds is not None:
+            raise SystemExit(
+                "この絵には ComfyUI の graph が無いので、repair は使えません")
     if not source.is_anima and not deliver_only:
         raise SystemExit(
             "描き直しができるのは Anima で描いた絵だけです。この絵は "
@@ -218,17 +231,18 @@ def _resolve_plan(source: _Source, generation_id: str, *,
         transparent = False
     if keep_scene:
         transparent = False
-    if source.roles.stitched:
+    if source.roles is not None and source.roles.stitched:
         # A stitched base's sampler latent is the inpaint crop, not the
         # whole picture, so only the pixel route is correct.
         latent_route = False
-    seed = sampler_settings(source.graph, source.roles.sampler_id)["seed"]
+    seed = (sampler_settings(source.graph, source.roles.sampler_id)["seed"]
+            if source.roles is not None else 0)
     prefix = f"fin-{generation_id}"
-    base_prompt = PromptPair(
-        source.graph[source.roles.positive_id]["inputs"]["text"],
-        source.graph[source.roles.negative_id]["inputs"]["text"],
-    )
     if source.is_anima:
+        base_prompt = PromptPair(
+            source.graph[source.roles.positive_id]["inputs"]["text"],
+            source.graph[source.roles.negative_id]["inputs"]["text"],
+        )
         prompt = refinement_prompt(base_prompt)
         sampler = delivery_style.FINALIZE_SAMPLER
         loader = finalizer or delivery_style.FINALIZE_MODEL

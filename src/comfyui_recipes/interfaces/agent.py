@@ -23,7 +23,7 @@ from ..infrastructure.chimera.client import USER_AGENT, ChimeraClient
 from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_graph
 from ..infrastructure.comfyui.client import ComfyUIClient
 from ..infrastructure.comfyui.refinement_graph import chain_pass
-from ..infrastructure.imaging.delivery import graph_from_png, image_size
+from ..infrastructure.imaging.delivery import graph_from_png, graph_from_png_or_none, image_size
 from ..infrastructure.imaging.palette import summarize
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
@@ -101,7 +101,7 @@ def build_finalize_services(chimera: ChimeraClient, comfyui: ComfyUIClient, noti
     return FinalizeServices(
         management=chimera,
         comfyui=comfyui,
-        graph_from_png=graph_from_png,
+        graph_from_png=graph_from_png_or_none,
         chain_pass=chain_pass,
         git_metadata=repository_metadata,
         notifier=notifier,

@@ -22,6 +22,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     cut_backdrop,
     despill,
     down2,
+    drawn_outline,
     enclosed_cut,
     figure_rim,
     graph_from_png,
@@ -266,6 +267,56 @@ class DeliveryTest(unittest.TestCase):
         rgba = np.array(Image.open(io.BytesIO(cut)))
         self.assertFalse((np.abs(rgba[480:544, 480:544, :3].astype(int)
                                  - (196, 220, 151)).max(axis=2) <= 20).any())
+
+    def outlined_figure(self, ring: bool):
+        """A lavender square, its black line, then (with `ring`) a drawn
+        white outline and a key-tinted halo, on a green key."""
+        pixels = np.full((512, 512, 3), (150, 196, 164), dtype=np.uint8)
+        soft = np.zeros((512, 512), dtype=np.uint8)
+        if ring:
+            pixels[147:365, 147:365] = (194, 215, 200)
+            pixels[150:362, 150:362] = (255, 255, 255)
+            soft[147:365, 147:365] = 255
+        pixels[156:356, 156:356] = (40, 30, 50)
+        pixels[158:354, 158:354] = (215, 200, 240)
+        if not ring:
+            soft[156:356, 156:356] = 255
+        return pixels, soft
+
+    def test_drawn_outline_takes_the_white_ring_and_halo_up_to_the_line(self):
+        pixels, soft = self.outlined_figure(ring=True)
+        figure = soft > 127
+        outline = drawn_outline(pixels.astype(float), figure, 6)
+        self.assertTrue(outline[147:156, 147:365].all())
+        self.assertFalse(outline[156:356, 156:356].any())
+
+    def test_drawn_outline_is_empty_without_a_ring_around_most_of_the_edge(self):
+        pixels, soft = self.outlined_figure(ring=False)
+        self.assertFalse(drawn_outline(pixels.astype(float), soft > 127, 6).any())
+        pixels, soft = self.outlined_figure(ring=True)
+        pixels[147:156, 147:365] = (40, 30, 50)
+        pixels[147:365, 147:156] = (40, 30, 50)
+        pixels[147:365, 356:365] = (40, 30, 50)
+        self.assertFalse(drawn_outline(pixels.astype(float), soft > 127, 6).any())
+
+    def test_clean_background_and_transparent_paint_the_drawn_outline_white(self):
+        pixels, soft = self.outlined_figure(ring=True)
+        cleaned, tag = clean_background(png(pixels), png(soft), backdrop="#102030")
+        arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
+        self.assertTrue(tag.endswith("-outline"))
+        self.assertTrue((arr[147:154, 200:300] == 255).all())
+        self.assertTrue((arr[200:300, 200:300] == (215, 200, 240)).all())
+        cut, tag = transparent(png(pixels), png(soft))
+        rgba = np.array(Image.open(io.BytesIO(cut))).astype(int)
+        self.assertTrue(tag.endswith("-outline"))
+        self.assertTrue((rgba[147:154, 200:300] == 255).all())
+
+    def test_clean_background_without_a_drawn_outline_has_no_outline_tag(self):
+        pixels, soft = self.outlined_figure(ring=False)
+        _, tag = clean_background(png(pixels), png(soft))
+        self.assertNotIn("-outline", tag)
+        _, tag = transparent(png(pixels), png(soft))
+        self.assertNotIn("-outline", tag)
 
     def test_clean_background_band_widths_derive_from_longest_side_and_each_other(self):
         pixels = np.full((30, 50, 3), (210, 230, 235), dtype=np.uint8)

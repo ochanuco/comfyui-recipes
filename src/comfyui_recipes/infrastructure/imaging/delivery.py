@@ -209,6 +209,35 @@ def enclosed_cut(pixels: np.ndarray, figure: np.ndarray,
     return figure & ~enclosed_mask(pixels, ~figure, tolerance, seed=key)
 
 
+def drawn_outline(pixels: np.ndarray, figure: np.ndarray,
+                  band: int) -> np.ndarray:
+    """The white outline the raw drew around `figure`, as figure pixels.
+
+    The outline and the key-tinted halo outside it reach the matte's edge
+    through each other; the figure's own line stops them. Empty unless they
+    cover `delivery_style.DRAWN_OUTLINE_MIN_EDGE` of the edge.
+    """
+    empty = np.zeros(figure.shape, dtype=bool)
+    if band < 1 or not figure.any():
+        return empty
+    chroma = pixels - pixels.mean(axis=2, keepdims=True)
+    key = _corner_seed(pixels)
+    direction = key - key.mean()
+    norm = np.linalg.norm(direction)
+    if norm > 0:
+        direction = direction / norm
+        chroma = chroma - (chroma * direction).sum(axis=2)[..., None] * direction
+    pale = ((pixels.min(axis=2) >= delivery_style.DRAWN_OUTLINE_MIN_VALUE)
+            & (np.linalg.norm(chroma, axis=2) <= delivery_style.DRAWN_OUTLINE_MAX_TINT))
+    rim = figure_rim(figure, band * delivery_style.DRAWN_OUTLINE_DEPTH_BANDS)
+    outside = ~figure
+    outline = figure & ndimage.binary_propagation(outside, mask=outside | (pale & rim))
+    edge = figure_rim(figure, 1)
+    if (outline & edge).sum() < delivery_style.DRAWN_OUTLINE_MIN_EDGE * edge.sum():
+        return empty
+    return outline
+
+
 def _pocket_key(pixels: np.ndarray, region: np.ndarray) -> np.ndarray | None:
     """The green key found inside `region` when the corners are not it.
 
@@ -617,11 +646,14 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     window = pocket_window(px, figure, tolerance)
     if window is not None:
         figure = figure | frame_line(px, window, band)
+    outline_drawn = drawn_outline(px, figure, band)
     local = local_backdrop(px, figure, band)
     coverage = keyed_coverage(px, figure, local, band, tolerance)
     key = _corner_seed(px)
     px = despill(unpremultiply(px, local, coverage),
                  figure_rim(figure, band), key)
+    px[outline_drawn] = 255.0
+    coverage[outline_drawn] = 1.0
     backdrop_rgb = backdrops.render(backdrop, height, width)
     outline = figure
     if window is not None:
@@ -636,7 +668,8 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
     tag = (f"clean-w{white_w:.0f}-p{purple_w:.0f}"
           + _backdrop_tag_suffix(backdrop) + _cut_tag_suffix()
-          + ("-key" if keyed else ""))
+          + ("-key" if keyed else "")
+          + ("-outline" if outline_drawn.any() else ""))
     return output.getvalue(), tag + (f"-light-{light}-shadow" if light else "")
 
 
@@ -723,12 +756,15 @@ def transparent(data: bytes, matte: bytes,
         px.astype(float), figure, delivery_style.MATTE_EDGE_TOLERANCE)
     soft = np.where(figure & ~opened, 0, soft)
     figure = opened
+    outline_drawn = drawn_outline(px.astype(float), figure, band)
+    px[outline_drawn] = 255
 
     halo = ndimage.binary_dilation(figure, iterations=1)
     ramp = ndimage.gaussian_filter(figure.astype(float), 0.6)
     coverage = np.maximum(ramp, soft / 255.0)
     coverage[~halo] = 0.0
     coverage[ndimage.binary_erosion(figure, iterations=1)] = 1.0
+    coverage[outline_drawn] = 1.0
 
     white_a, purple_a = band_alphas(figure, light)
     band_alpha = np.clip(white_a + purple_a, 0.0, 1.0)
@@ -746,7 +782,8 @@ def transparent(data: bytes, matte: bytes,
     white_w, purple_w = _band_widths(height, width)
     output = io.BytesIO()
     Image.fromarray(rgba, "RGBA").save(output, "PNG")
-    tag = f"transparent-w{white_w:.0f}-p{purple_w:.0f}" + _cut_tag_suffix()
+    tag = (f"transparent-w{white_w:.0f}-p{purple_w:.0f}" + _cut_tag_suffix()
+           + ("-outline" if outline_drawn.any() else ""))
     return output.getvalue(), tag + (f"-light-{light}" if light else "")
 
 

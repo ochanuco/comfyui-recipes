@@ -398,6 +398,18 @@ ENCLOSED_POCKET_MIN_AREA = 256
 # The line is near black; the pale green and the white are far above it.
 FRAME_LINE_MAX_VALUE = 110
 
+# A white outline the raw drew around the figure (`white outline` in the
+# prompt) is painted pure white so the white band continues it: a pixel at
+# least MIN_VALUE on every channel, tinted at most MAX_TINT off the key's
+# own chroma direction, within DEPTH_BANDS edge bands of the matte's edge
+# and reached from the outside through such pixels. It applies only when
+# those pixels hold at least MIN_EDGE of the figure's edge; without a drawn
+# outline only white props touch the edge, at 10% or less.
+DRAWN_OUTLINE_MIN_VALUE = 150
+DRAWN_OUTLINE_MAX_TINT = 14
+DRAWN_OUTLINE_DEPTH_BANDS = 2
+DRAWN_OUTLINE_MIN_EDGE = 0.5
+
 # A raw backdrop counts as a chromatic key when its dominant channel
 # exceeds the larger of the other two by at least this.
 KEY_DESPILL_MIN_EXCESS = 12

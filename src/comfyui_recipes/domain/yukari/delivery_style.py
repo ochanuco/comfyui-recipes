@@ -393,10 +393,18 @@ ENCLOSED_KEY_MIN_GREEN_EXCESS = 12
 # linework holds a few pixels within the excess by accident; a pocket the
 # matte kept holds thousands.
 ENCLOSED_POCKET_MIN_AREA = 256
-# The drawn frame line around a pocket is kept as figure: a pixel darker
-# than this on every channel, within two edge bands outside the window.
-# The line is near black; the pale green and the white are far above it.
-FRAME_LINE_MAX_VALUE = 110
+# A drawn frame the figure steps out of is delivered as a window: with under
+# MAX_BORDER_GREEN of the canvas border key-coloured (a green screen is far
+# above it), the key-coloured components touching the figure (within
+# FIGURE_REACH_PX) and covering at least MIN_AREA_PCT percent of the canvas
+# are the frame's inside. The backdrop, bands and shadow stay inside it;
+# outside it the raw is kept, bar its own key green. The bands are drawn
+# from the figure at least EDGE_PX inside the window, so a frame line or
+# bezel the matte took as figure gets none.
+FRAME_WINDOW_MAX_BORDER_GREEN = 0.5
+FRAME_WINDOW_FIGURE_REACH_PX = 12
+FRAME_WINDOW_MIN_AREA_PCT = 2
+FRAME_WINDOW_EDGE_PX = 12
 
 # A white outline the raw drew around the figure (`white outline` in the
 # prompt) is painted pure white so the white band continues it: a pixel at

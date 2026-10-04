@@ -17,7 +17,7 @@ in [`findings/delivery.md`](../findings/delivery.md).
 | `SAT_BAND`, `BG_SAT_MAX`, `FIGURE_SAT_*`, `BACKDROP_SPREAD_MAX` | `measure`/`verdict` in `palette.py`: the gate at ingest and in `palette_check.py` |
 | `FIGURE_LIGHT_*`, `PALETTE_WINDOWS`, `REPIN_*` | `repin` in `infrastructure/imaging/palette.py` |
 | `RECOLOR_*` | `--recolor` in `infrastructure/imaging/recolor.py` |
-| `MATTE_*`, `KEY_*`, `ENCLOSED_*`, `FRAME_LINE_*`, `DRAWN_OUTLINE_*` | matte, keyed edge, pocket cuts and the drawn outline in `delivery.py` |
+| `MATTE_*`, `KEY_*`, `ENCLOSED_*`, `FRAME_WINDOW_*`, `DRAWN_OUTLINE_*` | matte, keyed edge, pocket cuts and the drawn outline in `delivery.py` |
 | `FINALIZE_*`, `ROUGH_STYLE`, `FINALIZE_DEFAULTS` | finalize: the opt-in IL redraw and the catalog's defaults |
 
 ## Contracts

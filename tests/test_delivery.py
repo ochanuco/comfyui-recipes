@@ -25,6 +25,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     drawn_outline,
     enclosed_cut,
     figure_rim,
+    frame_window,
     graph_from_png,
     graph_from_png_or_none,
     keep_scene,
@@ -222,7 +223,7 @@ class DeliveryTest(unittest.TestCase):
         self.assertTrue(cut[100:160, 100:160].all())
         self.assertTrue(cut[60:196, 60:64].all())
 
-    def test_clean_background_paints_the_backdrop_only_inside_the_pocket(self):
+    def test_clean_background_paints_the_backdrop_only_inside_the_frame(self):
         pixels = np.full((1024, 1024, 3), (255, 255, 255), dtype=np.uint8)
         pixels[256:768, 256:768] = (196, 220, 151)
         pixels[250:774, 250:256] = (20, 20, 20)
@@ -231,18 +232,99 @@ class DeliveryTest(unittest.TestCase):
         pixels[768:774, 250:774] = (20, 20, 20)
         pixels[400:624, 400:624] = (215, 200, 240)
         soft = np.zeros((1024, 1024), dtype=np.uint8)
-        soft[256:768, 256:768] = 255                  # the matte dropped the line
+        soft[400:624, 400:624] = 255
         cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
         arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
-        self.assertTrue((np.abs(arr[300:340, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
-        self.assertTrue((arr[:64, :64] >= 250).all())
-        self.assertTrue((arr[-64:, -64:] >= 250).all())
-        self.assertTrue((arr[252, 300:700].max(axis=1) < 60).all())   # the line survives
-        self.assertTrue((arr[300:700, 770].max(axis=1) < 60).all())
-        # the bands wrap the pocket from outside the frame line, not inside it
         purple = np.array(parse_color(delivery_style.STROKE))
-        self.assertTrue((np.abs(arr[512, 200:250] - purple).max(axis=1) <= 40).any())
-        self.assertFalse((np.abs(arr[512, 262:400] - purple).max(axis=1) <= 40).any())
+        self.assertTrue((np.abs(arr[300:340, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
+        self.assertTrue((arr[:64, :64] == 255).all())
+        self.assertTrue((arr[-64:, -64:] == 255).all())
+        np.testing.assert_array_equal(arr[250:774, 250:256], pixels[250:774, 250:256])
+        np.testing.assert_array_equal(arr[768:774, 250:774], pixels[768:774, 250:774])
+        near = np.abs(arr[512, 340:400] - purple).max(axis=1) <= 40
+        self.assertTrue(near.any())
+        outside = np.ones((1024, 1024), dtype=bool)
+        outside[256:768, 256:768] = False
+        distance = np.abs(arr - purple).max(axis=2)
+        self.assertFalse(((distance <= 40) & outside).any())
+
+    def test_clean_background_keeps_a_grey_bezel_and_the_figure_over_it(self):
+        pixels = np.full((1024, 1024, 3), (60, 60, 60), dtype=np.uint8)
+        pixels[256:768, 256:768] = (196, 220, 151)
+        pixels[600:900, 400:624] = (215, 200, 240)    # steps out over the bottom bezel
+        soft = np.zeros((1024, 1024), dtype=np.uint8)
+        soft[600:900, 400:624] = 255
+        cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
+        arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
+        outside = np.ones((1024, 1024), dtype=bool)
+        outside[256:768, 256:768] = False
+        np.testing.assert_array_equal(arr[outside], pixels.astype(int)[outside])
+        self.assertTrue((np.abs(arr[300:340, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
+
+    def test_clean_background_paints_green_outside_the_frame_with_the_backdrop(self):
+        pixels = np.full((1024, 1024, 3), (20, 20, 20), dtype=np.uint8)
+        pixels[:200, :200] = (196, 220, 151)          # green beyond the black band
+        pixels[256:768, 256:768] = (196, 220, 151)
+        pixels[400:624, 400:624] = (215, 200, 240)
+        soft = np.zeros((1024, 1024), dtype=np.uint8)
+        soft[400:624, 400:624] = 255
+        cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
+        arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
+        purple = np.array(parse_color(delivery_style.STROKE))
+        self.assertTrue((np.abs(arr[:190, :190] - (16, 32, 48)).max(axis=2) <= 2).all())
+        self.assertTrue((np.abs(arr[300:340, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
+        np.testing.assert_array_equal(arr[200:256, 300:700], pixels.astype(int)[200:256, 300:700])
+        outside = np.ones((1024, 1024), dtype=bool)
+        outside[256:768, 256:768] = False
+        self.assertFalse(((np.abs(arr - purple).max(axis=2) <= 40) & outside).any())
+
+    def test_clean_background_takes_a_window_that_runs_off_the_canvas(self):
+        pixels = np.full((1024, 1024, 3), (20, 20, 20), dtype=np.uint8)
+        pixels[:100, :100] = (196, 220, 151)          # outer green, far from the figure
+        pixels[:768, 256:768] = (196, 220, 151)       # the window reaches the top edge
+        pixels[400:624, 400:624] = (215, 200, 240)
+        soft = np.zeros((1024, 1024), dtype=np.uint8)
+        soft[400:624, 400:624] = 255
+        cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
+        arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
+        self.assertTrue((np.abs(arr[:90, :90] - (16, 32, 48)).max(axis=2) <= 2).all())
+        self.assertTrue((np.abs(arr[20:60, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
+        np.testing.assert_array_equal(arr[200:700, 100:200], pixels.astype(int)[200:700, 100:200])
+        purple = np.array(parse_color(delivery_style.STROKE))
+        self.assertTrue((np.abs(arr[512, 340:400] - purple).max(axis=1) <= 40).any())
+        outside = np.ones((1024, 1024), dtype=bool)
+        outside[:768, 256:768] = False
+        self.assertFalse(((np.abs(arr - purple).max(axis=2) <= 40) & outside).any())
+
+    def test_clean_background_takes_both_sides_of_a_window_the_figure_splits(self):
+        pixels = np.full((1024, 1024, 3), (255, 255, 255), dtype=np.uint8)
+        pixels[256:768, 256:768] = (196, 220, 151)
+        pixels[250:774, 250:256] = (20, 20, 20)
+        pixels[250:774, 768:774] = (20, 20, 20)
+        pixels[250:256, 250:774] = (20, 20, 20)
+        pixels[768:774, 250:774] = (20, 20, 20)
+        pixels[256:640, 480:544] = (215, 200, 240)    # reaches the top and splits the green
+        soft = np.zeros((1024, 1024), dtype=np.uint8)
+        soft[256:640, 480:544] = 255
+        cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
+        arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
+        purple = np.array(parse_color(delivery_style.STROKE))
+        for cols in (slice(280, 330), slice(700, 750)):
+            self.assertTrue((np.abs(arr[300:340, cols] - (16, 32, 48)).max(axis=2) <= 2).all())
+        self.assertTrue((np.abs(arr[400, 400:480] - purple).max(axis=1) <= 40).any())
+        self.assertTrue((np.abs(arr[400, 544:640] - purple).max(axis=1) <= 40).any())
+
+    def test_a_full_green_screen_is_not_a_frame(self):
+        pixels = np.full((1024, 1024, 3), (196, 220, 151), dtype=np.uint8)
+        pixels[256:768, 256:768] = (215, 200, 240)
+        self.assertIsNone(frame_window(pixels.astype(float)))
+        soft = np.zeros((1024, 1024), dtype=np.uint8)
+        soft[256:768, 256:768] = 255
+        cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
+        arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
+        self.assertTrue((np.abs(arr[:64, :64] - (16, 32, 48)).max(axis=2) <= 2).all())
+        purple = np.array(parse_color(delivery_style.STROKE))
+        self.assertTrue((np.abs(arr[512, 150:256] - purple).max(axis=1) <= 40).any())
 
     def test_enclosed_cut_ignores_a_few_green_pixels_on_a_white_backdrop(self):
         pixels = np.full((256, 256, 3), (255, 255, 255), dtype=np.uint8)

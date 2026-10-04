@@ -55,8 +55,10 @@ Options, defaults and ranges live here:
   `repair_regions` are not redraw-shaping.
 - `deliver_only` + `repair` runs `repair_seeds` reroll seeds through the
   delivery tail in one submission and records one request with `parameters.kind: "repair"`.
-- `hires` (long side in px, e.g. `2048`) first re-renders the source picture
-  at that size, then delivers it; the hires picture is recorded as the
+- `hires` (e.g. `2048`) first re-renders the source picture at the area the
+  standard 1024x1640 canvas has with its long side at `hires` px, keeping the
+  source's aspect ratio (a portrait at 2048 is 1280x2048, a square 1616x1616),
+  then delivers it; the hires picture is recorded as the
   finalize's raw output. It needs `deliver_only`, an Anima source with a
   stored graph (a graph-mode source is fine) and cannot combine with
   `repair`, `repair_regions` or `repair_seeds`. The canvas is never changed

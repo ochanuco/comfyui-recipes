@@ -308,6 +308,26 @@ class ExecuteTest(unittest.TestCase):
             self.assertTrue(path.exists())
             self.assertEqual(key_prefix, "request:req-1")
 
+    def test_finalize_kind_passes_hires_options_through(self):
+        with tempfile.TemporaryDirectory() as directory:
+            finalize_calls = []
+
+            def fake_finalize(generation_id, finalize_services, **kwargs):
+                finalize_calls.append(kwargs)
+                return {"generation_ids": ["g2"]}
+
+            services = make_services(
+                directory, ManagementFake(), finalize=fake_finalize,
+                finalize_services="finalize-services-sentinel")
+            row = finalize_row(payload={
+                "generation_id": "gen-1",
+                "options": {"hires": 2048, "hires_denoise": 0.4}})
+            result = execute(services, row)
+            self.assertEqual(finalize_calls[0]["hires"], 2048)
+            self.assertEqual(finalize_calls[0]["hires_denoise"], 0.4)
+            self.assertEqual(result["resolved_options"],
+                             {"hires": 2048, "hires_denoise": 0.4})
+
     def test_finalize_kind_maps_options_and_uses_the_configured_services(self):
         with tempfile.TemporaryDirectory() as directory:
             finalize_calls = []

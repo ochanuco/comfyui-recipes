@@ -32,7 +32,9 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
    tags set the face and line.
 2. **Finalize delivers the raw pick.** `finalize` cuts a matte, repins the
    palette and composites the backdrop and purple stroke onto the Anima
-   pick itself -- no redraw. It is the recipe default
+   pick itself -- no redraw. The raw is drawn on a green key with a
+   `(white outline:1.3)` around the figure, and the delivery paints that
+   outline into its white band (`drawn_outline`). It is the recipe default
    (`yukari/delivery_style.py`): the WebUI button and an
    option-less `finalize_generation` both deliver this way.
 

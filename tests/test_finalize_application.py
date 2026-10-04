@@ -1701,6 +1701,184 @@ class FinalizeDeliverOnlyRepairEndToEndTest(unittest.TestCase):
                 finalize("gen-id", services, deliver_only=True, repair=["feet"])
 
 
+HIRES_GRAPH = {
+    "1": {"class_type": "UNETLoader", "inputs": {}},
+    "5": {"class_type": "EmptyLatentImage",
+          "inputs": {"width": 1024, "height": 1640, "batch_size": 1}},
+    "3": {"class_type": "KSampler", "inputs": {
+        "model": ["1", 0], "seed": 5, "steps": 10, "cfg": 2,
+        "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0,
+        "latent_image": ["5", 0], "positive": ["6", 0], "negative": ["7", 0]}},
+    "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
+    "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
+    **_DECODE_SAVE,
+}
+
+
+class HiresComfyFake(ComfyFake):
+    """Answers the hires prompt with one picture and the finalize prompt
+    with its raw/matte/delivered trio."""
+
+    def submit(self, graph):
+        self.submitted.append(graph)
+        is_hires = any(node.get("class_type") == "LatentUpscale"
+                       for node in graph.values())
+        return "hires-prompt" if is_hires else "prompt-id"
+
+    def wait_for(self, prompt_id):
+        if prompt_id == "hires-prompt":
+            return [{"filename": "hires-out.png"}]
+        return super().wait_for(prompt_id)
+
+    def fetch(self, image):
+        if image["filename"] == "hires-out.png":
+            return b"hires-bytes"
+        return super().fetch(image)
+
+
+class HiresFinalizeTest(unittest.TestCase):
+    def _services(self, directory, graph=HIRES_GRAPH, **overrides):
+        return base_services(
+            directory, comfyui=overrides.pop("comfyui", HiresComfyFake()),
+            graph_from_png=lambda data: copy.deepcopy(graph), **overrides)
+
+    def test_hires_picture_replaces_the_picked_image_and_graph(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append((base, kwargs))
+                return {}
+
+            comfy = HiresComfyFake()
+            services = self._services(
+                directory, comfyui=comfy, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, deliver_only=True, hires=2048)
+
+            hires_submitted = comfy.submitted[0]
+            self.assertEqual(hires_submitted["10"]["class_type"], "LatentUpscale")
+            self.assertEqual(hires_submitted["10"]["inputs"]["width"], 1280)
+            self.assertEqual(hires_submitted["11"]["inputs"]["denoise"], 0.35)
+            self.assertEqual(
+                hires_submitted["9"]["inputs"]["filename_prefix"], "hires-gen-id")
+            self.assertEqual(comfy.uploaded[0][1], b"hires-bytes")
+            self.assertEqual(calls[0][0]["8"]["inputs"]["samples"], ["11", 0])
+            self.assertEqual(len(comfy.submitted), 2)
+
+    def test_request_parameters_record_the_resolved_hires_options(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = self._services(directory)
+            finalize("gen-id", services, deliver_only=True, hires=2048)
+            parameters = resolution_call(services)[2]["parameters"]
+            self.assertEqual(parameters["hires"], 2048)
+            self.assertEqual(parameters["hires_denoise"], 0.35)
+
+    def test_explicit_hires_denoise_is_used_and_recorded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = HiresComfyFake()
+            services = self._services(directory, comfyui=comfy)
+            finalize("gen-id", services, deliver_only=True, hires=2048,
+                     hires_denoise=0.5)
+            self.assertEqual(comfy.submitted[0]["11"]["inputs"]["denoise"], 0.5)
+            parameters = resolution_call(services)[2]["parameters"]
+            self.assertEqual(parameters["hires_denoise"], 0.5)
+
+    def test_no_hires_leaves_parameters_unchanged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = self._services(directory)
+            finalize("gen-id", services, deliver_only=True)
+            parameters = resolution_call(services)[2]["parameters"]
+            self.assertNotIn("hires", parameters)
+            self.assertNotIn("hires_denoise", parameters)
+
+    def test_resume_does_not_resubmit_the_hires_prompt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = HiresComfyFake()
+            services = self._services(directory, comfyui=comfy)
+            state_path = operation_state_path(
+                Path(directory), "finalize", "request:r1")
+            state_path.parent.mkdir(parents=True, exist_ok=True)
+            services.state.save(state_path, {"hires_prompt_id": "hires-prompt"})
+
+            finalize("gen-id", services, deliver_only=True, hires=2048,
+                     key_prefix="request:r1")
+
+            self.assertEqual(len(comfy.submitted), 1)
+            self.assertEqual(comfy.uploaded[0][1], b"hires-bytes")
+
+    def test_the_hires_prompt_id_is_saved_before_the_finalize_submit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = self._services(directory)
+            finalize("gen-id", services, deliver_only=True, hires=2048,
+                     key_prefix="request:r1")
+            state_path = operation_state_path(
+                Path(directory), "finalize", "request:r1")
+            state = services.state.load(state_path)
+            self.assertEqual(state["hires_prompt_id"], "hires-prompt")
+            self.assertEqual(state["prompt_id"], "prompt-id")
+
+    def test_rejections_happen_before_any_submit(self):
+        cases = [
+            ("hires_denoise は hires", HIRES_GRAPH,
+             dict(deliver_only=True, hires_denoise=0.4)),
+            ("64 以上の整数", HIRES_GRAPH, dict(deliver_only=True, hires=True)),
+            ("64 以上の整数", HIRES_GRAPH, dict(deliver_only=True, hires=8)),
+            ("0 より大きく 1 以下", HIRES_GRAPH,
+             dict(deliver_only=True, hires=2048, hires_denoise=0)),
+            ("deliver_only（描き直し無しの納品）でだけ", HIRES_GRAPH,
+             dict(deliver_only=False, hires=2048)),
+            ("deliver_only（描き直し無しの納品）でだけ", HIRES_GRAPH,
+             dict(hires=2048, size=1024, deliver_only=RECIPE_DEFAULT)),
+            ("Anima で描いた絵だけ", SKETCH_GRAPH,
+             dict(deliver_only=True, hires=2048)),
+            ("repair と一緒には使えません", HIRES_GRAPH,
+             dict(deliver_only=True, hires=2048, repair=["hands"])),
+            ("repair と一緒には使えません", HIRES_GRAPH,
+             dict(deliver_only=True, hires=2048,
+                  repair_regions=[[0.1, 0.1, 0.2, 0.2]])),
+            ("repair と一緒には使えません", HIRES_GRAPH,
+             dict(deliver_only=True, hires=2048, repair_seeds=2)),
+        ]
+        for message, graph, kwargs in cases:
+            with self.subTest(message=message, kwargs=kwargs):
+                with tempfile.TemporaryDirectory() as directory:
+                    comfy = HiresComfyFake()
+                    services = self._services(directory, graph=graph, comfyui=comfy)
+                    with self.assertRaisesRegex(SystemExit, message):
+                        finalize("gen-id", services, **kwargs)
+                    self.assertEqual(comfy.submitted, [])
+
+    def test_a_source_without_a_graph_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = HiresComfyFake()
+            services = base_services(
+                directory, comfyui=comfy, graph_from_png=lambda data: None)
+            with self.assertRaisesRegex(SystemExit, "graph が無い.*hires"):
+                finalize("gen-id", services, deliver_only=True, hires=2048)
+            self.assertEqual(comfy.submitted, [])
+
+    def test_a_repaired_source_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = HiresComfyFake()
+            management = ManagementFake(request_parameters={
+                "kind": "repair", "base_generation": "base-id"})
+            services = self._services(
+                directory, comfyui=comfy, management=management)
+            with self.assertRaisesRegex(SystemExit, "直した絵には hires"):
+                finalize("gen-id", services, deliver_only=True, hires=2048)
+            self.assertEqual(comfy.submitted, [])
+
+    def test_a_stitched_source_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = HiresComfyFake()
+            graph = copy.deepcopy(MASKED_REDRAW_GRAPH)
+            graph["1"] = {"class_type": "UNETLoader", "inputs": {}}
+            services = self._services(directory, graph=graph, comfyui=comfy)
+            with self.assertRaisesRegex(SystemExit, "直した絵には hires"):
+                finalize("gen-id", services, deliver_only=True, hires=2048)
+            self.assertEqual(comfy.submitted, [])
+
+
 if __name__ == "__main__":
     unittest.main()
 

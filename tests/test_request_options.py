@@ -44,7 +44,21 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "repair_seeds": None,
             "keep_regions": [], "keep_strength": 0.25,
             "deliver_only": RECIPE_DEFAULT,
+            "hires": None, "hires_denoise": None,
         })
+
+    def test_hires_options_pass_through(self):
+        arguments = finalize_arguments({"hires": 2048, "hires_denoise": 0.4})
+        self.assertEqual(arguments["hires"], 2048)
+        self.assertEqual(arguments["hires_denoise"], 0.4)
+
+    def test_hires_rejects_bad_values(self):
+        for options in ({"hires": True}, {"hires": "2048"}, {"hires": 0},
+                        {"hires": -8}, {"hires": 2048, "hires_denoise": 0},
+                        {"hires": 2048, "hires_denoise": 1.5},
+                        {"hires": 2048, "hires_denoise": True}):
+            with self.assertRaises(ValueError, msg=options):
+                finalize_arguments(options)
 
     def test_repin_absent_resolves_to_the_recipe_default_sentinel(self):
         self.assertIs(finalize_arguments({})["apply_repin"], RECIPE_DEFAULT)

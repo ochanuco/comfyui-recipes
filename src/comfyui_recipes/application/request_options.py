@@ -21,7 +21,7 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "backdrop", "upscale", "deliver_size", "stroke_light",
     "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
     "repair_lora", "repair_seeds", "keep_regions", "keep_strength",
-    "deliver_only",
+    "deliver_only", "hires", "hires_denoise",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
@@ -327,6 +327,17 @@ def finalize_arguments(options: Mapping,
         options.get("keep_regions", []), key="keep_regions")
     keep_strength = _keep_strength_argument(options.get("keep_strength", 0.25))
 
+    hires = options.get("hires")
+    if hires is not None:
+        if not (isinstance(hires, int) and not isinstance(hires, bool)):
+            raise ValueError(
+                f"hires must be null or an integer, got {type(hires).__name__}")
+        if hires <= 0:
+            raise ValueError(f"hires must be at least 1, got {hires!r}")
+    hires_denoise = options.get("hires_denoise")
+    if hires_denoise is not None:
+        hires_denoise = _denoise_argument(hires_denoise, key="hires_denoise")
+
     return {
         "denoise": float(denoise) if denoise is not None else None,
         "apply_repin": defaultable_boolean("repin"),
@@ -352,6 +363,8 @@ def finalize_arguments(options: Mapping,
         "keep_regions": keep_regions,
         "keep_strength": keep_strength,
         "deliver_only": defaultable_boolean("deliver_only"),
+        "hires": hires,
+        "hires_denoise": hires_denoise,
     }
 
 

@@ -214,8 +214,10 @@ def drawn_outline(pixels: np.ndarray, figure: np.ndarray,
     """The white outline the raw drew around `figure`, as figure pixels.
 
     The outline and the key-tinted halo outside it reach the matte's edge
-    through each other; the figure's own line stops them. Empty unless they
-    cover `delivery_style.DRAWN_OUTLINE_MIN_EDGE` of the edge.
+    through each other; the figure's own line stops them. Specks they leave
+    behind, figure islands under band*band pixels, are taken with them.
+    Empty unless they cover `delivery_style.DRAWN_OUTLINE_MIN_EDGE` of the
+    edge.
     """
     empty = np.zeros(figure.shape, dtype=bool)
     if band < 1 or not figure.any():
@@ -235,7 +237,10 @@ def drawn_outline(pixels: np.ndarray, figure: np.ndarray,
     edge = figure_rim(figure, 1)
     if (outline & edge).sum() < delivery_style.DRAWN_OUTLINE_MIN_EDGE * edge.sum():
         return empty
-    return outline
+    rest = figure & ~outline
+    labels, count = ndimage.label(rest, ndimage.generate_binary_structure(2, 2))
+    sizes = ndimage.sum(rest, labels, range(1, count + 1))
+    return outline | np.isin(labels, 1 + np.nonzero(sizes < band * band)[0])
 
 
 def _pocket_key(pixels: np.ndarray, region: np.ndarray) -> np.ndarray | None:

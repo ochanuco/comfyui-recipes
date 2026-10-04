@@ -136,6 +136,24 @@ class CliTest(unittest.TestCase):
 
     @patch.object(cli, "finalize")
     @patch.object(cli, "ChimeraClient")
+    def test_finalize_hires_flags_dispatch_without_network(
+            self, chimera_class, run_finalize):
+        cli.main(["finalize", "gen-1", "--deliver-only", "--hires", "2048",
+                  "--hires-denoise", "0.4"])
+        kwargs = run_finalize.call_args.kwargs
+        self.assertEqual(kwargs["hires"], 2048)
+        self.assertEqual(kwargs["hires_denoise"], 0.4)
+
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_hires_defaults_to_off(self, chimera_class, run_finalize):
+        cli.main(["finalize", "gen-1"])
+        kwargs = run_finalize.call_args.kwargs
+        self.assertIsNone(kwargs["hires"])
+        self.assertIsNone(kwargs["hires_denoise"])
+
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
     def test_finalize_repair_defaults_need_no_flags(self, chimera_class, run_finalize):
         cli.main(["finalize", "gen-1"])
         args, kwargs = run_finalize.call_args

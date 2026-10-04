@@ -55,6 +55,13 @@ Options, defaults and ranges live here:
   `repair_regions` are not redraw-shaping.
 - `deliver_only` + `repair` runs `repair_seeds` reroll seeds through the
   delivery tail in one submission and records one request with `parameters.kind: "repair"`.
+- `hires` (long side in px, e.g. `2048`) first re-renders the source picture
+  at that size, then delivers it; the hires picture is recorded as the
+  finalize's raw output. It needs `deliver_only`, an Anima source with a
+  stored graph (a graph-mode source is fine) and cannot combine with
+  `repair`, `repair_regions` or `repair_seeds`. The canvas is never changed
+  directly: the stored graph gets a latent upscale and a second pass with the
+  same seed. `hires_denoise` (0 < d <= 1, default 0.35) needs `hires`.
 - Dial words (`"keep"`, `"on"`, …) are accepted wherever a number is. The
   row's result carries `resolved_options` with what actually ran.
 

@@ -43,7 +43,9 @@ def _current_defaults(fixture):
     out = dict(fixture)
     out["positive"] = (fixture["positive"]
                        .replace("masterpiece, best quality, score_7, ", "")
-                       .replace("hitoshi:0.85)", "hitoshi:1.3)"))
+                       .replace("hitoshi:0.85)", "hitoshi:1.3)")
+                       .replace("(green background:1.3), ",
+                                "(green background:1.3), (white outline:1.3), "))
     out["negative"] = fixture["negative"].replace(
         "(aged down:1.2)", "(aged down:1.2), (text:1.3), (speech bubble:1.3), (onomatopoeia:1.3), "
         "(english text:1.2), signature, watermark", 1)
@@ -71,7 +73,7 @@ COFFEE_POSITIVE = (
     "pantyhose:1.5), (dark violet tint:1.2), (see-through legwear:1.4), (skin "
     "visible through legwear:1.3), (pantyhose:1.4), (subtle sheen on "
     "legwear:1.05), (anime coloring:1.2), simple background, (green "
-    "background:1.3), (large eyes:1.2), (round face:1.3), (tareme:1.2), "
+    "background:1.3), (white outline:1.3), (large eyes:1.2), (round face:1.3), (tareme:1.2), "
     "(thick eyelashes:1.3), (long eyelashes:1.15), (flat color:1.3), "
     "(sketch:1.3), "
     "(traditional media:1.2)"
@@ -117,7 +119,7 @@ AMAE_POSITIVE = (
     "wrists:1.25), (denim shorts:1.3), (sheer black pantyhose:1.5), (dark "
     "violet tint:1.2), (see-through legwear:1.4), (skin visible "
     "through legwear:1.3), (pantyhose:1.4), (subtle sheen on legwear:1.05), (anime "
-    "coloring:1.2), simple background, (green background:1.3), (large "
+    "coloring:1.2), simple background, (green background:1.3), (white outline:1.3), (large "
     "eyes:1.2), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
     "(long eyelashes:1.15), (flat color:1.3), (sketch:1.3), "
     "(traditional media:1.2)"
@@ -143,7 +145,7 @@ STAND_POSITIVE = (
     "(sheer black pantyhose:1.5), (dark violet tint:1.2), (see-through "
     "legwear:1.4), (skin visible through legwear:1.3), (pantyhose:1.4), (subtle "
     "sheen on legwear:1.05), (anime coloring:1.2), simple background, (green "
-    "background:1.3), (large eyes:1.2), (round face:1.3), (tareme:1.2), "
+    "background:1.3), (white outline:1.3), (large eyes:1.2), (round face:1.3), (tareme:1.2), "
     "(thick eyelashes:1.3), (long eyelashes:1.15), (flat color:1.3), "
     "(sketch:1.3), "
     "(traditional media:1.2)"
@@ -186,7 +188,7 @@ BUST_POSITIVE = (
     "(looking at viewer:1.2), (eggplant purple hooded cardigan:1.5), "
     "(dark violet hoodie:1.25), open cardigan, (rabbit hood:1.3), long sleeves, "
     "drawstring, (purple dress:1.25), frills, (sleeves past wrists:1.15), "
-    "hood down, simple background, (green background:1.3), "
+    "hood down, simple background, (green background:1.3), (white outline:1.3), "
     "(large eyes:1.2), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
     "(long eyelashes:1.15), "
     "(flat color:1.3), (sketch:1.3), (traditional media:1.2)"
@@ -233,7 +235,7 @@ GAO_POSITIVE = (
     "(sleeves past wrists:1.15), hood down, (sheer black pantyhose:1.5), "
     "(dark violet tint:1.2), (see-through legwear:1.4), (skin visible "
     "through legwear:1.3), (pantyhose:1.4), (subtle sheen on legwear:1.05), (anime "
-    "coloring:1.2), simple background, (green background:1.3), (large "
+    "coloring:1.2), simple background, (green background:1.3), (white outline:1.3), (large "
     "eyes:1.2), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
     "(long eyelashes:1.15), (flat color:1.3), (sketch:1.3), "
     "(traditional media:1.2)"
@@ -282,7 +284,7 @@ REDRAW_STAND_POSITIVE = (
     "(sheer black pantyhose:1.5), (dark violet tint:1.2), (see-through "
     "legwear:1.4), (skin visible through legwear:1.3), (pantyhose:1.4), (subtle "
     "sheen on legwear:1.05), (anime coloring:1.2), simple background, (green "
-    "background:1.3), (large eyes:1.2), (round face:1.3), (tareme:1.2), "
+    "background:1.3), (white outline:1.3), (large eyes:1.2), (round face:1.3), (tareme:1.2), "
     "(thick eyelashes:1.3), (long eyelashes:1.15), (sketch:1.45), "
     "(rough sketch:1.4), "
     "rough lines, sketchy lines, pencil sketch, (unfinished:1.2), "

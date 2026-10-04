@@ -12,6 +12,7 @@ from ..domain.repair.loras import part_loras
 from ..domain.repair.prompt import repair_prompt
 from ..domain.repair.regions import rects_from_fractions, regions_from_pose, scale_circles
 from ..domain.yukari import delivery_style
+from ..domain.yukari.prompt_style import HEIGHT, WIDTH
 from ..domain.yukari.recipe import refinement_prompt
 from ..infrastructure.comfyui.base_graph import (
     BaseRoles,
@@ -48,7 +49,13 @@ from .repair import repair as repair_use_case
 KEEP_FEATHER_FRACTION = 0.03
 
 # Applies when `hires` is given without `hires_denoise`.
-HIRES_DENOISE = 0.35
+HIRES_DENOISE = 0.45
+
+
+def hires_pixels(hires: int) -> int:
+    """The area `hires` asks for: the standard canvas' area with its long
+    side at `hires` px. Every aspect ratio gets that many pixels."""
+    return round(hires * hires * WIDTH / HEIGHT)
 
 # Passed for apply_repin/backdrop/stroke_light/deliver_only to mean "use the
 # base recipe's own FINALIZE_DEFAULTS value".
@@ -187,7 +194,7 @@ def _check_hires(source: _Source, hires: int | None,
             raise SystemExit("hires_denoise は hires と一緒に指定してください")
         return
     if isinstance(hires, bool) or not isinstance(hires, int) or hires < 64:
-        raise SystemExit("hires は 64 以上の整数（長辺のピクセル数）で指定してください")
+        raise SystemExit("hires は 64 以上の整数（縦長の標準キャンバスで長辺にあたるピクセル数）で指定してください")
     if hires_denoise is not None and not 0 < hires_denoise <= 1:
         raise SystemExit("hires_denoise は 0 より大きく 1 以下で指定してください")
     if source.roles is None:
@@ -327,7 +334,8 @@ def _render_hires(generation_id: str, services: FinalizeServices,
                   state_path: Path | None) -> _Source:
     prefix = f"hires-{generation_id}"
     graph = services.hires_graph(
-        source.graph, source.roles, plan.hires, plan.hires_denoise, prefix)
+        source.graph, source.roles, hires_pixels(plan.hires),
+        plan.hires_denoise, prefix)
     prompt_id = state.get("hires_prompt_id")
     knows = getattr(services.comfyui, "knows", None)
     if prompt_id and (knows is None or knows(prompt_id)):

@@ -1703,3 +1703,46 @@ class FinalizeDeliverOnlyRepairEndToEndTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GraphlessSourceTest(unittest.TestCase):
+    def _services(self, directory, **overrides):
+        return base_services(
+            directory, graph_from_png=lambda data: None, **overrides)
+
+    def test_deliver_only_finalizes_an_image_without_a_graph(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            comfy = ComfyFake()
+            services = self._services(
+                directory, chain_pass=recording_chain_pass, comfyui=comfy)
+            finalize("gen-id", services, deliver_only=True)
+            self.assertIs(calls[-1]["deliver_only"], True)
+            self.assertEqual(comfy.uploaded, [("fin-gen-id-source.png", b"picked")])
+            self.assertEqual(
+                calls[-1]["source_image"], "uploaded-fin-gen-id-source.png")
+            posts = {call[1]: call[2] for call in services.management.calls
+                     if call[0] == "POST"}
+            self.assertEqual(posts["/api/v1/requests/request-id/jobs"]["seed"], 0)
+
+    def test_without_deliver_only_it_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = self._services(directory)
+            with self.assertRaisesRegex(SystemExit, "graph が無い.*描き直し"):
+                finalize("gen-id", services, deliver_only=False)
+
+    def test_repair_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = self._services(directory)
+            with self.assertRaisesRegex(SystemExit, "graph が無い.*repair"):
+                finalize("gen-id", services, deliver_only=True, repair=["hands"])
+            with self.assertRaisesRegex(SystemExit, "graph が無い.*repair"):
+                finalize("gen-id", services, deliver_only=True,
+                         repair_regions=[[0.1, 0.1, 0.2, 0.2]])
+            with self.assertRaisesRegex(SystemExit, "graph が無い.*repair"):
+                finalize("gen-id", services, deliver_only=True, repair_seeds=2)

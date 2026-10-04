@@ -20,9 +20,16 @@ def image_size(data: bytes) -> tuple[int, int]:
 
 
 def graph_from_png(data: bytes) -> dict:
+    graph = graph_from_png_or_none(data)
+    if graph is None:
+        raise SystemExit("PNG has no ComfyUI prompt metadata")
+    return graph
+
+
+def graph_from_png_or_none(data: bytes) -> dict | None:
     prompt = Image.open(io.BytesIO(data)).info.get("prompt")
     if prompt is None:
-        raise SystemExit("PNG has no ComfyUI prompt metadata")
+        return None
     try:
         graph = json.loads(prompt)
     except (json.JSONDecodeError, TypeError) as error:

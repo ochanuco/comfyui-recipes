@@ -25,6 +25,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     enclosed_cut,
     figure_rim,
     graph_from_png,
+    graph_from_png_or_none,
     keep_scene,
     keyed_coverage,
     outside_mask,
@@ -65,6 +66,16 @@ class DeliveryTest(unittest.TestCase):
             graph_from_png(png(pixels, "not-json"))
         self.assertEqual(graph_from_png(png(pixels, json.dumps({"3": {}}))),
                          {"3": {}})
+
+    def test_lenient_graph_reader_returns_none_without_metadata(self):
+        pixels = np.zeros((2, 2, 3), dtype=np.uint8)
+        self.assertIsNone(graph_from_png_or_none(png(pixels)))
+        self.assertEqual(
+            graph_from_png_or_none(png(pixels, json.dumps({"3": {}}))), {"3": {}})
+        with self.assertRaisesRegex(SystemExit, "invalid ComfyUI prompt"):
+            graph_from_png_or_none(png(pixels, "not-json"))
+        with self.assertRaisesRegex(SystemExit, "invalid ComfyUI prompt"):
+            graph_from_png_or_none(png(pixels, "[]"))
 
     def test_parse_color_rejects_non_hexadecimal_input(self):
         self.assertEqual(parse_color("#c7e5e9"), (199, 229, 233))

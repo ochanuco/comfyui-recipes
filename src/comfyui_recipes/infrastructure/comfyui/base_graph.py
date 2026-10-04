@@ -7,6 +7,7 @@ graph's own edges rather than assuming a fixed ID.
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Mapping
 from dataclasses import dataclass
 
@@ -173,3 +174,43 @@ def base_roles(graph: Mapping) -> BaseRoles:
         save_id=save_id, decode_id=decode_id, sampler_id=sampler_id,
         positive_id=sampler_inputs["positive"][0],
         negative_id=sampler_inputs["negative"][0], stitched=stitched)
+
+
+def hires_graph(graph: Mapping, roles: BaseRoles, longest: int, denoise: float,
+                prefix: str) -> dict:
+    """A copy of `graph` that latent-upscales the finished sampler's output
+    to `longest` px on its long side and re-samples it with the first-pass
+    seed, before the decode. The EmptyLatentImage is left untouched."""
+    if any(node.get("class_type") == "LatentUpscale" for node in graph.values()):
+        raise ValueError("この graph は既に hires 済みです")
+    result = copy.deepcopy(dict(graph))
+    origin = chain_origin(result, roles.sampler_id)
+    latent_ref = result[origin]["inputs"].get("latent_image")
+    if not (is_ref(latent_ref) and latent_ref[0] in result
+            and result[latent_ref[0]].get("class_type") == "EmptyLatentImage"):
+        raise ValueError("元の canvas (EmptyLatentImage) を特定できません")
+    canvas = result[latent_ref[0]]["inputs"]
+    width, height = canvas["width"], canvas["height"]
+    target_width = round(longest * width / max(width, height) / 8) * 8
+    target_height = round(longest * height / max(width, height) / 8) * 8
+    if target_width < 8 or target_height < 8:
+        raise ValueError(
+            f"hires の大きさが小さすぎます: {target_width}x{target_height}")
+    settings = sampler_settings(result, roles.sampler_id)
+    sampler_inputs = result[roles.sampler_id]["inputs"]
+    next_id = max(int(key) for key in result if key.isdecimal()) + 1
+    upscale_id, resample_id = str(next_id), str(next_id + 1)
+    result[upscale_id] = {"class_type": "LatentUpscale", "inputs": {
+        "samples": [roles.sampler_id, 0], "upscale_method": "bicubic",
+        "width": target_width, "height": target_height, "crop": "disabled"}}
+    result[resample_id] = {"class_type": "KSampler", "inputs": {
+        "model": sampler_inputs["model"],
+        "positive": sampler_inputs["positive"],
+        "negative": sampler_inputs["negative"],
+        "latent_image": [upscale_id, 0], "seed": settings["seed"],
+        "steps": settings["steps"], "cfg": settings["cfg"],
+        "sampler_name": settings["sampler_name"],
+        "scheduler": settings["scheduler"], "denoise": denoise}}
+    result[roles.decode_id]["inputs"]["samples"] = [resample_id, 0]
+    result[roles.save_id]["inputs"]["filename_prefix"] = prefix
+    return result

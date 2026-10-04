@@ -290,6 +290,13 @@ class DeliveryTest(unittest.TestCase):
         self.assertTrue(outline[147:156, 147:365].all())
         self.assertFalse(outline[156:356, 156:356].any())
 
+    def test_drawn_outline_takes_the_specks_left_inside_it(self):
+        pixels, soft = self.outlined_figure(ring=True)
+        pixels[151:153, 200:202] = (90, 80, 110)
+        outline = drawn_outline(pixels.astype(float), soft > 127, 6)
+        self.assertTrue(outline[151:153, 200:202].all())
+        self.assertFalse(outline[156:356, 156:356].any())
+
     def test_drawn_outline_is_empty_without_a_ring_around_most_of_the_edge(self):
         pixels, soft = self.outlined_figure(ring=False)
         self.assertFalse(drawn_outline(pixels.astype(float), soft > 127, 6).any())

@@ -212,21 +212,24 @@ def enclosed_cut(pixels: np.ndarray, figure: np.ndarray,
     return figure & ~enclosed_mask(pixels, ~figure, tolerance, seed=key)
 
 
-def drawn_outline(pixels: np.ndarray, figure: np.ndarray,
-                  band: int) -> np.ndarray:
+def drawn_outline(pixels: np.ndarray, figure: np.ndarray, band: int,
+                  key: np.ndarray | None = None,
+                  region: np.ndarray | None = None) -> np.ndarray:
     """The white outline the raw drew around `figure`, as figure pixels.
 
     The outline and the key-tinted halo outside it reach the matte's edge
     through each other; the figure's own line stops them. Specks they leave
     behind, figure islands under band*band pixels, are taken with them.
     Empty unless they cover `delivery_style.DRAWN_OUTLINE_MIN_EDGE` of the
-    edge.
+    edge. `key` is the backdrop colour the halo is tinted by, the corner's
+    by default. `region` limits the outline and the edge it is measured on.
     """
     empty = np.zeros(figure.shape, dtype=bool)
     if band < 1 or not figure.any():
         return empty
     chroma = pixels - pixels.mean(axis=2, keepdims=True)
-    key = _corner_seed(pixels)
+    if key is None:
+        key = _corner_seed(pixels)
     direction = key - key.mean()
     norm = np.linalg.norm(direction)
     if norm > 0:
@@ -238,6 +241,9 @@ def drawn_outline(pixels: np.ndarray, figure: np.ndarray,
     outside = ~figure
     outline = figure & ndimage.binary_propagation(outside, mask=outside | (pale & rim))
     edge = figure_rim(figure, 1)
+    if region is not None:
+        outline &= region
+        edge &= region
     if (outline & edge).sum() < delivery_style.DRAWN_OUTLINE_MIN_EDGE * edge.sum():
         return empty
     rest = figure & ~outline
@@ -648,10 +654,10 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     figure = enclosed_cut(px, figure, tolerance)
     frame = frame_window(px, figure)
     window, key = frame if frame is not None else (None, _corner_seed(px))
+    inner = None if window is None else ndimage.binary_erosion(
+        window, iterations=delivery_style.FRAME_WINDOW_EDGE_PX)
     raw = px
-    outline_drawn = drawn_outline(px, figure, band)
-    if window is not None:
-        outline_drawn &= window
+    outline_drawn = drawn_outline(px, figure, band, key, inner)
     local = local_backdrop(px, figure, band, region=window)
     coverage = keyed_coverage(px, figure, local, band, tolerance)
     px = despill(unpremultiply(px, local, coverage),
@@ -663,8 +669,6 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
         composite = sticker(px, figure, coverage, backdrop_rgb, light,
                             shadow=True)
     else:
-        inner = ndimage.binary_erosion(
-            window, iterations=delivery_style.FRAME_WINDOW_EDGE_PX)
         composite = sticker(px, figure & inner, coverage, backdrop_rgb, light,
                             window, shadow=True)
         excess = raw[..., 1] - np.maximum(raw[..., 0], raw[..., 2])

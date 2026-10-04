@@ -113,15 +113,18 @@ def down2(pixels: np.ndarray) -> np.ndarray:
         height // 2, 2, width // 2, 2, *pixels.shape[2:]).mean(axis=(1, 3))
 
 
-def local_backdrop(pixels: np.ndarray, figure: np.ndarray,
-                   band: int) -> np.ndarray:
+def local_backdrop(pixels: np.ndarray, figure: np.ndarray, band: int, *,
+                   region: np.ndarray | None = None) -> np.ndarray:
     """The backdrop colour read locally, from well outside `figure`.
 
     A normalised Gaussian blur of the pixels the matte puts well outside the
     figure, because a bigger redraw shades the backdrop toward the figure and
-    a single global sample would claim that shading as figure.
+    a single global sample would claim that shading as figure. `region`
+    limits the pixels sampled.
     """
     outside = ~ndimage.binary_dilation(figure, iterations=band * 2)
+    if region is not None:
+        outside &= region
     sigma = band * 4
     weight = ndimage.gaussian_filter(outside.astype(float), sigma)
     return np.stack(
@@ -258,51 +261,43 @@ def _pocket_key(pixels: np.ndarray, region: np.ndarray) -> np.ndarray | None:
     return np.median(pixels[inside], axis=0)
 
 
-def pocket_window(pixels: np.ndarray, figure: np.ndarray,
-                  tolerance: int) -> np.ndarray | None:
-    """Where the backdrop goes when the key came from a pocket, else None.
+def frame_window(pixels: np.ndarray, figure: np.ndarray | None = None
+                 ) -> tuple[np.ndarray, np.ndarray] | None:
+    """The inside of a drawn frame and its key colour, else None.
 
-    Inside the frame line the raw's green is the other side of the picture
-    and takes the backdrop; the white beyond the line is left as it is. The
-    window is the filled bounding rectangle of the key-coloured field
-    outside the cut figure: the frame the figure steps out of, whole even
-    where the figure splits the field or the matte dropped a side of the
-    drawn line. `figure` is the silhouette after `enclosed_cut`.
+    A frame leaves the canvas border almost free of key colour (under
+    `delivery_style.FRAME_WINDOW_MAX_BORDER_GREEN`), unlike a green screen.
+    The window green is every 8-connected key-coloured component of at
+    least `delivery_style.ENCLOSED_POCKET_MIN_AREA` pixels that reaches
+    `figure` dilated by `delivery_style.FRAME_WINDOW_FIGURE_REACH_PX` (any
+    component without a `figure`), and must cover at least
+    `delivery_style.FRAME_WINDOW_MIN_AREA_PCT` of the canvas. The window is
+    that green's filled convex hull -- a tilted frame is a quad, and the
+    figure can split the green -- and the key is its median colour.
     """
-    key = _corner_seed(pixels)
-    if key[1] - max(key[0], key[2]) >= delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS:
+    green = (pixels[..., 1] - np.maximum(pixels[..., 0], pixels[..., 2])
+             >= delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS)
+    border = np.concatenate([green[0], green[-1], green[:, 0], green[:, -1]])
+    if border.mean() >= delivery_style.FRAME_WINDOW_MAX_BORDER_GREEN:
         return None
-    key = _pocket_key(pixels, ~figure)
-    if key is None:
+    labels, count = ndimage.label(green, ndimage.generate_binary_structure(2, 2))
+    if not count:
         return None
-    field = enclosed_mask(pixels, figure, tolerance, seed=key)
-    if not field.any():
+    sizes = np.bincount(labels.ravel(), minlength=count + 1)
+    keep = sizes >= delivery_style.ENCLOSED_POCKET_MIN_AREA
+    if figure is not None:
+        reach = ndimage.binary_dilation(
+            figure, iterations=delivery_style.FRAME_WINDOW_FIGURE_REACH_PX)
+        keep &= np.bincount(labels[reach], minlength=count + 1) > 0
+    keep[0] = False
+    union = keep[labels]
+    if union.sum() < labels.size * delivery_style.FRAME_WINDOW_MIN_AREA_PCT / 100:
         return None
-    rows, cols = np.nonzero(field)
-    window = np.zeros(figure.shape, dtype=bool)
-    window[rows.min():rows.max() + 1, cols.min():cols.max() + 1] = True
-    return window
-
-
-def frame_line(pixels: np.ndarray, window: np.ndarray, band: int) -> np.ndarray:
-    """The drawn frame line hugging `window`, to keep as figure.
-
-    The matte drops a thin line except where it touches the figure, and the
-    backdrop would paint over the rest. The line is the dark pixels within
-    two edge bands outside each side of the window, across the whole row
-    or column so the ends the model overshoots past the corners come too.
-    """
-    dark = pixels.max(axis=2) < delivery_style.FRAME_LINE_MAX_VALUE
-    rows, cols = np.nonzero(window)
-    top, bottom, left, right = rows.min(), rows.max(), cols.min(), cols.max()
-    height, width = window.shape
-    reach = 2 * band
-    line = np.zeros(window.shape, dtype=bool)
-    line[max(top - reach, 0):top, :] = True
-    line[bottom + 1:min(bottom + 1 + reach, height), :] = True
-    line[:, max(left - reach, 0):left] = True
-    line[:, right + 1:min(right + 1 + reach, width)] = True
-    return line & dark
+    rows, cols = np.nonzero(union)
+    hull = cv2.convexHull(np.stack([cols, rows], axis=1).astype(np.int32))
+    window = np.zeros(union.shape, dtype=np.uint8)
+    cv2.fillConvexPoly(window, hull, 1)
+    return window.astype(bool), np.median(pixels[union], axis=0)
 
 
 def keyed_coverage(pixels: np.ndarray, figure: np.ndarray, local: np.ndarray,
@@ -588,31 +583,34 @@ def _bands_over(white_a: np.ndarray, purple_a: np.ndarray,
 
 def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
            backdrop_rgb, light: str | None = None,
-           outline: np.ndarray | None = None,
+           clip: np.ndarray | None = None,
            shadow: bool = False) -> np.ndarray:
     """Frame `figure` on `backdrop_rgb`, white band then purple band outside it.
 
     `coverage` is the figure's own per-pixel alpha in 0..1; the composite is
     coverage * px + (1 - coverage) * (the stroke bands over the backdrop).
-    `outline` (default `figure`) alone decides where the bands sit --
-    coverage may be soft at the edge the bands are drawn from a hard
-    boundary. A pocket window is passed in with the figure so the bands
-    wrap the patterned side too instead of running through it. `shadow`
-    with `light` throws a translucent drop shadow of the sticker's own shape
-    onto the backdrop, away from the light.
+    `figure` alone decides where the bands sit -- coverage may be soft at
+    the edge the bands are drawn from a hard boundary. `clip`, a frame
+    window, keeps the bands and the shadow inside it. `shadow` with `light`
+    throws a translucent drop shadow of the sticker's own shape onto the
+    backdrop, away from the light.
     """
-    outline_used = figure if outline is None else outline
-    white_a, purple_a = band_alphas(outline_used, light)
+    white_a, purple_a = band_alphas(figure, light)
+    if clip is not None:
+        white_a = np.where(clip, white_a, 0.0)
+        purple_a = np.where(clip, purple_a, 0.0)
     # backdrop_rgb may be a 3-vector or a full (H, W, 3) pattern; either
     # broadcasts onto px.shape unchanged.
     flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
     if shadow and light is not None:
-        _, purple_w = _band_widths(*outline_used.shape)
-        region = outline_used | (white_a >= 0.5) | (purple_a >= 0.5)
+        _, purple_w = _band_widths(*figure.shape)
+        region = figure | (white_a >= 0.5) | (purple_a >= 0.5)
         shift = _shadow_shift(delivery_style.STROKE_LIGHTS[light], purple_w)
         shifted = ndimage.shift(region, shift, order=0, mode="constant", cval=False)
         shadow_a = _shadow_coverage(shifted, delivery_style.STROKE_CUT_EPS_PCT) \
             * (1 - np.clip(white_a + purple_a, 0.0, 1.0))
+        if clip is not None:
+            shadow_a = np.where(clip, shadow_a, 0.0)
         flat = flat * (1 - shadow_a[..., None] * delivery_style.STICKER_SHADOW_DARKEN)
     bands = _bands_over(white_a, purple_a, flat)
     return bands + coverage[..., None] * (px - bands)
@@ -648,24 +646,32 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     figure = soft_clamped(refine_matte(px, soft > 127, band, tolerance), soft)
     figure = shadow_cut(px, figure, soft, band)
     figure = enclosed_cut(px, figure, tolerance)
-    window = pocket_window(px, figure, tolerance)
-    if window is not None:
-        figure = figure | frame_line(px, window, band)
+    frame = frame_window(px, figure)
+    window, key = frame if frame is not None else (None, _corner_seed(px))
+    raw = px
     outline_drawn = drawn_outline(px, figure, band)
-    local = local_backdrop(px, figure, band)
+    if window is not None:
+        outline_drawn &= window
+    local = local_backdrop(px, figure, band, region=window)
     coverage = keyed_coverage(px, figure, local, band, tolerance)
-    key = _corner_seed(px)
     px = despill(unpremultiply(px, local, coverage),
                  figure_rim(figure, band), key)
     px[outline_drawn] = 255.0
     coverage[outline_drawn] = 1.0
     backdrop_rgb = backdrops.render(backdrop, height, width)
-    outline = figure
-    if window is not None:
-        backdrop_rgb = np.where(window[..., None], backdrop_rgb, key)
-        outline = figure | window
-    composite = sticker(px, figure, coverage, backdrop_rgb, light, outline,
-                        shadow=True)
+    if window is None:
+        composite = sticker(px, figure, coverage, backdrop_rgb, light,
+                            shadow=True)
+    else:
+        inner = ndimage.binary_erosion(
+            window, iterations=delivery_style.FRAME_WINDOW_EDGE_PX)
+        composite = sticker(px, figure & inner, coverage, backdrop_rgb, light,
+                            window, shadow=True)
+        excess = raw[..., 1] - np.maximum(raw[..., 0], raw[..., 2])
+        half = delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS / 2
+        green = np.clip((excess - half) / half, 0.0, 1.0)[..., None]
+        outer = raw + green * (backdrop_rgb - raw)
+        composite = np.where(window[..., None], composite, outer)
     white_w, purple_w = _band_widths(height, width)
 
     keyed = _key_excess(key) >= delivery_style.KEY_DESPILL_MIN_EXCESS

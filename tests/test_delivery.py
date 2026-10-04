@@ -400,6 +400,17 @@ class DeliveryTest(unittest.TestCase):
         self.assertTrue(tag.endswith("-outline"))
         self.assertTrue((rgba[147:154, 200:300] == 255).all())
 
+    def test_clean_background_paints_the_drawn_outline_white_inside_a_bezel(self):
+        pixels, soft = self.outlined_figure(ring=True)
+        bezel = np.ones((512, 512), dtype=bool)
+        bezel[40:472, 40:472] = False
+        pixels[bezel] = (60, 60, 60)
+        soft[bezel] = 255
+        cleaned, tag = clean_background(png(pixels), png(soft), backdrop="#102030")
+        arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
+        self.assertIn("-outline", tag)
+        self.assertTrue((arr[147:154, 200:300] == 255).all())
+
     def test_clean_background_without_a_drawn_outline_has_no_outline_tag(self):
         pixels, soft = self.outlined_figure(ring=False)
         _, tag = clean_background(png(pixels), png(soft))

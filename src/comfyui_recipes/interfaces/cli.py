@@ -28,7 +28,7 @@ from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
 from ..domain.yukari.costumes import COSTUMES, LEGWEAR_STATES, LEGWEARS
-from ..domain.yukari.delivery_style import STROKE_LIGHTS
+from ..domain.yukari.delivery_style import DOF_SCOPE, STROKE_LIGHTS, Dof
 from ..domain.yukari.expressions import EXPRESSIONS
 from ..domain.yukari.poses import POSES
 from ..domain.yukari.recipe import negative, positive
@@ -253,9 +253,9 @@ def parser() -> argparse.ArgumentParser:
         help="with --hires: denoise of the second pass, 0 < d <= 1 "
              "(default 0.45)")
     finalize_parser.add_argument(
-        "--dof", metavar="X,Y,F",
+        "--dof", metavar="X,Y,F[,SCOPE]",
         help="depth-of-field blur: focus point as fractions of the picture "
-             "width and height, then the f-number (0.7..22); off by default")
+             "width and height, then the f-number (2.8..22), then optionally 'figure' (default) or 'all' (also blur the rim and backdrop); off by default")
     finalize_parser.add_argument(
         "--matte-model", default=None,
         help="matte source for the delivery: a core background-removal "
@@ -439,8 +439,11 @@ def main(argv: list[str] | None = None) -> None:
                        for region in (args.keep_regions or [])]
         dof = None
         if args.dof:
-            focus_x, focus_y, f_number = (float(v) for v in args.dof.split(","))
-            dof = ((focus_x, focus_y), f_number)
+            focus_x, focus_y, f_number, *scope = args.dof.split(",")
+            if scope and scope[0] not in DOF_SCOPE["values"]:
+                raise SystemExit(
+                    f"--dof scope must be one of {DOF_SCOPE['values']}")
+            dof = Dof((float(focus_x), float(focus_y)), float(f_number), *scope)
         context, dial_values = _resolve_word_args(
             chimera, args.generation_id, "finalize",
             {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})

@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
-from ..domain.yukari.delivery_style import DOF_F_NUMBER, STROKE_LIGHTS
+from ..domain.yukari.delivery_style import DOF_F_NUMBER, DOF_SCOPE, STROKE_LIGHTS, Dof
 from ..domain.yukari.dials import DIALS
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
 from .finalize import RECIPE_DEFAULT
@@ -107,13 +107,12 @@ def _regions_argument(value: object, *, key: str = "regions") -> list[list[float
     return parsed
 
 
-def _dof_argument(value: object, *, key: str = "dof"
-                  ) -> tuple[tuple[float, float], float] | None:
+def _dof_argument(value: object, *, key: str = "dof") -> Dof | None:
     if value is None:
         return None
     if not isinstance(value, Mapping):
         raise ValueError(f"{key} must be null or an object, got {type(value).__name__}")
-    unknown = sorted(set(value) - {"focus", "f_number"})
+    unknown = sorted(set(value) - {"focus", "f_number", "scope"})
     if unknown:
         raise ValueError(f"{key} has unknown keys: {unknown}")
     focus = value.get("focus")
@@ -130,7 +129,11 @@ def _dof_argument(value: object, *, key: str = "dof"
         raise ValueError(
             f"{key}.f_number must be between {DOF_F_NUMBER['min']} and "
             f"{DOF_F_NUMBER['max']}, got {f_number!r}")
-    return (float(focus[0]), float(focus[1])), float(f_number)
+    scope = value.get("scope", DOF_SCOPE["default"])
+    if scope not in DOF_SCOPE["values"]:
+        raise ValueError(
+            f"{key}.scope must be one of {DOF_SCOPE['values']}, got {scope!r}")
+    return Dof((float(focus[0]), float(focus[1])), float(f_number), scope)
 
 
 def _denoise_argument(value: object, *, key: str = "denoise", max_value: float = 1) -> float:

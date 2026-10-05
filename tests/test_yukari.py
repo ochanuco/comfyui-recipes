@@ -39,13 +39,26 @@ LEGWEAR_SHEER_GLOSS_FINAL = json.loads(
     (FIXTURES / "legwear-sheer-gloss-final.json").read_text())
 
 
+NAILS_TEXT = "(nail polish:1.3), (light purple nails:1.4), "
+
+
+def _with_nails(positive_text):
+    for costume_start in ("(oversized sweatshirt:1.35)",
+                          "(eggplant purple hooded cardigan:1.5)"):
+        if costume_start in positive_text:
+            return positive_text.replace(
+                costume_start, NAILS_TEXT + costume_start, 1)
+    raise AssertionError("fixture has no costume block")
+
+
 def _current_defaults(fixture):
     out = dict(fixture)
-    out["positive"] = (fixture["positive"]
-                       .replace("masterpiece, best quality, score_7, ", "")
-                       .replace("hitoshi:0.85)", "hitoshi:1.3)")
-                       .replace("(green background:1.3), ",
-                                "(green background:1.3), (white outline:1.3), "))
+    out["positive"] = _with_nails(
+        fixture["positive"]
+        .replace("masterpiece, best quality, score_7, ", "")
+        .replace("hitoshi:0.85)", "hitoshi:1.3)")
+        .replace("(green background:1.3), ",
+                 "(green background:1.3), (white outline:1.3), "))
     out["negative"] = fixture["negative"].replace(
         "(aged down:1.2)", "(aged down:1.2), (text:1.3), (speech bubble:1.3), (onomatopoeia:1.3), "
         "(english text:1.2), signature, watermark", 1)
@@ -267,6 +280,12 @@ GAO_NEGATIVE = (
     "(ribbed legwear:1.3), (vertical-striped legwear:1.3), "
 )
 
+COFFEE_POSITIVE = _with_nails(COFFEE_POSITIVE)
+AMAE_POSITIVE = _with_nails(AMAE_POSITIVE)
+STAND_POSITIVE = _with_nails(STAND_POSITIVE)
+BUST_POSITIVE = _with_nails(BUST_POSITIVE)
+GAO_POSITIVE = _with_nails(GAO_POSITIVE)
+
 REDRAW_STAND_POSITIVE = (
     "1girl, solo, yuzuki yukari, "
     "vocaloid, voiceroid, (@oshiki hitoshi:1.3), (@yoshikawa hideaki:0.5), "
@@ -290,6 +309,7 @@ REDRAW_STAND_POSITIVE = (
     "rough lines, sketchy lines, pencil sketch, (unfinished:1.2), "
     "construction lines, (colored pencil (medium):1.2), (soft shading:1.1)"
 )
+REDRAW_STAND_POSITIVE = _with_nails(REDRAW_STAND_POSITIVE)
 
 REDRAW_STAND_NEGATIVE = (
     "(clean lineart:1.3), (smooth lines:1.2), (cel shading:1.2), (flat "
@@ -541,15 +561,25 @@ class PartsTest(unittest.TestCase):
                     pose, legwear="sheer-gloss"))
                 self.assertEqual(joined, fixture)
 
+    def test_every_pose_wears_light_purple_nails_right_after_gesture(self):
+        for pose in ("bust", "amae"):
+            with self.subTest(pose=pose):
+                parts = positive_parts(pose)
+                names = [name for name, _ in parts]
+                self.assertEqual(names[names.index("gesture") + 1], "nails")
+                self.assertEqual(dict(parts)["nails"], ps.NAILS)
+                self.assertEqual(
+                    positive(pose).count("(light purple nails:1.4)"), 1)
+
     def test_part_names_match_the_declared_order(self):
         self.assertEqual([name for name, _ in positive_parts("coffee")], [
             "quality", "count", "character", "series", "artist", "identity",
             "eye_base", "eye_quality", "framing_tags",
             "leg_display", "body_build", "action", "mouth", "mood",
-            "gesture", "costume", "legwear", "cutout", "face", "style"])
+            "gesture", "nails", "costume", "legwear", "cutout", "face", "style"])
         self.assertEqual(PART_NAMES, (
             "quality", "identity", "pose", "mouth", "mood", "eyes",
-            "gesture", "costume", "scene", "body", "background", "face",
+            "gesture", "nails", "costume", "scene", "body", "background", "face",
             "style"))
 
 

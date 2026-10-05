@@ -379,6 +379,18 @@ class DeliveryTest(unittest.TestCase):
         self.assertTrue(outline[151:153, 200:202].all())
         self.assertFalse(outline[156:356, 156:356].any())
 
+    def test_drawn_outline_ignores_where_the_figure_runs_off_the_canvas(self):
+        pixels = np.full((512, 512, 3), (150, 196, 164), dtype=np.uint8)
+        pixels[147:, :] = (194, 215, 200)
+        pixels[150:, :] = (255, 255, 255)
+        pixels[156:, :] = (40, 30, 50)
+        pixels[158:, :] = (215, 200, 240)
+        figure = np.zeros((512, 512), dtype=bool)
+        figure[147:, :] = True
+        outline = drawn_outline(pixels.astype(float), figure, 6)
+        self.assertTrue(outline[147:156, 100:400].all())
+        self.assertFalse(outline[160:, :].any())
+
     def test_drawn_outline_is_empty_without_a_ring_around_most_of_the_edge(self):
         pixels, soft = self.outlined_figure(ring=False)
         self.assertFalse(drawn_outline(pixels.astype(float), soft > 127, 6).any())

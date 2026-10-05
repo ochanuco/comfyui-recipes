@@ -42,6 +42,7 @@ from .ingest import (
     open_request,
     record_job,
     upload_generation,
+    viewfinder_outputs,
 )
 from .repair import RepairServices
 from .repair import repair as repair_use_case
@@ -150,6 +151,8 @@ class _Outputs:
     matte: bytes
     delivered_name: str
     delivered: bytes
+    viewfinder_name: str | None = None
+    viewfinder: bytes | None = None
 
 
 def _load_source(generation_id: str, services: FinalizeServices,
@@ -513,6 +516,11 @@ def _collect_outputs(services: FinalizeServices, prefix: str,
     (services.output_root / image["filename"]).write_bytes(raw)
     (services.output_root / matte_name).write_bytes(matte)
     (services.output_root / delivered_name).write_bytes(delivered)
+    viewfinder_name = viewfinder = None
+    if viewfinders := viewfinder_outputs(outputs):
+        viewfinder_name = viewfinders[-1]["filename"]
+        viewfinder = services.comfyui.fetch(viewfinders[-1])
+        (services.output_root / viewfinder_name).write_bytes(viewfinder)
     if services.measure is not None:
         summary = services.measure(delivered)
         status = "FAIL" if summary["fails"] else "pass"
@@ -520,7 +528,8 @@ def _collect_outputs(services: FinalizeServices, prefix: str,
             f"palette {status}: fig mid {summary['fig_sat_mean']:.1f} "
             f"p90 {summary['fig_sat_p90']:.0f} light {summary['light_sat']:.1f}")
     return _Outputs(image_filename=image["filename"], raw=raw, matte_name=matte_name,
-                    matte=matte, delivered_name=delivered_name, delivered=delivered)
+                    matte=matte, delivered_name=delivered_name, delivered=delivered,
+                    viewfinder_name=viewfinder_name, viewfinder=viewfinder)
 
 
 def _request_parameters(generation_id: str, plan: _Plan,
@@ -554,7 +563,9 @@ def _request_parameters(generation_id: str, plan: _Plan,
               if plan.repair_requested else {}),
            **({"dof": {"focus": list(plan.dof.focus),
                       "f_number": plan.dof.f_number,
-                      "scope": plan.dof.scope}}
+                      "scope": plan.dof.scope,
+                      **({"viewfinder": plan.dof.viewfinder}
+                         if plan.dof.viewfinder != "off" else {})}}
               if plan.dof is not None else {}),
            **({"keep_regions": plan.keep_regions,
                "keep_strength": plan.keep_strength}
@@ -586,6 +597,9 @@ def _record(services: FinalizeServices, generation_id: str, source: _Source,
     uploads = ([(outputs.delivered_name, outputs.delivered)] if plan.deliver_only
               else [(outputs.image_filename, outputs.raw),
                     (outputs.delivered_name, outputs.delivered)])
+    delivered_index = len(uploads) - 1
+    if plan.dof is not None and plan.dof.viewfinder == "both":
+        uploads.append((outputs.viewfinder_name, outputs.viewfinder))
     ids, urls = [], []
     for index, (name, data) in enumerate(uploads):
         rendered = upload_generation(services.management, services.emit,
@@ -612,7 +626,7 @@ def _record(services: FinalizeServices, generation_id: str, source: _Source,
     services.notifier.send(
         f"**finalize** `{generation_id}`\n"
         f"**file** `{outputs.delivered_name}`\n"
-        f"**chimera** {urls[-1]}", outputs.delivered_name, outputs.delivered)
+        f"**chimera** {urls[delivered_index]}", outputs.delivered_name, outputs.delivered)
     services.emit(f"request {request.get('short_id') or request['id']} done")
     return {"generation_ids": ids}
 

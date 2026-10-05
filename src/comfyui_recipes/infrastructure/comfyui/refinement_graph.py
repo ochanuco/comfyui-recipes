@@ -14,6 +14,8 @@ from .base_graph import base_roles, sampler_settings
 MATTE_SUFFIX = "-matte"
 # The delivered composite: background cut, white band, purple stroke.
 DELIVERED_SUFFIX = "-delivered"
+# The delivered picture with the camera viewfinder drawn over it.
+VIEWFINDER_SUFFIX = "-viewfinder"
 # A matte_model of this form names a ComfyUI-RMBG model instead of a core
 # background-removal model file.
 RMBG_MATTE_PREFIX = "rmbg:"
@@ -71,6 +73,24 @@ def _surroundings_node(graph: dict, allocate: Callable[[], str], delivered_ref: 
         "focus_x": dof.focus[0], "focus_y": dof.focus[1],
         "f_number": dof.f_number, "backdrop": backdrop}}
     return [node_id, 0]
+
+
+def _viewfinder_nodes(graph: dict, allocate: Callable[[], str],
+                      delivered_ref: list, dof: Dof | None, prefix: str) -> list:
+    """Returns the ref the delivered SaveImage takes: the overlaid picture for
+    'on', the plain one for 'both' (which saves the overlaid one itself)."""
+    if dof is None or dof.viewfinder == "off":
+        return delivered_ref
+    node_id = allocate()
+    graph[node_id] = {"class_type": "YukariViewfinder", "inputs": {
+        "image": delivered_ref, "focus_x": dof.focus[0], "focus_y": dof.focus[1],
+        "f_number": dof.f_number}}
+    if dof.viewfinder == "on":
+        return [node_id, 0]
+    save_viewfinder = allocate()
+    graph[save_viewfinder] = {"class_type": "SaveImage", "inputs": {
+        "images": [node_id, 0], "filename_prefix": prefix + VIEWFINDER_SUFFIX}}
+    return delivered_ref
 
 
 def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list,
@@ -138,9 +158,10 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
             "image": delivered_ref, "upscale_method": "lanczos",
             "width": target[0], "height": target[1], "crop": "disabled"}}
         delivered_ref = [deliver_scale, 0]
+    saved_ref = _viewfinder_nodes(graph, allocate, delivered_ref, dof, prefix)
     save_delivered = allocate()
     graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
-        "images": delivered_ref, "filename_prefix": prefix + DELIVERED_SUFFIX}}
+        "images": saved_ref, "filename_prefix": prefix + DELIVERED_SUFFIX}}
     return delivered_ref
 
 
@@ -415,8 +436,10 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                     "width": deliver_target[0], "height": deliver_target[1],
                     "crop": "disabled"}}
                 delivered_ref = [deliver_scale, 0]
+            saved_ref = _viewfinder_nodes(graph, allocate, delivered_ref, dof,
+                                          prefix)
             save_delivered = allocate()
             graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
-                "images": delivered_ref,
+                "images": saved_ref,
                 "filename_prefix": prefix + DELIVERED_SUFFIX}}
     return graph

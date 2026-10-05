@@ -65,7 +65,7 @@ def viewfinder_png(png: bytes, focus: tuple[float, float], f_number: float) -> b
     draw.rectangle([0, h - bar, w, h], fill=BAR)
     font = ImageFont.truetype(str(FONT_PATH), round(62 * u))
     baseline = h - bar / 2 + 22 * u
-    pitch = 300 * u
+    pitch = w / 3
     _centred(draw, w / 2 - pitch, baseline, font, [(SHUTTER, WHITE)])
     _centred(draw, w / 2, baseline, font, [(f"F{f_number:g}", WHITE)])
     _centred(draw, w / 2 + pitch, baseline, font, [("ISO ", WHITE), ("AUTO", AMBER)])

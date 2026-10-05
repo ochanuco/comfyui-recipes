@@ -109,8 +109,27 @@ class DepthBlurTest(unittest.TestCase):
         matte[:, :SIZE // 2] = 1.0
         depth = np.zeros((SIZE, SIZE), np.float32)
         depth[:, :SIZE // 4] = 1.0
-        _, widened = depth_blur(image, depth, matte, 0.45, 0.5, 0.7)
+        out, widened = depth_blur(image, depth, matte, 0.45, 0.5, 0.7)
         self.assertEqual(float(widened[0, SIZE // 2 + 1]), 0.0)
+        np.testing.assert_array_equal(out[:, SIZE // 2 - 2:], image[:, SIZE // 2 - 2:])
+
+    def test_enclosed_key_pocket_stays_raw_for_the_key_cut(self):
+        image = np.zeros((SIZE, SIZE, 3), np.uint8)
+        image[...] = (40, 200, 80)
+        image[16:112, 16:112] = (200, 60, 200)
+        image[56:72, 56:72] = (40, 200, 80)
+        matte = np.zeros((SIZE, SIZE), np.float32)
+        matte[16:112, 16:112] = 1.0
+        depth = np.zeros((SIZE, SIZE), np.float32)
+        depth[:, :24] = 1.0
+        out, widened = depth_blur(image, depth, matte, 0.1, 0.5, 1.0)
+        np.testing.assert_array_equal(out[56:72, 56:72], image[56:72, 56:72])
+        self.assertTrue((widened[56:72, 56:72] == 1.0).all())
+        ring = out[48:80, 48:80].astype(int)
+        hole = np.zeros((32, 32), bool)
+        hole[8:24, 8:24] = True
+        excess = ring[..., 1] - np.maximum(ring[..., 0], ring[..., 2])
+        self.assertLessEqual(int(excess[~hole].max()), 0)
 
     def test_flat_depth_returns_the_image(self):
         out = blurred(self.image, np.zeros_like(self.depth), self.matte,

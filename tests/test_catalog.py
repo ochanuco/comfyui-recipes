@@ -273,6 +273,8 @@ class FinalizeDefaultsTest(unittest.TestCase):
         self.assertEqual(dof["f_number"], {
             "min": 2.8, "max": 22, "default": 2.8,
             "stops": [2.8, 4.0, 5.6, 8.0, 11.0, 16.0, 22.0]})
+        self.assertEqual(dof["scope"],
+                         {"values": ["figure", "all"], "default": "figure"})
         self.assertEqual(dof["focus"], "fractions [x, y] of the source image")
         self.assertNotIn("dof", by_name["yukari"]["finalize"]["defaults"])
 

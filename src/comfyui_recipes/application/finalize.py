@@ -319,8 +319,11 @@ def _resolve_plan(source: _Source, generation_id: str, *,
     if dof is not None and (repair_parts or repair_region_list
                             or repair_seeds is not None):
         raise SystemExit("dof は repair と一緒には使えません")
-    if (dof is not None and dof.scope == "all" and not keep_scene
-            and (transparent or backdrop is None)):
+    without_backdrop = not keep_scene and (transparent or backdrop is None)
+    if dof is not None and dof.scope is None:
+        dof = dof._replace(scope="figure" if without_backdrop
+                           else delivery_style.DOF_SCOPE["default"])
+    if dof is not None and dof.scope == "all" and without_backdrop:
         raise SystemExit("dof の scope 'all' は背景をぼかすので、透過納品とは一緒に使えません")
 
     plan = _Plan(

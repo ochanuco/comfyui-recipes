@@ -129,8 +129,8 @@ def _dof_argument(value: object, *, key: str = "dof") -> Dof | None:
         raise ValueError(
             f"{key}.f_number must be between {DOF_F_NUMBER['min']} and "
             f"{DOF_F_NUMBER['max']}, got {f_number!r}")
-    scope = value.get("scope", DOF_SCOPE["default"])
-    if scope not in DOF_SCOPE["values"]:
+    scope = value.get("scope")
+    if "scope" in value and scope not in DOF_SCOPE["values"]:
         raise ValueError(
             f"{key}.scope must be one of {DOF_SCOPE['values']}, got {scope!r}")
     return Dof((float(focus[0]), float(focus[1])), float(f_number), scope)

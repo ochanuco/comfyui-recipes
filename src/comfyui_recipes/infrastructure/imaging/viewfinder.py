@@ -20,10 +20,14 @@ BAR = (0, 0, 0, 150)
 OUTLINE = (0, 0, 0, 140)
 
 
-def _outlined(draw: ImageDraw.ImageDraw, xy: tuple[float, float], text: str,
-              font: ImageFont.FreeTypeFont, fill: tuple[int, int, int, int]) -> None:
-    draw.text(xy, text, font=font, fill=fill, anchor="ls",
-              stroke_width=max(1, font.size // 22), stroke_fill=OUTLINE)
+def _centred(draw: ImageDraw.ImageDraw, centre_x: float, baseline: float,
+             font: ImageFont.FreeTypeFont,
+             segments: list[tuple[str, tuple[int, int, int, int]]]) -> None:
+    x = centre_x - draw.textlength("".join(text for text, _ in segments), font=font) / 2
+    for text, fill in segments:
+        draw.text((x, baseline), text, font=font, fill=fill, anchor="ls",
+                  stroke_width=max(1, font.size // 22), stroke_fill=OUTLINE)
+        x += draw.textlength(text, font=font)
 
 
 def viewfinder_png(png: bytes, focus: tuple[float, float], f_number: float) -> bytes:
@@ -61,10 +65,10 @@ def viewfinder_png(png: bytes, focus: tuple[float, float], f_number: float) -> b
     draw.rectangle([0, h - bar, w, h], fill=BAR)
     font = ImageFont.truetype(str(FONT_PATH), round(62 * u))
     baseline = h - bar / 2 + 22 * u
-    _outlined(draw, (90 * u, baseline), SHUTTER, font, WHITE)
-    _outlined(draw, (400 * u, baseline), f"F{f_number:g}", font, WHITE)
-    _outlined(draw, (700 * u, baseline), "ISO", font, WHITE)
-    _outlined(draw, (800 * u, baseline), "AUTO", font, AMBER)
+    pitch = 300 * u
+    _centred(draw, w / 2 - pitch, baseline, font, [(SHUTTER, WHITE)])
+    _centred(draw, w / 2, baseline, font, [(f"F{f_number:g}", WHITE)])
+    _centred(draw, w / 2 + pitch, baseline, font, [("ISO ", WHITE), ("AUTO", AMBER)])
 
     out = Image.alpha_composite(base, layer)
     if not has_alpha:

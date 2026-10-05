@@ -519,13 +519,13 @@ FINALIZE_CFG = 5.0
 
 DOF_F_NUMBER = {"min": 2.8, "max": 22, "default": 2.8,
                 "stops": [2.8, 4.0, 5.6, 8.0, 11.0, 16.0, 22.0]}
-DOF_SCOPE = {"values": ["figure", "all"], "default": "figure"}
+DOF_SCOPE = {"values": ["figure", "all"], "default": "all"}
 
 
 class Dof(NamedTuple):
     focus: tuple[float, float]
     f_number: float
-    scope: str = DOF_SCOPE["default"]
+    scope: str | None = None
 
 FINALIZE_DEFAULTS = {"deliver_only": True, "repin": True, "stroke_light": "n",
                      "backdrop": "dots"}

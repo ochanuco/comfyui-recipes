@@ -22,7 +22,7 @@ production worker sees it.
 
 | File | Holds |
 |---|---|
-| `prompt_style.py` | blocks every pose wears (`QUALITY`, `CHARACTER`, `BODY`, `BACKGROUND`, `FACE`, `STYLE`), the negative bans, render constants (model, canvas, steps, cfg, sampler) |
+| `prompt_style.py` | blocks every pose wears (`QUALITY`, `CHARACTER`, `BODY`, `NAILS`, `BACKGROUND`, `FACE`, `STYLE`), the negative bans, render constants (model, canvas, steps, cfg, sampler) |
 | `poses.py` | one `Pose` per pose: action, mood, gesture, framing, angle, default expression/costume/legwear, optional body/style/negative/canvas/loras |
 | `costumes.py` | garment block per costume, `LEGWEAR` per costume, the legwear kinds (`sheer` default, `sheer-gloss`, `opaque`) and states (`worn`, `removing`, `off`) with their negative edits |
 | `expressions.py` | mouth/eyes per expression and the `EyeQuality` routing |

@@ -51,7 +51,7 @@ class AssembleOrderTest(unittest.TestCase):
 class GeneralPriorityTableTest(unittest.TestCase):
     LEAD = frozenset({"identity", "eye_base", "eye_quality", "framing_tags",
                       "body_build", "leg_display"})
-    MAIN = frozenset({"action", "mouth", "mood", "gesture", "costume",
+    MAIN = frozenset({"action", "mouth", "mood", "gesture", "nails", "costume",
                       "legwear", "cutout"})
     TAIL = frozenset({"face", "style"})
 

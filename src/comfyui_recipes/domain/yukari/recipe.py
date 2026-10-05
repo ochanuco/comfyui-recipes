@@ -42,6 +42,7 @@ from .prompt_style import (
     HOOD_BAN,
     IDENTITY,
     MODEL,
+    NAILS,
     NEGATIVE_TAIL,
     PROPORTION_BAN,
     QUALITY_TAG,
@@ -67,7 +68,7 @@ from .prompt_style import (
 # order `_components` builds them. `patches.py` resolves
 # `prompt.positive.<part>` against a legacy name through this.
 PART_NAMES = ("quality", "identity", "pose", "mouth", "mood", "eyes",
-              "gesture", "costume", "scene", "body", "background", "face",
+              "gesture", "nails", "costume", "scene", "body", "background", "face",
               "style")
 PART_GROUPS = part_groups(PART_NAMES)
 
@@ -110,6 +111,7 @@ def _components(pose: str, costume: str | None = None,
         Component("eye_base", G, L, EYE_SHAPE),
         Component("eye_quality", G, L, EYE_QUALITY[e.eye_quality] + e.eyes),
         Component("gesture", G, M, p.gesture),
+        Component("nails", G, M, NAILS),
         Component("costume", G, M, COSTUMES[c]),
         Component("legwear", G, M, legwear_positive),
         Component("framing_tags", G, L, p.angle + FRAMING[p.framing].text),

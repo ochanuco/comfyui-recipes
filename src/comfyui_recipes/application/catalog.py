@@ -16,7 +16,7 @@ from ..domain.generation.patches import (
     TEXT_TARGETS,
 )
 from ..domain.yukari.costumes import COSTUMES, LEGWEAR_STATES, LEGWEARS
-from ..domain.yukari.delivery_style import BACKDROP_LABELS, FINALIZE_DEFAULTS
+from ..domain.yukari.delivery_style import BACKDROP_LABELS, DOF_F_NUMBER, FINALIZE_DEFAULTS
 from ..domain.yukari.dials import DIALS
 from ..domain.yukari.expressions import EXPRESSIONS
 from ..domain.yukari.poses import POSES
@@ -76,7 +76,11 @@ def _yukari_recipe() -> dict:
                         for name, members in PART_GROUPS.items()},
         "identity_tags": sorted(identity_tags(sorted(POSES)[0])),
         "dials": DIALS,
-        "finalize": {"defaults": FINALIZE_DEFAULTS},
+        "finalize": {
+            "defaults": FINALIZE_DEFAULTS,
+            "dof": {"f_number": DOF_F_NUMBER,
+                    "focus": "fractions [x, y] of the source image"},
+        },
     }
 
 

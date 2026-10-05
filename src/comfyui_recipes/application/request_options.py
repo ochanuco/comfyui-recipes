@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
-from ..domain.yukari.delivery_style import STROKE_LIGHTS
+from ..domain.yukari.delivery_style import DOF_F_NUMBER, STROKE_LIGHTS
 from ..domain.yukari.dials import DIALS
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
 from .finalize import RECIPE_DEFAULT
@@ -21,7 +21,7 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "backdrop", "upscale", "deliver_size", "stroke_light",
     "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
     "repair_lora", "repair_seeds", "keep_regions", "keep_strength",
-    "deliver_only", "hires", "hires_denoise",
+    "deliver_only", "hires", "hires_denoise", "dof",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
@@ -105,6 +105,32 @@ def _regions_argument(value: object, *, key: str = "regions") -> list[list[float
             raise ValueError(f"region values must be within 0..1, got {region!r}")
         parsed.append([float(v) for v in region])
     return parsed
+
+
+def _dof_argument(value: object, *, key: str = "dof"
+                  ) -> tuple[tuple[float, float], float] | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{key} must be null or an object, got {type(value).__name__}")
+    unknown = sorted(set(value) - {"focus", "f_number"})
+    if unknown:
+        raise ValueError(f"{key} has unknown keys: {unknown}")
+    focus = value.get("focus")
+    if (not isinstance(focus, list) or len(focus) != 2
+            or any(not isinstance(v, (int, float)) or isinstance(v, bool)
+                   for v in focus)):
+        raise ValueError(f"{key}.focus must be [x, y] numbers, got {focus!r}")
+    if any(not (0 <= v <= 1) for v in focus):
+        raise ValueError(f"{key}.focus values must be within 0..1, got {focus!r}")
+    f_number = value.get("f_number")
+    if not isinstance(f_number, (int, float)) or isinstance(f_number, bool):
+        raise ValueError(f"{key}.f_number must be a number, got {f_number!r}")
+    if not (DOF_F_NUMBER["min"] <= f_number <= DOF_F_NUMBER["max"]):
+        raise ValueError(
+            f"{key}.f_number must be between {DOF_F_NUMBER['min']} and "
+            f"{DOF_F_NUMBER['max']}, got {f_number!r}")
+    return (float(focus[0]), float(focus[1])), float(f_number)
 
 
 def _denoise_argument(value: object, *, key: str = "denoise", max_value: float = 1) -> float:
@@ -365,6 +391,7 @@ def finalize_arguments(options: Mapping,
         "deliver_only": defaultable_boolean("deliver_only"),
         "hires": hires,
         "hires_denoise": hires_denoise,
+        "dof": _dof_argument(options.get("dof")),
     }
 
 

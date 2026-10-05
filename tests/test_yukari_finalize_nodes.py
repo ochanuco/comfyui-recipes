@@ -134,10 +134,10 @@ class BridgeTest(unittest.TestCase):
 
 
 class NodeMappingTest(unittest.TestCase):
-    def test_node_class_mappings_cover_the_six_nodes(self):
+    def test_node_class_mappings_cover_the_seven_nodes(self):
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS), {
             "YukariRepinSkin", "YukariRepin", "YukariRecolor", "YukariDeliver",
-            "YukariCompose", "YukariCutBackdrop",
+            "YukariDepthBlur", "YukariCompose", "YukariCutBackdrop",
         })
         self.assertEqual(
             set(nodes.NODE_DISPLAY_NAME_MAPPINGS),

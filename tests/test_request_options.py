@@ -44,8 +44,29 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "repair_seeds": None,
             "keep_regions": [], "keep_strength": 0.25,
             "deliver_only": RECIPE_DEFAULT,
-            "hires": None, "hires_denoise": None,
+            "hires": None, "hires_denoise": None, "dof": None,
         })
+
+    def test_dof_parses_focus_and_f_number(self):
+        arguments = finalize_arguments(
+            {"dof": {"focus": [0.82, 0.55], "f_number": 2.8}})
+        self.assertEqual(arguments["dof"], ((0.82, 0.55), 2.8))
+
+    def test_dof_null_is_off(self):
+        self.assertIsNone(finalize_arguments({"dof": None})["dof"])
+
+    def test_dof_rejects_bad_values(self):
+        good = {"focus": [0.5, 0.5], "f_number": 2.8}
+        for dof in ({"focus": [0.5, 0.5]}, {"f_number": 2.8},
+                    {**good, "extra": 1},
+                    {**good, "focus": [1.2, 0.5]}, {**good, "focus": [0.5, -0.1]},
+                    {**good, "focus": [0.5]}, {**good, "focus": ["a", 0.5]},
+                    {**good, "focus": [True, 0.5]},
+                    {**good, "f_number": 0.5}, {**good, "f_number": 23},
+                    {**good, "f_number": "2.8"}, {**good, "f_number": True},
+                    "2.8", [0.5, 0.5, 2.8]):
+            with self.assertRaises(ValueError, msg=dof):
+                finalize_arguments({"dof": dof})
 
     def test_hires_options_pass_through(self):
         arguments = finalize_arguments({"hires": 2048, "hires_denoise": 0.4})

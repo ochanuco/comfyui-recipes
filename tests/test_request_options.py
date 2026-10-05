@@ -51,11 +51,11 @@ class FinalizeArgumentsTest(unittest.TestCase):
     def test_dof_parses_focus_and_f_number(self):
         arguments = finalize_arguments(
             {"dof": {"focus": [0.82, 0.55], "f_number": 2.8}})
-        self.assertEqual(arguments["dof"], Dof((0.82, 0.55), 2.8, "figure"))
+        self.assertEqual(arguments["dof"], Dof((0.82, 0.55), 2.8))
 
-    def test_dof_scope_defaults_to_figure_and_accepts_all(self):
+    def test_dof_scope_is_left_unset_and_accepts_all(self):
         good = {"focus": [0.5, 0.5], "f_number": 2.8}
-        self.assertEqual(finalize_arguments({"dof": good})["dof"].scope, "figure")
+        self.assertIsNone(finalize_arguments({"dof": good})["dof"].scope)
         self.assertEqual(
             finalize_arguments({"dof": {**good, "scope": "all"}})["dof"].scope, "all")
 
@@ -82,8 +82,25 @@ class FinalizeArgumentsTest(unittest.TestCase):
         for overrides in ({"transparent": True}, {"backdrop": None}):
             with self.assertRaisesRegex(SystemExit, "透過納品", msg=overrides):
                 plan(**overrides)
-        figure = Dof((0.5, 0.5), 2.8)
+        figure = Dof((0.5, 0.5), 2.8, "figure")
         self.assertEqual(plan(dof=figure, transparent=True).dof, figure)
+
+    def test_unset_dof_scope_blurs_all_unless_the_delivery_is_transparent(self):
+        source = _Source(context={}, picked=b"", is_repaired_raw=False,
+                         base_generation_id="g", graph={}, roles=None,
+                         is_anima=False)
+
+        def scope(**overrides):
+            arguments = {**finalize_arguments({"deliver_only": True}),
+                         "dof": Dof((0.5, 0.5), 2.8), "transparent": None,
+                         "matte_model": None, "backdrop": "dots",
+                         "keep_scene": False, **overrides}
+            return _resolve_plan(source, "g", **arguments)[0].dof.scope
+
+        self.assertEqual(scope(), "all")
+        self.assertEqual(scope(keep_scene=True, transparent=True), "all")
+        self.assertEqual(scope(transparent=True), "figure")
+        self.assertEqual(scope(backdrop=None), "figure")
 
     def test_dof_null_is_off(self):
         self.assertIsNone(finalize_arguments({"dof": None})["dof"])

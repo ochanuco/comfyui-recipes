@@ -515,6 +515,9 @@ FINALIZE_SAMPLER = ("dpmpp_2m", "karras")
 FINALIZE_STEPS = 30
 FINALIZE_CFG = 5.0
 
+DOF_F_NUMBER = {"min": 0.7, "max": 22, "default": 2.8,
+                "stops": [1.0, 1.4, 2.0, 2.8, 4.0, 5.6, 8.0, 11.0, 16.0]}
+
 FINALIZE_DEFAULTS = {"deliver_only": True, "repin": True, "stroke_light": "n",
                      "backdrop": "dots"}
 

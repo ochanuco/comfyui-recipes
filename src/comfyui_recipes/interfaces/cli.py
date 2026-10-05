@@ -253,6 +253,10 @@ def parser() -> argparse.ArgumentParser:
         help="with --hires: denoise of the second pass, 0 < d <= 1 "
              "(default 0.45)")
     finalize_parser.add_argument(
+        "--dof", metavar="X,Y,F",
+        help="depth-of-field blur: focus point as fractions of the picture "
+             "width and height, then the f-number (0.7..22); off by default")
+    finalize_parser.add_argument(
         "--matte-model", default=None,
         help="matte source for the delivery: a core background-removal "
              "model file, or rmbg:<model> for ComfyUI-RMBG's BiRefNetRMBG "
@@ -433,6 +437,10 @@ def main(argv: list[str] | None = None) -> None:
                           for region in (args.repair_regions or [])]
         keep_regions = [[float(value) for value in region.split(",")]
                        for region in (args.keep_regions or [])]
+        dof = None
+        if args.dof:
+            focus_x, focus_y, f_number = (float(v) for v in args.dof.split(","))
+            dof = ((focus_x, focus_y), f_number)
         context, dial_values = _resolve_word_args(
             chimera, args.generation_id, "finalize",
             {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
@@ -463,6 +471,7 @@ def main(argv: list[str] | None = None) -> None:
                  matte_model=args.matte_model,
                  hires=args.hires,
                  hires_denoise=args.hires_denoise,
+                 dof=dof,
                  context=context)
         return
     if args.command == "catalog":

@@ -28,7 +28,7 @@ from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
 from ..domain.yukari.costumes import COSTUMES, LEGWEAR_STATES, LEGWEARS
-from ..domain.yukari.delivery_style import DOF_SCOPE, STROKE_LIGHTS, Dof
+from ..domain.yukari.delivery_style import DOF_SCOPE, DOF_VIEWFINDER, STROKE_LIGHTS, Dof
 from ..domain.yukari.expressions import EXPRESSIONS
 from ..domain.yukari.poses import POSES
 from ..domain.yukari.recipe import negative, positive
@@ -257,6 +257,12 @@ def parser() -> argparse.ArgumentParser:
         help="depth-of-field blur: focus point as fractions of the picture "
              "width and height, then the f-number (2.8..22), then optionally 'figure' (default) or 'all' (also blur the rim and backdrop); off by default")
     finalize_parser.add_argument(
+        "--viewfinder", choices=DOF_VIEWFINDER["values"],
+        default=DOF_VIEWFINDER["default"],
+        help="with --dof: draw a camera viewfinder over the delivered "
+             "picture ('on'), or keep it plain and add the viewfinder picture "
+             "as an extra generation ('both')")
+    finalize_parser.add_argument(
         "--matte-model", default=None,
         help="matte source for the delivery: a core background-removal "
              "model file, or rmbg:<model> for ComfyUI-RMBG's BiRefNetRMBG "
@@ -443,7 +449,10 @@ def main(argv: list[str] | None = None) -> None:
             if scope and scope[0] not in DOF_SCOPE["values"]:
                 raise SystemExit(
                     f"--dof scope must be one of {DOF_SCOPE['values']}")
-            dof = Dof((float(focus_x), float(focus_y)), float(f_number), *scope)
+            dof = Dof((float(focus_x), float(focus_y)), float(f_number),
+                      scope[0] if scope else None, args.viewfinder)
+        elif args.viewfinder != DOF_VIEWFINDER["default"]:
+            raise SystemExit("--viewfinder needs --dof")
         context, dial_values = _resolve_word_args(
             chimera, args.generation_id, "finalize",
             {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})

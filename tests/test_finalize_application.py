@@ -20,6 +20,7 @@ from comfyui_recipes.application.finalize import RECIPE_DEFAULT, FinalizeService
 from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.repair.prompt import PART_TAGS
 from comfyui_recipes.domain.yukari import delivery_style
+from comfyui_recipes.domain.yukari.delivery_style import Dof
 from comfyui_recipes.domain.yukari.recipe import refinement_prompt, render_spec
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
@@ -829,6 +830,43 @@ class FinalizeRecipeDefaultTest(unittest.TestCase):
                      transparent=True, backdrop=RECIPE_DEFAULT)
             self.assertIsNone(calls[-1]["backdrop"])
             self.assertIs(calls[-1]["transparent"], True)
+
+
+class ViewfinderComfyFake(ComfyFake):
+    def wait_for(self, prompt_id):
+        return super().wait_for(prompt_id) + [{"filename": "out-viewfinder.png"}]
+
+    def fetch(self, image):
+        if "-viewfinder" in image["filename"]:
+            return b"viewfinder-bytes"
+        return super().fetch(image)
+
+
+class FinalizeViewfinderTest(unittest.TestCase):
+    def uploads(self, deliver_only, mode):
+        with tempfile.TemporaryDirectory() as directory:
+            services = base_services(
+                directory, comfyui=ViewfinderComfyFake(),
+                graph_from_png=lambda data: copy.deepcopy(ANIMA_GRAPH))
+            result = finalize("gen-id", services, deliver_only=deliver_only,
+                              dof=Dof((0.5, 0.5), 2.8, "figure", mode))
+            names = [call[3][2] for call in services.management.calls
+                     if call[0] == "POST" and call[1].endswith("/generations")]
+            return names, result["generation_ids"]
+
+    def test_both_uploads_the_viewfinder_picture_last(self):
+        names, ids = self.uploads(True, "both")
+        self.assertEqual(names, ["out-delivered.png", "out-viewfinder.png"])
+        self.assertEqual(len(ids), 2)
+        names, ids = self.uploads(False, "both")
+        self.assertEqual(
+            names, ["out.png", "out-delivered.png", "out-viewfinder.png"])
+        self.assertEqual(len(ids), 3)
+
+    def test_on_and_off_upload_no_extra_picture(self):
+        for mode in ("on", "off"):
+            names, _ = self.uploads(True, mode)
+            self.assertEqual(names, ["out-delivered.png"])
 
 
 class FinalizeDeliverOnlyTest(unittest.TestCase):

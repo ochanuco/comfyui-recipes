@@ -218,7 +218,9 @@ def drawn_outline(pixels: np.ndarray, figure: np.ndarray, band: int,
     """The white outline the raw drew around `figure`, as figure pixels.
 
     The outline and the key-tinted halo outside it reach the matte's edge
-    through each other; the figure's own line stops them. Specks they leave
+    through each other -- any blend of the key and white, down to the key
+    itself where the matte overshoots by a pixel; the figure's own line
+    stops them. Specks they leave
     behind, figure islands under band*band pixels, are taken with them.
     Empty unless they cover `delivery_style.DRAWN_OUTLINE_MIN_EDGE` of the
     edge, not counting where the figure runs off the canvas. `key` is the
@@ -228,16 +230,13 @@ def drawn_outline(pixels: np.ndarray, figure: np.ndarray, band: int,
     empty = np.zeros(figure.shape, dtype=bool)
     if band < 1 or not figure.any():
         return empty
-    chroma = pixels - pixels.mean(axis=2, keepdims=True)
     if key is None:
         key = _corner_seed(pixels)
-    direction = key - key.mean()
-    norm = np.linalg.norm(direction)
-    if norm > 0:
-        direction = direction / norm
-        chroma = chroma - (chroma * direction).sum(axis=2)[..., None] * direction
-    pale = ((pixels.min(axis=2) >= delivery_style.DRAWN_OUTLINE_MIN_VALUE)
-            & (np.linalg.norm(chroma, axis=2) <= delivery_style.DRAWN_OUTLINE_MAX_TINT))
+    span = np.array([255.0, 255.0, 255.0]) - key
+    mix = np.clip(((pixels - key) * span).sum(axis=2) / max((span * span).sum(), 1.0),
+                  0.0, 1.0)
+    pale = (np.linalg.norm(pixels - (key + mix[..., None] * span), axis=2)
+            <= delivery_style.DRAWN_OUTLINE_MAX_TINT)
     rim = figure_rim(figure, band * delivery_style.DRAWN_OUTLINE_DEPTH_BANDS)
     outside = ~figure
     outline = figure & ndimage.binary_propagation(outside, mask=outside | (pale & rim))

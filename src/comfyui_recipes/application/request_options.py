@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
-from ..domain.yukari.delivery_style import DOF_F_NUMBER, DOF_SCOPE, STROKE_LIGHTS, Dof
+from ..domain.yukari.delivery_style import DOF_F_NUMBER, DOF_SCOPE, DOF_VIEWFINDER, STROKE_LIGHTS, Dof
 from ..domain.yukari.dials import DIALS
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
 from .finalize import RECIPE_DEFAULT
@@ -112,7 +112,7 @@ def _dof_argument(value: object, *, key: str = "dof") -> Dof | None:
         return None
     if not isinstance(value, Mapping):
         raise ValueError(f"{key} must be null or an object, got {type(value).__name__}")
-    unknown = sorted(set(value) - {"focus", "f_number", "scope"})
+    unknown = sorted(set(value) - {"focus", "f_number", "scope", "viewfinder"})
     if unknown:
         raise ValueError(f"{key} has unknown keys: {unknown}")
     focus = value.get("focus")
@@ -133,7 +133,13 @@ def _dof_argument(value: object, *, key: str = "dof") -> Dof | None:
     if "scope" in value and scope not in DOF_SCOPE["values"]:
         raise ValueError(
             f"{key}.scope must be one of {DOF_SCOPE['values']}, got {scope!r}")
-    return Dof((float(focus[0]), float(focus[1])), float(f_number), scope)
+    viewfinder = value.get("viewfinder", "off")
+    if viewfinder not in DOF_VIEWFINDER["values"]:
+        raise ValueError(
+            f"{key}.viewfinder must be one of {DOF_VIEWFINDER['values']}, "
+            f"got {viewfinder!r}")
+    return Dof((float(focus[0]), float(focus[1])), float(f_number), scope,
+               viewfinder)
 
 
 def _denoise_argument(value: object, *, key: str = "denoise", max_value: float = 1) -> float:

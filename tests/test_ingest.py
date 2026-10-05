@@ -9,6 +9,7 @@ from pathlib import Path
 from comfyui_recipes.application.ingest import (
     attach_asset,
     classify_outputs,
+    viewfinder_outputs,
     import_images,
     open_request,
     record_job,
@@ -44,6 +45,15 @@ class ClassifyOutputsTests(unittest.TestCase):
         self.assertEqual(pictures, [{"filename": "a.png"}])
         self.assertEqual(delivereds, [{"filename": "a-delivered.png"}])
         self.assertEqual(mattes, [{"filename": "a-matte.png"}])
+
+    def test_viewfinder_is_neither_raw_nor_delivered(self):
+        outputs = [{"filename": "a.png"}, {"filename": "a-delivered.png"},
+                   {"filename": "a-viewfinder.png"}]
+        pictures, delivereds, _ = classify_outputs(outputs)
+        self.assertEqual(pictures, [{"filename": "a.png"}])
+        self.assertEqual(delivereds, [{"filename": "a-delivered.png"}])
+        self.assertEqual(viewfinder_outputs(outputs),
+                         [{"filename": "a-viewfinder.png"}])
 
     def test_no_matte_or_delivered(self):
         outputs = [{"filename": "only.png"}]

@@ -59,6 +59,13 @@ class FinalizeArgumentsTest(unittest.TestCase):
         self.assertEqual(
             finalize_arguments({"dof": {**good, "scope": "all"}})["dof"].scope, "all")
 
+    def test_dof_viewfinder_defaults_to_off_and_parses(self):
+        good = {"focus": [0.5, 0.5], "f_number": 2.8}
+        self.assertEqual(finalize_arguments({"dof": good})["dof"].viewfinder, "off")
+        for mode in ("off", "on", "both"):
+            dof = finalize_arguments({"dof": {**good, "viewfinder": mode}})["dof"]
+            self.assertEqual(dof.viewfinder, mode)
+
     def test_dof_rejects_a_bad_scope(self):
         good = {"focus": [0.5, 0.5], "f_number": 2.8}
         for scope in ("both", "", None, 1, ["all"]):
@@ -113,6 +120,8 @@ class FinalizeArgumentsTest(unittest.TestCase):
                     {**good, "focus": [0.5]}, {**good, "focus": ["a", 0.5]},
                     {**good, "focus": [True, 0.5]},
                     {**good, "f_number": 2.0}, {**good, "scope": "everything"}, {**good, "f_number": 23},
+                    {**good, "viewfinder": "all"}, {**good, "viewfinder": None},
+                    {**good, "viewfinder": True},
                     {**good, "f_number": "2.8"}, {**good, "f_number": True},
                     "2.8", [0.5, 0.5, 2.8]):
             with self.assertRaises(ValueError, msg=dof):

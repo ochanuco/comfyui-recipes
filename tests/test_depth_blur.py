@@ -243,6 +243,57 @@ class DepthBlurGraphTest(unittest.TestCase):
                     self.assertEqual(len(scale), 1)
 
 
+class ViewfinderGraphTest(unittest.TestCase):
+    def graph(self, mode: str, deliver_only: bool) -> dict:
+        return chain_pass(
+            base_graph(), 2048, 0.45, "fin", canvas=(832, 1664),
+            matte_model="birefnet", deliver=True, repin=True,
+            deliver_only=deliver_only, source_image="src.png",
+            dof=Dof((0.82, 0.55), 2.8, "all", mode), backdrop="dots",
+            deliver_size=1024)
+
+    def saves(self, graph: dict, suffix: str) -> list[dict]:
+        return [n for n in graph.values()
+                if n.get("class_type") == "SaveImage"
+                and n["inputs"]["filename_prefix"] == "fin" + suffix]
+
+    def test_on_overlays_the_delivered_picture(self):
+        for deliver_only in (False, True):
+            with self.subTest(deliver_only=deliver_only):
+                graph = self.graph("on", deliver_only)
+                [plain] = self.saves(self.graph("off", deliver_only), "-delivered")
+                scale_id = plain["inputs"]["images"][0]
+                view_id, view = find(graph, "YukariViewfinder")
+                self.assertEqual(view["inputs"], {
+                    "image": [scale_id, 0], "focus_x": 0.82, "focus_y": 0.55,
+                    "f_number": 2.8})
+                [delivered] = self.saves(graph, "-delivered")
+                self.assertEqual(delivered["inputs"]["images"], [view_id, 0])
+                self.assertEqual(self.saves(graph, "-viewfinder"), [])
+
+    def test_both_saves_a_second_picture_and_keeps_the_delivered_one_plain(self):
+        for deliver_only in (False, True):
+            with self.subTest(deliver_only=deliver_only):
+                graph = self.graph("both", deliver_only)
+                [plain] = self.saves(self.graph("off", deliver_only), "-delivered")
+                scale_id = plain["inputs"]["images"][0]
+                view_id, view = find(graph, "YukariViewfinder")
+                self.assertEqual(view["inputs"]["image"], [scale_id, 0])
+                [delivered] = self.saves(graph, "-delivered")
+                self.assertEqual(delivered["inputs"]["images"], [scale_id, 0])
+                [extra] = self.saves(graph, "-viewfinder")
+                self.assertEqual(extra["inputs"]["images"], [view_id, 0])
+
+    def test_off_leaves_the_graph_as_it_was(self):
+        for deliver_only in (False, True):
+            with self.subTest(deliver_only=deliver_only):
+                off = self.graph("off", deliver_only)
+                self.assertNotIn(
+                    "YukariViewfinder",
+                    {n.get("class_type") for n in off.values()})
+                self.assertEqual(self.saves(off, "-viewfinder"), [])
+
+
 class SurroundingsTest(unittest.TestCase):
     def setUp(self):
         columns = (np.arange(SIZE) % 4 < 2).astype(np.float32) * 60 + 150

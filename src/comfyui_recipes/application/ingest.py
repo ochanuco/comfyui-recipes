@@ -6,7 +6,8 @@ import uuid
 from collections.abc import Sequence
 from pathlib import Path
 
-from ..infrastructure.comfyui.refinement_graph import DELIVERED_SUFFIX, MATTE_SUFFIX
+from ..infrastructure.comfyui.refinement_graph import (
+    DELIVERED_SUFFIX, MATTE_SUFFIX, VIEWFINDER_SUFFIX)
 
 
 def generation_key(key_prefix: str | None, job_index: int,
@@ -27,8 +28,13 @@ def classify_outputs(outputs: list) -> tuple[list, list, list]:
     delivereds = [out for out in outputs if DELIVERED_SUFFIX in out["filename"]]
     pictures = [out for out in outputs
                 if MATTE_SUFFIX not in out["filename"]
-                and DELIVERED_SUFFIX not in out["filename"]]
+                and DELIVERED_SUFFIX not in out["filename"]
+                and VIEWFINDER_SUFFIX not in out["filename"]]
     return pictures, delivereds, mattes
+
+
+def viewfinder_outputs(outputs: list) -> list:
+    return [out for out in outputs if VIEWFINDER_SUFFIX in out["filename"]]
 
 
 def open_request(management, *, request_id: str | None,

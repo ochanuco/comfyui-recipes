@@ -275,6 +275,8 @@ class FinalizeDefaultsTest(unittest.TestCase):
             "stops": [2.8, 4.0, 5.6, 8.0, 11.0, 16.0, 22.0]})
         self.assertEqual(dof["scope"],
                          {"values": ["figure", "all"], "default": "all"})
+        self.assertEqual(dof["viewfinder"],
+                         {"values": ["off", "on", "both"], "default": "off"})
         self.assertEqual(dof["focus"], "fractions [x, y] of the source image")
         self.assertNotIn("dof", by_name["yukari"]["finalize"]["defaults"])
 

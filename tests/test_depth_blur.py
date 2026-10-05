@@ -13,6 +13,10 @@ from comfyui_recipes.infrastructure.imaging.depth_blur import depth_blur
 SIZE = 128
 
 
+def blurred(*args) -> np.ndarray:
+    return depth_blur(*args)[0]
+
+
 def striped_image() -> np.ndarray:
     columns = (np.arange(SIZE) % 4 < 2) * 200 + 20
     return np.repeat(np.stack([columns] * 3, axis=-1)[None], SIZE, axis=0).astype(np.uint8)
@@ -35,7 +39,7 @@ class DepthBlurTest(unittest.TestCase):
         self.matte = np.ones((SIZE, SIZE), np.float32)
 
     def test_focus_depth_stays_sharp_and_far_side_blurs(self):
-        out = depth_blur(self.image, self.depth, self.matte, 0.1, 0.5, 1.0)
+        out = blurred(self.image, self.depth, self.matte, 0.1, 0.5, 1.0)
         near = slice(0, SIZE // 2 - 8)
         far = slice(SIZE // 2 + 8, SIZE)
         np.testing.assert_array_equal(out[:, near], self.image[:, near])
@@ -43,29 +47,31 @@ class DepthBlurTest(unittest.TestCase):
 
     def test_larger_f_number_blurs_less(self):
         far = slice(SIZE // 2 + 8, SIZE)
-        wide = depth_blur(self.image, self.depth, self.matte, 0.1, 0.5, 1.4)
-        narrow = depth_blur(self.image, self.depth, self.matte, 0.1, 0.5, 11.0)
+        wide = blurred(self.image, self.depth, self.matte, 0.1, 0.5, 1.4)
+        narrow = blurred(self.image, self.depth, self.matte, 0.1, 0.5, 11.0)
         self.assertLess(variance(wide, far), variance(narrow, far))
 
     def test_f_numbers_below_one_keep_blurring_more(self):
         far = slice(SIZE // 2 + 8, SIZE)
         depth = np.tile(np.linspace(1.0, 0.0, SIZE, dtype=np.float32), (SIZE, 1))
-        brighter = depth_blur(self.image, depth, self.matte, 0.0, 0.5, 0.7)
-        one = depth_blur(self.image, depth, self.matte, 0.0, 0.5, 1.0)
+        brighter = blurred(self.image, depth, self.matte, 0.0, 0.5, 0.7)
+        one = blurred(self.image, depth, self.matte, 0.0, 0.5, 1.0)
         self.assertLess(variance(brighter, far), variance(one, far))
 
     def test_sharp_pixels_do_not_bleed_into_the_blur(self):
         image = np.zeros((SIZE, SIZE, 3), np.uint8)
         image[:, :SIZE // 2] = (255, 0, 0)
         image[:, SIZE // 2:] = (0, 0, 255)
-        out = depth_blur(image, self.depth, self.matte, 0.1, 0.5, 0.7)
+        out = blurred(image, self.depth, self.matte, 0.1, 0.5, 0.7)
         self.assertLessEqual(int(out[:, SIZE // 2:, 0].max()), 1)
 
-    def test_outside_the_matte_is_untouched(self):
+    def test_outside_the_widened_matte_is_untouched(self):
         matte = self.matte.copy()
         matte[:, SIZE - 32:] = 0.0
-        out = depth_blur(self.image, self.depth, matte, 0.1, 0.5, 1.4)
-        np.testing.assert_array_equal(out[:, SIZE - 32:], self.image[:, SIZE - 32:])
+        out, widened = depth_blur(self.image, self.depth, matte, 0.1, 0.5, 1.4)
+        outside = widened < 0.5
+        self.assertTrue(outside[:, SIZE - 8:].all())
+        np.testing.assert_array_equal(out[outside], self.image[outside])
 
     def test_key_colour_does_not_bleed_into_the_figure(self):
         image = np.zeros((SIZE, SIZE, 3), np.uint8)
@@ -75,12 +81,39 @@ class DepthBlurTest(unittest.TestCase):
         matte[:, :SIZE // 2] = 1.0
         depth = np.zeros((SIZE, SIZE), np.float32)
         depth[:, :SIZE // 4] = 1.0
-        out = depth_blur(image, depth, matte, 0.9, 0.5, 1.0)
-        self.assertLessEqual(int(out[:, :SIZE // 2, 1].max()), 1)
-        np.testing.assert_array_equal(out[:, SIZE // 2:], image[:, SIZE // 2:])
+        out, widened = depth_blur(image, depth, matte, 0.9, 0.5, 1.0)
+        figure = widened > 0.5
+        excess = out[..., 1].astype(int) - out[..., 2].astype(int)
+        self.assertLessEqual(int(excess[figure].max()), 1)
+        np.testing.assert_array_equal(out[~figure], image[~figure])
+
+    def test_out_of_focus_silhouette_fades_into_paper(self):
+        image = np.zeros((SIZE, SIZE, 3), np.uint8)
+        image[...] = (0, 255, 0)
+        image[:, :SIZE // 2] = (255, 0, 0)
+        matte = np.zeros((SIZE, SIZE), np.float32)
+        matte[:, :SIZE // 2] = 1.0
+        depth = np.zeros((SIZE, SIZE), np.float32)
+        depth[:, :SIZE // 4] = 1.0
+        out, widened = depth_blur(image, depth, matte, 0.1, 0.5, 0.7)
+        edge = SIZE // 2 + 1
+        self.assertEqual(float(widened[0, edge]), 1.0)
+        self.assertGreater(int(out[0, edge, 1]), 100)
+        self.assertGreater(int(out[0, edge, 0]), int(out[0, edge, 1]))
+        self.assertLess(int(out[0, SIZE // 2 - 2, 1]), int(out[0, edge, 1]))
+
+    def test_in_focus_silhouette_keeps_its_matte(self):
+        image = np.zeros((SIZE, SIZE, 3), np.uint8)
+        image[:, :SIZE // 2] = (255, 0, 0)
+        matte = np.zeros((SIZE, SIZE), np.float32)
+        matte[:, :SIZE // 2] = 1.0
+        depth = np.zeros((SIZE, SIZE), np.float32)
+        depth[:, :SIZE // 4] = 1.0
+        _, widened = depth_blur(image, depth, matte, 0.45, 0.5, 0.7)
+        self.assertEqual(float(widened[0, SIZE // 2 + 1]), 0.0)
 
     def test_flat_depth_returns_the_image(self):
-        out = depth_blur(self.image, np.zeros_like(self.depth), self.matte,
+        out = blurred(self.image, np.zeros_like(self.depth), self.matte,
                          0.5, 0.5, 1.0)
         np.testing.assert_array_equal(out, self.image)
 
@@ -121,7 +154,7 @@ class DepthBlurGraphTest(unittest.TestCase):
         self.assertEqual(depth["inputs"]["image"], [repin_id, 0])
         self.assertEqual(blur["inputs"]["image"], [repin_id, 0])
         self.assertEqual(blur["inputs"]["depth"], [depth_id, 0])
-        self.assertEqual(blur["inputs"]["matte"], deliver["inputs"]["matte"])
+        self.assertEqual(deliver["inputs"]["matte"], [blur_id, 1])
         self.assertEqual(
             (blur["inputs"]["focus_x"], blur["inputs"]["focus_y"],
              blur["inputs"]["f_number"]), (0.82, 0.55, 2.8))

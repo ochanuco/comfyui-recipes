@@ -48,7 +48,8 @@ def _matte_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
 
 
 def _depth_blur_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
-                      matte_ref: list, dof: tuple[tuple[float, float], float]) -> list:
+                      matte_ref: list, dof: tuple[tuple[float, float], float]
+                      ) -> tuple[list, list]:
     (focus_x, focus_y), f_number = dof
     depth_id = allocate()
     graph[depth_id] = {"class_type": DEPTH_NODE, "inputs": {
@@ -58,7 +59,7 @@ def _depth_blur_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
     graph[blur_id] = {"class_type": "YukariDepthBlur", "inputs": {
         "image": image_ref, "depth": [depth_id, 0], "matte": matte_ref,
         "focus_x": focus_x, "focus_y": focus_y, "f_number": f_number}}
-    return [blur_id, 0]
+    return [blur_id, 0], [blur_id, 1]
 
 
 def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list,
@@ -104,7 +105,8 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
             "keep_legwear_cut": keep_legwear if keep_legwear is not None else 0.62}}
         image_ref = [repin_id, 0]
     if dof is not None:
-        image_ref = _depth_blur_nodes(graph, allocate, image_ref, matte_ref, dof)
+        image_ref, matte_ref = _depth_blur_nodes(
+            graph, allocate, image_ref, matte_ref, dof)
     deliver_id = allocate()
     graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
         "image": image_ref, "matte": matte_ref, "keep_scene": keep_scene,
@@ -379,7 +381,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                                          else 0.62)}}
                 image_ref = [repin_id, 0]
             if dof is not None:
-                image_ref = _depth_blur_nodes(
+                image_ref, matte_ref = _depth_blur_nodes(
                     graph, allocate, image_ref, matte_ref, dof)
             deliver_id = allocate()
             graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {

@@ -62,7 +62,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
                     {**good, "focus": [1.2, 0.5]}, {**good, "focus": [0.5, -0.1]},
                     {**good, "focus": [0.5]}, {**good, "focus": ["a", 0.5]},
                     {**good, "focus": [True, 0.5]},
-                    {**good, "f_number": 0.7}, {**good, "f_number": 23},
+                    {**good, "f_number": 2.0}, {**good, "f_number": 23},
                     {**good, "f_number": "2.8"}, {**good, "f_number": True},
                     "2.8", [0.5, 0.5, 2.8]):
             with self.assertRaises(ValueError, msg=dof):

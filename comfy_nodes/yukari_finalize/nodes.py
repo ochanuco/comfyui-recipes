@@ -103,8 +103,8 @@ class YukariDeliver:
 
 class YukariDepthBlur:
     CATEGORY = "yukari"
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("image",)
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("image", "matte")
     FUNCTION = "run"
 
     @classmethod
@@ -122,10 +122,10 @@ class YukariDepthBlur:
         }}
 
     def run(self, image, depth, matte, focus_x, focus_y, f_number):
-        data = depth_blur.depth_blur_png(
+        data, widened = depth_blur.depth_blur_png(
             bridge.image_to_png(image), bridge.image_to_png(depth),
             bridge.mask_to_png(matte), focus_x, focus_y, f_number)
-        return (bridge.png_to_image(data),)
+        return (bridge.png_to_image(data), bridge.png_to_mask(widened))
 
 
 class YukariCompose:

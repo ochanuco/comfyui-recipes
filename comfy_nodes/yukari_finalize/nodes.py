@@ -7,7 +7,7 @@ PNG bytes back to tensors. The imaging logic itself lives in
 
 from __future__ import annotations
 
-from comfyui_recipes.infrastructure.imaging import delivery, palette, recolor
+from comfyui_recipes.infrastructure.imaging import delivery, depth_blur, palette, recolor
 
 from . import bridge
 
@@ -101,6 +101,33 @@ class YukariDeliver:
         return (bridge.png_to_image(data, mode), tag)
 
 
+class YukariDepthBlur:
+    CATEGORY = "yukari"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "run"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "image": ("IMAGE",),
+            "depth": ("IMAGE",),
+            "matte": ("MASK",),
+            "focus_x": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0,
+                                  "step": 0.001}),
+            "focus_y": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0,
+                                  "step": 0.001}),
+            "f_number": ("FLOAT", {"default": 2.8, "min": 0.7, "max": 22.0,
+                                   "step": 0.1}),
+        }}
+
+    def run(self, image, depth, matte, focus_x, focus_y, f_number):
+        data = depth_blur.depth_blur_png(
+            bridge.image_to_png(image), bridge.image_to_png(depth),
+            bridge.mask_to_png(matte), focus_x, focus_y, f_number)
+        return (bridge.png_to_image(data),)
+
+
 class YukariCompose:
     CATEGORY = "yukari"
     RETURN_TYPES = ("IMAGE", "STRING", "MASK")
@@ -151,6 +178,7 @@ NODE_CLASS_MAPPINGS = {
     "YukariRepin": YukariRepin,
     "YukariRecolor": YukariRecolor,
     "YukariDeliver": YukariDeliver,
+    "YukariDepthBlur": YukariDepthBlur,
     "YukariCompose": YukariCompose,
     "YukariCutBackdrop": YukariCutBackdrop,
 }
@@ -160,6 +188,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "YukariRepin": "Yukari Repin",
     "YukariRecolor": "Yukari Recolor",
     "YukariDeliver": "Yukari Deliver",
+    "YukariDepthBlur": "Yukari Depth Blur",
     "YukariCompose": "Yukari Compose",
     "YukariCutBackdrop": "Yukari Cut Backdrop",
 }

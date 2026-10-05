@@ -267,6 +267,15 @@ class FinalizeDefaultsTest(unittest.TestCase):
             with self.subTest(recipe=recipe["name"]):
                 finalize_arguments(defaults)
 
+    def test_finalize_publishes_the_dof_f_number_scale(self):
+        by_name = {recipe["name"]: recipe for recipe in build_catalog(GIT)["recipes"]}
+        dof = by_name["yukari"]["finalize"]["dof"]
+        self.assertEqual(dof["f_number"], {
+            "min": 0.7, "max": 22, "default": 2.8,
+            "stops": [1.0, 1.4, 2.0, 2.8, 4.0, 5.6, 8.0, 11.0, 16.0]})
+        self.assertEqual(dof["focus"], "fractions [x, y] of the source image")
+        self.assertNotIn("dof", by_name["yukari"]["finalize"]["defaults"])
+
     def test_yukari_defaults_to_deliver_only_with_repin(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}

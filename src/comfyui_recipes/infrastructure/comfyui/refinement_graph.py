@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 
-from ...domain.yukari.delivery_style import STROKE_LIGHTS
+from ...domain.yukari.delivery_style import STROKE_LIGHTS, Dof
 from ..imaging import backdrops
 from .base_graph import base_roles, sampler_settings
 
@@ -48,9 +48,9 @@ def _matte_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
 
 
 def _depth_blur_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
-                      matte_ref: list, dof: tuple[tuple[float, float], float]
-                      ) -> tuple[list, list]:
-    (focus_x, focus_y), f_number = dof
+                      matte_ref: list, dof: Dof
+                      ) -> tuple[list, list, list]:
+    (focus_x, focus_y), f_number = dof.focus, dof.f_number
     depth_id = allocate()
     graph[depth_id] = {"class_type": DEPTH_NODE, "inputs": {
         "image": image_ref, "ckpt_name": DEPTH_CKPT,
@@ -59,7 +59,18 @@ def _depth_blur_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
     graph[blur_id] = {"class_type": "YukariDepthBlur", "inputs": {
         "image": image_ref, "depth": [depth_id, 0], "matte": matte_ref,
         "focus_x": focus_x, "focus_y": focus_y, "f_number": f_number}}
-    return [blur_id, 0], [blur_id, 1]
+    return [blur_id, 0], [blur_id, 1], [depth_id, 0]
+
+
+def _surroundings_node(graph: dict, allocate: Callable[[], str], delivered_ref: list,
+                       depth_ref: list, matte_ref: list, dof: Dof,
+                       backdrop: str) -> list:
+    node_id = allocate()
+    graph[node_id] = {"class_type": "YukariDepthBlurSurroundings", "inputs": {
+        "image": delivered_ref, "depth": depth_ref, "matte": matte_ref,
+        "focus_x": dof.focus[0], "focus_y": dof.focus[1],
+        "f_number": dof.f_number, "backdrop": backdrop}}
+    return [node_id, 0]
 
 
 def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list,
@@ -69,7 +80,7 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
                        stroke_light: str | None, deliver_size: int | None,
                        canvas: tuple[int, int],
                        source_image: str | None = None,
-                       dof: tuple[tuple[float, float], float] | None = None) -> list:
+                       dof: Dof | None = None) -> list:
     """Appends the deliver-only chain onto `graph` (mutated). Returns the
     delivered picture's ref. `image_ref` may already be someone else's
     redraw or stitch, so `source_image` -- the unedited picture `skin`
@@ -105,7 +116,7 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
             "keep_legwear_cut": keep_legwear if keep_legwear is not None else 0.62}}
         image_ref = [repin_id, 0]
     if dof is not None:
-        image_ref, matte_ref = _depth_blur_nodes(
+        image_ref, matte_ref, depth_ref = _depth_blur_nodes(
             graph, allocate, image_ref, matte_ref, dof)
     deliver_id = allocate()
     graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
@@ -113,6 +124,10 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
         "transparent": transparent, "stroke_light": stroke_light or "",
         "backdrop": backdrop or ""}}
     delivered_ref = [deliver_id, 0]
+    if dof is not None and dof.scope == "all":
+        delivered_ref = _surroundings_node(
+            graph, allocate, delivered_ref, depth_ref, matte_ref, dof,
+            "" if keep_scene else backdrop or "")
     width, height = canvas
     longest = max(width, height)
     if deliver_size is not None and deliver_size < longest:
@@ -135,7 +150,7 @@ def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
                         transparent: bool, backdrop: str | None,
                         stroke_light: str | None, deliver_size: int | None,
                         canvas: tuple[int, int],
-                        dof: tuple[tuple[float, float], float] | None) -> dict:
+                        dof: Dof | None) -> dict:
     # A self-contained graph: nothing here depends on the base pass that
     # produced source_image, so it carries none of that pass's own nodes.
     graph: dict = {}
@@ -176,7 +191,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                stroke_light: str | None = None,
                deliver_only: bool = False,
                redraw_from_source: bool = False,
-               dof: tuple[tuple[float, float], float] | None = None,
+               dof: Dof | None = None,
                canvas: tuple[int, int]) -> dict:
     if redraw_from_source and not source_image:
         raise ValueError("redraw_from_source requires source_image")
@@ -381,7 +396,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                                          else 0.62)}}
                 image_ref = [repin_id, 0]
             if dof is not None:
-                image_ref, matte_ref = _depth_blur_nodes(
+                image_ref, matte_ref, depth_ref = _depth_blur_nodes(
                     graph, allocate, image_ref, matte_ref, dof)
             deliver_id = allocate()
             graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
@@ -389,6 +404,10 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                 "keep_scene": keep_scene, "transparent": transparent,
                 "stroke_light": stroke_light or "", "backdrop": backdrop or ""}}
             delivered_ref = [deliver_id, 0]
+            if dof is not None and dof.scope == "all":
+                delivered_ref = _surroundings_node(
+                    graph, allocate, delivered_ref, depth_ref, matte_ref, dof,
+                    "" if keep_scene else backdrop or "")
             if deliver_target is not None:
                 deliver_scale = allocate()
                 graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {

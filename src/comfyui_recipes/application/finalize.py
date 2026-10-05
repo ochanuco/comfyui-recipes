@@ -12,6 +12,7 @@ from ..domain.repair.loras import part_loras
 from ..domain.repair.prompt import repair_prompt
 from ..domain.repair.regions import rects_from_fractions, regions_from_pose, scale_circles
 from ..domain.yukari import delivery_style
+from ..domain.yukari.delivery_style import Dof
 from ..domain.yukari.prompt_style import HEIGHT, WIDTH
 from ..domain.yukari.recipe import refinement_prompt
 from ..infrastructure.comfyui.base_graph import (
@@ -126,7 +127,7 @@ class _Plan:
     repair_seeds: int | None
     hires: int | None
     hires_denoise: float | None
-    dof: tuple[tuple[float, float], float] | None
+    dof: Dof | None
 
     @property
     def repair_requested(self) -> bool:
@@ -230,7 +231,7 @@ def _resolve_plan(source: _Source, generation_id: str, *,
                   deliver_only: bool | object,
                   matte_model: str | None, hires: int | None,
                   hires_denoise: float | None,
-                  dof: tuple[tuple[float, float], float] | None
+                  dof: Dof | None
                   ) -> tuple[_Plan, int, str]:
     redraw_shaping_conflicts = [name for name, present in (
         ("denoise", denoise is not None),
@@ -318,6 +319,9 @@ def _resolve_plan(source: _Source, generation_id: str, *,
     if dof is not None and (repair_parts or repair_region_list
                             or repair_seeds is not None):
         raise SystemExit("dof は repair と一緒には使えません")
+    if (dof is not None and dof.scope == "all" and not keep_scene
+            and (transparent or backdrop is None)):
+        raise SystemExit("dof の scope 'all' は背景をぼかすので、透過納品とは一緒に使えません")
 
     plan = _Plan(
         deliver_only=deliver_only, repin=repin_applied, recolor=recolor_applied,
@@ -545,7 +549,9 @@ def _request_parameters(generation_id: str, plan: _Plan,
                   "size": plan.repair_size, "lora": plan.repair_lora,
                   "mask_bbox": list(repair_mask_bbox)}}
               if plan.repair_requested else {}),
-           **({"dof": {"focus": list(plan.dof[0]), "f_number": plan.dof[1]}}
+           **({"dof": {"focus": list(plan.dof.focus),
+                      "f_number": plan.dof.f_number,
+                      "scope": plan.dof.scope}}
               if plan.dof is not None else {}),
            **({"keep_regions": plan.keep_regions,
                "keep_strength": plan.keep_strength}
@@ -636,7 +642,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              matte_model: str | None = None,
              hires: int | None = None,
              hires_denoise: float | None = None,
-             dof: tuple[tuple[float, float], float] | None = None,
+             dof: Dof | None = None,
              context: dict | None = None) -> dict:
     state_path = operation_state_path(services.output_root, "finalize", key_prefix)
     if state_path:

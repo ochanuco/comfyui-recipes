@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import unittest
 
-from comfyui_recipes.application.finalize import RECIPE_DEFAULT
+from comfyui_recipes.application.finalize import RECIPE_DEFAULT, _Source, _resolve_plan
 from comfyui_recipes.application.request_options import (
     finalize_arguments,
     masked_redraw_arguments,
     repair_arguments,
 )
+from comfyui_recipes.domain.yukari.delivery_style import Dof
 from comfyui_recipes.domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH
 from comfyui_recipes.domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 
@@ -50,7 +51,39 @@ class FinalizeArgumentsTest(unittest.TestCase):
     def test_dof_parses_focus_and_f_number(self):
         arguments = finalize_arguments(
             {"dof": {"focus": [0.82, 0.55], "f_number": 2.8}})
-        self.assertEqual(arguments["dof"], ((0.82, 0.55), 2.8))
+        self.assertEqual(arguments["dof"], Dof((0.82, 0.55), 2.8, "figure"))
+
+    def test_dof_scope_defaults_to_figure_and_accepts_all(self):
+        good = {"focus": [0.5, 0.5], "f_number": 2.8}
+        self.assertEqual(finalize_arguments({"dof": good})["dof"].scope, "figure")
+        self.assertEqual(
+            finalize_arguments({"dof": {**good, "scope": "all"}})["dof"].scope, "all")
+
+    def test_dof_rejects_a_bad_scope(self):
+        good = {"focus": [0.5, 0.5], "f_number": 2.8}
+        for scope in ("both", "", None, 1, ["all"]):
+            with self.assertRaises(ValueError, msg=scope):
+                finalize_arguments({"dof": {**good, "scope": scope}})
+
+    def test_dof_all_rejects_a_transparent_delivery(self):
+        dof = Dof((0.5, 0.5), 2.8, "all")
+        source = _Source(context={}, picked=b"", is_repaired_raw=False,
+                         base_generation_id="g", graph={}, roles=None,
+                         is_anima=False)
+
+        def plan(**overrides):
+            arguments = {**finalize_arguments({"deliver_only": True}),
+                         "dof": dof, "transparent": None, "matte_model": None,
+                         "backdrop": "dots", "keep_scene": False, **overrides}
+            return _resolve_plan(source, "g", **arguments)[0]
+
+        self.assertEqual(plan().dof, dof)
+        self.assertEqual(plan(keep_scene=True, transparent=True).dof, dof)
+        for overrides in ({"transparent": True}, {"backdrop": None}):
+            with self.assertRaisesRegex(SystemExit, "透過納品", msg=overrides):
+                plan(**overrides)
+        figure = Dof((0.5, 0.5), 2.8)
+        self.assertEqual(plan(dof=figure, transparent=True).dof, figure)
 
     def test_dof_null_is_off(self):
         self.assertIsNone(finalize_arguments({"dof": None})["dof"])
@@ -62,7 +95,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
                     {**good, "focus": [1.2, 0.5]}, {**good, "focus": [0.5, -0.1]},
                     {**good, "focus": [0.5]}, {**good, "focus": ["a", 0.5]},
                     {**good, "focus": [True, 0.5]},
-                    {**good, "f_number": 2.0}, {**good, "f_number": 23},
+                    {**good, "f_number": 2.0}, {**good, "scope": "everything"}, {**good, "f_number": 23},
                     {**good, "f_number": "2.8"}, {**good, "f_number": True},
                     "2.8", [0.5, 0.5, 2.8]):
             with self.assertRaises(ValueError, msg=dof):

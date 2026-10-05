@@ -6,9 +6,10 @@ import unittest
 
 import numpy as np
 
+from comfyui_recipes.domain.yukari.delivery_style import Dof
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import (
     DEPTH_CKPT, DEPTH_NODE, chain_pass)
-from comfyui_recipes.infrastructure.imaging.depth_blur import depth_blur
+from comfyui_recipes.infrastructure.imaging.depth_blur import blur_surroundings, depth_blur
 
 SIZE = 128
 
@@ -153,7 +154,8 @@ def base_graph() -> dict:
     }
 
 
-DOF = ((0.82, 0.55), 2.8)
+DOF = Dof((0.82, 0.55), 2.8)
+DOF_ALL = Dof((0.82, 0.55), 2.8, "all")
 
 
 def find(graph: dict, class_type: str) -> tuple[str, dict]:
@@ -202,6 +204,89 @@ class DepthBlurGraphTest(unittest.TestCase):
             classes = {node.get("class_type") for node in plain.values()}
             self.assertNotIn("YukariDepthBlur", classes)
             self.assertNotIn(DEPTH_NODE, classes)
+
+    def test_scope_figure_matches_omitted_scope(self):
+        kwargs = dict(canvas=(832, 1664), matte_model="birefnet", deliver=True,
+                      repin=True, source_image="src.png")
+        for deliver_only in (False, True):
+            omitted = chain_pass(base_graph(), 2048, 0.45, "fin",
+                                 deliver_only=deliver_only, dof=DOF, **kwargs)
+            figure = chain_pass(base_graph(), 2048, 0.45, "fin",
+                                deliver_only=deliver_only,
+                                dof=Dof((0.82, 0.55), 2.8, "figure"), **kwargs)
+            self.assertEqual(omitted, figure)
+            classes = {node.get("class_type") for node in omitted.values()}
+            self.assertNotIn("YukariDepthBlurSurroundings", classes)
+
+    def test_scope_all_follows_deliver_in_both_routes(self):
+        for deliver_only in (False, True):
+            for keep_scene in (False, True):
+                with self.subTest(deliver_only=deliver_only, keep_scene=keep_scene):
+                    graph = chain_pass(
+                        base_graph(), 2048, 0.45, "fin", canvas=(832, 1664),
+                        matte_model="birefnet", deliver=True, repin=True,
+                        deliver_only=deliver_only, source_image="src.png",
+                        dof=DOF_ALL, keep_scene=keep_scene, backdrop="dots",
+                        deliver_size=1024)
+                    depth_id, _ = find(graph, DEPTH_NODE)
+                    blur_id, _ = find(graph, "YukariDepthBlur")
+                    deliver_id, _ = find(graph, "YukariDeliver")
+                    node_id, node = find(graph, "YukariDepthBlurSurroundings")
+                    self.assertEqual(node["inputs"], {
+                        "image": [deliver_id, 0], "depth": [depth_id, 0],
+                        "matte": [blur_id, 1], "focus_x": 0.82, "focus_y": 0.55,
+                        "f_number": 2.8,
+                        "backdrop": "" if keep_scene else "dots"})
+                    scale = [n for n in graph.values()
+                             if n.get("class_type") == "ImageScale"
+                             and n["inputs"]["image"] == [node_id, 0]]
+                    self.assertEqual(len(scale), 1)
+
+
+class SurroundingsTest(unittest.TestCase):
+    def setUp(self):
+        columns = (np.arange(SIZE) % 4 < 2).astype(np.float32) * 60 + 150
+        self.backdrop = np.broadcast_to(
+            columns[None, :, None], (SIZE, SIZE, 3)).copy()
+        self.composite = self.backdrop.astype(np.uint8)
+        self.matte = np.zeros((SIZE, SIZE), np.float32)
+        self.matte[40:88, 40:88] = 1.0
+        ring = np.zeros((SIZE, SIZE), bool)
+        ring[34:94, 34:94] = True
+        self.composite[ring & (self.matte == 0)] = 255
+        self.composite[self.matte > 0] = (30, 60, 120)
+        self.depth = np.zeros((SIZE, SIZE), np.float32)
+        self.depth[:, :64] = 1.0
+        self.depth[:, 64:] = 0.4
+
+    def surroundings(self, focus_x, backdrop="default"):
+        return blur_surroundings(
+            self.composite, self.depth, self.matte, focus_x, 0.5, 1.4,
+            self.backdrop if backdrop == "default" else backdrop)
+
+    def test_backdrop_is_blurred_and_figure_untouched(self):
+        out = self.surroundings(0.4)
+        far = (slice(0, SIZE), slice(100, 128))
+        self.assertLess(out[far][..., 0].astype(float).var(),
+                        0.5 * self.composite[far][..., 0].astype(float).var())
+        figure = self.matte > 0.5
+        np.testing.assert_array_equal(out[figure], self.composite[figure])
+
+    def test_rim_follows_the_radius_of_the_figure_beside_it(self):
+        out = self.surroundings(0.4)
+        sharp = np.abs(out[34:94, 34:40].astype(int)
+                       - self.composite[34:94, 34:40].astype(int)).max()
+        blurry = np.abs(out[34:94, 88:94].astype(int)
+                        - self.composite[34:94, 88:94].astype(int)).max()
+        self.assertGreater(blurry, sharp)
+
+    def test_kept_scene_without_a_backdrop_blurs_outside_the_figure(self):
+        out = self.surroundings(0.4, backdrop=None)
+        figure = self.matte > 0.5
+        np.testing.assert_array_equal(out[figure], self.composite[figure])
+        far = (slice(0, SIZE), slice(100, 128))
+        self.assertLess(out[far][..., 0].astype(float).var(),
+                        self.composite[far][..., 0].astype(float).var())
 
 
 if __name__ == "__main__":

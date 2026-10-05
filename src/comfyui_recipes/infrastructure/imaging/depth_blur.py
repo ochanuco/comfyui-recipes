@@ -1,7 +1,8 @@
 """Depth-of-field blur: a lens-disc circle of confusion that grows with
 distance from a focus point, applied to the figure in linear light. Where the
 figure is out of focus its silhouette fades into PAPER and the matte widens to
-take the fade in."""
+take the fade in. Key-coloured pockets the matte encloses stay raw, for
+delivery's own key cut."""
 
 from __future__ import annotations
 
@@ -11,6 +12,8 @@ import cv2
 import numpy as np
 from scipy import ndimage
 from PIL import Image
+
+from ...domain.yukari import delivery_style
 
 LEVELS = 8
 K_FRACTION = 0.024
@@ -63,37 +66,49 @@ def _spread_outward(radius: np.ndarray, inside: np.ndarray) -> np.ndarray:
     return radius[rows, cols]
 
 
+def _key_pixels(rgb: np.ndarray) -> np.ndarray:
+    pixels = rgb.astype(np.float32)
+    key = np.median(pixels[:8, :8].reshape(-1, 3), axis=0)
+    if key[1] - max(key[0], key[2]) < delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS:
+        return np.zeros(rgb.shape[:2], bool)
+    return np.abs(pixels - key).max(axis=2) <= delivery_style.MATTE_EDGE_TOLERANCE
+
+
 def depth_blur(rgb: np.ndarray, depth: np.ndarray, alpha: np.ndarray,
                focus_x: float, focus_y: float, f_number: float
                ) -> tuple[np.ndarray, np.ndarray]:
     """`rgb` is HxWx3 uint8, `depth` HxW float with higher = nearer, `alpha`
     HxW float 0..1. Returns the blurred picture and the matte widened to
     where the out-of-focus figure fades into PAPER; pixels outside that
-    matte come back untouched."""
+    matte, and key-coloured pockets inside the matte, come back untouched."""
     height, width = alpha.shape
     long_side = max(width, height)
+    source_alpha = alpha
+    pocket = _key_pixels(rgb) & (source_alpha > MATTE_THRESHOLD)
+    alpha = np.where(pocket, 0.0, alpha).astype(np.float32)
     inside = alpha > MATTE_THRESHOLD
     normalised = _normalised_depth(depth, inside)
     if normalised is None or not inside.any():
-        return rgb, alpha
+        return rgb, source_alpha
     d_focus = _focus_depth(normalised, focus_x, focus_y)
     radius = _spread_outward(
         K_FRACTION * long_side * np.abs(normalised - d_focus) / f_number, inside)
     r_max = float(radius.max())
     if r_max <= 0:
-        return rgb, alpha
+        return rgb, source_alpha
     position = np.minimum(radius / r_max, 1.0) * (LEVELS - 1)
 
     source = _to_linear(rgb.astype(np.float32)).astype(np.float32)
     colour = np.zeros_like(source)
     cover = np.zeros_like(alpha, dtype=np.float32)
+    spread = np.zeros_like(alpha, dtype=np.float32)
     for level in range(LEVELS):
         weight = np.clip(1.0 - np.abs(position - level), 0.0, 1.0)
         if not weight.any():
             continue
         level_radius = r_max * level / (LEVELS - 1)
         if level_radius < 0.5:
-            layer, layer_cover = source, alpha
+            layer, layer_cover = source, np.ones_like(alpha)
         else:
             kernel = _disc(level_radius)
             contributes = alpha * np.clip(
@@ -109,14 +124,15 @@ def depth_blur(rgb: np.ndarray, depth: np.ndarray, alpha: np.ndarray,
                              source)
             layer_cover = cv2.filter2D(alpha.astype(np.float32), -1, kernel,
                                        borderType=cv2.BORDER_REPLICATE)
+            spread += layer_cover * weight
         colour += layer * weight[..., None]
         cover += layer_cover * weight
     cover = np.clip(cover, 0.0, 1.0)
     paper = _to_linear(np.array(PAPER, np.float32))
     painted = _to_srgb(colour * cover[..., None] + paper * (1.0 - cover[..., None]))
-    widened = inside | (cover > SPREAD_CUT)
+    widened = (inside | (spread > SPREAD_CUT)) & ~pocket
     result = np.where(widened[..., None], painted, rgb.astype(np.float32))
-    matte = np.maximum(alpha, widened.astype(np.float32))
+    matte = np.maximum(source_alpha, widened.astype(np.float32))
     return np.clip(np.rint(result), 0, 255).astype(np.uint8), matte
 
 

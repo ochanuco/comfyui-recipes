@@ -372,6 +372,17 @@ class DeliveryTest(unittest.TestCase):
         self.assertTrue(outline[147:156, 147:365].all())
         self.assertFalse(outline[156:356, 156:356].any())
 
+    def test_drawn_outline_reaches_past_key_pixels_the_matte_overshot(self):
+        pixels, soft = self.outlined_figure(ring=True)
+        key = np.all(pixels == (150, 196, 164), axis=2)
+        pixels[key] = (109, 213, 81)
+        pixels[147:365, 147:365][np.all(pixels[147:365, 147:365] == (194, 215, 200), axis=2)] = (170, 223, 158)
+        soft[145:367, 145:367] = 255
+        figure = soft > 127
+        outline = drawn_outline(pixels.astype(float), figure, 6)
+        self.assertTrue(outline[145:156, 145:367].all())
+        self.assertFalse(outline[156:356, 156:356].any())
+
     def test_drawn_outline_takes_the_specks_left_inside_it(self):
         pixels, soft = self.outlined_figure(ring=True)
         pixels[151:153, 200:202] = (90, 80, 110)

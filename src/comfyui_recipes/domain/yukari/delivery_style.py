@@ -407,13 +407,12 @@ FRAME_WINDOW_MIN_AREA_PCT = 2
 FRAME_WINDOW_EDGE_PX = 12
 
 # A white outline the raw drew around the figure (`white outline` in the
-# prompt) is painted pure white so the white band continues it: a pixel at
-# least MIN_VALUE on every channel, tinted at most MAX_TINT off the key's
-# own chroma direction, within DEPTH_BANDS edge bands of the matte's edge
+# prompt) is painted pure white so the white band continues it: a pixel
+# within MAX_TINT of a blend of the key and white, within DEPTH_BANDS edge
+# bands of the matte's edge
 # and reached from the outside through such pixels. It applies only when
 # those pixels hold at least MIN_EDGE of the figure's edge; without a drawn
 # outline only white props touch the edge, at 10% or less.
-DRAWN_OUTLINE_MIN_VALUE = 150
 DRAWN_OUTLINE_MAX_TINT = 14
 DRAWN_OUTLINE_DEPTH_BANDS = 2
 DRAWN_OUTLINE_MIN_EDGE = 0.5

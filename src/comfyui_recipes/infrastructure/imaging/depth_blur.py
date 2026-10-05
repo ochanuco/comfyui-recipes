@@ -10,8 +10,7 @@ import numpy as np
 from PIL import Image
 
 LEVELS = 8
-R_MAX_FRACTION = 0.06
-K_FRACTION = 0.06
+K_FRACTION = 0.024
 DEPTH_PERCENTILES = (2, 98)
 FOCUS_WINDOW_FRACTION = 0.015
 ALPHA_EPSILON = 1e-4
@@ -47,24 +46,28 @@ def depth_blur(rgb: np.ndarray, depth: np.ndarray, alpha: np.ndarray,
     if normalised is None or not inside.any():
         return rgb
     d_focus = _focus_depth(normalised, focus_x, focus_y)
-    r_max = R_MAX_FRACTION * long_side
-    radius = np.minimum(
-        r_max, K_FRACTION * long_side * np.abs(normalised - d_focus) / f_number)
-    position = radius / r_max * (LEVELS - 1)
+    radius = K_FRACTION * long_side * np.abs(normalised - d_focus) / f_number
+    r_max = float(radius[inside].max())
+    if r_max <= 0:
+        return rgb
+    position = np.minimum(radius / r_max, 1.0) * (LEVELS - 1)
 
     source = rgb.astype(np.float32)
-    premultiplied = np.concatenate(
-        [source * alpha[..., None], alpha[..., None]], axis=-1).astype(np.float32)
     blended = np.zeros_like(source)
     for level in range(LEVELS):
         weight = np.clip(1.0 - np.abs(position - level), 0.0, 1.0)
         if not weight.any():
             continue
-        sigma = r_max * level / (LEVELS - 1) / 2
-        if sigma == 0:
+        level_radius = r_max * level / (LEVELS - 1)
+        if level_radius == 0:
             layer = source
         else:
-            blurred = cv2.GaussianBlur(premultiplied, (0, 0), sigma)
+            contributes = alpha * np.clip(
+                (radius - 0.5 * level_radius) / (0.5 * level_radius), 0.0, 1.0)
+            premultiplied = np.concatenate(
+                [source * contributes[..., None], contributes[..., None]],
+                axis=-1).astype(np.float32)
+            blurred = cv2.GaussianBlur(premultiplied, (0, 0), level_radius / 2)
             coverage = blurred[..., 3:4]
             layer = np.where(coverage > ALPHA_EPSILON,
                              blurred[..., :3] / np.maximum(coverage, ALPHA_EPSILON),

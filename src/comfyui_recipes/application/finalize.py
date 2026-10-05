@@ -126,6 +126,7 @@ class _Plan:
     repair_seeds: int | None
     hires: int | None
     hires_denoise: float | None
+    dof: tuple[tuple[float, float], float] | None
 
     @property
     def repair_requested(self) -> bool:
@@ -228,7 +229,9 @@ def _resolve_plan(source: _Source, generation_id: str, *,
                   keep_regions: Sequence[Sequence[float]], keep_strength: float,
                   deliver_only: bool | object,
                   matte_model: str | None, hires: int | None,
-                  hires_denoise: float | None) -> tuple[_Plan, int, str]:
+                  hires_denoise: float | None,
+                  dof: tuple[tuple[float, float], float] | None
+                  ) -> tuple[_Plan, int, str]:
     redraw_shaping_conflicts = [name for name, present in (
         ("denoise", denoise is not None),
         ("size", size is not None),
@@ -312,6 +315,9 @@ def _resolve_plan(source: _Source, generation_id: str, *,
                                        or repair_seeds is not None))
     if hires is not None and hires_denoise is None:
         hires_denoise = HIRES_DENOISE
+    if dof is not None and (repair_parts or repair_region_list
+                            or repair_seeds is not None):
+        raise SystemExit("dof は repair と一緒には使えません")
 
     plan = _Plan(
         deliver_only=deliver_only, repin=repin_applied, recolor=recolor_applied,
@@ -325,7 +331,8 @@ def _resolve_plan(source: _Source, generation_id: str, *,
         keep_strength=keep_strength, repair_parts=repair_parts,
         repair_regions=repair_region_list, repair_denoise=repair_denoise,
         repair_pad=repair_pad, repair_size=repair_size, repair_lora=repair_lora,
-        repair_seeds=repair_seeds, hires=hires, hires_denoise=hires_denoise)
+        repair_seeds=repair_seeds, hires=hires, hires_denoise=hires_denoise,
+        dof=dof)
     return plan, seed, prefix
 
 
@@ -438,6 +445,7 @@ def _build_graph(services: FinalizeServices, source: _Source, plan: _Plan,
         deliver_size=plan.deliver_size,
         stroke_light=plan.stroke_light,
         deliver_only=plan.deliver_only,
+        dof=plan.dof,
         redraw_from_source=source.is_repaired_raw and not plan.latent_route,
         canvas=services.image_size(source.picked))
 
@@ -537,6 +545,8 @@ def _request_parameters(generation_id: str, plan: _Plan,
                   "size": plan.repair_size, "lora": plan.repair_lora,
                   "mask_bbox": list(repair_mask_bbox)}}
               if plan.repair_requested else {}),
+           **({"dof": {"focus": list(plan.dof[0]), "f_number": plan.dof[1]}}
+              if plan.dof is not None else {}),
            **({"keep_regions": plan.keep_regions,
                "keep_strength": plan.keep_strength}
               if plan.keep_regions else {})}
@@ -626,6 +636,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              matte_model: str | None = None,
              hires: int | None = None,
              hires_denoise: float | None = None,
+             dof: tuple[tuple[float, float], float] | None = None,
              context: dict | None = None) -> dict:
     state_path = operation_state_path(services.output_root, "finalize", key_prefix)
     if state_path:
@@ -646,7 +657,8 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         repair_size=repair_size, repair_lora=repair_lora,
         repair_seeds=repair_seeds, keep_regions=keep_regions,
         keep_strength=keep_strength, deliver_only=deliver_only,
-        matte_model=matte_model, hires=hires, hires_denoise=hires_denoise)
+        matte_model=matte_model, hires=hires, hires_denoise=hires_denoise,
+        dof=dof)
 
     if plan.hires is not None:
         source = _render_hires(

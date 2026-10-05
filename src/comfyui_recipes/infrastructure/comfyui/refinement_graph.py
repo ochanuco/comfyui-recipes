@@ -17,6 +17,9 @@ DELIVERED_SUFFIX = "-delivered"
 # A matte_model of this form names a ComfyUI-RMBG model instead of a core
 # background-removal model file.
 RMBG_MATTE_PREFIX = "rmbg:"
+DEPTH_NODE = "DepthAnythingV2Preprocessor"
+DEPTH_CKPT = "depth_anything_v2_vitl.pth"
+DEPTH_RESOLUTION = 1024
 
 
 def sizes(width: int, height: int, longest_side: int) -> tuple[int, int]:
@@ -44,13 +47,28 @@ def _matte_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
     return [remove, 0]
 
 
+def _depth_blur_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
+                      matte_ref: list, dof: tuple[tuple[float, float], float]) -> list:
+    (focus_x, focus_y), f_number = dof
+    depth_id = allocate()
+    graph[depth_id] = {"class_type": DEPTH_NODE, "inputs": {
+        "image": image_ref, "ckpt_name": DEPTH_CKPT,
+        "resolution": DEPTH_RESOLUTION}}
+    blur_id = allocate()
+    graph[blur_id] = {"class_type": "YukariDepthBlur", "inputs": {
+        "image": image_ref, "depth": [depth_id, 0], "matte": matte_ref,
+        "focus_x": focus_x, "focus_y": focus_y, "f_number": f_number}}
+    return [blur_id, 0]
+
+
 def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list,
                        matte_model: str, prefix: str, *, skin: bool, repin: bool,
                        recolor: bool, keep_legwear: float | None, keep_scene: bool,
                        transparent: bool, backdrop: str | None,
                        stroke_light: str | None, deliver_size: int | None,
                        canvas: tuple[int, int],
-                       source_image: str | None = None) -> list:
+                       source_image: str | None = None,
+                       dof: tuple[tuple[float, float], float] | None = None) -> list:
     """Appends the deliver-only chain onto `graph` (mutated). Returns the
     delivered picture's ref. `image_ref` may already be someone else's
     redraw or stitch, so `source_image` -- the unedited picture `skin`
@@ -85,6 +103,8 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
             "keep_legwear": keep_legwear is not None,
             "keep_legwear_cut": keep_legwear if keep_legwear is not None else 0.62}}
         image_ref = [repin_id, 0]
+    if dof is not None:
+        image_ref = _depth_blur_nodes(graph, allocate, image_ref, matte_ref, dof)
     deliver_id = allocate()
     graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
         "image": image_ref, "matte": matte_ref, "keep_scene": keep_scene,
@@ -112,7 +132,8 @@ def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
                         keep_legwear: float | None, keep_scene: bool,
                         transparent: bool, backdrop: str | None,
                         stroke_light: str | None, deliver_size: int | None,
-                        canvas: tuple[int, int]) -> dict:
+                        canvas: tuple[int, int],
+                        dof: tuple[tuple[float, float], float] | None) -> dict:
     # A self-contained graph: nothing here depends on the base pass that
     # produced source_image, so it carries none of that pass's own nodes.
     graph: dict = {}
@@ -131,7 +152,7 @@ def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
         skin=skin, repin=repin, recolor=recolor, keep_legwear=keep_legwear,
         keep_scene=keep_scene, transparent=transparent, backdrop=backdrop,
         stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas,
-        source_image=source_image)
+        source_image=source_image, dof=dof)
     return graph
 
 
@@ -153,6 +174,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                stroke_light: str | None = None,
                deliver_only: bool = False,
                redraw_from_source: bool = False,
+               dof: tuple[tuple[float, float], float] | None = None,
                canvas: tuple[int, int]) -> dict:
     if redraw_from_source and not source_image:
         raise ValueError("redraw_from_source requires source_image")
@@ -180,7 +202,8 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             source_image, matte_model, prefix, skin=skin, repin=repin,
             recolor=recolor, keep_legwear=keep_legwear, keep_scene=keep_scene,
             transparent=transparent, backdrop=backdrop,
-            stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas)
+            stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas,
+            dof=dof)
     graph = json.loads(json.dumps(base))
     roles = base_roles(graph)
     if latent_route and roles.stitched:
@@ -355,6 +378,9 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                     "keep_legwear_cut": (keep_legwear if keep_legwear is not None
                                          else 0.62)}}
                 image_ref = [repin_id, 0]
+            if dof is not None:
+                image_ref = _depth_blur_nodes(
+                    graph, allocate, image_ref, matte_ref, dof)
             deliver_id = allocate()
             graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
                 "image": image_ref, "matte": matte_ref,

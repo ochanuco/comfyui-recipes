@@ -221,8 +221,9 @@ def drawn_outline(pixels: np.ndarray, figure: np.ndarray, band: int,
     through each other; the figure's own line stops them. Specks they leave
     behind, figure islands under band*band pixels, are taken with them.
     Empty unless they cover `delivery_style.DRAWN_OUTLINE_MIN_EDGE` of the
-    edge. `key` is the backdrop colour the halo is tinted by, the corner's
-    by default. `region` limits the outline and the edge it is measured on.
+    edge, not counting where the figure runs off the canvas. `key` is the
+    backdrop colour the halo is tinted by, the corner's by default.
+    `region` limits the outline and the edge it is measured on.
     """
     empty = np.zeros(figure.shape, dtype=bool)
     if band < 1 or not figure.any():
@@ -240,7 +241,7 @@ def drawn_outline(pixels: np.ndarray, figure: np.ndarray, band: int,
     rim = figure_rim(figure, band * delivery_style.DRAWN_OUTLINE_DEPTH_BANDS)
     outside = ~figure
     outline = figure & ndimage.binary_propagation(outside, mask=outside | (pale & rim))
-    edge = figure_rim(figure, 1)
+    edge = figure & ~ndimage.binary_erosion(figure, border_value=1)
     if region is not None:
         outline &= region
         edge &= region

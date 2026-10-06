@@ -12,7 +12,7 @@ from ..domain.repair.loras import part_loras
 from ..domain.repair.prompt import repair_prompt
 from ..domain.repair.regions import rects_from_fractions, regions_from_pose, scale_circles
 from ..domain.yukari import delivery_style
-from ..domain.yukari.delivery_style import Dof
+from ..domain.yukari.delivery_style import Dof, Light
 from ..domain.yukari.prompt_style import HEIGHT, WIDTH
 from ..domain.yukari.recipe import refinement_prompt
 from ..infrastructure.comfyui.base_graph import (
@@ -21,6 +21,7 @@ from ..infrastructure.comfyui.base_graph import (
     hires_graph,
     sampler_settings,
 )
+from ..infrastructure.comfyui.light_graph import light_graph
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
 from ..infrastructure.comfyui.refinement_graph import sizes
 from ..infrastructure.comfyui.repair_graph import redraw_canvas, splice_repair
@@ -78,6 +79,7 @@ class FinalizeServices:
     pose_graph: Callable[..., dict] = pose_graph
     splice_repair: Callable[..., dict] = splice_repair
     hires_graph: Callable[..., dict] = hires_graph
+    light_graph: Callable[..., dict] = light_graph
     image_size: Callable[[bytes], tuple[int, int]] = image_size
     # deliver_only + repair routes through the repair use case, not the
     # redraw's own splice.
@@ -129,6 +131,7 @@ class _Plan:
     hires: int | None
     hires_denoise: float | None
     dof: Dof | None
+    light: Light | None
 
     @property
     def repair_requested(self) -> bool:
@@ -191,6 +194,23 @@ def _load_source(generation_id: str, services: FinalizeServices,
                    roles=roles, is_anima=is_anima)
 
 
+def _check_resample(source: _Source, option: str, *, deliver_only: bool,
+                    repair_requested: bool) -> None:
+    if source.roles is None:
+        raise SystemExit(
+            f"この絵には ComfyUI の graph が無いので、{option} は使えません")
+    if source.is_repaired_raw or source.roles.stitched:
+        raise SystemExit(
+            f"repair や masked_redraw で直した絵には {option} は使えません")
+    if not source.is_anima:
+        raise SystemExit(f"{option} が使えるのは Anima で描いた絵だけです")
+    if not deliver_only:
+        raise SystemExit(
+            f"{option} は deliver_only（描き直し無しの納品）でだけ使えます")
+    if repair_requested:
+        raise SystemExit(f"{option} は repair と一緒には使えません")
+
+
 def _check_hires(source: _Source, hires: int | None,
                  hires_denoise: float | None, *, deliver_only: bool,
                  repair_requested: bool) -> None:
@@ -202,19 +222,8 @@ def _check_hires(source: _Source, hires: int | None,
         raise SystemExit("hires は 64 以上の整数（縦長の標準キャンバスで長辺にあたるピクセル数）で指定してください")
     if hires_denoise is not None and not 0 < hires_denoise <= 1:
         raise SystemExit("hires_denoise は 0 より大きく 1 以下で指定してください")
-    if source.roles is None:
-        raise SystemExit(
-            "この絵には ComfyUI の graph が無いので、hires は使えません")
-    if source.is_repaired_raw or source.roles.stitched:
-        raise SystemExit(
-            "repair や masked_redraw で直した絵には hires は使えません")
-    if not source.is_anima:
-        raise SystemExit("hires が使えるのは Anima で描いた絵だけです")
-    if not deliver_only:
-        raise SystemExit(
-            "hires は deliver_only（描き直し無しの納品）でだけ使えます")
-    if repair_requested:
-        raise SystemExit("hires は repair と一緒には使えません")
+    _check_resample(source, "hires", deliver_only=deliver_only,
+                    repair_requested=repair_requested)
 
 
 def _resolve_plan(source: _Source, generation_id: str, *,
@@ -234,7 +243,7 @@ def _resolve_plan(source: _Source, generation_id: str, *,
                   deliver_only: bool | object,
                   matte_model: str | None, hires: int | None,
                   hires_denoise: float | None,
-                  dof: Dof | None
+                  dof: Dof | None, light: Light | None = None
                   ) -> tuple[_Plan, int, str]:
     redraw_shaping_conflicts = [name for name, present in (
         ("denoise", denoise is not None),
@@ -251,7 +260,8 @@ def _resolve_plan(source: _Source, generation_id: str, *,
     if apply_repin is RECIPE_DEFAULT:
         apply_repin = recipe_defaults.get("repin", False)
     if stroke_light is RECIPE_DEFAULT:
-        stroke_light = recipe_defaults.get("stroke_light")
+        stroke_light = (light.direction if light is not None
+                        else recipe_defaults.get("stroke_light"))
     if backdrop is RECIPE_DEFAULT:
         backdrop = None if transparent is True else recipe_defaults.get("backdrop")
 
@@ -319,6 +329,14 @@ def _resolve_plan(source: _Source, generation_id: str, *,
                                        or repair_seeds is not None))
     if hires is not None and hires_denoise is None:
         hires_denoise = HIRES_DENOISE
+    if light is not None:
+        _check_resample(source, "light", deliver_only=deliver_only,
+                        repair_requested=bool(repair_parts or repair_region_list
+                                              or repair_seeds is not None))
+        if stroke_light != light.direction:
+            raise SystemExit(
+                f"stroke_light は light の from（{light.direction}）と同じ向きで"
+                "なければなりません。light を指定した時は stroke_light を省略してください")
     if dof is not None and (repair_parts or repair_region_list
                             or repair_seeds is not None):
         raise SystemExit("dof は repair と一緒には使えません")
@@ -342,7 +360,7 @@ def _resolve_plan(source: _Source, generation_id: str, *,
         repair_regions=repair_region_list, repair_denoise=repair_denoise,
         repair_pad=repair_pad, repair_size=repair_size, repair_lora=repair_lora,
         repair_seeds=repair_seeds, hires=hires, hires_denoise=hires_denoise,
-        dof=dof)
+        dof=dof, light=light)
     return plan, seed, prefix
 
 
@@ -368,6 +386,31 @@ def _render_hires(generation_id: str, services: FinalizeServices,
         raise SystemExit(f"{prefix} が画像を出力しませんでした")
     return replace(source, picked=services.comfyui.fetch(images[-1]),
                    graph=graph, roles=base_roles(graph))
+
+
+def _render_light(generation_id: str, services: FinalizeServices,
+                  source: _Source, plan: _Plan, state: dict,
+                  state_path: Path | None) -> _Source:
+    prefix = f"light-{generation_id}"
+    source_image = services.comfyui.upload_image(
+        f"{prefix}-source-{uuid.uuid4().hex[:8]}.png", source.picked)
+    graph = services.light_graph(
+        source.graph, source.roles, source_image, plan.matte_model,
+        plan.light.scene, plan.light.direction, prefix)
+    prompt_id = state.get("light_prompt_id")
+    knows = getattr(services.comfyui, "knows", None)
+    if prompt_id and (knows is None or knows(prompt_id)):
+        services.emit(f"{prefix} resume {prompt_id}")
+    else:
+        prompt_id = services.comfyui.submit(graph)
+        if state_path:
+            state["light_prompt_id"] = prompt_id
+            services.state.save(state_path, state)
+    services.emit(f"{prefix} {prompt_id}")
+    images = services.comfyui.wait_for(prompt_id)
+    if not images:
+        raise SystemExit(f"{prefix} が画像を出力しませんでした")
+    return replace(source, picked=services.comfyui.fetch(images[-1]))
 
 
 def _deliver_with_repair(generation_id: str, services: FinalizeServices,
@@ -456,6 +499,7 @@ def _build_graph(services: FinalizeServices, source: _Source, plan: _Plan,
         stroke_light=plan.stroke_light,
         deliver_only=plan.deliver_only,
         dof=plan.dof,
+        light_scene=plan.light.scene if plan.light is not None else None,
         redraw_from_source=source.is_repaired_raw and not plan.latent_route,
         canvas=services.image_size(source.picked))
 
@@ -555,6 +599,8 @@ def _request_parameters(generation_id: str, plan: _Plan,
               if plan.deliver_size is not None else {}),
            **({"stroke_light": plan.stroke_light}
               if plan.stroke_light is not None else {}),
+           **({"light": {"scene": plan.light.scene, "from": plan.light.direction}}
+              if plan.light is not None else {}),
            **({"repair": {
                   "parts": plan.repair_parts, "regions": plan.repair_regions,
                   "denoise": plan.repair_denoise, "pad": plan.repair_pad,
@@ -660,6 +706,7 @@ def finalize(generation_id: str, services: FinalizeServices, *,
              hires: int | None = None,
              hires_denoise: float | None = None,
              dof: Dof | None = None,
+             light: Light | None = None,
              context: dict | None = None) -> dict:
     state_path = operation_state_path(services.output_root, "finalize", key_prefix)
     if state_path:
@@ -681,10 +728,13 @@ def finalize(generation_id: str, services: FinalizeServices, *,
         repair_seeds=repair_seeds, keep_regions=keep_regions,
         keep_strength=keep_strength, deliver_only=deliver_only,
         matte_model=matte_model, hires=hires, hires_denoise=hires_denoise,
-        dof=dof)
+        dof=dof, light=light)
 
     if plan.hires is not None:
         source = _render_hires(
+            generation_id, services, source, plan, state, state_path)
+    if plan.light is not None:
+        source = _render_light(
             generation_id, services, source, plan, state, state_path)
 
     if plan.deliver_only and plan.repair_requested:

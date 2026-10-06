@@ -619,7 +619,7 @@ def _bands_over(white_a: np.ndarray, purple_a: np.ndarray,
 def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
            backdrop_rgb, light: str | None = None,
            clip: np.ndarray | None = None,
-           shadow: bool = False) -> np.ndarray:
+           shadow: bool = False, scene: str | None = None) -> np.ndarray:
     """Frame `figure` on `backdrop_rgb`, white band then purple band outside it.
 
     `coverage` is the figure's own per-pixel alpha in 0..1; the composite is
@@ -646,7 +646,13 @@ def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
             * (1 - np.clip(white_a + purple_a, 0.0, 1.0))
         if clip is not None:
             shadow_a = np.where(clip, shadow_a, 0.0)
-        flat = flat * (1 - shadow_a[..., None] * delivery_style.STICKER_SHADOW_DARKEN)
+        if scene is None:
+            flat = flat * (1 - shadow_a[..., None]
+                           * delivery_style.STICKER_SHADOW_DARKEN)
+        else:
+            cast = np.array(delivery_style.LIGHT_SCENES[scene]["cast"])
+            weight = delivery_style.LIGHT_CAST_STRENGTH * shadow_a[..., None]
+            flat = flat * (1 - weight) + flat * cast * weight
     bands = _bands_over(white_a, purple_a, flat)
     return bands + coverage[..., None] * (px - bands)
 
@@ -664,8 +670,26 @@ def _cut_tag_suffix() -> str:
     return f"-cut{eps:g}" if eps > 0 else ""
 
 
+def scene_backdrop(backdrop_rgb: np.ndarray, light: str | None,
+                   scene: str) -> np.ndarray:
+    """Tint `backdrop_rgb` to `scene` and brighten it toward the light."""
+    colour, amount, value = delivery_style.LIGHT_SCENES[scene]["backdrop"]
+    tinted = backdrop_rgb * ((1 - amount) + amount * np.array(colour) / 255.0) * value
+    if light is None:
+        return tinted
+    lx, ly = delivery_style.STROKE_LIGHTS[light]
+    height, width = tinted.shape[:2]
+    yy, xx = np.mgrid[0:height, 0:width].astype(float)
+    away = -(xx * lx + yy * ly)
+    span = away.max() - away.min()
+    far = np.clip((away - away.min()) / span, 0, 1) if span else np.zeros_like(away)
+    base, slope = delivery_style.LIGHT_BACKDROP_BRIGHTEN
+    return tinted * (base - slope * far)[..., None]
+
+
 def clean_background(data: bytes, matte: bytes, light: str | None = None,
-                     backdrop: str | None = None) -> tuple[bytes, str]:
+                     backdrop: str | None = None,
+                     scene: str | None = None) -> tuple[bytes, str]:
     """Frame the figure the matte cuts out, in the delivery's own colours.
 
     The matte is the authority on the silhouette, not colour: repin moves
@@ -694,12 +718,14 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     px[outline_drawn] = 255.0
     coverage[outline_drawn] = 1.0
     backdrop_rgb = backdrops.render(backdrop, height, width)
+    if scene is not None:
+        backdrop_rgb = scene_backdrop(backdrop_rgb, light, scene)
     if window is None:
         composite = sticker(px, figure, coverage, backdrop_rgb, light,
-                            shadow=True)
+                            shadow=True, scene=scene)
     else:
         composite = sticker(px, figure & inner, coverage, backdrop_rgb, light,
-                            window, shadow=True)
+                            window, shadow=True, scene=scene)
         excess = raw[..., 1] - np.maximum(raw[..., 0], raw[..., 2])
         half = delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS / 2
         green = np.clip((excess - half) / half, 0.0, 1.0)[..., None]

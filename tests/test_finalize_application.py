@@ -20,7 +20,7 @@ from comfyui_recipes.application.finalize import RECIPE_DEFAULT, FinalizeService
 from comfyui_recipes.domain.generation.models import PromptPair
 from comfyui_recipes.domain.repair.prompt import PART_TAGS
 from comfyui_recipes.domain.yukari import delivery_style
-from comfyui_recipes.domain.yukari.delivery_style import Dof
+from comfyui_recipes.domain.yukari.delivery_style import Dof, Light
 from comfyui_recipes.domain.yukari.recipe import refinement_prompt, render_spec
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
@@ -1925,6 +1925,149 @@ class HiresFinalizeTest(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "直した絵には hires"):
                 finalize("gen-id", services, deliver_only=True, hires=2048)
             self.assertEqual(comfy.submitted, [])
+
+
+LIGHT_GRAPH = {
+    **HIRES_GRAPH,
+    "4": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
+    "6": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["4", 1], "text": "p"}},
+}
+
+
+class LightComfyFake(HiresComfyFake):
+    def submit(self, graph):
+        self.submitted.append(graph)
+        if any(node.get("class_type") == "YukariLight" for node in graph.values()):
+            return "light-prompt"
+        if any(node.get("class_type") == "LatentUpscale" for node in graph.values()):
+            return "hires-prompt"
+        return "prompt-id"
+
+    def wait_for(self, prompt_id):
+        if prompt_id == "light-prompt":
+            return [{"filename": "light-out.png"}]
+        return super().wait_for(prompt_id)
+
+    def fetch(self, image):
+        if image["filename"] == "light-out.png":
+            return b"light-bytes"
+        return super().fetch(image)
+
+
+class LightFinalizeTest(unittest.TestCase):
+    def _services(self, directory, graph=LIGHT_GRAPH, **overrides):
+        return base_services(
+            directory, comfyui=overrides.pop("comfyui", LightComfyFake()),
+            graph_from_png=lambda data: copy.deepcopy(graph), **overrides)
+
+    def test_the_lit_picture_replaces_the_picked_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                calls.append(kwargs)
+                return {}
+
+            comfy = LightComfyFake()
+            services = self._services(
+                directory, comfyui=comfy, chain_pass=recording_chain_pass)
+            finalize("gen-id", services, deliver_only=True,
+                     stroke_light=RECIPE_DEFAULT, light=Light("moon", "se"))
+            light_graph = comfy.submitted[0]
+            self.assertEqual(
+                [node["class_type"] for node in light_graph.values()
+                 if node["class_type"] == "YukariLight"], ["YukariLight"])
+            self.assertEqual(comfy.uploaded[0][1], b"picked")
+            self.assertEqual(comfy.uploaded[1][1], b"light-bytes")
+            self.assertEqual(calls[0]["light_scene"], "moon")
+            self.assertEqual(calls[0]["stroke_light"], "se")
+            self.assertEqual(len(comfy.submitted), 2)
+
+    def test_the_light_pass_runs_after_hires(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = LightComfyFake()
+            services = self._services(directory, comfyui=comfy)
+            finalize("gen-id", services, deliver_only=True, hires=2048,
+                     stroke_light=RECIPE_DEFAULT, light=Light("sunset", "nw"))
+            kinds = [
+                "light" if any(n["class_type"] == "YukariLight" for n in g.values())
+                else "hires" if any(n["class_type"] == "LatentUpscale" for n in g.values())
+                else "deliver" for g in comfy.submitted]
+            self.assertEqual(kinds, ["hires", "light", "deliver"])
+            self.assertEqual(comfy.uploaded[0][1], b"hires-bytes")
+            self.assertEqual(comfy.uploaded[1][1], b"light-bytes")
+            lit_samples = [n for n in comfy.submitted[1].values()
+                           if n["class_type"] == "SaveImage"]
+            self.assertEqual(len(lit_samples), 1)
+
+    def test_absent_stroke_light_follows_light_and_is_recorded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = self._services(directory)
+            finalize("gen-id", services, deliver_only=True,
+                     stroke_light=RECIPE_DEFAULT, light=Light("moon", "sw"))
+            parameters = resolution_call(services)[2]["parameters"]
+            self.assertEqual(parameters["light"], {"scene": "moon", "from": "sw"})
+            self.assertEqual(parameters["stroke_light"], "sw")
+
+    def test_no_light_leaves_parameters_unchanged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = self._services(directory)
+            finalize("gen-id", services, deliver_only=True)
+            self.assertNotIn("light", resolution_call(services)[2]["parameters"])
+
+    def test_rejections_happen_before_any_submit(self):
+        light = Light("moon", "nw")
+        cases = [
+            ("deliver_only（描き直し無しの納品）でだけ", LIGHT_GRAPH,
+             dict(deliver_only=False, light=light)),
+            ("repair と一緒には使えません", LIGHT_GRAPH,
+             dict(deliver_only=True, light=light, repair=["hands"])),
+            ("Anima で描いた絵だけ", SKETCH_GRAPH,
+             dict(deliver_only=True, light=light)),
+            ("stroke_light は light の from", LIGHT_GRAPH,
+             dict(deliver_only=True, light=light, stroke_light="n")),
+            ("stroke_light は light の from", LIGHT_GRAPH,
+             dict(deliver_only=True, light=light, stroke_light=None)),
+        ]
+        for message, graph, kwargs in cases:
+            with self.subTest(message=message, kwargs=kwargs):
+                with tempfile.TemporaryDirectory() as directory:
+                    comfy = LightComfyFake()
+                    services = self._services(directory, graph=graph, comfyui=comfy)
+                    with self.assertRaisesRegex(SystemExit, message):
+                        finalize("gen-id", services, **kwargs)
+                    self.assertEqual(comfy.submitted, [])
+
+    def test_an_explicit_matching_stroke_light_is_accepted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = self._services(directory)
+            finalize("gen-id", services, deliver_only=True, stroke_light="nw",
+                     light=Light("moon", "nw"))
+
+    def test_resume_does_not_resubmit_the_light_prompt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = LightComfyFake()
+            services = self._services(directory, comfyui=comfy)
+            state_path = operation_state_path(
+                Path(directory), "finalize", "request:r1")
+            state_path.parent.mkdir(parents=True, exist_ok=True)
+            services.state.save(state_path, {"light_prompt_id": "light-prompt"})
+            finalize("gen-id", services, deliver_only=True,
+                     stroke_light=RECIPE_DEFAULT, light=Light("moon", "nw"),
+                     key_prefix="request:r1")
+            self.assertEqual(len(comfy.submitted), 1)
+            self.assertEqual(comfy.uploaded[-1][1], b"light-bytes")
+
+    def test_the_light_prompt_id_is_saved_before_the_deliver_submit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = self._services(directory)
+            finalize("gen-id", services, deliver_only=True,
+                     stroke_light=RECIPE_DEFAULT, light=Light("moon", "nw"),
+                     key_prefix="request:r1")
+            state = services.state.load(operation_state_path(
+                Path(directory), "finalize", "request:r1"))
+            self.assertEqual(state["light_prompt_id"], "light-prompt")
+            self.assertEqual(state["prompt_id"], "prompt-id")
 
 
 if __name__ == "__main__":

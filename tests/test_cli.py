@@ -7,6 +7,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+from comfyui_recipes.application.finalize import RECIPE_DEFAULT
+from comfyui_recipes.domain.yukari.delivery_style import Light
 from comfyui_recipes.interfaces import cli
 
 
@@ -143,6 +145,21 @@ class CliTest(unittest.TestCase):
         kwargs = run_finalize.call_args.kwargs
         self.assertEqual(kwargs["hires"], 2048)
         self.assertEqual(kwargs["hires_denoise"], 0.4)
+
+    @patch.object(cli, "finalize")
+    @patch.object(cli, "ChimeraClient")
+    def test_finalize_light_flag_dispatches_without_network(
+            self, chimera_class, run_finalize):
+        cli.main(["finalize", "gen-1", "--deliver-only", "--light", "moon,se"])
+        kwargs = run_finalize.call_args.kwargs
+        self.assertEqual(kwargs["light"], Light("moon", "se"))
+        self.assertIs(kwargs["stroke_light"], RECIPE_DEFAULT)
+        cli.main(["finalize", "gen-1", "--deliver-only", "--light", "sunset"])
+        self.assertEqual(run_finalize.call_args.kwargs["light"],
+                         Light("sunset", "nw"))
+        cli.main(["finalize", "gen-1"])
+        self.assertIsNone(run_finalize.call_args.kwargs["light"])
+        self.assertIsNone(run_finalize.call_args.kwargs["stroke_light"])
 
     @patch.object(cli, "finalize")
     @patch.object(cli, "ChimeraClient")

@@ -111,8 +111,14 @@ class ChimeraClient:
         raise SystemExit(f"{method} {path}: giving up after retries ({last})")
 
     def fetch_generation_image(self, generation_id: str) -> bytes:
+        return self._fetch_generation_bytes(generation_id, "image")
+
+    def fetch_generation_preview(self, generation_id: str) -> bytes:
+        return self._fetch_generation_bytes(generation_id, "preview")
+
+    def _fetch_generation_bytes(self, generation_id: str, kind: str) -> bytes:
         request = urllib.request.Request(
-            f"{self.base_url}/g/{generation_id}/image",
+            f"{self.base_url}/g/{generation_id}/{kind}",
             headers={**self.credentials(), "User-Agent": USER_AGENT},
         )
         with urllib.request.urlopen(request, timeout=120) as response:

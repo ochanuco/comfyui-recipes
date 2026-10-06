@@ -1,6 +1,6 @@
 # Delivery: finalize, palette, matte, stroke
 
-The delivery identity (backdrop `#c7e5e9`, purple stroke, acceptance band)
+The delivery identity (solid backdrop `#ffffff`, purple stroke, acceptance band)
 lives in `domain/yukari/delivery_style.py`, fingerprinted by
 `scripts/delivery_check.py`. When `--accept` records a change, rewrite
 "The look now" below. Tags and `a<n> §` pointers: see
@@ -15,7 +15,9 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
   diagonal stripes + faint focus lines backdrop is `backdrop=stripes`. `[Anima]`
 - Rim is `#885b80`, polygonised (Douglas–Peucker, eps 0.5%) for a hand-cut
   look; eps stays well under the white band or the outline cuts inside it.
-  Light-direction shading on the purple rim, 8 directions. `[all]` (a6 §Hand-cut sticker rim)
+  Light-direction shading on the purple rim, 8 directions; the drop shadow
+  falls straight away from the light, the same way the rim is extruded.
+  `stroke_light` `even` is a uniform rim, `none` no purple rim. `[all]` (a6 §Hand-cut sticker rim)
 - Matte: RMBG BiRefNet-general + 1 px key alpha + projected despill. Every
   pose renders on green (grey sat too close to the pale skin at the edge); hair-enclosed green gets `enclosed_cut`. Cast
   shadows: `soft_clamped` + `shadow_cut` (#183). `[Anima]`

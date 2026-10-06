@@ -49,26 +49,31 @@ def _matte_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
     return [remove, 0]
 
 
-def _depth_blur_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
-                      matte_ref: list, dof: Dof
-                      ) -> tuple[list, list, list]:
-    (focus_x, focus_y), f_number = dof.focus, dof.f_number
+def _depth_nodes(graph: dict, allocate: Callable[[], str], image_ref: list
+                 ) -> list:
     depth_id = allocate()
     graph[depth_id] = {"class_type": DEPTH_NODE, "inputs": {
         "image": image_ref, "ckpt_name": DEPTH_CKPT,
         "resolution": DEPTH_RESOLUTION}}
+    return [depth_id, 0]
+
+
+def _depth_blur_node(graph: dict, allocate: Callable[[], str], image_ref: list,
+                     depth_ref: list, matte_ref: list, dof: Dof
+                     ) -> tuple[list, list]:
     blur_id = allocate()
     graph[blur_id] = {"class_type": "YukariDepthBlur", "inputs": {
-        "image": image_ref, "depth": [depth_id, 0], "matte": matte_ref,
-        "focus_x": focus_x, "focus_y": focus_y, "f_number": f_number}}
-    return [blur_id, 0], [blur_id, 1], [depth_id, 0]
+        "image": image_ref, "depth": depth_ref, "matte": matte_ref,
+        "focus_x": dof.focus[0], "focus_y": dof.focus[1],
+        "f_number": dof.f_number}}
+    return [blur_id, 0], [blur_id, 1]
 
 
-def _surroundings_node(graph: dict, allocate: Callable[[], str], delivered_ref: list,
-                       depth_ref: list, matte_ref: list, dof: Dof,
-                       backdrop: str) -> list:
+def _layered_node(graph: dict, allocate: Callable[[], str], delivered_ref: list,
+                  depth_ref: list, matte_ref: list, dof: Dof,
+                  backdrop: str) -> list:
     node_id = allocate()
-    graph[node_id] = {"class_type": "YukariDepthBlurSurroundings", "inputs": {
+    graph[node_id] = {"class_type": "YukariDepthBlurLayered", "inputs": {
         "image": delivered_ref, "depth": depth_ref, "matte": matte_ref,
         "focus_x": dof.focus[0], "focus_y": dof.focus[1],
         "f_number": dof.f_number, "backdrop": backdrop}}
@@ -136,8 +141,10 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
             "keep_legwear_cut": keep_legwear if keep_legwear is not None else 0.62}}
         image_ref = [repin_id, 0]
     if dof is not None:
-        image_ref, matte_ref, depth_ref = _depth_blur_nodes(
-            graph, allocate, image_ref, matte_ref, dof)
+        depth_ref = _depth_nodes(graph, allocate, image_ref)
+        if dof.scope != "all":
+            image_ref, matte_ref = _depth_blur_node(
+                graph, allocate, image_ref, depth_ref, matte_ref, dof)
     deliver_id = allocate()
     graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
         "image": image_ref, "matte": matte_ref, "keep_scene": keep_scene,
@@ -145,7 +152,7 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
         "backdrop": backdrop or ""}}
     delivered_ref = [deliver_id, 0]
     if dof is not None and dof.scope == "all":
-        delivered_ref = _surroundings_node(
+        delivered_ref = _layered_node(
             graph, allocate, delivered_ref, depth_ref, matte_ref, dof,
             "" if keep_scene else backdrop or "")
     width, height = canvas
@@ -417,8 +424,10 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                                          else 0.62)}}
                 image_ref = [repin_id, 0]
             if dof is not None:
-                image_ref, matte_ref, depth_ref = _depth_blur_nodes(
-                    graph, allocate, image_ref, matte_ref, dof)
+                depth_ref = _depth_nodes(graph, allocate, image_ref)
+                if dof.scope != "all":
+                    image_ref, matte_ref = _depth_blur_node(
+                        graph, allocate, image_ref, depth_ref, matte_ref, dof)
             deliver_id = allocate()
             graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
                 "image": image_ref, "matte": matte_ref,
@@ -426,7 +435,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                 "stroke_light": stroke_light or "", "backdrop": backdrop or ""}}
             delivered_ref = [deliver_id, 0]
             if dof is not None and dof.scope == "all":
-                delivered_ref = _surroundings_node(
+                delivered_ref = _layered_node(
                     graph, allocate, delivered_ref, depth_ref, matte_ref, dof,
                     "" if keep_scene else backdrop or "")
             if deliver_target is not None:

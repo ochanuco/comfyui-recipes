@@ -410,7 +410,8 @@ FRAME_WINDOW_EDGE_PX = 12
 
 # A white outline the raw drew around the figure (`white outline` in the
 # prompt) is painted pure white so the white band continues it: a pixel
-# within MAX_TINT of a blend of the key and white, within DEPTH_BANDS edge
+# within MAX_TINT of a blend of the key and white, or of the key darkened
+# to no less than MIN_KEY_SHADE of itself, within DEPTH_BANDS edge
 # bands of the matte's edge
 # and reached from the outside through such pixels. It applies only when
 # those pixels hold at least MIN_EDGE of the figure's edge; without a drawn
@@ -418,6 +419,8 @@ FRAME_WINDOW_EDGE_PX = 12
 DRAWN_OUTLINE_MAX_TINT = 14
 DRAWN_OUTLINE_DEPTH_BANDS = 2
 DRAWN_OUTLINE_MIN_EDGE = 0.5
+DRAWN_OUTLINE_MIN_KEY_SHADE = 0.75
+DRAWN_OUTLINE_MAX_POCKET_BANDS = 16
 
 # A raw backdrop counts as a chromatic key when its dominant channel
 # exceeds the larger of the other two by at least this.

@@ -16,6 +16,7 @@ from ..domain.yukari.delivery_style import (
     DOF_VIEWFINDER,
     LIGHT_FROM_DEFAULT,
     LIGHT_SCENES,
+    STROKE_CHOICES,
     STROKE_LIGHTS,
     Dof,
     Light,
@@ -363,8 +364,8 @@ def finalize_arguments(options: Mapping,
         stroke_light = RECIPE_DEFAULT
     else:
         stroke_light = options["stroke_light"]
-        if stroke_light is not None and stroke_light not in STROKE_LIGHTS:
-            valid = ", ".join(repr(key) for key in sorted(STROKE_LIGHTS))
+        if stroke_light is not None and stroke_light not in STROKE_CHOICES:
+            valid = ", ".join(repr(key) for key in STROKE_CHOICES)
             raise ValueError(
                 f"stroke_light must be null or one of {valid}, got {stroke_light!r}")
 

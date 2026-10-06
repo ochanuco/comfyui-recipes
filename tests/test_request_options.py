@@ -240,6 +240,11 @@ class FinalizeArgumentsTest(unittest.TestCase):
         self.assertEqual(
             finalize_arguments({"stroke_light": "ne"})["stroke_light"], "ne")
 
+    def test_stroke_light_none_and_even_pass_through(self):
+        for value in ("none", "even"):
+            self.assertEqual(
+                finalize_arguments({"stroke_light": value})["stroke_light"], value)
+
     def test_stroke_light_an_unknown_key_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "stroke_light"):
             finalize_arguments({"stroke_light": "north"})

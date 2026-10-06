@@ -34,6 +34,7 @@ from ..domain.yukari.poses import POSES
 from ..domain.yukari.recipe import PART_GROUPS, identity_tags, render_spec
 from ..infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
 from ..infrastructure.imaging.backdrops import thumbnail as backdrop_thumbnail
+from ..infrastructure.imaging.depth_blur import sharp_reach_per_f
 from .generate import KNOWN_PARAMETERS, RECIPE_REJECTED_PARAMETERS
 
 SCHEMA_VERSION = 1
@@ -91,7 +92,8 @@ def _yukari_recipe() -> dict:
             "defaults": FINALIZE_DEFAULTS,
             "dof": {"f_number": DOF_F_NUMBER, "scope": DOF_SCOPE,
                     "viewfinder": DOF_VIEWFINDER,
-                    "focus": "fractions [x, y] of the source image"},
+                    "focus": "fractions [x, y] of the source image",
+                    "guide_radius_per_f": round(sharp_reach_per_f(), 4)},
             "light": {"scenes": list(LIGHT_SCENES), "from": sorted(STROKE_LIGHTS),
                       "default_from": LIGHT_FROM_DEFAULT},
             "stroke_light": list(STROKE_CHOICES),

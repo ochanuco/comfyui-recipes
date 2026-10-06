@@ -280,6 +280,7 @@ class FinalizeDefaultsTest(unittest.TestCase):
         self.assertEqual(dof["viewfinder"],
                          {"values": ["off", "on", "both"], "default": "off"})
         self.assertEqual(dof["focus"], "fractions [x, y] of the source image")
+        self.assertEqual(dof["guide_radius_per_f"], 0.0417)
         self.assertNotIn("dof", by_name["yukari"]["finalize"]["defaults"])
 
     def test_finalize_publishes_the_light_options(self):

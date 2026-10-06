@@ -390,6 +390,33 @@ class DeliveryTest(unittest.TestCase):
         self.assertTrue(outline[151:153, 200:202].all())
         self.assertFalse(outline[156:356, 156:356].any())
 
+    def test_drawn_outline_reaches_past_a_darker_key_fringe(self):
+        pixels, soft = self.outlined_figure(ring=True)
+        pixels[147:365, 147:365][np.all(pixels[147:365, 147:365] == (194, 215, 200), axis=2)] = (128, 167, 140)
+        soft[145:367, 145:367] = 255
+        pixels[145:367, 145:367][np.all(pixels[145:367, 145:367] == (150, 196, 164), axis=2)] = (128, 167, 140)
+        outline = drawn_outline(pixels.astype(float), soft > 127, 6)
+        self.assertTrue(outline[145:156, 145:367].all())
+        self.assertFalse(outline[156:356, 156:356].any())
+
+    def test_drawn_outline_takes_a_key_pocket_the_figure_lines_close_off(self):
+        pixels, soft = self.outlined_figure(ring=True)
+        pixels[200:222, 200:222] = (40, 30, 50)
+        pixels[202:220, 202:220] = (255, 255, 255)
+        pixels[208:214, 208:214] = (150, 196, 164)
+        pixels[207, 208:214] = (120, 160, 110)
+        outline = drawn_outline(pixels.astype(float), soft > 127, 6)
+        self.assertTrue(outline[202:220, 202:220].all())
+        self.assertFalse(outline[200, 200:222].any())
+        self.assertFalse(outline[240:350, 240:350].any())
+
+    def test_drawn_outline_leaves_a_white_patch_without_key_inside(self):
+        pixels, soft = self.outlined_figure(ring=True)
+        pixels[200:230, 200:230] = (40, 30, 50)
+        pixels[202:228, 202:228] = (255, 255, 255)
+        outline = drawn_outline(pixels.astype(float), soft > 127, 6)
+        self.assertFalse(outline[202:228, 202:228].any())
+
     def test_drawn_outline_ignores_where_the_figure_runs_off_the_canvas(self):
         pixels = np.full((512, 512, 3), (150, 196, 164), dtype=np.uint8)
         pixels[147:, :] = (194, 215, 200)

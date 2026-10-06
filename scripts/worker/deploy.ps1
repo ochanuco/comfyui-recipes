@@ -37,6 +37,9 @@ $uv = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Recurse -Filt
     Select-Object -First 1 -ExpandProperty FullName
 & $uv pip install --python .venv\Scripts\python.exe -q -e . pillow numpy opencv-python scipy pytest onnxruntime "websockets>=12"
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
+# Fetched here so the first upload after a deploy doesn't stall on a 445 MiB download.
+& .venv\Scripts\python.exe -c "from comfyui_recipes.infrastructure.imaging.safety import ensure_files; print('wd tagger:', ensure_files())"
+if ($LASTEXITCODE) { "wd tagger: download failed, uploads will retry it" }
 if ($ComfyRoot) {
     & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\register-nodes.ps1 `
         -Checkout $Checkout -ComfyRoot $ComfyRoot

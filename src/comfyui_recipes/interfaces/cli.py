@@ -255,7 +255,7 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument(
         "--dof", metavar="X,Y,F[,SCOPE]",
         help="depth-of-field blur: focus point as fractions of the picture "
-             "width and height, then the f-number (1.4..22), then optionally 'figure' (default) or 'all' (also blur the rim and backdrop); off by default")
+             "width and height, then the f-number (1.4..30), then optionally 'figure' (default) or 'all' (also blur the rim and backdrop); off by default")
     finalize_parser.add_argument(
         "--viewfinder", choices=DOF_VIEWFINDER["values"],
         default=DOF_VIEWFINDER["default"],

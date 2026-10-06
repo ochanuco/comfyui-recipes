@@ -699,12 +699,14 @@ class RenderSpecTest(unittest.TestCase):
         self.assertEqual((spec.hires.width, spec.hires.height), (2048, 1280))
 
     def test_hires_on_square_canvas_pose(self):
-        spec = render_spec("bust", 7, "p", hires=2048)
+        square = replace(POSES["stand"], canvas=(1280, 1280))
+        with patch.dict(POSES, {"_square": square}):
+            spec = render_spec("_square", 7, "p", hires=2048)
         self.assertEqual((spec.hires.width, spec.hires.height), (2048, 2048))
 
     def test_bust_render_spec_canvas_and_loras(self):
         spec = render_spec("bust", 7, "p")
-        self.assertEqual((spec.width, spec.height), (1280, 1280))
+        self.assertEqual((spec.width, spec.height), (1280, 2048))
         self.assertEqual(spec.loras, ())
 
     def test_other_poses_render_spec_loras_stay_empty(self):

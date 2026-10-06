@@ -333,10 +333,10 @@ def _resolve_plan(source: _Source, generation_id: str, *,
         _check_resample(source, "light", deliver_only=deliver_only,
                         repair_requested=bool(repair_parts or repair_region_list
                                               or repair_seeds is not None))
-        if stroke_light != light.direction:
+        if stroke_light in delivery_style.STROKE_LIGHTS and stroke_light != light.direction:
             raise SystemExit(
-                f"stroke_light は light の from（{light.direction}）と同じ向きで"
-                "なければなりません。light を指定した時は stroke_light を省略してください")
+                f"stroke_light の向きは light の from（{light.direction}）と同じで"
+                "なければなりません。none / even なら向きに関係なく使えます")
     if dof is not None and (repair_parts or repair_region_list
                             or repair_seeds is not None):
         raise SystemExit("dof は repair と一緒には使えません")
@@ -500,6 +500,7 @@ def _build_graph(services: FinalizeServices, source: _Source, plan: _Plan,
         deliver_only=plan.deliver_only,
         dof=plan.dof,
         light_scene=plan.light.scene if plan.light is not None else None,
+        light_from=plan.light.direction if plan.light is not None else None,
         redraw_from_source=source.is_repaired_raw and not plan.latent_route,
         canvas=services.image_size(source.picked))
 

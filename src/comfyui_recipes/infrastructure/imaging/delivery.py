@@ -616,16 +616,17 @@ def _bands_over(white_a: np.ndarray, purple_a: np.ndarray,
 def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
            backdrop_rgb, light: str | None = None,
            clip: np.ndarray | None = None,
-           shadow: bool = False, scene: str | None = None) -> np.ndarray:
+           shadow: bool = False, scene: str | None = None,
+           shadow_from: str | None = None) -> np.ndarray:
     """Frame `figure` on `backdrop_rgb`, white band then purple band outside it.
 
     `coverage` is the figure's own per-pixel alpha in 0..1; the composite is
     coverage * px + (1 - coverage) * (the stroke bands over the backdrop).
     `figure` alone decides where the bands sit -- coverage may be soft at
     the edge the bands are drawn from a hard boundary. `clip`, a frame
-    window, keeps the bands and the shadow inside it. `shadow` with `light`
-    throws a translucent drop shadow of the sticker's own shape onto the
-    backdrop, away from the light.
+    window, keeps the bands and the shadow inside it. `shadow` throws a
+    translucent drop shadow of the sticker's own shape onto the backdrop,
+    away from `shadow_from`, or from `light` when that is a direction.
     """
     white_a, purple_a = band_alphas(figure, light)
     if clip is not None:
@@ -634,10 +635,12 @@ def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
     # backdrop_rgb may be a 3-vector or a full (H, W, 3) pattern; either
     # broadcasts onto px.shape unchanged.
     flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
-    if shadow and light in delivery_style.STROKE_LIGHTS:
+    if shadow_from is None and light in delivery_style.STROKE_LIGHTS:
+        shadow_from = light
+    if shadow and shadow_from is not None:
         _, purple_w = _band_widths(*figure.shape)
         region = figure | (white_a >= 0.5) | (purple_a >= 0.5)
-        shift = _shadow_shift(delivery_style.STROKE_LIGHTS[light], purple_w)
+        shift = _shadow_shift(delivery_style.STROKE_LIGHTS[shadow_from], purple_w)
         shifted = ndimage.shift(region, shift, order=0, mode="constant", cval=False)
         shadow_a = _shadow_coverage(shifted, delivery_style.STROKE_CUT_EPS_PCT) \
             * (1 - np.clip(white_a + purple_a, 0.0, 1.0))
@@ -694,8 +697,12 @@ def scene_backdrop(backdrop_rgb: np.ndarray, light: str | None,
 
 def clean_background(data: bytes, matte: bytes, light: str | None = None,
                      backdrop: str | None = None,
-                     scene: str | None = None) -> tuple[bytes, str]:
+                     scene: str | None = None,
+                     light_from: str | None = None) -> tuple[bytes, str]:
     """Frame the figure the matte cuts out, in the delivery's own colours.
+
+    `light_from` is the scene light's direction: it tints the backdrop and
+    throws the drop shadow whatever `light` does to the purple band.
 
     The matte is the authority on the silhouette, not colour: repin moves
     the figure's own colours, and pale hair lands inside the backdrop's
@@ -724,13 +731,14 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     coverage[outline_drawn] = 1.0
     backdrop_rgb = backdrops.render(backdrop, height, width)
     if scene is not None:
-        backdrop_rgb = scene_backdrop(backdrop_rgb, light, scene)
+        backdrop_rgb = scene_backdrop(backdrop_rgb, light_from or light, scene)
     if window is None:
         composite = sticker(px, figure, coverage, backdrop_rgb, light,
-                            shadow=True, scene=scene)
+                            shadow=True, scene=scene, shadow_from=light_from)
     else:
         composite = sticker(px, figure & inner, coverage, backdrop_rgb, light,
-                            window, shadow=True, scene=scene)
+                            window, shadow=True, scene=scene,
+                            shadow_from=light_from)
         excess = raw[..., 1] - np.maximum(raw[..., 0], raw[..., 2])
         half = delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS / 2
         green = np.clip((excess - half) / half, 0.0, 1.0)[..., None]

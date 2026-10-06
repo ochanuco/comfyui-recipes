@@ -2024,10 +2024,8 @@ class LightFinalizeTest(unittest.TestCase):
              dict(deliver_only=True, light=light, repair=["hands"])),
             ("Anima で描いた絵だけ", SKETCH_GRAPH,
              dict(deliver_only=True, light=light)),
-            ("stroke_light は light の from", LIGHT_GRAPH,
+            ("stroke_light の向きは light の from", LIGHT_GRAPH,
              dict(deliver_only=True, light=light, stroke_light="n")),
-            ("stroke_light は light の from", LIGHT_GRAPH,
-             dict(deliver_only=True, light=light, stroke_light=None)),
         ]
         for message, graph, kwargs in cases:
             with self.subTest(message=message, kwargs=kwargs):
@@ -2043,6 +2041,23 @@ class LightFinalizeTest(unittest.TestCase):
             services = self._services(directory)
             finalize("gen-id", services, deliver_only=True, stroke_light="nw",
                      light=Light("moon", "nw"))
+
+    def test_none_and_even_stroke_light_combine_with_a_light(self):
+        for stroke_light in ("none", "even", None):
+            with self.subTest(stroke_light=stroke_light):
+                calls = []
+
+                def recording_chain_pass(base, size, denoise, prefix, **kwargs):
+                    calls.append(kwargs)
+                    return {}
+
+                with tempfile.TemporaryDirectory() as directory:
+                    services = self._services(
+                        directory, chain_pass=recording_chain_pass)
+                    finalize("gen-id", services, deliver_only=True,
+                             stroke_light=stroke_light, light=Light("moon", "se"))
+                    self.assertEqual(calls[0]["stroke_light"], stroke_light)
+                    self.assertEqual(calls[0]["light_from"], "se")
 
     def test_resume_does_not_resubmit_the_light_prompt(self):
         with tempfile.TemporaryDirectory() as directory:

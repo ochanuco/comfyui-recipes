@@ -73,8 +73,9 @@ Options, defaults and ranges live here:
   light and a rim from that direction, then re-sampled at denoise 0.40 with
   the source's seed and a positive that adds the scene's words. The delivery
   then tints and brightens the backdrop toward the light and casts the sticker
-  shadow in the scene's colour. `stroke_light` follows `from`; naming a
-  different one is rejected. It needs `deliver_only` and an Anima source with a
+  shadow in the scene's colour, both from `from`. An absent `stroke_light`
+  follows `from`; `none` and `even` keep their purple rim and still get the
+  scene's shadow; a different direction is rejected. It needs `deliver_only` and an Anima source with a
   stored graph, cannot combine with `repair`, `repair_regions` or
   `repair_seeds`, and works with `hires` and `dof`. Transparent and
   `keep_scene` deliveries take the lit figure without the backdrop tint.

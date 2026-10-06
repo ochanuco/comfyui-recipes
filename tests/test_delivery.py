@@ -941,6 +941,16 @@ class DeliveryTest(unittest.TestCase):
                              centre - 10:centre + 10]
             np.testing.assert_allclose(below, 200.0)
 
+    def test_sticker_shadow_from_throws_a_shadow_without_a_purple_band(self):
+        pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
+        bare = sticker(pixels, figure, coverage, backdrop_rgb, light="none")
+        lit = sticker(pixels, figure, coverage, backdrop_rgb, light="none",
+                      shadow=True, shadow_from="n")
+        rows = np.where((np.abs(lit - bare).sum(axis=2) > 1).any(axis=1))[0]
+        self.assertGreater(rows.size, 0)
+        self.assertGreater(rows.min(), centre - half)
+        self.assertGreater(rows.max(), centre + half)
+
     def test_sticker_throws_no_shadow_unless_asked(self):
         pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
         composite = sticker(pixels, figure, coverage, backdrop_rgb, light="n")

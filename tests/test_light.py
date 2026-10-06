@@ -110,8 +110,10 @@ class DeliverGraphTest(unittest.TestCase):
     def test_both_routes_pass_the_scene_to_the_delivery(self):
         for deliver_only in (False, True):
             with self.subTest(deliver_only=deliver_only):
-                inputs = self.deliver(deliver_only, light_scene="moon")
+                inputs = self.deliver(deliver_only, light_scene="moon",
+                                      light_from="sw")
                 self.assertEqual(inputs["light_scene"], "moon")
+                self.assertEqual(inputs["light_from"], "sw")
 
     def test_without_a_scene_the_delivery_is_unchanged(self):
         for deliver_only in (False, True):

@@ -106,7 +106,8 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
                        canvas: tuple[int, int],
                        source_image: str | None = None,
                        dof: Dof | None = None,
-                       light_scene: str | None = None) -> list:
+                       light_scene: str | None = None,
+                       light_from: str | None = None) -> list:
     """Appends the deliver-only chain onto `graph` (mutated). Returns the
     delivered picture's ref. `image_ref` may already be someone else's
     redraw or stitch, so `source_image` -- the unedited picture `skin`
@@ -151,7 +152,8 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
         "image": image_ref, "matte": matte_ref, "keep_scene": keep_scene,
         "transparent": transparent, "stroke_light": stroke_light or "",
         "backdrop": backdrop or "",
-        **({"light_scene": light_scene} if light_scene else {})}}
+        **({"light_scene": light_scene, "light_from": light_from}
+           if light_scene else {})}}
     delivered_ref = [deliver_id, 0]
     if dof is not None and dof.scope == "all":
         delivered_ref = _layered_node(
@@ -180,7 +182,8 @@ def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
                         transparent: bool, backdrop: str | None,
                         stroke_light: str | None, deliver_size: int | None,
                         canvas: tuple[int, int],
-                        dof: Dof | None, light_scene: str | None) -> dict:
+                        dof: Dof | None, light_scene: str | None,
+                        light_from: str | None) -> dict:
     # A self-contained graph: nothing here depends on the base pass that
     # produced source_image, so it carries none of that pass's own nodes.
     graph: dict = {}
@@ -199,7 +202,8 @@ def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
         skin=skin, repin=repin, recolor=recolor, keep_legwear=keep_legwear,
         keep_scene=keep_scene, transparent=transparent, backdrop=backdrop,
         stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas,
-        source_image=source_image, dof=dof, light_scene=light_scene)
+        source_image=source_image, dof=dof, light_scene=light_scene,
+        light_from=light_from)
     return graph
 
 
@@ -223,6 +227,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                redraw_from_source: bool = False,
                dof: Dof | None = None,
                light_scene: str | None = None,
+               light_from: str | None = None,
                canvas: tuple[int, int]) -> dict:
     if redraw_from_source and not source_image:
         raise ValueError("redraw_from_source requires source_image")
@@ -251,7 +256,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             recolor=recolor, keep_legwear=keep_legwear, keep_scene=keep_scene,
             transparent=transparent, backdrop=backdrop,
             stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas,
-            dof=dof, light_scene=light_scene)
+            dof=dof, light_scene=light_scene, light_from=light_from)
     graph = json.loads(json.dumps(base))
     roles = base_roles(graph)
     if latent_route and roles.stitched:
@@ -436,7 +441,8 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                 "image": image_ref, "matte": matte_ref,
                 "keep_scene": keep_scene, "transparent": transparent,
                 "stroke_light": stroke_light or "", "backdrop": backdrop or "",
-                **({"light_scene": light_scene} if light_scene else {})}}
+                **({"light_scene": light_scene, "light_from": light_from}
+                   if light_scene else {})}}
             delivered_ref = [deliver_id, 0]
             if dof is not None and dof.scope == "all":
                 delivered_ref = _layered_node(

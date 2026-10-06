@@ -232,59 +232,49 @@ BUST_NEGATIVE_TAG_SOURCE = (
 )
 
 GAO_POSITIVE = (
-    "1girl, solo, yuzuki yukari, "
-    "vocaloid, voiceroid, (@oshiki hitoshi:1.3), (@yoshikawa hideaki:0.5), "
-    "light purple hair, short hair with long locks, very long sidelocks, "
-    "(dark greyish purple eyes:1.4), (dark irises:1.2), hair ornament, "
-    "(jitome:2.0), (tareme:1.2), (long eyes:1.25), "
-    "(confident:1.18), (from front:1.3), (cowboy shot:1.3), (thighs:1.2), "
-    "(mature female:1.3), (adult:1.2), (wide hips:1.2), (thick thighs:1.2), "
-    "(soft thighs:1.3), (long legs:1.35), (narrow waist:1.25), adult "
-    "proportions, long torso, seven heads tall, (claw pose:1.45), (gao:1.2), "
-    "(hands up:1.25), (standing:1.3), (leaning forward:1.15), (open "
-    "mouth:1.35), (fang:1.3), (looking at viewer:1.2), (eggplant purple "
-    "hooded cardigan:1.5), (dark violet hoodie:1.25), open cardigan, (rabbit "
-    "hood:1.3), long sleeves, drawstring, (purple dress:1.25), frills, "
-    "(sleeves past wrists:1.15), hood down, (sheer black pantyhose:1.5), "
-    "(dark violet tint:1.2), (see-through legwear:1.4), (skin visible "
-    "through legwear:1.3), (pantyhose:1.4), (subtle sheen on legwear:1.05), (anime "
-    "coloring:1.2), simple background, (green background:1.3), (white outline:1.3), (large "
-    "eyes:1.2), (round face:1.3), (tareme:1.2), (thick eyelashes:1.3), "
-    "(long eyelashes:1.15), (flat color:1.3), (sketch:1.3), "
-    "(traditional media:1.2)"
+    "1girl, solo, yuzuki yukari, vocaloid, voiceroid, (@oshiki "
+    "hitoshi:1.3), (@yoshikawa hideaki:0.5), light purple hair, short hair "
+    "with long locks, very long sidelocks, (dark greyish purple eyes:1.4), "
+    "(dark irises:1.2), hair ornament, (jitome:2.0), (tareme:1.2), (long "
+    "eyes:1.25), (confident:1.18), (from behind:1.2), (looking back:1.3), "
+    "(looking over shoulder:1.2), (upper body:1.3), (mature female:1.3), "
+    "(adult:1.2), (narrow waist:1.25), adult proportions, long torso, seven "
+    "heads tall, (claw pose:1.45), (hands up:1.25), (open mouth:1.35), "
+    "(fang:1.3), (looking at viewer:1.2), (nail polish:1.3), (light purple "
+    "nails:1.4), (eggplant purple hooded cardigan:1.5), (dark violet "
+    "hoodie:1.25), open cardigan, (rabbit hood:1.3), long sleeves, "
+    "drawstring, (purple dress:1.25), frills, (sleeves past wrists:1.15), "
+    "hood down, simple background, (green background:1.3), (white "
+    "outline:1.3), (large eyes:1.15), (mature face:1.2), (tareme:1.2), "
+    "(thick eyelashes:1.3), (long eyelashes:1.15), (flat color:1.3), "
+    "(sketch:1.3), (traditional media:1.2)"
 )
 
 GAO_NEGATIVE = (
     "(extra digits:1.5), bad anatomy, bad hands, (detailed:1.3), "
     "(intricate:1.3), (highly detailed:1.3), (fine details:1.2), (colored "
-    "lineart:1.4), (colored outline:1.3), (purple lineart:1.2), (skinny:1.3), "
-    "(thin legs:1.3), (slender legs:1.2), (slender:1.1), (sitting:1.3), "
-    "(upper body:1.2), (ribbed legwear:1.3), (vertical-striped legwear:1.3), "
-    "(shiny hair:1.4), (hair highlights:1.2), (watercolor:1.3), (ink "
-    "wash:1.3), (painterly:1.3), (gradient:1.5), (soft shading:1.5), "
-    "(sparkling eyes:1.4), (glitter:1.3), (multiple highlights:1.3), "
-    "(gradient eyes:1.2), (speed lines:1.45), (motion lines:1.4), (emphasis "
-    "lines:1.4), (light purple eyes:1.3), (bright eyes:1.2), (pink eyes:1.2), "
-    "(magenta:1.45), (pink legwear:1.45), (bright purple:1.35), "
-    "(vivid colors:1.3), (neon:1.3), (red:1.3), (maroon:1.35), (wine "
-    "red:1.3), (black jacket:1.35), (black clothes:1.3), (black hoodie:1.35), "
-    "(opaque legwear:1.3), (latex:1.3), (photorealistic:1.4), "
-    "(realistic:1.3), (photo:1.2), (tan skin:1.35), (dark skin:1.3), (brown "
-    "legwear:1.4), (brown pantyhose:1.4), (tan:1.2), (beige legwear:1.3), "
-    "score_1, score_2, score_3, (fat:1.35), (chubby:1.35), (short legs:1.35), "
-    "(muscular:1.3), (toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged "
-    "down:1.2)"
-    ", (text:1.3), (speech bubble:1.3), (onomatopoeia:1.3), "
-    "(english text:1.2), signature, watermark"
-    "(glossy:1.3), (specular highlights:1.3), (reflection:1.2), "
-    "(ribbed legwear:1.3), (vertical-striped legwear:1.3), "
+    "lineart:1.4), (colored outline:1.3), (purple lineart:1.2), "
+    "(skinny:1.3), (thin legs:1.3), (slender legs:1.2), (slender:1.1), "
+    "(sitting:1.3), (shiny:1.4), (glossy:1.3), (shiny hair:1.4), (shiny "
+    "clothes:1.3), (specular highlights:1.3), (reflection:1.2), (hair "
+    "highlights:1.2), (watercolor:1.3), (ink wash:1.3), (painterly:1.3), "
+    "(gradient:1.5), (soft shading:1.5), (sparkling eyes:1.4), "
+    "(glitter:1.3), (multiple highlights:1.3), (gradient eyes:1.2), (speed "
+    "lines:1.45), (motion lines:1.4), (emphasis lines:1.4), (light purple "
+    "eyes:1.3), (bright eyes:1.2), (pink eyes:1.2), (magenta:1.45), (pink "
+    "legwear:1.45), (bright purple:1.35), (vivid colors:1.3), (neon:1.3), "
+    "(red:1.3), (maroon:1.35), (wine red:1.3), (black jacket:1.35), (black "
+    "clothes:1.3), (black hoodie:1.35), score_1, score_2, score_3, "
+    "(fat:1.35), (chubby:1.35), (short legs:1.35), (muscular:1.3), "
+    "(toned:1.2), (child:1.3), (loli:1.3), (chibi:1.3), (aged down:1.2), "
+    "(text:1.3), (speech bubble:1.3), (onomatopoeia:1.3), (english "
+    "text:1.2), signature, watermark"
 )
 
 COFFEE_POSITIVE = _with_nails(COFFEE_POSITIVE)
 AMAE_POSITIVE = _with_nails(AMAE_POSITIVE)
 STAND_POSITIVE = _with_nails(STAND_POSITIVE)
 BUST_POSITIVE = _with_nails(BUST_POSITIVE)
-GAO_POSITIVE = _with_nails(GAO_POSITIVE)
 
 REDRAW_STAND_POSITIVE = (
     "1girl, solo, yuzuki yukari, "
@@ -402,7 +392,7 @@ class PromptTest(unittest.TestCase):
                 self.assertIn(COSTUMES[costume], text)
 
     def test_sheer_gloss_legwear_drops_the_garment_gloss_bans_only(self):
-        text = negative("gao", legwear="sheer-gloss")
+        text = negative("amae", legwear="sheer-gloss")
         for tags in ps.GARMENT_GLOSS_TAGS:
             self.assertNotIn(tags, text)
         self.assertIn("(shiny hair:1.4), (hair highlights:1.2), (watercolor:1.3), ",
@@ -421,9 +411,9 @@ class PromptTest(unittest.TestCase):
             negative("stand", legwear="fishnet")
 
     def test_render_spec_carries_legwear_into_both_prompts(self):
-        spec = render_spec("gao", 7, "x", legwear="sheer-gloss")
-        self.assertEqual(spec.prompts.positive, positive("gao", legwear="sheer-gloss"))
-        self.assertEqual(spec.prompts.negative, negative("gao", legwear="sheer-gloss"))
+        spec = render_spec("amae", 7, "x", legwear="sheer-gloss")
+        self.assertEqual(spec.prompts.positive, positive("amae", legwear="sheer-gloss"))
+        self.assertEqual(spec.prompts.negative, negative("amae", legwear="sheer-gloss"))
 
     def test_sheer_legwear_replaces_the_costume_tights_on_every_costume(self):
         for costume in COSTUMES:
@@ -438,19 +428,19 @@ class PromptTest(unittest.TestCase):
         self.assertNotIn("gradient", SHEER_LEGWEAR)
 
     def test_default_legwear_is_sheer(self):
-        for pose in ("stand", "gao", "coffee", "dance"):
+        for pose in ("stand", "amae", "coffee", "dance"):
             with self.subTest(pose=pose):
                 self.assertEqual(positive(pose), positive(pose, legwear="sheer"))
                 self.assertEqual(negative(pose), negative(pose, legwear="sheer"))
 
     def test_sheer_legwear_drops_the_garment_gloss_bans_only(self):
-        text = negative("gao", legwear="sheer")
+        text = negative("amae", legwear="sheer")
         for tags in ps.GARMENT_GLOSS_TAGS:
             self.assertNotIn(tags, text)
         self.assertIn("(shiny hair:1.4), (hair highlights:1.2), (watercolor:1.3), ",
                       text)
         self.assertIn(ps.SHEER_BAN + ps.SHEER_TONE_BAN + ps.SCORE_BAN, text)
-        self.assertNotIn(ps.SHEER_TONE_BAN, negative("gao", legwear="sheer-gloss"))
+        self.assertNotIn(ps.SHEER_TONE_BAN, negative("amae", legwear="sheer-gloss"))
         self.assertIn(ps.GRADIENT_BAN, text)
 
     def test_sheer_legwear_leaves_a_bare_leg_pose_alone(self):
@@ -458,9 +448,9 @@ class PromptTest(unittest.TestCase):
         self.assertEqual(negative("bust", legwear="sheer"), negative("bust"))
 
     def test_render_spec_carries_sheer_legwear_into_both_prompts(self):
-        spec = render_spec("gao", 7, "x", legwear="sheer")
-        self.assertEqual(spec.prompts.positive, positive("gao", legwear="sheer"))
-        self.assertEqual(spec.prompts.negative, negative("gao", legwear="sheer"))
+        spec = render_spec("amae", 7, "x", legwear="sheer")
+        self.assertEqual(spec.prompts.positive, positive("amae", legwear="sheer"))
+        self.assertEqual(spec.prompts.negative, negative("amae", legwear="sheer"))
 
     def test_standard_costume_negative_drops_the_hood_ban(self):
         self.assertIn("(hood:1.3), (cardigan:1.3), ", negative("stand"))
@@ -482,10 +472,10 @@ class PromptTest(unittest.TestCase):
         self.assertNotIn("(unamused:1.3), (half-closed eyes:1.3), ", overridden)
 
     def test_gao_positive_matches_the_confirmed_render(self):
-        self.assertEqual(positive("gao", legwear="sheer-gloss"), GAO_POSITIVE)
+        self.assertEqual(positive("gao"), GAO_POSITIVE)
 
     def test_gao_negative_matches_the_confirmed_render(self):
-        self.assertEqual(negative("gao", legwear="sheer-gloss"), GAO_NEGATIVE)
+        self.assertEqual(negative("gao"), GAO_NEGATIVE)
 
     def test_dance_positive_matches_the_confirmed_render(self):
         self.assertEqual(positive("dance", legwear="sheer-gloss"), DANCE_FIXTURE["positive"])
@@ -642,8 +632,12 @@ class PoseTableTest(unittest.TestCase):
         self.assertIn("gao", POSES)
         self.assertEqual(POSES["gao"].expression, "gao")
         self.assertEqual(POSES["gao"].costume, "standard")
-        self.assertIsNone(POSES["gao"].canvas)
-        self.assertTrue(POSES["gao"].legwear)
+        self.assertEqual(POSES["gao"].canvas, (1024, 1280))
+        self.assertFalse(POSES["gao"].legwear)
+
+    def test_gao_render_spec_uses_the_portrait_canvas(self):
+        spec = render_spec("gao", 7, "x")
+        self.assertEqual((spec.width, spec.height), (1024, 1280))
 
     def test_every_pose_defaults_to_sheer_legwear(self):
         for pose, p in POSES.items():

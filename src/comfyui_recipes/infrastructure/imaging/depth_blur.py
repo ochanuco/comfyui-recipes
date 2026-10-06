@@ -2,9 +2,11 @@
 distance from a focus point, applied to the figure in linear light. Where the
 figure is out of focus its silhouette fades into PAPER and the matte widens to
 take the fade in. Key-coloured pockets the matte encloses stay raw, for
-delivery's own key cut. `blur_surroundings` then blurs what the delivery drew
-around the figure: the sticker rim and shadow take the radius of the nearest
-figure pixel, the backdrop sits on the far plane."""
+delivery's own key cut. `blur_layered` instead blurs the delivered picture in
+depth slices composited back to front, so a blurred near object spreads over
+what stands behind it: the figure keeps its own depth, the sticker rim and
+shadow take the depth of the nearest figure pixel, the backdrop sits on the
+far plane."""
 
 from __future__ import annotations
 
@@ -26,6 +28,8 @@ MATTE_THRESHOLD = 0.5
 SPREAD_CUT = 0.04
 STICKER_TOLERANCE = 6
 STICKER_CLOSING = 2
+SLICES = 16
+OWN_SLICE = 0.5
 PAPER = (255, 255, 255)
 
 
@@ -150,63 +154,91 @@ def _sticker_mask(composite: np.ndarray, figure: np.ndarray,
     return ndimage.binary_fill_holes(differs) | figure
 
 
-def blur_surroundings(composite: np.ndarray, depth: np.ndarray,
-                      figure_matte: np.ndarray, focus_x: float, focus_y: float,
-                      f_number: float, backdrop_rgb: np.ndarray | None
-                      ) -> np.ndarray:
-    """`composite` is the delivered HxWx3 uint8 picture, `figure_matte` the
-    widened matte `depth_blur` returned. Pixels outside the figure are blurred;
-    figure pixels come back untouched and keep their own radius as gather
-    sources. `backdrop_rgb` is what the delivery painted behind the sticker, or
-    None when the kept scene is the backdrop."""
+def _push_pull(rgb: np.ndarray, known: np.ndarray) -> np.ndarray:
+    levels = []
+    colour, weight = rgb * known[..., None], known.astype(np.float32)
+    while min(weight.shape) > 8:
+        levels.append((colour, weight))
+        colour, weight = cv2.pyrDown(colour), cv2.pyrDown(weight)
+    filled = colour / np.maximum(weight, 1e-6)[..., None]
+    for colour, weight in reversed(levels):
+        up = cv2.resize(filled, (weight.shape[1], weight.shape[0]),
+                        interpolation=cv2.INTER_LINEAR)
+        own = colour / np.maximum(weight, 1e-6)[..., None]
+        trust = np.clip(weight * 4, 0, 1)[..., None]
+        filled = own * trust + up * (1 - trust)
+    return filled
+
+
+def _blur_layer(rgb: np.ndarray, alpha: np.ndarray, radius: float
+                ) -> tuple[np.ndarray, np.ndarray]:
+    """Premultiplied colour and alpha of the layer after the lens disc."""
+    if radius < 0.5:
+        return rgb * alpha[..., None], alpha
+    premultiplied = np.concatenate(
+        [rgb * alpha[..., None], alpha[..., None]], axis=-1).astype(np.float32)
+    gathered = cv2.filter2D(premultiplied, -1, _disc(radius),
+                            borderType=cv2.BORDER_REPLICATE)
+    return gathered[..., :3], np.clip(gathered[..., 3], 0.0, 1.0)
+
+
+def _picture_depth(composite: np.ndarray, normalised: np.ndarray,
+                   figure: np.ndarray, backdrop_rgb: np.ndarray | None
+                   ) -> np.ndarray:
+    sticker = _sticker_mask(composite, figure, backdrop_rgb)
+    depth = np.where(sticker, _spread_outward(normalised, figure), 0.0)
+    return np.where(figure, normalised, depth)
+
+
+def blur_layered(composite: np.ndarray, depth: np.ndarray,
+                 figure_matte: np.ndarray, focus_x: float, focus_y: float,
+                 f_number: float, backdrop_rgb: np.ndarray | None) -> np.ndarray:
+    """`composite` is the delivered HxWx3 uint8 picture, `depth` HxW float with
+    higher = nearer, `figure_matte` HxW float 0..1. `backdrop_rgb` is what the
+    delivery painted behind the sticker, or None when the kept scene is the
+    backdrop. The picture is cut into depth slices, each blurred with its own
+    disc and composited back to front; behind a nearer slice a slice continues
+    with colour filled from its own pixels."""
     height, width = figure_matte.shape
-    long_side = max(width, height)
     figure = figure_matte > MATTE_THRESHOLD
     normalised = _normalised_depth(depth, figure)
     if normalised is None or not figure.any():
         return composite
-    d_focus = _focus_depth(normalised, focus_x, focus_y)
-    scale = K_FRACTION * long_side / f_number
-    figure_radius = scale * np.abs(normalised - d_focus)
-    sticker = _sticker_mask(composite, figure, backdrop_rgb)
-    radius = np.where(sticker, _spread_outward(figure_radius, figure),
-                      scale * d_focus)
-    radius = np.where(figure, figure_radius, radius)
-    r_max = float(radius.max())
-    if r_max <= 0:
-        return composite
-    position = np.minimum(radius / r_max, 1.0) * (LEVELS - 1)
+    picture_depth = _picture_depth(composite, normalised, figure, backdrop_rgb)
+    d_focus = _focus_depth(picture_depth, focus_x, focus_y)
+    scale = K_FRACTION * max(width, height) / f_number
 
-    source = _to_linear(composite.astype(np.float32)).astype(np.float32)
-    colour = np.zeros_like(source)
-    for level in range(LEVELS):
-        weight = np.clip(1.0 - np.abs(position - level), 0.0, 1.0)
+    ground = _to_linear(composite.astype(np.float32)).astype(np.float32)
+    centres = np.linspace(0.0, 1.0, SLICES)
+    step = centres[1] - centres[0]
+    colour = np.zeros_like(ground)
+    cover = np.zeros((height, width), np.float32)
+    seen = np.zeros((height, width), np.float32)
+    for index, centre in enumerate(centres):
+        weight = np.clip(1.0 - np.abs(picture_depth - centre) / step, 0.0, 1.0)
         if not weight.any():
             continue
-        level_radius = r_max * level / (LEVELS - 1)
-        if level_radius < 0.5:
-            layer = source
-        else:
-            contributes = np.clip(
-                (radius - 0.5 * level_radius) / (0.5 * level_radius),
-                0.0, 1.0).astype(np.float32)
-            premultiplied = np.concatenate(
-                [source * contributes[..., None], contributes[..., None]],
-                axis=-1)
-            gathered = cv2.filter2D(premultiplied, -1, _disc(level_radius),
-                                    borderType=cv2.BORDER_REPLICATE)
-            weight_sum = gathered[..., 3:4]
-            layer = np.where(weight_sum > ALPHA_EPSILON,
-                             gathered[..., :3] / np.maximum(weight_sum, ALPHA_EPSILON),
-                             source)
-        colour += layer * weight[..., None]
-    painted = np.clip(np.rint(_to_srgb(colour)), 0, 255).astype(np.uint8)
-    return np.where(figure[..., None], composite, painted)
+        seen = seen + weight
+        alpha = np.where(seen > ALPHA_EPSILON,
+                         weight / np.maximum(seen, ALPHA_EPSILON), 0.0)
+        rgb = ground
+        hidden = picture_depth > centre + step
+        own = weight > OWN_SLICE
+        if hidden.any() and index < SLICES - 1 and own.any():
+            rgb = np.where(hidden[..., None],
+                           _push_pull(ground, own.astype(np.float32)), ground)
+            alpha = np.where(hidden, 1.0, alpha)
+        layer, layer_alpha = _blur_layer(
+            rgb, alpha.astype(np.float32), scale * abs(centre - d_focus))
+        colour = layer + colour * (1.0 - layer_alpha[..., None])
+        cover = layer_alpha + cover * (1.0 - layer_alpha)
+    painted = _to_srgb(colour / np.maximum(cover, ALPHA_EPSILON)[..., None])
+    return np.clip(np.rint(painted), 0, 255).astype(np.uint8)
 
 
-def blur_surroundings_png(composite_png: bytes, depth_png: bytes, matte_png: bytes,
-                          focus_x: float, focus_y: float, f_number: float,
-                          backdrop: str | None) -> bytes:
+def blur_layered_png(composite_png: bytes, depth_png: bytes, matte_png: bytes,
+                     focus_x: float, focus_y: float, f_number: float,
+                     backdrop: str | None) -> bytes:
     from . import backdrops
 
     rgb = np.array(Image.open(io.BytesIO(composite_png)).convert("RGB"))
@@ -218,8 +250,7 @@ def blur_surroundings_png(composite_png: bytes, depth_png: bytes, matte_png: byt
     depth = cv2.resize(depth, (width, height), interpolation=cv2.INTER_LINEAR)
     matte = cv2.resize(matte, (width, height), interpolation=cv2.INTER_LINEAR)
     backdrop_rgb = backdrops.render(backdrop, height, width) if backdrop else None
-    out = blur_surroundings(rgb, depth, matte, focus_x, focus_y, f_number,
-                            backdrop_rgb)
+    out = blur_layered(rgb, depth, matte, focus_x, focus_y, f_number, backdrop_rgb)
     output = io.BytesIO()
     Image.fromarray(out, "RGB").save(output, "PNG")
     return output.getvalue()

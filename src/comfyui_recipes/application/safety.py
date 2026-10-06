@@ -10,7 +10,11 @@ PAGE_SIZE = 50
 def rate_generation_by_id(chimera, identifier: str) -> dict:
     generation = chimera.request("GET", f"/api/v1/generations/{identifier}")
     generation_id = (generation or {}).get("id", identifier)
-    payload = rate_image(chimera.fetch_generation_image(identifier))
+    if (generation or {}).get("original_purged_at"):
+        data = chimera.fetch_generation_preview(identifier)
+    else:
+        data = chimera.fetch_generation_image(identifier)
+    payload = rate_image(data)
     chimera.put_safety(generation_id, payload)
     return payload["rating"]
 

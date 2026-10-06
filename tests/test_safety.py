@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 
 from comfyui_recipes.application import ingest
+from comfyui_recipes.application import safety as safety_application
 from comfyui_recipes.infrastructure.imaging import safety
 
 
@@ -89,6 +90,47 @@ class UploadHookTests(unittest.TestCase):
             ingest.rate_image = original
         self.assertTrue(any("HTTP 404" in m for m in messages))
 
+
+
+class RateByIdTests(unittest.TestCase):
+    def rate(self, generation):
+        fetched, puts = [], []
+
+        class Chimera:
+            def request(self, method, path, payload=None):
+                return generation
+
+            def fetch_generation_image(self, identifier):
+                fetched.append("image")
+                return b"original"
+
+            def fetch_generation_preview(self, identifier):
+                fetched.append("preview")
+                return b"preview"
+
+            def put_safety(self, generation_id, payload):
+                puts.append(generation_id)
+
+        original = safety_application.rate_image
+        safety_application.rate_image = lambda data: {"rating": {"source": data}}
+        try:
+            rating = safety_application.rate_generation_by_id(Chimera(), "abc123")
+        finally:
+            safety_application.rate_image = original
+        return rating, fetched, puts
+
+    def test_rates_the_original(self):
+        rating, fetched, puts = self.rate({"id": "gen-1", "original_purged_at": None})
+        self.assertEqual(fetched, ["image"])
+        self.assertEqual(rating, {"source": b"original"})
+        self.assertEqual(puts, ["gen-1"])
+
+    def test_rates_the_preview_when_the_original_was_purged(self):
+        rating, fetched, puts = self.rate(
+            {"id": "gen-1", "original_purged_at": "2026-09-01T00:00:00Z"})
+        self.assertEqual(fetched, ["preview"])
+        self.assertEqual(rating, {"source": b"preview"})
+        self.assertEqual(puts, ["gen-1"])
 
 if __name__ == "__main__":
     unittest.main()

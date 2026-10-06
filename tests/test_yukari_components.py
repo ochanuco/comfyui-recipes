@@ -128,7 +128,7 @@ class FramingTest(unittest.TestCase):
     def test_framing_assignments(self):
         expected = {
             "cinema": Framing.COWBOY, "coffee": Framing.COWBOY,
-            "amae": Framing.COWBOY, "gao": Framing.COWBOY,
+            "amae": Framing.COWBOY, "gao": Framing.UPPER,
             "step": Framing.FULL, "stand": Framing.FULL, "dance": Framing.FULL,
             "bust": Framing.BUST,
         }

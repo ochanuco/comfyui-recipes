@@ -24,6 +24,7 @@ class Pose:
     legwear_state: LegwearState = LegwearState.WORN
     body: str | None = None
     style: str | None = None
+    face: str | None = None
     background: str | None = None
     loras: tuple[tuple[str, float], ...] = ()
     angle: str = ""
@@ -111,14 +112,19 @@ POSES = {
         legwear=False,
         body="(mature female:1.3), (adult:1.2), adult proportions, "),
     "gao": Pose(
-        action=("(claw pose:1.45), (gao:1.2), (hands up:1.25), "
-                "(standing:1.3), (leaning forward:1.15), "),
+        action="(claw pose:1.45), (hands up:1.25), ",
         mood="",
         gesture="(looking at viewer:1.2), ",
-        framing=Framing.COWBOY,
-        angle="(from front:1.3), ",
-        leg_display="(thighs:1.2), ",
+        framing=Framing.UPPER,
+        angle=("(from behind:1.2), (looking back:1.3), "
+               "(looking over shoulder:1.2), "),
+        leg_display="",
         expression="gao", costume="standard",
-        negative=("(sitting:1.3), (upper body:1.2), "
-                  "(ribbed legwear:1.3), (vertical-striped legwear:1.3), ")),
+        canvas=(1024, 1280),
+        legwear=False,
+        body=("(mature female:1.3), (adult:1.2), (narrow waist:1.25), "
+              "adult proportions, long torso, seven heads tall, "),
+        face=("(large eyes:1.15), (mature face:1.2), (tareme:1.2), "
+              "(thick eyelashes:1.3), (long eyelashes:1.15), "),
+        negative="(sitting:1.3), "),
 }

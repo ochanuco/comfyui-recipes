@@ -30,7 +30,7 @@ jobs:
       - name: Install client deps
         run: |
           uv venv .venv
-          uv pip install --python .venv/bin/python -e . pillow numpy opencv-python scipy pytest websockets
+          uv pip install --python .venv/bin/python -e . pillow numpy opencv-python scipy pytest onnxruntime websockets
 
       - name: Tests
         run: PYTHONPATH=scripts .venv/bin/pytest -q

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from ..infrastructure.comfyui.refinement_graph import (
     DELIVERED_SUFFIX, MATTE_SUFFIX, VIEWFINDER_SUFFIX)
+from ..infrastructure.imaging.safety import rate_image
 
 
 def generation_key(key_prefix: str | None, job_index: int,
@@ -87,7 +88,18 @@ def upload_generation(management, emit, job_id: str, *, seed: int, name: str,
                     "idempotency_key": idempotency_key or str(uuid.uuid4())},
                    "image", name, data, "image/png"))
     emit(f"{name} -> {rendered['canonical_url']}")
+    rate_generation(management, emit, rendered["id"], data)
     return rendered
+
+
+def rate_generation(management, emit, generation_id: str, data: bytes) -> None:
+    """Rate an uploaded image and send chimera the numbers; never fails the job."""
+    try:
+        management.request(
+            "PUT", f"/api/v1/generations/{generation_id}/safety",
+            rate_image(data))
+    except (Exception, SystemExit) as error:
+        emit(f"safety rating skipped for {generation_id}: {error}")
 
 
 def attach_asset(management, generation_id: str, *, role: str, name: str,

@@ -119,7 +119,7 @@ def _components(pose: str, costume: str | None = None,
         Component("body_build", G, L, p.body if p.body is not None else BODY),
         Component("cutout", G, M,
                   p.background if p.background is not None else BACKGROUND),
-        Component("face", G, T, FACE),
+        Component("face", G, T, p.face if p.face is not None else FACE),
         Component("style", G, T, p.style if p.style is not None else STYLE),
     )
     return assemble(declared)

@@ -271,8 +271,10 @@ class FinalizeDefaultsTest(unittest.TestCase):
         by_name = {recipe["name"]: recipe for recipe in build_catalog(GIT)["recipes"]}
         dof = by_name["yukari"]["finalize"]["dof"]
         self.assertEqual(dof["f_number"], {
-            "min": 1.4, "max": 30, "default": 2.8,
-            "stops": [2.8, 4.0, 5.6, 8.0, 11.0, 16.0, 22.0]})
+            "min": 1.4, "max": 22, "default": 2.8,
+            "stops": [1.4, 1.6, 1.8, 2.0, 2.2, 2.5, 2.8, 3.2, 3.5, 4.0, 4.5,
+                      5.0, 5.6, 6.3, 7.1, 8.0, 9.0, 10.0, 11.0, 13.0, 14.0,
+                      16.0, 18.0, 20.0, 22.0]})
         self.assertEqual(dof["scope"],
                          {"values": ["figure", "all"], "default": "all"})
         self.assertEqual(dof["viewfinder"],

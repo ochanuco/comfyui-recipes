@@ -14,7 +14,7 @@ from ..domain.generation.models import PromptPair, RenderSpec
 from ..domain.generation.patches import apply_patches, parse_patches
 from ..domain.generation.prompt_lint import tags as prompt_tags
 from ..domain.yukari.dials import DIALS
-from .ingest import create_job, open_request
+from .ingest import create_job, open_request, rate_generation
 
 PresetFetcher = Callable[[str, str, str, int], dict]
 
@@ -708,6 +708,8 @@ def generate(request_path: Path, services: GenerateServices, *,
                     "POST", f"/api/v1/jobs/{job['job_id']}/generations",
                     multipart=(meta, "image", image["filename"], data, "image/png"),
                 )
+                rate_generation(services.management, services.emit,
+                                rendered["id"], data)
                 output.update(
                     {key: rendered[key]
                      for key in ("id", "short_id", "canonical_url")})

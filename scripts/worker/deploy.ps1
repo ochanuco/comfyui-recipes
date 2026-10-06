@@ -35,8 +35,11 @@ git checkout --quiet -B $Ref "origin/$Ref"
 git log --oneline -1
 $uv = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Recurse -Filter uv.exe |
     Select-Object -First 1 -ExpandProperty FullName
-& $uv pip install --python .venv\Scripts\python.exe -q -e . pillow numpy opencv-python scipy pytest "websockets>=12"
+& $uv pip install --python .venv\Scripts\python.exe -q -e . pillow numpy opencv-python scipy pytest onnxruntime "websockets>=12"
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
+# Fetched here so the first upload after a deploy doesn't stall on a 445 MiB download.
+& .venv\Scripts\python.exe -c "from comfyui_recipes.infrastructure.imaging.safety import ensure_files; print('wd tagger:', ensure_files())"
+if ($LASTEXITCODE) { "wd tagger: download failed, uploads will retry it" }
 if ($ComfyRoot) {
     & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\worker\register-nodes.ps1 `
         -Checkout $Checkout -ComfyRoot $ComfyRoot
@@ -56,6 +59,13 @@ if ($ComfyRoot) {
     $embedded = Join-Path (Split-Path $ComfyRoot -Parent) "python_embeded\python.exe"
     $pip = & $embedded -m pip install "websockets>=12"
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    # The box may already carry onnxruntime or onnxruntime-gpu from a custom
+    # node; a CPU wheel installed over the GPU one breaks both.
+    & $embedded -c "import onnxruntime" 2>$null
+    if ($LASTEXITCODE) {
+        & $embedded -m pip install onnxruntime
+        if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    }
     "embedded python: $(if ($pip -match '^Successfully installed') { 'installed' } else { 'ok' })"
     # Unconditional: the drain above ended the claim loop, and the loop is a
     # thread in this process, so nothing brings the worker back but this.

@@ -40,6 +40,19 @@ Two things that only show up over `ssh comfyui-worker`:
   `encoding="utf-8"` explicitly, and the wrapper sets `PYTHONUTF8=1` for
   the CLI's stdout.
 
+## Content rating
+
+Every image the worker uploads to chimera is also rated by the WD tagger
+(`wd-swinv2-tagger-v3`, ONNX on CPU) and the raw rating and general-tag
+probabilities are PUT to `/api/v1/generations/{id}/safety`. Thresholds and
+badges are chimera's. A failure -- no `onnxruntime`, no network for the first
+download, chimera not yet serving the endpoint -- is only logged and never
+fails the job. The model downloads on first use into
+`.local/_nogit/models/wd-tagger` (override with `COMFY_RECIPES_MODEL_DIR`),
+sha256-checked against the pinned revision. `comfy-recipes safety rate <short_id>...`
+and `comfy-recipes safety backfill [--published] [--limit N]` rate existing
+generations.
+
 ## Getting models onto it
 
 They have to be on that machine's disk, and nothing in the ComfyUI HTTP API can

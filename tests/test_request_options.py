@@ -10,7 +10,7 @@ from comfyui_recipes.application.request_options import (
     masked_redraw_arguments,
     repair_arguments,
 )
-from comfyui_recipes.domain.yukari.delivery_style import Dof
+from comfyui_recipes.domain.yukari.delivery_style import Dof, Light
 from comfyui_recipes.domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH
 from comfyui_recipes.domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 
@@ -45,13 +45,43 @@ class FinalizeArgumentsTest(unittest.TestCase):
             "repair_seeds": None,
             "keep_regions": [], "keep_strength": 0.25,
             "deliver_only": RECIPE_DEFAULT,
-            "hires": None, "hires_denoise": None, "dof": None,
+            "hires": None, "hires_denoise": None, "dof": None, "light": None,
         })
 
     def test_dof_parses_focus_and_f_number(self):
         arguments = finalize_arguments(
             {"dof": {"focus": [0.82, 0.55], "f_number": 2.8}})
         self.assertEqual(arguments["dof"], Dof((0.82, 0.55), 2.8))
+
+    def test_light_parses_scene_and_direction(self):
+        self.assertEqual(
+            finalize_arguments({"light": {"scene": "moon", "from": "se"}})["light"],
+            Light("moon", "se"))
+
+    def test_light_direction_defaults_to_north_west(self):
+        self.assertEqual(
+            finalize_arguments({"light": {"scene": "sunset"}})["light"],
+            Light("sunset", "nw"))
+
+    def test_light_rejects_bad_values(self):
+        for value in ({"scene": "dawn"}, {}, {"scene": "moon", "from": "up"},
+                      {"scene": "moon", "extra": 1}, "moon"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    finalize_arguments({"light": value})
+
+    def test_light_needs_a_source_graph(self):
+        source = _Source(context={}, picked=b"", is_repaired_raw=False,
+                         base_generation_id="g", graph={}, roles=None,
+                         is_anima=False)
+
+        def plan(**overrides):
+            arguments = {**finalize_arguments({"deliver_only": True}),
+                         "matte_model": None, **overrides}
+            return _resolve_plan(source, "g", **arguments)[0]
+
+        with self.assertRaisesRegex(SystemExit, "graph が無い.*light"):
+            plan(light=Light("moon", "se"))
 
     def test_dof_scope_is_left_unset_and_accepts_all(self):
         good = {"focus": [0.5, 0.5], "f_number": 2.8}

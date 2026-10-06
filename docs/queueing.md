@@ -64,6 +64,17 @@ Options, defaults and ranges live here:
   `repair`, `repair_regions` or `repair_seeds`. The canvas is never changed
   directly: the stored graph gets a latent upscale and a second pass with the
   same seed. `hires_denoise` (0 < d <= 1, default 0.45) needs `hires`.
+- `light` (`{"scene": "sunset" | "moon", "from": "nw"}`; `from` is any
+  `stroke_light` direction, default `nw`) lights the picture as a scene:
+  after `hires` (if any), the source is painted with shade, a tint toward the
+  light and a rim from that direction, then re-sampled at denoise 0.40 with
+  the source's seed and a positive that adds the scene's words. The delivery
+  then tints and brightens the backdrop toward the light and casts the sticker
+  shadow in the scene's colour. `stroke_light` follows `from`; naming a
+  different one is rejected. It needs `deliver_only` and an Anima source with a
+  stored graph, cannot combine with `repair`, `repair_regions` or
+  `repair_seeds`, and works with `hires` and `dof`. Transparent and
+  `keep_scene` deliveries take the lit figure without the backdrop tint.
 - Dial words (`"keep"`, `"on"`, …) are accepted wherever a number is. The
   row's result carries `resolved_options` with what actually ran.
 

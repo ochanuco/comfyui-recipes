@@ -8,6 +8,7 @@ PNG bytes back to tensors. The imaging logic itself lives in
 from __future__ import annotations
 
 from comfyui_recipes.infrastructure.imaging import delivery, depth_blur, palette, recolor, viewfinder
+from comfyui_recipes.infrastructure.imaging import light as lighting
 
 from . import bridge
 
@@ -84,10 +85,11 @@ class YukariDeliver:
             "transparent": ("BOOLEAN", {"default": False}),
             "stroke_light": ("STRING", {"default": ""}),
             "backdrop": ("STRING", {"default": ""}),
+            "light_scene": ("STRING", {"default": ""}),
         }}
 
     def run(self, image, matte, keep_scene, transparent=False, stroke_light="",
-           backdrop=""):
+           backdrop="", light_scene=""):
         image_png, matte_png = bridge.image_to_png(image), bridge.mask_to_png(matte)
         light = stroke_light or None
         if keep_scene:
@@ -96,7 +98,8 @@ class YukariDeliver:
             data, tag = delivery.transparent(image_png, matte_png, light=light)
         else:
             data, tag = delivery.clean_background(
-                image_png, matte_png, light=light, backdrop=backdrop or None)
+                image_png, matte_png, light=light, backdrop=backdrop or None,
+                scene=light_scene or None)
         mode = "RGBA" if (transparent and not keep_scene) else "RGB"
         return (bridge.png_to_image(data, mode), tag)
 
@@ -126,6 +129,29 @@ class YukariDepthBlur:
             bridge.image_to_png(image), bridge.image_to_png(depth),
             bridge.mask_to_png(matte), focus_x, focus_y, f_number)
         return (bridge.png_to_image(data), bridge.png_to_mask(widened))
+
+
+class YukariLight:
+    CATEGORY = "yukari"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "run"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "image": ("IMAGE",),
+            "depth": ("IMAGE",),
+            "matte": ("MASK",),
+            "direction": ("STRING", {"default": "nw"}),
+            "scene": ("STRING", {"default": "sunset"}),
+        }}
+
+    def run(self, image, depth, matte, direction, scene):
+        data = lighting.underpaint_png(
+            bridge.image_to_png(image), bridge.image_to_png(depth),
+            bridge.mask_to_png(matte), direction, scene)
+        return (bridge.png_to_image(data),)
 
 
 class YukariViewfinder:
@@ -233,6 +259,7 @@ NODE_CLASS_MAPPINGS = {
     "YukariDeliver": YukariDeliver,
     "YukariDepthBlur": YukariDepthBlur,
     "YukariDepthBlurLayered": YukariDepthBlurLayered,
+    "YukariLight": YukariLight,
     "YukariViewfinder": YukariViewfinder,
     "YukariCompose": YukariCompose,
     "YukariCutBackdrop": YukariCutBackdrop,
@@ -245,6 +272,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "YukariDeliver": "Yukari Deliver",
     "YukariDepthBlur": "Yukari Depth Blur",
     "YukariDepthBlurLayered": "Yukari Depth Blur Layered",
+    "YukariLight": "Yukari Light",
     "YukariViewfinder": "Yukari Viewfinder",
     "YukariCompose": "Yukari Compose",
     "YukariCutBackdrop": "Yukari Cut Backdrop",

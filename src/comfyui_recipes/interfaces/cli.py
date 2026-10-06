@@ -11,7 +11,7 @@ from pathlib import Path
 from ..application import metadata
 from ..application.catalog import build_catalog
 from ..application.catalog import publish_catalog as publish_catalog_document
-from ..application.finalize import finalize
+from ..application.finalize import RECIPE_DEFAULT, finalize
 from ..application.generate import generate
 from ..application.ingest import import_images
 from ..application.masked_redraw import masked_redraw
@@ -28,7 +28,15 @@ from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
 from ..domain.yukari.costumes import COSTUMES, LEGWEAR_STATES, LEGWEARS
-from ..domain.yukari.delivery_style import DOF_SCOPE, DOF_VIEWFINDER, STROKE_LIGHTS, Dof
+from ..domain.yukari.delivery_style import (
+    DOF_SCOPE,
+    DOF_VIEWFINDER,
+    LIGHT_FROM_DEFAULT,
+    LIGHT_SCENES,
+    STROKE_LIGHTS,
+    Dof,
+    Light,
+)
 from ..domain.yukari.expressions import EXPRESSIONS
 from ..domain.yukari.poses import POSES
 from ..domain.yukari.recipe import negative, positive
@@ -263,6 +271,12 @@ def parser() -> argparse.ArgumentParser:
              "picture ('on'), or keep it plain and add the viewfinder picture "
              "as an extra generation ('both')")
     finalize_parser.add_argument(
+        "--light", metavar="SCENE[,FROM]",
+        help="with --deliver-only on an Anima render: light the figure as a "
+             f"scene ({', '.join(sorted(LIGHT_SCENES))}) from a direction "
+             f"({', '.join(sorted(STROKE_LIGHTS))}; default "
+             f"{LIGHT_FROM_DEFAULT}) and tint the backdrop to match")
+    finalize_parser.add_argument(
         "--matte-model", default=None,
         help="matte source for the delivery: a core background-removal "
              "model file, or rmbg:<model> for ComfyUI-RMBG's BiRefNetRMBG "
@@ -453,6 +467,16 @@ def main(argv: list[str] | None = None) -> None:
                       scope[0] if scope else None, args.viewfinder)
         elif args.viewfinder != DOF_VIEWFINDER["default"]:
             raise SystemExit("--viewfinder needs --dof")
+        light = None
+        if args.light:
+            scene, *direction = args.light.split(",")
+            if scene not in LIGHT_SCENES:
+                raise SystemExit(
+                    f"--light scene must be one of {sorted(LIGHT_SCENES)}")
+            if direction and direction[0] not in STROKE_LIGHTS:
+                raise SystemExit(
+                    f"--light from must be one of {sorted(STROKE_LIGHTS)}")
+            light = Light(scene, direction[0] if direction else LIGHT_FROM_DEFAULT)
         context, dial_values = _resolve_word_args(
             chimera, args.generation_id, "finalize",
             {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
@@ -469,7 +493,8 @@ def main(argv: list[str] | None = None) -> None:
                  backdrop=args.backdrop,
                  upscale=args.upscale,
                  deliver_size=args.deliver_size,
-                 stroke_light=args.stroke_light,
+                 stroke_light=(RECIPE_DEFAULT if light and args.stroke_light is None
+                               else args.stroke_light),
                  repair=repair_parts,
                  repair_regions=repair_regions,
                  repair_denoise=dial_values["repair_denoise"],
@@ -484,6 +509,7 @@ def main(argv: list[str] | None = None) -> None:
                  hires=args.hires,
                  hires_denoise=args.hires_denoise,
                  dof=dof,
+                 light=light,
                  context=context)
         return
     if args.command == "catalog":

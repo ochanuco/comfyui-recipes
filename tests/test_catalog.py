@@ -282,6 +282,15 @@ class FinalizeDefaultsTest(unittest.TestCase):
         self.assertEqual(dof["focus"], "fractions [x, y] of the source image")
         self.assertNotIn("dof", by_name["yukari"]["finalize"]["defaults"])
 
+    def test_finalize_publishes_the_light_options(self):
+        by_name = {recipe["name"]: recipe for recipe in build_catalog(GIT)["recipes"]}
+        light = by_name["yukari"]["finalize"]["light"]
+        self.assertEqual(light["scenes"], ["sunset", "moon"])
+        self.assertEqual(light["from"],
+                         ["e", "n", "ne", "nw", "s", "se", "sw", "w"])
+        self.assertEqual(light["default_from"], "nw")
+        self.assertNotIn("light", by_name["yukari"]["finalize"]["defaults"])
+
     def test_yukari_defaults_to_deliver_only_with_repin(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}

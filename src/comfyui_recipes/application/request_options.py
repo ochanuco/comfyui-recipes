@@ -10,7 +10,16 @@ from collections.abc import Mapping
 from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
-from ..domain.yukari.delivery_style import DOF_F_NUMBER, DOF_SCOPE, DOF_VIEWFINDER, STROKE_LIGHTS, Dof
+from ..domain.yukari.delivery_style import (
+    DOF_F_NUMBER,
+    DOF_SCOPE,
+    DOF_VIEWFINDER,
+    LIGHT_FROM_DEFAULT,
+    LIGHT_SCENES,
+    STROKE_LIGHTS,
+    Dof,
+    Light,
+)
 from ..domain.yukari.dials import DIALS
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
 from .finalize import RECIPE_DEFAULT
@@ -21,7 +30,7 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "backdrop", "upscale", "deliver_size", "stroke_light",
     "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
     "repair_lora", "repair_seeds", "keep_regions", "keep_strength",
-    "deliver_only", "hires", "hires_denoise", "dof",
+    "deliver_only", "hires", "hires_denoise", "dof", "light",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
@@ -140,6 +149,25 @@ def _dof_argument(value: object, *, key: str = "dof") -> Dof | None:
             f"got {viewfinder!r}")
     return Dof((float(focus[0]), float(focus[1])), float(f_number), scope,
                viewfinder)
+
+
+def _light_argument(value: object, *, key: str = "light") -> Light | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{key} must be null or an object, got {type(value).__name__}")
+    unknown = sorted(set(value) - {"scene", "from"})
+    if unknown:
+        raise ValueError(f"{key} has unknown keys: {unknown}")
+    scene = value.get("scene")
+    if scene not in LIGHT_SCENES:
+        raise ValueError(
+            f"{key}.scene must be one of {sorted(LIGHT_SCENES)}, got {scene!r}")
+    direction = value.get("from", LIGHT_FROM_DEFAULT)
+    if direction not in STROKE_LIGHTS:
+        raise ValueError(
+            f"{key}.from must be one of {sorted(STROKE_LIGHTS)}, got {direction!r}")
+    return Light(scene, direction)
 
 
 def _denoise_argument(value: object, *, key: str = "denoise", max_value: float = 1) -> float:
@@ -401,6 +429,7 @@ def finalize_arguments(options: Mapping,
         "hires": hires,
         "hires_denoise": hires_denoise,
         "dof": _dof_argument(options.get("dof")),
+        "light": _light_argument(options.get("light")),
     }
 
 

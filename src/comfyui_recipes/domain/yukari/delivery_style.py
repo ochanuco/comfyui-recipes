@@ -531,6 +531,47 @@ class Dof(NamedTuple):
     scope: str | None = None
     viewfinder: str = "off"
 
+
+class Light(NamedTuple):
+    scene: str
+    direction: str
+
+
+LIGHT_DENOISE = 0.40
+LIGHT_FROM_DEFAULT = "nw"
+LIGHT_ELEVATION = 0.15
+LIGHT_REACH = 0.12
+LIGHT_GRADIENT = 0.9
+LIGHT_SHADE = 1.0
+LIGHT_RIM = 1.0
+LIGHT_CAST_STRENGTH = 0.45
+LIGHT_BACKDROP_BRIGHTEN = (1.12, 0.3)
+LIGHT_DIRECTION_WORDS = {
+    "n": "light from above", "s": "light from below", "e": "light from right",
+    "w": "light from left", "ne": "light from upper right",
+    "nw": "light from upper left", "se": "light from lower right",
+    "sw": "light from lower left",
+}
+LIGHT_WORDS = ("(rim lighting:1.2), (side lighting:1.2), ({direction}:1.1), "
+               "(dramatic lighting:1.1), (cel shading:1.1), shadow")
+# colour: the light; tint: how far the lit side drifts to it; shadow: figure
+# shadow multiplier; backdrop: (rgb, amount, value); cast: sticker shadow
+# multiplier; skin_keep: how much skin resists shade and tint.
+LIGHT_SCENES = {
+    "sunset": {"color": (255, 168, 96), "tint": 0.55,
+               "shadow": (0.42, 0.38, 0.70),
+               "backdrop": ((255, 168, 96), 0.45, 1.0),
+               "cast": (0.42, 0.33, 0.62),
+               "words": "(sunset:1.1), (orange light:1.1), evening",
+               "skin_keep": 0.0},
+    "moon": {"color": (184, 204, 255), "tint": 0.5,
+             "shadow": (0.33, 0.37, 0.62),
+             "backdrop": ((150, 170, 235), 0.5, 0.72),
+             "cast": (0.22, 0.25, 0.48),
+             "words": "(moonlight:1.15), night, (blue lighting:1.0)",
+             "skin_keep": 0.5},
+}
+
 FINALIZE_DEFAULTS = {"deliver_only": True, "repin": True, "stroke_light": "n",
                      "backdrop": "dots"}
 

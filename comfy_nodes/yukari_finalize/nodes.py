@@ -117,7 +117,7 @@ class YukariDepthBlur:
                                   "step": 0.001}),
             "focus_y": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0,
                                   "step": 0.001}),
-            "f_number": ("FLOAT", {"default": 2.8, "min": 0.7, "max": 22.0,
+            "f_number": ("FLOAT", {"default": 2.8, "min": 0.7, "max": 30.0,
                                    "step": 0.1}),
         }}
 
@@ -142,7 +142,7 @@ class YukariViewfinder:
                                   "step": 0.001}),
             "focus_y": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0,
                                   "step": 0.001}),
-            "f_number": ("FLOAT", {"default": 2.8, "min": 0.7, "max": 22.0,
+            "f_number": ("FLOAT", {"default": 2.8, "min": 0.7, "max": 30.0,
                                    "step": 0.1}),
         }}
 
@@ -168,7 +168,7 @@ class YukariDepthBlurSurroundings:
                                   "step": 0.001}),
             "focus_y": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0,
                                   "step": 0.001}),
-            "f_number": ("FLOAT", {"default": 2.8, "min": 0.7, "max": 22.0,
+            "f_number": ("FLOAT", {"default": 2.8, "min": 0.7, "max": 30.0,
                                    "step": 0.1}),
             "backdrop": ("STRING", {"default": ""}),
         }}

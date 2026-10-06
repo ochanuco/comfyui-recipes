@@ -271,7 +271,7 @@ class FinalizeDefaultsTest(unittest.TestCase):
         by_name = {recipe["name"]: recipe for recipe in build_catalog(GIT)["recipes"]}
         dof = by_name["yukari"]["finalize"]["dof"]
         self.assertEqual(dof["f_number"], {
-            "min": 2.8, "max": 22, "default": 2.8,
+            "min": 1.4, "max": 30, "default": 2.8,
             "stops": [2.8, 4.0, 5.6, 8.0, 11.0, 16.0, 22.0]})
         self.assertEqual(dof["scope"],
                          {"values": ["figure", "all"], "default": "all"})

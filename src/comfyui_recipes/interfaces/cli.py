@@ -8,7 +8,7 @@ import json
 import math
 from pathlib import Path
 
-from ..application import metadata
+from ..application import metadata, safety
 from ..application.catalog import build_catalog
 from ..application.catalog import publish_catalog as publish_catalog_document
 from ..application.finalize import RECIPE_DEFAULT, finalize
@@ -376,6 +376,16 @@ def parser() -> argparse.ArgumentParser:
     assets = metadata_commands.add_parser("list-assets")
     assets.add_argument("generation_id")
 
+    safety_parser = commands.add_parser(
+        "safety", help="rate generations with the WD tagger and send chimera the numbers")
+    safety_commands = safety_parser.add_subparsers(
+        dest="safety_command", required=True)
+    safety_rate = safety_commands.add_parser("rate")
+    safety_rate.add_argument("generation_ids", nargs="+", metavar="short_id")
+    safety_backfill = safety_commands.add_parser("backfill")
+    safety_backfill.add_argument("--published", action="store_true")
+    safety_backfill.add_argument("--limit", type=int, default=None)
+
     yukari_parser = commands.add_parser("yukari", help="inspect the Yukari domain")
     yukari_commands = yukari_parser.add_subparsers(dest="yukari_command", required=True)
     yukari_prompt = yukari_commands.add_parser("prompt")
@@ -548,6 +558,16 @@ def main(argv: list[str] | None = None) -> None:
                       prompt_patch=args.prompt_patch, denoise=args.denoise,
                       mask_padding=args.mask_padding, mask_feather=args.mask_feather,
                       size=args.size, seeds=seeds)
+        return
+
+    if args.command == "safety":
+        if args.safety_command == "rate":
+            for generation_id in args.generation_ids:
+                rating = safety.rate_generation_by_id(chimera, generation_id)
+                print(f"{generation_id}: {safety.format_rating(rating)}")
+        else:
+            safety.backfill(chimera, print, published=args.published,
+                            limit=args.limit)
         return
 
     if args.metadata_command == "semantic":

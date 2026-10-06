@@ -127,6 +127,10 @@ class ChimeraClient:
         return self.request(
             "PUT", f"/api/v1/generations/{generation_id}/semantic", semantic)
 
+    def put_safety(self, generation_id: str, safety: dict) -> dict:
+        return self.request(
+            "PUT", f"/api/v1/generations/{generation_id}/safety", safety)
+
     def put_catalog(self, recipe_ref: str, catalog: dict) -> dict:
         return self.request(
             "PUT",

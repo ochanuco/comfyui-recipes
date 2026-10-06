@@ -119,7 +119,7 @@ class FinalizeArgumentsTest(unittest.TestCase):
                     {**good, "focus": [1.2, 0.5]}, {**good, "focus": [0.5, -0.1]},
                     {**good, "focus": [0.5]}, {**good, "focus": ["a", 0.5]},
                     {**good, "focus": [True, 0.5]},
-                    {**good, "f_number": 2.0}, {**good, "scope": "everything"}, {**good, "f_number": 23},
+                    {**good, "f_number": 1.3}, {**good, "scope": "everything"}, {**good, "f_number": 23},
                     {**good, "viewfinder": "all"}, {**good, "viewfinder": None},
                     {**good, "viewfinder": True},
                     {**good, "f_number": "2.8"}, {**good, "f_number": True},

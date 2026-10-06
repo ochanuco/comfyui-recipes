@@ -49,6 +49,9 @@ Options, defaults and ranges live here:
 - An absent `backdrop`, `stroke_light`, `repin` or `deliver_only` takes the
   recipe's `finalize.defaults`, the same values the WebUI sends. An explicit
   `null` keeps its own meaning: no backdrop, or a uniform rim.
+- `stroke_light` is a light direction (`n` .. `nw`), `even` (a uniform
+  purple rim, the same as `null`) or `none` (no purple rim). Only a direction
+  throws the drop shadow, straight away from the light.
 - `deliver_only` defaults to false when the request names a redraw-shaping
   option (`denoise`, `size`, `route`, `finalizer`, `keep_regions`,
   `upscale`); combining it with one explicitly is an error. `repair` and

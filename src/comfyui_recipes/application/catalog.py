@@ -17,6 +17,7 @@ from ..domain.generation.patches import (
 )
 from ..domain.yukari.costumes import COSTUMES, LEGWEAR_STATES, LEGWEARS
 from ..domain.yukari.delivery_style import (
+    BACKDROP,
     BACKDROP_LABELS,
     DOF_F_NUMBER,
     DOF_SCOPE,
@@ -24,6 +25,7 @@ from ..domain.yukari.delivery_style import (
     FINALIZE_DEFAULTS,
     LIGHT_FROM_DEFAULT,
     LIGHT_SCENES,
+    STROKE_CHOICES,
     STROKE_LIGHTS,
 )
 from ..domain.yukari.dials import DIALS
@@ -92,6 +94,8 @@ def _yukari_recipe() -> dict:
                     "focus": "fractions [x, y] of the source image"},
             "light": {"scenes": list(LIGHT_SCENES), "from": sorted(STROKE_LIGHTS),
                       "default_from": LIGHT_FROM_DEFAULT},
+            "stroke_light": list(STROKE_CHOICES),
+            "backdrop_color": BACKDROP,
         },
     }
 

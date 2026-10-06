@@ -291,6 +291,13 @@ class FinalizeDefaultsTest(unittest.TestCase):
         self.assertEqual(light["default_from"], "nw")
         self.assertNotIn("light", by_name["yukari"]["finalize"]["defaults"])
 
+    def test_finalize_publishes_the_stroke_choices_and_solid_backdrop(self):
+        by_name = {recipe["name"]: recipe for recipe in build_catalog(GIT)["recipes"]}
+        finalize = by_name["yukari"]["finalize"]
+        self.assertEqual(finalize["stroke_light"],
+                         ["none", "even", "n", "ne", "e", "se", "s", "sw", "w", "nw"])
+        self.assertEqual(finalize["backdrop_color"], "#ffffff")
+
     def test_yukari_defaults_to_deliver_only_with_repin(self):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}

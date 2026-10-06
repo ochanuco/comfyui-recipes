@@ -9,7 +9,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+from comfyui_recipes.application import ingest
 from comfyui_recipes.application.generate import (
     GenerateServices,
     _image_output_path,
@@ -704,6 +706,31 @@ class GenerateApplicationTest(unittest.TestCase):
             semantic_call = next(
                 call for call in management.calls if call[0] == "semantic")
             self.assertEqual(semantic_call[2]["attributes"]["patches"], patches)
+
+    def test_generate_rates_each_registered_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "request.json"
+            path.write_text(json.dumps(base_request()), encoding="utf-8")
+            management = ManagementFake()
+            comfy = ComfyFake()
+            comfy.wait_for = lambda prompt_id: [{"filename": "render.png"}]
+            services = GenerateServices(
+                management, comfy,
+                StateFake({"idempotency_key": "fixed-key", "seeds": [42], "jobs": []}),
+                RecordingNotifier(),
+                lambda generation, seed, prefix: {
+                    "6": {"inputs": {"text": "x"}}, "7": {"inputs": {"text": "y"}}},
+                lambda: {"commit": "commit", "dirty": False}, lambda *_: [],
+                Path(directory), lambda message: None,
+                pose_fingerprint=lambda *_: "sha256:test")
+            with mock.patch.object(ingest, "rate_image",
+                                   return_value={"rating": {"general": 0.9}}):
+                generate(path, services)
+            safety_call = next(
+                call for call in management.calls
+                if call[0] == "PUT" and call[1].endswith("/safety"))
+            self.assertEqual(safety_call[1], "/api/v1/generations/generation/safety")
+            self.assertEqual(safety_call[2], {"rating": {"general": 0.9}})
 
     def test_generate_records_palette_from_measure(self):
         with tempfile.TemporaryDirectory() as directory:

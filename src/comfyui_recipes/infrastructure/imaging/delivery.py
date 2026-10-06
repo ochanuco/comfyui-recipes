@@ -219,10 +219,15 @@ def drawn_outline(pixels: np.ndarray, figure: np.ndarray, band: int,
 
     The outline and the key-tinted halo outside it reach the matte's edge
     through each other -- any blend of the key and white, down to the key
-    itself where the matte overshoots by a pixel; the figure's own line
-    stops them. Specks they leave
-    behind, figure islands under band*band pixels, are taken with them.
-    Empty unless they cover `delivery_style.DRAWN_OUTLINE_MIN_EDGE` of the
+    itself where the matte overshoots by a pixel, or a darker shade of the
+    key, the fringe a hires redraw draws around the outline; the figure's
+    own line stops them. Specks they leave
+    behind, figure islands under band*band pixels, are taken with them, and
+    so are the pockets the figure's lines close off inside it, such as a
+    gap between fingers: key-tinted regions holding some of the key itself,
+    with the stray pixels they surround, under
+    `delivery_style.DRAWN_OUTLINE_MAX_POCKET_BANDS` band*band pixels, when
+    the key is chromatic. Empty unless they cover `delivery_style.DRAWN_OUTLINE_MIN_EDGE` of the
     edge, not counting where the figure runs off the canvas. `key` is the
     backdrop colour the halo is tinted by, the corner's by default.
     `region` limits the outline and the edge it is measured on.
@@ -235,21 +240,45 @@ def drawn_outline(pixels: np.ndarray, figure: np.ndarray, band: int,
     span = np.array([255.0, 255.0, 255.0]) - key
     mix = np.clip(((pixels - key) * span).sum(axis=2) / max((span * span).sum(), 1.0),
                   0.0, 1.0)
-    pale = (np.linalg.norm(pixels - (key + mix[..., None] * span), axis=2)
-            <= delivery_style.DRAWN_OUTLINE_MAX_TINT)
+    shade = np.clip((pixels * key).sum(axis=2) / max((key * key).sum(), 1.0),
+                    0.0, 1.0)
+    tinted = ((np.linalg.norm(pixels - (key + mix[..., None] * span), axis=2)
+               <= delivery_style.DRAWN_OUTLINE_MAX_TINT)
+              | ((np.linalg.norm(pixels - shade[..., None] * key, axis=2)
+                  <= delivery_style.DRAWN_OUTLINE_MAX_TINT)
+                 & (shade >= delivery_style.DRAWN_OUTLINE_MIN_KEY_SHADE)))
     rim = figure_rim(figure, band * delivery_style.DRAWN_OUTLINE_DEPTH_BANDS)
     outside = ~figure
-    outline = figure & ndimage.binary_propagation(outside, mask=outside | (pale & rim))
+    outline = figure & ndimage.binary_propagation(outside, mask=outside | (tinted & rim))
     edge = figure & ~ndimage.binary_erosion(figure, border_value=1)
     if region is not None:
         outline &= region
         edge &= region
     if (outline & edge).sum() < delivery_style.DRAWN_OUTLINE_MIN_EDGE * edge.sum():
         return empty
+    eight = ndimage.generate_binary_structure(2, 2)
     rest = figure & ~outline
-    labels, count = ndimage.label(rest, ndimage.generate_binary_structure(2, 2))
+    labels, count = ndimage.label(rest, eight)
     sizes = ndimage.sum(rest, labels, range(1, count + 1))
-    return outline | np.isin(labels, 1 + np.nonzero(sizes < band * band)[0])
+    outline |= np.isin(labels, 1 + np.nonzero(sizes < band * band)[0])
+    if _key_excess(key) < delivery_style.KEY_DESPILL_MIN_EXCESS:
+        return outline
+    pockets = tinted & figure & ~outline
+    if region is not None:
+        pockets &= region
+    labels, count = ndimage.label(pockets, eight)
+    if not count:
+        return outline
+    sizes = ndimage.sum(pockets, labels, range(1, count + 1))
+    keyed = ndimage.maximum(pockets & (mix < 0.5), labels, range(1, count + 1))
+    limit = band * band * delivery_style.DRAWN_OUTLINE_MAX_POCKET_BANDS
+    taken = np.isin(labels, 1 + np.nonzero((sizes < limit) & (keyed > 0))[0])
+    dominant, others = _key_channels(key)
+    excess = pixels[..., dominant] - np.maximum(pixels[..., others[0]],
+                                                pixels[..., others[1]])
+    keyish = figure & (excess >= _key_excess(key) / 2)
+    taken = ndimage.binary_propagation(taken, eight, mask=taken | keyish)
+    return outline | (ndimage.binary_fill_holes(taken) & figure)
 
 
 def _pocket_key(pixels: np.ndarray, region: np.ndarray) -> np.ndarray | None:

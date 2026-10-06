@@ -169,7 +169,7 @@ class FramingTagsComponentTest(unittest.TestCase):
                          "(lying:1.3), (full body:1.35), ")
 
     def test_only_bust_framing_carries_a_canvas(self):
-        self.assertEqual(FRAMING[Framing.BUST].canvas, (1280, 1280))
+        self.assertEqual(FRAMING[Framing.BUST].canvas, (1280, 2048))
         for framing in (Framing.COWBOY, Framing.FULL, Framing.UPPER,
                         Framing.LYING):
             with self.subTest(framing=framing):
@@ -179,11 +179,11 @@ class FramingTagsComponentTest(unittest.TestCase):
 class CanvasResolutionTest(unittest.TestCase):
     def test_pose_canvas_wins_over_framing_canvas(self):
         spec = render_spec("bust", 1, "p")
-        self.assertEqual((spec.width, spec.height), (1280, 1280))
+        self.assertEqual((spec.width, spec.height), (1280, 2048))
 
     def test_framing_canvas_applies_when_pose_has_none(self):
-        # `bust` carries no pose-level canvas of its own; the (1280, 1280)
-        # square comes from its BUST framing.
+        # `bust` carries no pose-level canvas of its own; the (1280, 2048)
+        # canvas comes from its BUST framing.
         self.assertIsNone(POSES["bust"].canvas)
 
     def test_non_bust_pose_falls_back_to_the_recipe_default_canvas(self):

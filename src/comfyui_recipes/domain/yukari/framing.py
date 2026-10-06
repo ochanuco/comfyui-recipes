@@ -23,7 +23,7 @@ FRAMING = {
     Framing.BUST: FramingSpec(
         text=("(portrait:1.5), (head and shoulders:1.4), (upper body:1.35), "
               "(face focus:1.3), "),
-        canvas=(1280, 1280)),
+        canvas=(1280, 2048)),
     Framing.UPPER: FramingSpec(text="(upper body:1.3), "),
     Framing.COWBOY: FramingSpec(text="(cowboy shot:1.3), "),
     Framing.FULL: FramingSpec(text="(full body:1.45), (wide shot:1.3), "),

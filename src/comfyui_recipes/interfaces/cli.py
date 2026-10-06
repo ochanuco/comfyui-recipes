@@ -33,6 +33,7 @@ from ..domain.yukari.delivery_style import (
     DOF_VIEWFINDER,
     LIGHT_FROM_DEFAULT,
     LIGHT_SCENES,
+    STROKE_CHOICES,
     STROKE_LIGHTS,
     Dof,
     Light,
@@ -208,9 +209,10 @@ def parser() -> argparse.ArgumentParser:
         help="pixel-route upscale method feeding the redraw, overriding the "
              "delivery's own bicubic default")
     finalize_parser.add_argument(
-        "--stroke-light", choices=sorted(STROKE_LIGHTS),
-        help="light direction the purple stroke is shaded from; thin toward "
-             "it, thick away from it")
+        "--stroke-light", choices=STROKE_CHOICES,
+        help="light direction the purple stroke is shaded from (thin toward "
+             "it, thick away from it), 'even' for a uniform stroke or 'none' "
+             "for no purple stroke")
     finalize_parser.add_argument(
         "--repair", metavar="PARTS",
         help="comma-separated hands/feet to reroll in this same submission "

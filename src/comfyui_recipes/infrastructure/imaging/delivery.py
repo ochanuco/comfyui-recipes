@@ -512,17 +512,10 @@ def _extruded_region(mask: np.ndarray, w_min: float, w_max: float,
 
 def _shadow_shift(light: tuple[float, float],
                   purple_w: float) -> tuple[float, float]:
-    """The `(dy, dx)` an `ndimage.shift` throws a sticker's own shape by.
-
-    Away from `light` (image coords), plus a perpendicular skew whose sign
-    is picked so that shifting away from due north (`light` = (0, -1))
-    skews toward +x.
-    """
-    dx, dy = -light[0], -light[1]
-    px, py = dy, -dx
+    """The `(dy, dx)` an `ndimage.shift` throws a sticker's own shape by:
+    straight away from `light` (image coords)."""
     off = purple_w * delivery_style.STICKER_SHADOW_OFFSET
-    skew = delivery_style.STICKER_SHADOW_SKEW
-    return off * dy + off * skew * py, off * dx + off * skew * px
+    return -light[1] * off, -light[0] * off
 
 
 def _shadow_coverage(region: np.ndarray, eps_pct: float) -> np.ndarray:
@@ -551,16 +544,15 @@ def band_alphas(figure: np.ndarray, light: str | None = None,
     outer outline is simplified to, for a hand-cut rather than die-cut edge;
     0 reproduces the old smooth-ramp geometry. `light`, one of
     `delivery_style.STROKE_LIGHTS`' keys, shades the purple band's width by
-    direction instead of a uniform width; the white band is never shaded.
+    direction; `STROKE_EVEN` (or None) keeps it uniform and `STROKE_NONE`
+    leaves it out. The white band is never shaded.
     """
     height, width = figure.shape
     white_w, purple_w = _band_widths(height, width)
-    light_vec = None
-    if light is not None:
-        if light not in delivery_style.STROKE_LIGHTS:
-            valid = ", ".join(repr(key) for key in sorted(delivery_style.STROKE_LIGHTS))
-            raise ValueError(f"light must be null or one of {valid}, got {light!r}")
-        light_vec = delivery_style.STROKE_LIGHTS[light]
+    if light is not None and light not in delivery_style.STROKE_CHOICES:
+        valid = ", ".join(repr(key) for key in delivery_style.STROKE_CHOICES)
+        raise ValueError(f"light must be null or one of {valid}, got {light!r}")
+    light_vec = delivery_style.STROKE_LIGHTS.get(light)
 
     eps = delivery_style.STROKE_CUT_EPS_PCT if eps_pct is None else eps_pct
     if eps <= 0:
@@ -568,7 +560,9 @@ def band_alphas(figure: np.ndarray, light: str | None = None,
                          .resize((width * 2, height * 2), Image.NEAREST)))
         white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2,
                                      delivery_style.STROKE_EDGE_SMOOTH))
-        if light_vec is None:
+        if light == delivery_style.STROKE_NONE:
+            purple_a = np.zeros_like(white_a)
+        elif light_vec is None:
             purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2,
                                           delivery_style.STROKE_EDGE_SMOOTH))
         else:
@@ -583,13 +577,16 @@ def band_alphas(figure: np.ndarray, light: str | None = None,
     distance = ndimage.distance_transform_edt(~figure)
     white_a = _polygon_coverage(distance <= white_w, eps)
     white_mask = white_a >= 0.5
-    if light_vec is None:
-        purple_region = ndimage.distance_transform_edt(~white_mask) <= purple_w
+    if light == delivery_style.STROKE_NONE:
+        purple_a = np.zeros_like(white_a)
     else:
-        purple_region = _extruded_region(
-            white_mask, purple_w * delivery_style.STROKE_LIGHT_THIN,
-            purple_w * delivery_style.STROKE_LIGHT_THICK, light_vec)
-    purple_a = _polygon_coverage(purple_region, eps)
+        if light_vec is None:
+            purple_region = ndimage.distance_transform_edt(~white_mask) <= purple_w
+        else:
+            purple_region = _extruded_region(
+                white_mask, purple_w * delivery_style.STROKE_LIGHT_THIN,
+                purple_w * delivery_style.STROKE_LIGHT_THICK, light_vec)
+        purple_a = _polygon_coverage(purple_region, eps)
     white_a = np.where(figure, 0.0, white_a)
     purple_a = np.where(figure, 0.0, purple_a)
     return white_a, purple_a
@@ -637,7 +634,7 @@ def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
     # backdrop_rgb may be a 3-vector or a full (H, W, 3) pattern; either
     # broadcasts onto px.shape unchanged.
     flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
-    if shadow and light is not None:
+    if shadow and light in delivery_style.STROKE_LIGHTS:
         _, purple_w = _band_widths(*figure.shape)
         region = figure | (white_a >= 0.5) | (purple_a >= 0.5)
         shift = _shadow_shift(delivery_style.STROKE_LIGHTS[light], purple_w)
@@ -664,6 +661,14 @@ def _backdrop_tag_suffix(backdrop: str | None) -> str:
     return f"-bg-{name}"
 
 
+def _light_tag_suffix(light: str | None, shadow: bool = False) -> str:
+    if light == delivery_style.STROKE_NONE:
+        return "-nostroke"
+    if light in delivery_style.STROKE_LIGHTS:
+        return f"-light-{light}" + ("-shadow" if shadow else "")
+    return ""
+
+
 def _cut_tag_suffix() -> str:
     """Marks a delivery's tag with the rim eps it was cut at, if any."""
     eps = delivery_style.STROKE_CUT_EPS_PCT
@@ -675,7 +680,7 @@ def scene_backdrop(backdrop_rgb: np.ndarray, light: str | None,
     """Tint `backdrop_rgb` to `scene` and brighten it toward the light."""
     colour, amount, value = delivery_style.LIGHT_SCENES[scene]["backdrop"]
     tinted = backdrop_rgb * ((1 - amount) + amount * np.array(colour) / 255.0) * value
-    if light is None:
+    if light not in delivery_style.STROKE_LIGHTS:
         return tinted
     lx, ly = delivery_style.STROKE_LIGHTS[light]
     height, width = tinted.shape[:2]
@@ -740,7 +745,7 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
           + _backdrop_tag_suffix(backdrop) + _cut_tag_suffix()
           + ("-key" if keyed else "")
           + ("-outline" if outline_drawn.any() else ""))
-    return output.getvalue(), tag + (f"-light-{light}-shadow" if light else "")
+    return output.getvalue(), tag + _light_tag_suffix(light, shadow=True)
 
 
 # Below FLOOR the band-less compose drops a pixel outright (a layerdiffuse
@@ -787,7 +792,7 @@ def compose(data: bytes, backdrop: str | None = None,
 
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
-    return output.getvalue(), tag + (f"-light-{light}" if light else "")
+    return output.getvalue(), tag + _light_tag_suffix(light)
 
 
 def compose_outside_mask(data: bytes, light: str | None = None) -> bytes:
@@ -854,7 +859,7 @@ def transparent(data: bytes, matte: bytes,
     Image.fromarray(rgba, "RGBA").save(output, "PNG")
     tag = (f"transparent-w{white_w:.0f}-p{purple_w:.0f}" + _cut_tag_suffix()
            + ("-outline" if outline_drawn.any() else ""))
-    return output.getvalue(), tag + (f"-light-{light}" if light else "")
+    return output.getvalue(), tag + _light_tag_suffix(light)
 
 
 def cut_backdrop(data: bytes, outside_mask: bytes,

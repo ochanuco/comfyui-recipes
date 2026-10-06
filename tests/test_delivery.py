@@ -480,6 +480,7 @@ class DeliveryTest(unittest.TestCase):
         self.assertEqual(match.group(1), f"{white_w:.0f}")
         self.assertEqual(match.group(2), f"{purple_w:.0f}")
 
+    @mock.patch.object(delivery_style, "BACKDROP", "#c7e5e9")
     def test_clean_background_composites_purple_under_white_under_figure(self):
         # Walking outward from the figure's edge should cross the white band
         # first, the purple band second, and only then the flat backdrop --
@@ -633,6 +634,20 @@ class DeliveryTest(unittest.TestCase):
         white_b, purple_b = band_alphas(figure, light=None)
         np.testing.assert_array_equal(white_a, white_b)
         np.testing.assert_array_equal(purple_a, purple_b)
+
+    def test_band_alphas_even_matches_no_light(self):
+        figure, *_ = self._disc_figure()
+        white_a, purple_a = band_alphas(figure, light=None)
+        white_b, purple_b = band_alphas(figure, light="even")
+        np.testing.assert_array_equal(white_a, white_b)
+        np.testing.assert_array_equal(purple_a, purple_b)
+
+    def test_band_alphas_none_keeps_the_white_band_and_drops_the_purple(self):
+        figure, *_ = self._disc_figure()
+        white_a, _ = band_alphas(figure, light=None)
+        white_b, purple_b = band_alphas(figure, light="none")
+        np.testing.assert_array_equal(white_a, white_b)
+        self.assertEqual(purple_b.max(), 0.0)
 
     def test_band_alphas_unknown_light_key_raises(self):
         figure, *_ = self._disc_figure()
@@ -909,6 +924,23 @@ class DeliveryTest(unittest.TestCase):
         np.testing.assert_allclose(below, 200.0)
         np.testing.assert_allclose(above, 200.0)
 
+    def test_sticker_shadow_falls_straight_away_from_the_light(self):
+        pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
+        bare = sticker(pixels, figure, coverage, backdrop_rgb, light="n")
+        lit = sticker(pixels, figure, coverage, backdrop_rgb, light="n", shadow=True)
+        cols = np.where((np.abs(lit - bare).sum(axis=2) > 1).any(axis=0))[0]
+        self.assertAlmostEqual((cols.min() + cols.max()) / 2, centre, delta=1)
+
+    def test_sticker_even_and_none_throw_no_shadow(self):
+        pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
+        for light in ("even", "none"):
+            composite = sticker(pixels, figure, coverage, backdrop_rgb,
+                                light=light, shadow=True)
+            below = composite[centre + half + self._SHADOW_ROWS.start:
+                             centre + half + self._SHADOW_ROWS.stop,
+                             centre - 10:centre + 10]
+            np.testing.assert_allclose(below, 200.0)
+
     def test_sticker_throws_no_shadow_unless_asked(self):
         pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
         composite = sticker(pixels, figure, coverage, backdrop_rgb, light="n")
@@ -1119,6 +1151,7 @@ class CutBackdropTest(unittest.TestCase):
         self.assertEqual(arr[28, 28, 3], 255)
         self.assertEqual(arr[0, 0, 3], 255)
 
+    @mock.patch.object(delivery_style, "BACKDROP", "#c7e5e9")
     def test_cut_backdrop_keeps_the_white_band_and_purple_rim(self):
         # A compose-with-bands, standing in for the redrawn picture the real
         # node sees -- the bands are already baked in, and cutting must not
@@ -1179,6 +1212,7 @@ class CutBackdropTest(unittest.TestCase):
         # Colour-matched too, but past even the dilated mask: kept.
         self.assertEqual(arr[size // 2, edge - margin - 5, 3], 255)
 
+    @mock.patch.object(delivery_style, "BACKDROP", "#c7e5e9")
     def test_cut_backdrop_tolerance_is_inclusive_and_bounded(self):
         backdrop = np.array(parse_color(delivery_style.BACKDROP))
         tolerance = delivery_style.CUT_BACKDROP_TOLERANCE

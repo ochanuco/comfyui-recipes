@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 
-from ...domain.yukari.delivery_style import STROKE_LIGHTS, Dof
+from ...domain.yukari.delivery_style import STROKE_CHOICES, Dof
 from ..imaging import backdrops
 from .base_graph import base_roles, sampler_settings
 
@@ -228,8 +228,8 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         raise ValueError("redraw_from_source requires source_image")
     if upscale not in ("bicubic", "nearest-exact", "bilinear", "lanczos"):
         raise ValueError(f"unsupported upscale method: {upscale!r}")
-    if stroke_light is not None and stroke_light not in STROKE_LIGHTS:
-        valid = ", ".join(repr(key) for key in sorted(STROKE_LIGHTS))
+    if stroke_light is not None and stroke_light not in STROKE_CHOICES:
+        valid = ", ".join(repr(key) for key in STROKE_CHOICES)
         raise ValueError(f"stroke_light must be null or one of {valid}, got {stroke_light!r}")
     if backdrop is not None and not backdrops.is_backdrop(backdrop):
         valid = ", ".join(repr(key) for key in sorted(backdrops.PATTERNS))

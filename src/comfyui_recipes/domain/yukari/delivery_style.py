@@ -13,7 +13,7 @@ docs/yukari/delivery_style.md.
 from typing import NamedTuple
 
 # The backdrop every delivered picture is repainted to.
-BACKDROP = "#c7e5e9"
+BACKDROP = "#ffffff"
 
 # White band against the figure's die-cut edge, as a share of the longest
 # side. Computed by the delivery, not carried by the prompt.
@@ -40,10 +40,9 @@ STROKE_LIGHT_THICK = 2.8
 # extrusion sweeps a uniform band instead and does not use it.
 STROKE_LIGHT_SMOOTH = 1.0
 
-# Drop shadow throw, in purple widths, along the direction away from the light.
+# Drop shadow throw, in purple widths, straight away from the light -- the
+# same direction the purple band is extruded.
 STICKER_SHADOW_OFFSET = 1.6
-# Perpendicular skew of the throw, as a share of STICKER_SHADOW_OFFSET.
-STICKER_SHADOW_SKEW = 0.35
 # How much the shadow darkens the backdrop under it, 0..1.
 STICKER_SHADOW_DARKEN = 0.28
 # Sigma of the distance-field blur each band's edge ramps from, in 2x
@@ -57,6 +56,11 @@ STROKE_LIGHTS = {
     "n": (0.0, -1.0), "ne": (_R, -_R), "e": (1.0, 0.0), "se": (_R, _R),
     "s": (0.0, 1.0), "sw": (-_R, _R), "w": (-1.0, 0.0), "nw": (-_R, -_R),
 }
+# `stroke_light` values without a light: no purple band, or a uniform one
+# (null is accepted as "even").
+STROKE_NONE = "none"
+STROKE_EVEN = "even"
+STROKE_CHOICES = (STROKE_NONE, STROKE_EVEN, *STROKE_LIGHTS)
 
 # `stripes` backdrop: diagonal bands in the hair's lavender with a white
 # radial burst. Lengths are shares of the longest side.
@@ -346,7 +350,8 @@ BACKDROP_SPREAD_MAX = 25.0
 
 # The redraw retints and textures the backdrop a compose laid down, so
 # cut_backdrop's colour test cannot be exact. Must stay under the distance
-# to the nearest other delivery colour (the white band), or that band gets
+# to the nearest other delivery colour, so a compose meant for cut_backdrop
+# names a backdrop other than the white `BACKDROP`, or the white band gets
 # misread as backdrop.
 CUT_BACKDROP_TOLERANCE = 40
 

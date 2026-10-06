@@ -152,7 +152,7 @@ class YukariViewfinder:
         return (bridge.png_to_image(data, "RGBA" if image.shape[-1] == 4 else "RGB"),)
 
 
-class YukariDepthBlurSurroundings:
+class YukariDepthBlurLayered:
     CATEGORY = "yukari"
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
@@ -174,7 +174,7 @@ class YukariDepthBlurSurroundings:
         }}
 
     def run(self, image, depth, matte, focus_x, focus_y, f_number, backdrop):
-        data = depth_blur.blur_surroundings_png(
+        data = depth_blur.blur_layered_png(
             bridge.image_to_png(image), bridge.image_to_png(depth),
             bridge.mask_to_png(matte), focus_x, focus_y, f_number,
             backdrop or None)
@@ -232,7 +232,7 @@ NODE_CLASS_MAPPINGS = {
     "YukariRecolor": YukariRecolor,
     "YukariDeliver": YukariDeliver,
     "YukariDepthBlur": YukariDepthBlur,
-    "YukariDepthBlurSurroundings": YukariDepthBlurSurroundings,
+    "YukariDepthBlurLayered": YukariDepthBlurLayered,
     "YukariViewfinder": YukariViewfinder,
     "YukariCompose": YukariCompose,
     "YukariCutBackdrop": YukariCutBackdrop,
@@ -244,7 +244,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "YukariRecolor": "Yukari Recolor",
     "YukariDeliver": "Yukari Deliver",
     "YukariDepthBlur": "Yukari Depth Blur",
-    "YukariDepthBlurSurroundings": "Yukari Depth Blur Surroundings",
+    "YukariDepthBlurLayered": "Yukari Depth Blur Layered",
     "YukariViewfinder": "Yukari Viewfinder",
     "YukariCompose": "Yukari Compose",
     "YukariCutBackdrop": "Yukari Cut Backdrop",

@@ -9,7 +9,7 @@ import numpy as np
 from comfyui_recipes.domain.yukari.delivery_style import Dof
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import (
     DEPTH_CKPT, DEPTH_NODE, chain_pass)
-from comfyui_recipes.infrastructure.imaging.depth_blur import blur_surroundings, depth_blur
+from comfyui_recipes.infrastructure.imaging.depth_blur import blur_layered, depth_blur
 
 SIZE = 128
 
@@ -216,9 +216,9 @@ class DepthBlurGraphTest(unittest.TestCase):
                                 dof=Dof((0.82, 0.55), 2.8, "figure"), **kwargs)
             self.assertEqual(omitted, figure)
             classes = {node.get("class_type") for node in omitted.values()}
-            self.assertNotIn("YukariDepthBlurSurroundings", classes)
+            self.assertNotIn("YukariDepthBlurLayered", classes)
 
-    def test_scope_all_follows_deliver_in_both_routes(self):
+    def test_scope_all_blurs_the_delivered_picture_once(self):
         for deliver_only in (False, True):
             for keep_scene in (False, True):
                 with self.subTest(deliver_only=deliver_only, keep_scene=keep_scene):
@@ -228,14 +228,19 @@ class DepthBlurGraphTest(unittest.TestCase):
                         deliver_only=deliver_only, source_image="src.png",
                         dof=DOF_ALL, keep_scene=keep_scene, backdrop="dots",
                         deliver_size=1024)
-                    depth_id, _ = find(graph, DEPTH_NODE)
-                    blur_id, _ = find(graph, "YukariDepthBlur")
-                    deliver_id, _ = find(graph, "YukariDeliver")
-                    node_id, node = find(graph, "YukariDepthBlurSurroundings")
+                    classes = {n.get("class_type") for n in graph.values()}
+                    self.assertNotIn("YukariDepthBlur", classes)
+                    repin_id, _ = find(graph, "YukariRepin")
+                    depth_id, depth = find(graph, DEPTH_NODE)
+                    deliver_id, deliver = find(graph, "YukariDeliver")
+                    node_id, node = find(graph, "YukariDepthBlurLayered")
+                    self.assertEqual(depth["inputs"]["image"], [repin_id, 0])
+                    self.assertEqual(deliver["inputs"]["image"], [repin_id, 0])
+                    self.assertEqual(deliver["inputs"]["matte"][1], 0)
                     self.assertEqual(node["inputs"], {
                         "image": [deliver_id, 0], "depth": [depth_id, 0],
-                        "matte": [blur_id, 1], "focus_x": 0.82, "focus_y": 0.55,
-                        "f_number": 2.8,
+                        "matte": deliver["inputs"]["matte"],
+                        "focus_x": 0.82, "focus_y": 0.55, "f_number": 2.8,
                         "backdrop": "" if keep_scene else "dots"})
                     scale = [n for n in graph.values()
                              if n.get("class_type") == "ImageScale"
@@ -294,50 +299,52 @@ class ViewfinderGraphTest(unittest.TestCase):
                 self.assertEqual(self.saves(off, "-viewfinder"), [])
 
 
-class SurroundingsTest(unittest.TestCase):
+class BlurLayeredTest(unittest.TestCase):
     def setUp(self):
         columns = (np.arange(SIZE) % 4 < 2).astype(np.float32) * 60 + 150
         self.backdrop = np.broadcast_to(
             columns[None, :, None], (SIZE, SIZE, 3)).copy()
         self.composite = self.backdrop.astype(np.uint8)
         self.matte = np.zeros((SIZE, SIZE), np.float32)
-        self.matte[40:88, 40:88] = 1.0
-        ring = np.zeros((SIZE, SIZE), bool)
-        ring[34:94, 34:94] = True
-        self.composite[ring & (self.matte == 0)] = 255
+        self.matte[40:88, 16:64] = 1.0
         self.composite[self.matte > 0] = (30, 60, 120)
         self.depth = np.zeros((SIZE, SIZE), np.float32)
-        self.depth[:, :64] = 1.0
-        self.depth[:, 64:] = 0.4
+        self.depth[40:88, 16:64] = np.linspace(0.9, 1.0, 48)
 
-    def surroundings(self, focus_x, backdrop="default"):
-        return blur_surroundings(
-            self.composite, self.depth, self.matte, focus_x, 0.5, 1.4,
+    def layered(self, focus_x, depth=None, matte=None, backdrop="default",
+                f_number=1.4):
+        return blur_layered(
+            self.composite, self.depth if depth is None else depth,
+            self.matte if matte is None else matte, focus_x, 0.5, f_number,
             self.backdrop if backdrop == "default" else backdrop)
 
-    def test_backdrop_is_blurred_and_figure_untouched(self):
-        out = self.surroundings(0.4)
-        far = (slice(0, SIZE), slice(100, 128))
-        self.assertLess(out[far][..., 0].astype(float).var(),
-                        0.5 * self.composite[far][..., 0].astype(float).var())
-        figure = self.matte > 0.5
-        np.testing.assert_array_equal(out[figure], self.composite[figure])
+    def test_picture_in_focus_comes_back_unchanged(self):
+        out = self.layered(0.3, f_number=1e6)
+        self.assertLessEqual(
+            np.abs(out.astype(int) - self.composite.astype(int)).max(), 1)
 
-    def test_rim_follows_the_radius_of_the_figure_beside_it(self):
-        out = self.surroundings(0.4)
-        sharp = np.abs(out[34:94, 34:40].astype(int)
-                       - self.composite[34:94, 34:40].astype(int)).max()
-        blurry = np.abs(out[34:94, 88:94].astype(int)
-                        - self.composite[34:94, 88:94].astype(int)).max()
-        self.assertGreater(blurry, sharp)
+    def test_near_object_out_of_focus_spreads_over_the_focused_far_region(self):
+        out = self.layered(0.9)
+        beside = (slice(40, 88), slice(64, 72))
+        self.assertGreater(
+            np.abs(out[beside].astype(int)
+                   - self.composite[beside].astype(int)).max(), 10)
+        far = (slice(0, 20), slice(96, 128))
+        self.assertLessEqual(
+            np.abs(out[far].astype(int) - self.composite[far].astype(int)).max(), 1)
 
-    def test_kept_scene_without_a_backdrop_blurs_outside_the_figure(self):
-        out = self.surroundings(0.4, backdrop=None)
-        figure = self.matte > 0.5
-        np.testing.assert_array_equal(out[figure], self.composite[figure])
-        far = (slice(0, SIZE), slice(100, 128))
-        self.assertLess(out[far][..., 0].astype(float).var(),
-                        self.composite[far][..., 0].astype(float).var())
+    def test_kept_scene_without_a_backdrop_treats_the_rest_as_far(self):
+        out = self.layered(0.9, backdrop=None)
+        beside = (slice(40, 88), slice(64, 72))
+        self.assertGreater(
+            np.abs(out[beside].astype(int)
+                   - self.composite[beside].astype(int)).max(), 10)
+
+    def test_degenerate_depth_or_empty_matte_returns_the_picture(self):
+        flat = self.layered(0.3, depth=np.zeros_like(self.depth))
+        np.testing.assert_array_equal(flat, self.composite)
+        empty = self.layered(0.3, matte=np.zeros_like(self.matte))
+        np.testing.assert_array_equal(empty, self.composite)
 
 
 if __name__ == "__main__":

@@ -31,6 +31,14 @@ STICKER_CLOSING = 2
 SLICES = 16
 OWN_SLICE = 0.5
 PAPER = (255, 255, 255)
+# A blur radius up to this share of the long side still reads as sharp.
+SHARP_FRACTION = 0.001
+
+
+def sharp_reach_per_f() -> float:
+    """How far from the focus depth, in normalised depth per unit of
+    f-number, the blur stays within SHARP_FRACTION."""
+    return SHARP_FRACTION / K_FRACTION
 
 
 def _normalised_depth(depth: np.ndarray, inside: np.ndarray) -> np.ndarray | None:

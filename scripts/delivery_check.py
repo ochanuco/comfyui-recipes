@@ -24,7 +24,7 @@ from comfyui_recipes.domain.yukari import delivery_style as d
 BASELINE = Path(__file__).resolve().parent.parent / "assets/delivery-fingerprint.json"
 
 # Bump when a field is added/removed below -- a schema change must move the hash too.
-FINGERPRINT_SCHEMA = 4
+FINGERPRINT_SCHEMA = 5
 
 
 def delivery_fingerprint() -> str:
@@ -33,7 +33,7 @@ def delivery_fingerprint() -> str:
         "schema": FINGERPRINT_SCHEMA,
         "backdrop": d.BACKDROP,
         "stroke": d.STROKE,
-        "stroke_width_band": d.STROKE_WIDTH_BAND,
+        "stroke_width_pct": d.STROKE_WIDTH_PCT,
         "white_width_pct": d.WHITE_WIDTH_PCT,
         "sat_band": list(d.SAT_BAND),
         "bg_sat_max": d.BG_SAT_MAX,

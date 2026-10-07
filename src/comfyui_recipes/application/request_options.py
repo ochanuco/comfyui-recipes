@@ -572,6 +572,8 @@ def deliver_arguments(options: Mapping,
         raise ValueError(
             f"transparent must be null or a boolean, got {type(transparent).__name__}")
     keep_scene = boolean("keep_scene")
+    if transparent is None and "backdrop" in options and options["backdrop"] is None:
+        transparent = True
     transparent = bool(transparent) and not keep_scene
 
     if "backdrop" not in options:

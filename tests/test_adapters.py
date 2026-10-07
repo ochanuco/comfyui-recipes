@@ -111,6 +111,36 @@ class AdapterTest(unittest.TestCase):
         with patch("urllib.request.urlopen", return_value=response):
             self.assertIsNone(client.request("GET", "/api/v1/requests/claim"))
 
+    def test_chimera_fetch_asset_reads_the_role_with_the_service_token(self):
+        client = ChimeraClient(Path("."), base_url="https://example.invalid")
+        client._credentials = {"CF-Access-Client-Id": "id"}
+        response = MagicMock()
+        response.read.return_value = b"asset-bytes"
+        response.__enter__.return_value = response
+        with patch("urllib.request.urlopen", return_value=response) as urlopen:
+            self.assertEqual(client.fetch_asset("gen-1", "alpha"), b"asset-bytes")
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.full_url,
+                         "https://example.invalid/g/gen-1/assets/alpha")
+        self.assertEqual(request.get_header("Cf-access-client-id"), "id")
+
+    def test_chimera_fetch_asset_is_none_for_a_missing_asset(self):
+        client = ChimeraClient(Path("."), base_url="https://example.invalid")
+        client._credentials = {}
+        missing = urllib.error.HTTPError(
+            "https://example.invalid/g/gen-1/assets/cut", 404, "Not Found", {}, None)
+        with patch("urllib.request.urlopen", side_effect=missing):
+            self.assertIsNone(client.fetch_asset("gen-1", "cut"))
+
+    def test_chimera_fetch_asset_raises_on_other_errors(self):
+        client = ChimeraClient(Path("."), base_url="https://example.invalid")
+        client._credentials = {}
+        failing = urllib.error.HTTPError(
+            "https://example.invalid/g/gen-1/assets/cut", 403, "Forbidden", {}, None)
+        with patch("urllib.request.urlopen", side_effect=failing), \
+                self.assertRaises(urllib.error.HTTPError):
+            client.fetch_asset("gen-1", "cut")
+
     def test_chimera_put_catalog_puts_to_the_recipe_refs_catalog_path(self):
         client = ChimeraClient(Path("."), base_url="https://example.invalid")
         client._credentials = {}

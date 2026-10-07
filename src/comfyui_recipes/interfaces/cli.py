@@ -11,14 +11,17 @@ from pathlib import Path
 from ..application import metadata, safety
 from ..application.catalog import build_catalog
 from ..application.catalog import publish_catalog as publish_catalog_document
+from ..application.deliver import deliver
 from ..application.finalize import RECIPE_DEFAULT, finalize
 from ..application.generate import generate
 from ..application.ingest import import_images
 from ..application.masked_redraw import masked_redraw
 from ..application.repair import repair
 from ..application.request_options import (
+    DELIVER_DIAL_KEYS,
     FINALIZE_DIAL_KEYS,
     REPAIR_DIAL_KEYS,
+    deliver_arguments,
     dials_scope,
     resolve_dial,
 )
@@ -47,6 +50,7 @@ from ..infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
 from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.repository import discover_repository, git_metadata
 from .agent import (
+    build_deliver_services,
     build_finalize_services,
     build_generate_services,
     build_masked_redraw_services,
@@ -85,6 +89,30 @@ def _resolve_word_args(chimera: ChimeraClient, generation_id: str, scope: str,
         except ValueError as error:
             raise SystemExit(str(error)) from error
     return context, resolved
+
+
+def _dof_from_args(args) -> Dof | None:
+    if args.dof:
+        focus_x, focus_y, f_number, *scope = args.dof.split(",")
+        if scope and scope[0] not in DOF_SCOPE["values"]:
+            raise SystemExit(
+                f"--dof scope must be one of {DOF_SCOPE['values']}")
+        return Dof((float(focus_x), float(focus_y)), float(f_number),
+                   scope[0] if scope else None, args.viewfinder)
+    if args.viewfinder != DOF_VIEWFINDER["default"]:
+        raise SystemExit("--viewfinder needs --dof")
+    return None
+
+
+def _light_from_args(args) -> Light | None:
+    if not args.light:
+        return None
+    scene, *direction = args.light.split(",")
+    if scene not in LIGHT_SCENES:
+        raise SystemExit(f"--light scene must be one of {sorted(LIGHT_SCENES)}")
+    if direction and direction[0] not in STROKE_LIGHTS:
+        raise SystemExit(f"--light from must be one of {sorted(STROKE_LIGHTS)}")
+    return Light(scene, direction[0] if direction else LIGHT_FROM_DEFAULT)
 
 
 def _positive_finite_seconds(raw: str) -> float:
@@ -138,7 +166,7 @@ def parser() -> argparse.ArgumentParser:
     work_parser.add_argument("--dry-run", action="store_true")
     work_parser.add_argument("--worker-id", default=default_worker_id())
     work_parser.add_argument(
-        "--kinds", default="generate,finalize,repair,masked_redraw",
+        "--kinds", default="generate,finalize,deliver,repair,masked_redraw",
         help="comma-separated request kinds to claim")
     work_parser.add_argument(
         "--no-hub", action="store_true",
@@ -283,6 +311,60 @@ def parser() -> argparse.ArgumentParser:
         help="matte source for the delivery: a core background-removal "
              "model file, or rmbg:<model> for ComfyUI-RMBG's BiRefNetRMBG "
              "node")
+
+    deliver_parser = commands.add_parser(
+        "deliver", help="cut and decorate one picture generation")
+    deliver_parser.add_argument("generation_id")
+    deliver_parser.add_argument(
+        "--no-repin", dest="repin", action="store_false",
+        help="leave the palette as drawn instead of repinning it")
+    deliver_parser.add_argument(
+        "--skin", action="store_true",
+        help="pin the skin back to the picture's own tones")
+    deliver_parser.add_argument("--recolor", action="store_true")
+    deliver_parser.add_argument(
+        "--keep-legwear", nargs="?", const=0.62, type=_number_or_word, default=None,
+        metavar="COL_CUT",
+        help="keep the asserted legwear verbatim through repin; the value is "
+             "the width share the legs stay left of (default 0.62)")
+    deliver_parser.add_argument(
+        "--keep-scene", action="store_true",
+        help="deliver the picture uncut, background and all")
+    deliver_transparent = deliver_parser.add_mutually_exclusive_group()
+    deliver_transparent.add_argument(
+        "--transparent", dest="transparent", action="store_const",
+        const=True, default=None,
+        help="deliver the figure alone as an RGBA cutout")
+    deliver_transparent.add_argument(
+        "--opaque", dest="transparent", action="store_const", const=False,
+        help="composite on the backdrop with the purple stroke instead")
+    deliver_parser.add_argument(
+        "--backdrop", metavar="#RRGGBB|" + "|".join(BACKDROP_PATTERNS),
+        help="backdrop under the sticker -- a colour or a named pattern")
+    deliver_parser.add_argument(
+        "--stroke-light", choices=STROKE_CHOICES,
+        help="light direction the purple stroke is shaded from, 'even' for a "
+             "uniform stroke or 'none' for no purple stroke")
+    deliver_parser.add_argument(
+        "--deliver-size", type=int, metavar="LONGEST",
+        help="downscale the delivered file to this longest side (lanczos)")
+    deliver_parser.add_argument(
+        "--dof", metavar="X,Y,F[,SCOPE]",
+        help="depth-of-field blur: focus point as fractions of the picture "
+             "width and height, then the f-number (1.4..22), then optionally "
+             "'figure' or 'all' (also blur the rim and backdrop); off by default")
+    deliver_parser.add_argument(
+        "--viewfinder", choices=DOF_VIEWFINDER["values"],
+        default=DOF_VIEWFINDER["default"],
+        help="with --dof: draw a camera viewfinder over the delivered "
+             "picture ('on'), or keep it plain and add the viewfinder picture "
+             "as an extra generation ('both')")
+    deliver_parser.add_argument(
+        "--light", metavar="SCENE[,FROM]",
+        help="light the delivery as a scene "
+             f"({', '.join(sorted(LIGHT_SCENES))}) from a direction "
+             f"({', '.join(sorted(STROKE_LIGHTS))}; default "
+             f"{LIGHT_FROM_DEFAULT}) and tint the backdrop to match")
 
     repair_parser = commands.add_parser(
         "repair", help="masked local redraw of hands/feet on an existing generation")
@@ -469,26 +551,8 @@ def main(argv: list[str] | None = None) -> None:
                           for region in (args.repair_regions or [])]
         keep_regions = [[float(value) for value in region.split(",")]
                        for region in (args.keep_regions or [])]
-        dof = None
-        if args.dof:
-            focus_x, focus_y, f_number, *scope = args.dof.split(",")
-            if scope and scope[0] not in DOF_SCOPE["values"]:
-                raise SystemExit(
-                    f"--dof scope must be one of {DOF_SCOPE['values']}")
-            dof = Dof((float(focus_x), float(focus_y)), float(f_number),
-                      scope[0] if scope else None, args.viewfinder)
-        elif args.viewfinder != DOF_VIEWFINDER["default"]:
-            raise SystemExit("--viewfinder needs --dof")
-        light = None
-        if args.light:
-            scene, *direction = args.light.split(",")
-            if scene not in LIGHT_SCENES:
-                raise SystemExit(
-                    f"--light scene must be one of {sorted(LIGHT_SCENES)}")
-            if direction and direction[0] not in STROKE_LIGHTS:
-                raise SystemExit(
-                    f"--light from must be one of {sorted(STROKE_LIGHTS)}")
-            light = Light(scene, direction[0] if direction else LIGHT_FROM_DEFAULT)
+        dof = _dof_from_args(args)
+        light = _light_from_args(args)
         context, dial_values = _resolve_word_args(
             chimera, args.generation_id, "finalize",
             {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
@@ -523,6 +587,41 @@ def main(argv: list[str] | None = None) -> None:
                  dof=dof,
                  light=light,
                  context=context)
+        return
+    if args.command == "deliver":
+        services = build_deliver_services(
+            chimera, comfyui, notifier, repository, repository_metadata)
+        dof = _dof_from_args(args)
+        light = _light_from_args(args)
+        context, dial_values = _resolve_word_args(
+            chimera, args.generation_id, "deliver",
+            {key: getattr(args, key) for key in DELIVER_DIAL_KEYS})
+        options = {
+            **({} if args.repin else {"repin": False}),
+            **({"skin": True} if args.skin else {}),
+            **({"recolor": True} if args.recolor else {}),
+            **({"keep_legwear": dial_values["keep_legwear"]}
+               if dial_values["keep_legwear"] is not None else {}),
+            **({"keep_scene": True} if args.keep_scene else {}),
+            **({"transparent": args.transparent}
+               if args.transparent is not None else {}),
+            **({"backdrop": args.backdrop} if args.backdrop is not None else {}),
+            **({"stroke_light": args.stroke_light}
+               if args.stroke_light is not None else {}),
+            **({"deliver_size": args.deliver_size}
+               if args.deliver_size is not None else {}),
+            **({"dof": {"focus": list(dof.focus), "f_number": dof.f_number,
+                        "viewfinder": dof.viewfinder,
+                        **({"scope": dof.scope} if dof.scope else {})}}
+               if dof is not None else {}),
+            **({"light": {"scene": light.scene, "from": light.direction}}
+               if light is not None else {}),
+        }
+        try:
+            arguments = deliver_arguments(options)
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
+        deliver(args.generation_id, services, context=context, **arguments)
         return
     if args.command == "catalog":
         git = repository_metadata()

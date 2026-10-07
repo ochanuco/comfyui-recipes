@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from comfyui_recipes.application.finalize import RECIPE_DEFAULT
-from comfyui_recipes.domain.yukari.delivery_style import Light
+from comfyui_recipes.domain.yukari.delivery_style import Dof, Light
 from comfyui_recipes.interfaces import cli
 
 
@@ -118,6 +118,53 @@ class CliTest(unittest.TestCase):
         with redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):
                 cli.main(["repair", "gen-1", "--model", "nope"])
+
+    @patch.object(cli, "deliver")
+    @patch.object(cli, "ChimeraClient")
+    def test_deliver_without_flags_runs_the_recipe_defaults(
+            self, chimera_class, run_deliver):
+        cli.main(["deliver", "gen-1"])
+        args, kwargs = run_deliver.call_args
+        self.assertEqual(args[0], "gen-1")
+        self.assertEqual(kwargs, {
+            "repin": True, "skin": False, "recolor": False, "keep_legwear": None,
+            "keep_scene": False, "transparent": False, "backdrop": "dots",
+            "stroke_light": "n", "deliver_size": None, "dof": None,
+            "light": None, "context": None})
+
+    @patch.object(cli, "deliver")
+    @patch.object(cli, "ChimeraClient")
+    def test_deliver_flags_dispatch_without_network(
+            self, chimera_class, run_deliver):
+        cli.main(["deliver", "gen-1", "--no-repin", "--skin", "--transparent",
+                  "--deliver-size", "1536", "--dof", "0.5,0.4,2.8,figure",
+                  "--viewfinder", "both", "--light", "moon,se",
+                  "--keep-legwear"])
+        kwargs = run_deliver.call_args.kwargs
+        self.assertIs(kwargs["repin"], False)
+        self.assertIs(kwargs["skin"], True)
+        self.assertIs(kwargs["transparent"], True)
+        self.assertIsNone(kwargs["backdrop"])
+        self.assertEqual(kwargs["deliver_size"], 1536)
+        self.assertEqual(kwargs["keep_legwear"], 0.62)
+        self.assertEqual(kwargs["dof"], Dof((0.5, 0.4), 2.8, "figure", "both"))
+        self.assertEqual(kwargs["light"], Light("moon", "se"))
+        self.assertEqual(kwargs["stroke_light"], "se")
+
+    @patch.object(cli, "deliver")
+    @patch.object(cli, "ChimeraClient")
+    def test_deliver_rejects_a_stroke_light_that_disagrees_with_light(
+            self, chimera_class, run_deliver):
+        with self.assertRaisesRegex(SystemExit, "light の from"):
+            cli.main(["deliver", "gen-1", "--light", "moon,se",
+                      "--stroke-light", "n"])
+        run_deliver.assert_not_called()
+
+    @patch.object(cli, "deliver")
+    @patch.object(cli, "ChimeraClient")
+    def test_deliver_viewfinder_needs_dof(self, chimera_class, run_deliver):
+        with self.assertRaisesRegex(SystemExit, "--viewfinder needs --dof"):
+            cli.main(["deliver", "gen-1", "--viewfinder", "on"])
 
     @patch.object(cli, "finalize")
     @patch.object(cli, "ChimeraClient")
@@ -267,12 +314,15 @@ class CliTest(unittest.TestCase):
 
     @patch.object(cli, "work")
     @patch.object(cli, "ChimeraClient")
-    def test_work_default_kinds_include_repair_and_masked_redraw(
+    def test_work_default_kinds_include_deliver_repair_and_masked_redraw(
             self, chimera_class, run_work):
         cli.main(["work", "--once"])
         work_services = run_work.call_args.args[0]
         self.assertEqual(
-            work_services.kinds, ("generate", "finalize", "repair", "masked_redraw"))
+            work_services.kinds,
+            ("generate", "finalize", "deliver", "repair", "masked_redraw"))
+        self.assertIs(
+            work_services.deliver_services.management, chimera_class.return_value)
         self.assertIs(
             work_services.repair_services.management, chimera_class.return_value)
         self.assertIs(

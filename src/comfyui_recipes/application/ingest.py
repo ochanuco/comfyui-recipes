@@ -7,8 +7,13 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from ..infrastructure.comfyui.deliver_graph import ALPHA_SUFFIX, DEPTH_SUFFIX
+from ..infrastructure.comfyui.dof_graph import DOF_SUFFIX, VIEWFINDER_SUFFIX
 from ..infrastructure.comfyui.refinement_graph import (
-    DELIVERED_SUFFIX, VIEWFINDER_SUFFIX)
+    DELIVERED_SUFFIX,
+    LAYER_BACKDROP_SUFFIX,
+    LAYER_FIGURE_SUFFIX,
+    LAYER_OUTLINE_SUFFIX,
+)
 from ..infrastructure.imaging.safety import rate_image
 
 
@@ -25,13 +30,28 @@ def asset_key(key_prefix: str | None, job_index: int, role: str) -> str:
     return str(uuid.uuid4())
 
 
-def classify_deliver_outputs(outputs: list) -> dict[str, list]:
-    """A deliver submission's outputs by role: `alpha` and `depth` when it
-    cut them itself, the `delivered` picture and its `viewfinder` twin."""
-    suffixes = {"alpha": ALPHA_SUFFIX, "depth": DEPTH_SUFFIX,
-                "delivered": DELIVERED_SUFFIX, "viewfinder": VIEWFINDER_SUFFIX}
+LAYER_ROLES = {"layer-figure": LAYER_FIGURE_SUFFIX,
+               "layer-outline": LAYER_OUTLINE_SUFFIX,
+               "layer-backdrop": LAYER_BACKDROP_SUFFIX}
+
+
+def _by_suffix(outputs: list, suffixes: dict[str, str]) -> dict[str, list]:
     return {role: [out for out in outputs if suffix in out["filename"]]
             for role, suffix in suffixes.items()}
+
+
+def classify_deliver_outputs(outputs: list) -> dict[str, list]:
+    """A deliver submission's outputs by role: `alpha` when it cut it
+    itself, the `delivered` picture and its `layer-*` layers."""
+    return _by_suffix(outputs, {"alpha": ALPHA_SUFFIX,
+                                "delivered": DELIVERED_SUFFIX, **LAYER_ROLES})
+
+
+def classify_dof_outputs(outputs: list) -> dict[str, list]:
+    """A dof submission's outputs by role: `depth` when it built it itself,
+    the `dof` picture and its `viewfinder` twin."""
+    return _by_suffix(outputs, {"depth": DEPTH_SUFFIX, "dof": DOF_SUFFIX,
+                                "viewfinder": VIEWFINDER_SUFFIX})
 
 
 def classify_redraw_outputs(outputs: list) -> dict[str, list]:

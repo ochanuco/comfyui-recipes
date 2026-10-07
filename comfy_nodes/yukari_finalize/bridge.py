@@ -52,3 +52,13 @@ def png_to_mask(data: bytes):
     import torch
     array = png_to_array(data, "L").astype(np.float32) / 255.0
     return torch.from_numpy(array)[None, ...]
+
+
+def loaded_rgba_png(image, mask) -> bytes:
+    """An RGBA PNG from LoadImage's two outputs: its IMAGE drops the alpha
+    and its MASK is 1 - alpha, or a 64x64 placeholder for a PNG without one."""
+    rgb = np.clip(image[0].cpu().numpy() * 255.0, 0, 255).astype(np.uint8)
+    alpha = np.clip((1.0 - mask[0].cpu().numpy()) * 255.0, 0, 255).astype(np.uint8)
+    if alpha.shape != rgb.shape[:2]:
+        alpha = np.full(rgb.shape[:2], 255, np.uint8)
+    return array_to_png(np.dstack([rgb, alpha]), "RGBA")

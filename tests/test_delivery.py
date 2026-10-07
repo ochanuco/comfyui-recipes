@@ -4,6 +4,7 @@ import io
 import json
 import re
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import cv2
@@ -18,6 +19,7 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     background_mask,
     band_alphas,
     clean_background,
+    deliver_pngs,
     despill,
     down2,
     drawn_outline,
@@ -36,6 +38,12 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     transparent,
     unpremultiply,
 )
+
+
+PURPLE = "#885b80"
+PURPLE_WIDTH_PCT = 1.04
+PURPLE_ONLY = [{"color": PURPLE, "width": PURPLE_WIDTH_PCT}]
+WHITE_PURPLE = [{"color": "#ffffff", "width": 0.4}, *PURPLE_ONLY]
 
 
 def png(pixels: np.ndarray, prompt: str | None = None) -> bytes:
@@ -57,6 +65,13 @@ def matte(shape, box):
 
 
 class DeliveryTest(unittest.TestCase):
+    # These cases pin the purple band straight against the figure; the
+    # recipe default's white band is covered by OutlinesTest.
+    def setUp(self):
+        patcher = mock.patch.object(delivery_style, "OUTLINES", PURPLE_ONLY)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_graph_metadata_validation(self):
         pixels = np.zeros((2, 2, 3), dtype=np.uint8)
         with self.assertRaisesRegex(SystemExit, "no ComfyUI prompt"):
@@ -153,7 +168,7 @@ class DeliveryTest(unittest.TestCase):
         cleaned, tag = clean_background(png(pixels), matte(pixels.shape[:2],
                                                            (8, 24, 10, 22)))
         self.assertEqual(Image.open(io.BytesIO(cleaned)).size, (32, 32))
-        self.assertRegex(tag, r"^clean-w\d+-p\d+-cut0\.5$")
+        self.assertRegex(tag, r"^clean-o\d+-cut0\.5$")
 
     def test_clean_background_keeps_the_retrace_inside_the_soft_matte(self):
         pixels = np.full((1024, 1024, 3), (218, 214, 218), dtype=np.uint8)
@@ -165,7 +180,7 @@ class DeliveryTest(unittest.TestCase):
         arr = np.array(Image.open(io.BytesIO(cleaned)))
         # The shadow is band, not figure: the purple stroke paints over it
         # right up to the soft matte's edge.
-        np.testing.assert_array_equal(arr[512, 640], parse_color(delivery_style.STROKE))
+        np.testing.assert_array_equal(arr[512, 640], parse_color(PURPLE))
         np.testing.assert_array_equal(arr[512, 638], (40, 40, 40))
 
     def test_shadow_cut_drops_the_cast_shadow_the_matte_kept_and_no_more(self):
@@ -232,7 +247,7 @@ class DeliveryTest(unittest.TestCase):
         soft[400:624, 400:624] = 255
         cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
         arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
-        purple = np.array(parse_color(delivery_style.STROKE))
+        purple = np.array(parse_color(PURPLE))
         self.assertTrue((np.abs(arr[300:340, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
         self.assertTrue((arr[:64, :64] == 255).all())
         self.assertTrue((arr[-64:, -64:] == 255).all())
@@ -267,7 +282,7 @@ class DeliveryTest(unittest.TestCase):
         soft[400:624, 400:624] = 255
         cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
         arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
-        purple = np.array(parse_color(delivery_style.STROKE))
+        purple = np.array(parse_color(PURPLE))
         self.assertTrue((np.abs(arr[:190, :190] - (16, 32, 48)).max(axis=2) <= 2).all())
         self.assertTrue((np.abs(arr[300:340, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
         np.testing.assert_array_equal(arr[200:256, 300:700], pixels.astype(int)[200:256, 300:700])
@@ -287,7 +302,7 @@ class DeliveryTest(unittest.TestCase):
         self.assertTrue((np.abs(arr[:90, :90] - (16, 32, 48)).max(axis=2) <= 2).all())
         self.assertTrue((np.abs(arr[20:60, 300:340] - (16, 32, 48)).max(axis=2) <= 2).all())
         np.testing.assert_array_equal(arr[200:700, 100:200], pixels.astype(int)[200:700, 100:200])
-        purple = np.array(parse_color(delivery_style.STROKE))
+        purple = np.array(parse_color(PURPLE))
         self.assertTrue((np.abs(arr[512, 340:400] - purple).max(axis=1) <= 40).any())
         outside = np.ones((1024, 1024), dtype=bool)
         outside[:768, 256:768] = False
@@ -305,7 +320,7 @@ class DeliveryTest(unittest.TestCase):
         soft[256:640, 480:544] = 255
         cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
         arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
-        purple = np.array(parse_color(delivery_style.STROKE))
+        purple = np.array(parse_color(PURPLE))
         for cols in (slice(280, 330), slice(700, 750)):
             self.assertTrue((np.abs(arr[300:340, cols] - (16, 32, 48)).max(axis=2) <= 2).all())
         self.assertTrue((np.abs(arr[400, 400:480] - purple).max(axis=1) <= 40).any())
@@ -320,7 +335,7 @@ class DeliveryTest(unittest.TestCase):
         cleaned, _ = clean_background(png(pixels), png(soft), backdrop="#102030")
         arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
         self.assertTrue((np.abs(arr[:64, :64] - (16, 32, 48)).max(axis=2) <= 2).all())
-        purple = np.array(parse_color(delivery_style.STROKE))
+        purple = np.array(parse_color(PURPLE))
         self.assertTrue((np.abs(arr[512, 150:256] - purple).max(axis=1) <= 40).any())
 
     def test_enclosed_cut_ignores_a_few_green_pixels_on_a_white_backdrop(self):
@@ -470,13 +485,16 @@ class DeliveryTest(unittest.TestCase):
         pixels[8:24, 15:35] = (20, 20, 20)
         _, tag = clean_background(png(pixels), matte(pixels.shape[:2],
                                                      (8, 24, 15, 35)))
-        match = re.match(r"^clean-w(\d+)-p(\d+)-cut0\.5$", tag)
+        match = re.match(r"^clean-o(\d+)-cut0\.5$", tag)
         self.assertIsNotNone(match)
-        white_w = max(30, 50) * delivery_style.WHITE_WIDTH_PCT / 100
-        purple_w = max(30, 50) * delivery_style.STROKE_WIDTH_PCT / 100
-        self.assertEqual(match.group(1), f"{white_w:.0f}")
-        self.assertEqual(match.group(1), "0")
-        self.assertEqual(match.group(2), f"{purple_w:.0f}")
+        purple_w = max(30, 50) * PURPLE_WIDTH_PCT / 100
+        self.assertEqual(match.group(1), f"{purple_w:.0f}")
+        _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 15, 35)),
+                                  outlines=WHITE_PURPLE)
+        self.assertRegex(tag, r"^clean-o0\+1-cut0\.5$")
+        _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 15, 35)),
+                                  outlines=[])
+        self.assertRegex(tag, r"^clean-nooutline-cut0\.5$")
 
     @mock.patch.object(delivery_style, "BACKDROP", "#c7e5e9")
     def test_clean_background_composites_purple_directly_against_the_figure(self):
@@ -494,7 +512,7 @@ class DeliveryTest(unittest.TestCase):
         arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB")).astype(int)
 
         backdrop = np.array(parse_color(delivery_style.BACKDROP))
-        purple = np.array(parse_color(delivery_style.STROKE))
+        purple = np.array(parse_color(PURPLE))
         white = np.array([255, 255, 255])
 
         row = height // 2
@@ -524,7 +542,7 @@ class DeliveryTest(unittest.TestCase):
         self.assertEqual(image.mode, "RGBA")
         self.assertEqual(image.size, (256, 256))
         arr = np.array(image)
-        purple = np.array(parse_color(delivery_style.STROKE))
+        purple = np.array(parse_color(PURPLE))
         white = np.array([255, 255, 255])
         # Inside the figure: its own pixels, opaque.
         np.testing.assert_array_equal(arr[128, 100, :3], (40, 40, 40))
@@ -537,7 +555,7 @@ class DeliveryTest(unittest.TestCase):
         self.assertEqual(arr[0, 0, 3], 0)
         opaque = arr[..., 3] > 0
         self.assertFalse((arr[..., :3] == white).all(axis=2)[opaque].any())
-        self.assertEqual(tag, "transparent-w0-p3")
+        self.assertEqual(tag, "transparent-o3")
 
     def test_transparent_keeps_the_retrace_inside_the_soft_matte(self):
         pixels = np.full((256, 256, 3), (210, 230, 235), dtype=np.uint8)
@@ -550,7 +568,7 @@ class DeliveryTest(unittest.TestCase):
         arr = np.array(Image.open(io.BytesIO(cut)))
         # The shading column is band, not figure: the purple stroke paints
         # over it, and the figure's own edge stays where the soft matte put it.
-        purple = parse_color(delivery_style.STROKE)
+        purple = parse_color(PURPLE)
         np.testing.assert_array_equal(arr[128, 161, :3], purple)
         np.testing.assert_array_equal(arr[128, 158, :3], (215, 228, 232))
         self.assertEqual(arr[128, 158, 3], 255)
@@ -578,7 +596,7 @@ class DeliveryTest(unittest.TestCase):
 
     def test_band_alphas_light_thins_the_purple_band_toward_the_light(self):
         figure, cy, cx, radius = self._disc_figure()
-        _, purple = band_alphas(figure, light="ne")
+        [purple] = band_alphas(figure, light="ne")
         r = 2 ** -0.5
         steps = np.arange(0, 40)
 
@@ -593,9 +611,9 @@ class DeliveryTest(unittest.TestCase):
 
     def test_band_alphas_extrusion_widths_match_thin_and_thick_multiples(self):
         figure, cy, cx, radius = self._disc_figure(size=400, radius=80)
-        purple_w = 400 * delivery_style.STROKE_WIDTH_PCT / 100
-        white, purple = band_alphas(figure, light="n")
-        visible_purple = (purple >= 0.5) & (white < 0.5)
+        purple_w = 400 * PURPLE_WIDTH_PCT / 100
+        [purple] = band_alphas(figure, light="n")
+        visible_purple = purple >= 0.5
         column = int(cx)
         above = visible_purple[:int(cy) - radius, column]
         below = visible_purple[int(cy) + radius:, column]
@@ -622,7 +640,7 @@ class DeliveryTest(unittest.TestCase):
 
         def levels(edge_smooth):
             with mock.patch.object(delivery_style, "STROKE_EDGE_SMOOTH", edge_smooth):
-                _, purple = band_alphas(figure, eps_pct=0)
+                [purple] = band_alphas(figure, eps_pct=0)
             values = purple[rows].ravel()
             intermediate = values[(values > 0.05) & (values < 0.95)]
             return len(np.unique(np.round(intermediate, 3)))
@@ -637,20 +655,18 @@ class DeliveryTest(unittest.TestCase):
         edge = figure & ~ndimage.binary_erosion(figure)
         for eps in (None, 0.0):
             with self.subTest(eps=eps):
-                white, purple = band_alphas(figure, eps_pct=eps)
-                self.assertEqual(white.max(), 0.0)
+                [purple] = band_alphas(figure, eps_pct=eps)
                 self.assertGreater(purple[100, 141], 0.5)
                 self.assertEqual(purple[100, 150], 0.0)
-        white, purple = band_alphas(figure)
+        [purple] = band_alphas(figure)
         np.testing.assert_array_equal(purple[edge], 1.0)
         self.assertEqual(purple[ndimage.binary_erosion(figure)].max(), 0.0)
 
-    def test_band_alphas_none_light_without_a_white_band_has_no_purple(self):
+    def test_band_alphas_without_outlines_is_empty(self):
         figure = np.zeros((200, 200), dtype=bool)
         figure[60:140, 60:140] = True
-        white, purple = band_alphas(figure, light="none")
-        self.assertEqual(white.max(), 0.0)
-        self.assertEqual(purple.max(), 0.0)
+        for eps in (None, 0.0):
+            self.assertEqual(band_alphas(figure, [], light="n", eps_pct=eps), [])
 
     def test_clean_background_matted_blends_a_soft_edge_with_the_stroke(self):
         size = 200
@@ -662,7 +678,7 @@ class DeliveryTest(unittest.TestCase):
         cleaned, tag = clean_background(
             png(pixels), png(alpha), backdrop="#102030", matted=True)
         arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB")).astype(float)
-        stroke = np.array(parse_color(delivery_style.STROKE), dtype=float)
+        stroke = np.array(parse_color(PURPLE), dtype=float)
         expected = (128 / 255) * np.array(figure_rgb) + (1 - 128 / 255) * stroke
         np.testing.assert_allclose(arr[100, 139], expected, atol=3)
         np.testing.assert_array_equal(arr[100, 100], figure_rgb)
@@ -679,7 +695,7 @@ class DeliveryTest(unittest.TestCase):
         alpha[60:140, 139] = 128
         cut, tag = transparent(png(pixels), png(alpha), matted=True)
         rgba = np.array(Image.open(io.BytesIO(cut))).astype(float)
-        stroke = np.array(parse_color(delivery_style.STROKE), dtype=float)
+        stroke = np.array(parse_color(PURPLE), dtype=float)
         expected = (128 / 255) * np.array(figure_rgb) + (1 - 128 / 255) * stroke
         np.testing.assert_allclose(rgba[100, 139, :3], expected, atol=3)
         self.assertEqual(rgba[100, 139, 3], 255)
@@ -690,24 +706,20 @@ class DeliveryTest(unittest.TestCase):
 
     def test_band_alphas_without_light_matches_omitting_the_argument(self):
         figure, *_ = self._disc_figure()
-        white_a, purple_a = band_alphas(figure)
-        white_b, purple_b = band_alphas(figure, light=None)
-        np.testing.assert_array_equal(white_a, white_b)
-        np.testing.assert_array_equal(purple_a, purple_b)
+        for a, b in zip(band_alphas(figure, WHITE_PURPLE),
+                        band_alphas(figure, WHITE_PURPLE, light=None)):
+            np.testing.assert_array_equal(a, b)
 
     def test_band_alphas_even_matches_no_light(self):
         figure, *_ = self._disc_figure()
-        white_a, purple_a = band_alphas(figure, light=None)
-        white_b, purple_b = band_alphas(figure, light="even")
-        np.testing.assert_array_equal(white_a, white_b)
-        np.testing.assert_array_equal(purple_a, purple_b)
+        for a, b in zip(band_alphas(figure, WHITE_PURPLE, light=None),
+                        band_alphas(figure, WHITE_PURPLE, light="even")):
+            np.testing.assert_array_equal(a, b)
 
-    def test_band_alphas_none_keeps_the_white_band_and_drops_the_purple(self):
+    def test_band_alphas_none_is_no_longer_a_light(self):
         figure, *_ = self._disc_figure()
-        white_a, _ = band_alphas(figure, light=None)
-        white_b, purple_b = band_alphas(figure, light="none")
-        np.testing.assert_array_equal(white_a, white_b)
-        self.assertEqual(purple_b.max(), 0.0)
+        with self.assertRaises(ValueError):
+            band_alphas(figure, light="none")
 
     def test_band_alphas_unknown_light_key_raises(self):
         figure, *_ = self._disc_figure()
@@ -717,9 +729,9 @@ class DeliveryTest(unittest.TestCase):
         for key in ("n", "ne", "e", "se", "s", "sw", "w", "nw"):
             self.assertIn(repr(key), message)
 
-    def test_stroke_colour_is_the_hand_cut_mauve(self):
-        self.assertEqual(delivery_style.STROKE, "#885b80")
-        self.assertEqual(parse_color(delivery_style.STROKE), (136, 91, 128))
+    def test_the_outermost_default_outline_is_the_hand_cut_mauve(self):
+        self.assertEqual(delivery_style.DELIVER_DEFAULTS["outlines"][-1]["color"], "#885b80")
+        self.assertEqual(parse_color("#885b80"), (136, 91, 128))
 
     def _noisy_circle_figure(self, size=1000, radius=300, hole_radius=90,
                              noise_amp=4.0, freq=50):
@@ -745,16 +757,16 @@ class DeliveryTest(unittest.TestCase):
 
     def test_band_alphas_cut_eps_straightens_a_noisy_outline(self):
         figure = self._noisy_circle_figure()
-        with mock.patch.object(delivery_style, "WHITE_WIDTH_PCT", 1.3):
-            smooth_white, _ = band_alphas(figure, eps_pct=0)
-            cut_white, _ = band_alphas(figure, eps_pct=1.0)
+        wide_white = [{"color": "#ffffff", "width": 1.3}, PURPLE_ONLY[0]]
+        smooth_white, _ = band_alphas(figure, wide_white, eps_pct=0)
+        cut_white, _ = band_alphas(figure, wide_white, eps_pct=1.0)
         smooth_vertices = self._contour_vertex_count(smooth_white >= 0.5)
         cut_vertices = self._contour_vertex_count(cut_white >= 0.5)
         self.assertLess(cut_vertices, smooth_vertices / 3)
 
     def test_band_alphas_cut_eps_keeps_the_enclosed_hole(self):
         figure = self._noisy_circle_figure()
-        white_a, purple_a = band_alphas(figure, eps_pct=1.0)
+        white_a, purple_a = band_alphas(figure, WHITE_PURPLE, eps_pct=1.0)
         cy = cx = 500
         # Well inside the hole radius (90), away from either band's reach.
         self.assertLess(white_a[cy, cx], 0.5)
@@ -765,14 +777,14 @@ class DeliveryTest(unittest.TestCase):
         pixels[64:192, 64:160] = (40, 40, 40)
         _, tag = transparent(png(pixels), matte(pixels.shape[:2], (64, 192, 64, 160)),
                              light="ne")
-        self.assertEqual(tag, "transparent-w0-p3-cut0.5-light-ne")
+        self.assertEqual(tag, "transparent-o3-cut0.5-light-ne")
 
     def test_clean_background_light_appends_a_tag_suffix(self):
         pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
         pixels[8:24, 10:22] = (40, 40, 40)
         _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)),
                                   light="sw")
-        self.assertRegex(tag, r"^clean-w\d+-p\d+-cut0\.5-light-sw-shadow$")
+        self.assertRegex(tag, r"^clean-o\d+-cut0\.5-light-sw-shadow$")
 
     def test_clean_background_backdrop_stripes_tag_and_pattern(self):
         pixels = np.full((64, 64, 3), (210, 230, 235), dtype=np.uint8)
@@ -780,7 +792,7 @@ class DeliveryTest(unittest.TestCase):
         cleaned, tag = clean_background(
             png(pixels), matte(pixels.shape[:2], (16, 48, 16, 48)),
             backdrop="stripes")
-        self.assertRegex(tag, r"^clean-w\d+-p\d+-bg-stripes-cut0\.5$")
+        self.assertRegex(tag, r"^clean-o\d+-bg-stripes-cut0\.5$")
         arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB"))
         corners = [tuple(arr[0, 0]), tuple(arr[0, -1]),
                   tuple(arr[-1, 0]), tuple(arr[-1, -1])]
@@ -791,20 +803,20 @@ class DeliveryTest(unittest.TestCase):
         pixels[8:24, 10:22] = (40, 40, 40)
         _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)),
                                   backdrop="#c7e5e9")
-        self.assertRegex(tag, r"^clean-w\d+-p\d+-bg-c7e5e9-cut0\.5$")
+        self.assertRegex(tag, r"^clean-o\d+-bg-c7e5e9-cut0\.5$")
 
     def test_clean_background_backdrop_none_tag_unchanged(self):
         pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
         pixels[8:24, 10:22] = (40, 40, 40)
         _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)))
-        self.assertRegex(tag, r"^clean-w\d+-p\d+-cut0\.5$")
+        self.assertRegex(tag, r"^clean-o\d+-cut0\.5$")
 
     def test_clean_background_cut_tag_suffix_absent_at_eps_zero(self):
         pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
         pixels[8:24, 10:22] = (40, 40, 40)
         with mock.patch.object(delivery_style, "STROKE_CUT_EPS_PCT", 0):
             _, tag = clean_background(png(pixels), matte(pixels.shape[:2], (8, 24, 10, 22)))
-        self.assertRegex(tag, r"^clean-w\d+-p\d+$")
+        self.assertRegex(tag, r"^clean-o\d+$")
         self.assertNotIn("-cut", tag)
 
     def test_keyed_coverage_ramps_the_edge_band_by_colour_distance(self):
@@ -911,7 +923,7 @@ class DeliveryTest(unittest.TestCase):
         edge = arr[box[0], 100]
         self.assertLessEqual(edge[1], max(edge[0], edge[2]))
         np.testing.assert_allclose(
-            arr[box[0] - 1, 100], parse_color(delivery_style.STROKE), atol=12)
+            arr[box[0] - 1, 100], parse_color(PURPLE), atol=12)
         np.testing.assert_array_equal(arr[box[0] + 5, 100], figure_colour)
 
         fig_slice = (slice(box[0], box[1]), slice(box[2], box[3]))
@@ -998,20 +1010,20 @@ class DeliveryTest(unittest.TestCase):
         cols = np.where((np.abs(lit - bare).sum(axis=2) > 1).any(axis=0))[0]
         self.assertAlmostEqual((cols.min() + cols.max()) / 2, centre, delta=1)
 
-    def test_sticker_even_and_none_throw_no_shadow(self):
+    def test_sticker_even_and_no_outlines_throw_no_shadow(self):
         pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
-        for light in ("even", "none"):
+        for light, outlines in (("even", None), ("n", [])):
             composite = sticker(pixels, figure, coverage, backdrop_rgb,
-                                light=light, shadow=True)
+                                light=light, shadow=True, outlines=outlines)
             below = composite[centre + half + self._SHADOW_ROWS.start:
                              centre + half + self._SHADOW_ROWS.stop,
                              centre - 10:centre + 10]
             np.testing.assert_allclose(below, 200.0)
 
-    def test_sticker_shadow_from_throws_a_shadow_without_a_purple_band(self):
+    def test_sticker_shadow_from_throws_a_shadow_with_an_even_band(self):
         pixels, figure, coverage, backdrop_rgb, centre, half = self._sticker_inputs()
-        bare = sticker(pixels, figure, coverage, backdrop_rgb, light="none")
-        lit = sticker(pixels, figure, coverage, backdrop_rgb, light="none",
+        bare = sticker(pixels, figure, coverage, backdrop_rgb, light="even")
+        lit = sticker(pixels, figure, coverage, backdrop_rgb, light="even",
                       shadow=True, shadow_from="n")
         rows = np.where((np.abs(lit - bare).sum(axis=2) > 1).any(axis=1))[0]
         self.assertGreater(rows.size, 0)
@@ -1025,6 +1037,149 @@ class DeliveryTest(unittest.TestCase):
                          centre + half + self._SHADOW_ROWS.stop,
                          centre - 10:centre + 10]
         np.testing.assert_allclose(below, 200.0)
+
+
+def purple_only_input():
+    """The synthetic figure tests/fixtures/delivery-purple-only.npz was
+    rendered from, with the white band at 0, before outlines were a list."""
+    height, width = 180, 140
+    yy, xx = np.mgrid[0:height, 0:width]
+    body = ((xx - 70) / 34.0) ** 2 + ((yy - 95) / 62.0) ** 2 <= 1.0
+    arm = (np.abs(yy - 70) < 7) & (xx > 30) & (xx < 120)
+    soft = ndimage.gaussian_filter((body | arm).astype(float), 1.2)
+    px = np.zeros((height, width, 3), np.uint8)
+    px[..., 0] = 120 + (xx % 50)
+    px[..., 1] = 90 + (yy % 40)
+    px[..., 2] = 160
+    return px, np.clip(np.rint(soft * 255), 0, 255).astype(np.uint8)
+
+
+def decode(data: bytes) -> np.ndarray:
+    return np.array(Image.open(io.BytesIO(data)))
+
+
+class OutlinesTest(unittest.TestCase):
+    def square(self, size=200):
+        figure = np.zeros((size, size), dtype=bool)
+        figure[60:140, 60:140] = True
+        return figure
+
+    def test_a_purple_only_list_reproduces_the_white_zero_delivery(self):
+        golden = np.load(Path(__file__).parent / "fixtures" / "delivery-purple-only.npz")
+        px, soft = purple_only_input()
+        image, matte_png = png(px), png(soft)
+        figure = soft >= 128
+        rendered = {
+            "clean_n": clean_background(image, matte_png, light="n", backdrop="dots",
+                                        matted=True, outlines=PURPLE_ONLY)[0],
+            "clean_even": clean_background(image, matte_png, light="even",
+                                           backdrop="#c7e5e9", matted=True,
+                                           outlines=PURPLE_ONLY)[0],
+            "clean_moon": clean_background(image, matte_png, light="se", backdrop="dots",
+                                           scene="moon", light_from="se", matted=True,
+                                           outlines=PURPLE_ONLY)[0],
+            "transparent_n": transparent(image, matte_png, light="n", matted=True,
+                                         outlines=PURPLE_ONLY)[0],
+            "transparent_even": transparent(image, matte_png, light="even", matted=True,
+                                            outlines=PURPLE_ONLY)[0],
+        }
+        for name, data in rendered.items():
+            with self.subTest(name=name):
+                np.testing.assert_array_equal(decode(data), golden[name])
+        for light in ("even", "n"):
+            for eps in (None, 0.0):
+                with self.subTest(light=light, eps=eps):
+                    [purple] = band_alphas(figure, PURPLE_ONLY, light, eps)
+                    np.testing.assert_array_equal(purple, golden[f"bands_{light}_{eps}"])
+
+    def test_two_bands_put_the_white_inside_the_purple(self):
+        figure = self.square()
+        wide = [{"color": "#ffffff", "width": 2.0}, {"color": PURPLE, "width": 2.0}]
+        for eps in (None, 0.0):
+            with self.subTest(eps=eps), mock.patch.object(
+                    delivery_style, "STROKE_CUT_EPS_PCT", 0.5 if eps is None else 0):
+                white, purple = band_alphas(figure, wide)
+                composite = sticker(np.zeros((200, 200, 3)), figure,
+                                    figure.astype(float), (0, 0, 0), "even",
+                                    outlines=wide)
+                self.assertGreater(white[100, 141], 0.5)
+                self.assertGreater(purple[100, 146], 0.5)
+                self.assertLess(white[100, 146], 0.5)
+                np.testing.assert_allclose(composite[100, 141], 255, atol=1)
+                np.testing.assert_allclose(composite[100, 146], parse_color(PURPLE), atol=1)
+                self.assertEqual(composite[100, 160].max(), 0)
+
+    def test_three_bands_stack_outward_in_order(self):
+        figure = self.square()
+        three = [{"color": "#ff0000", "width": 1.0}, {"color": "#00ff00", "width": 1.0},
+                 {"color": "#0000ff", "width": 1.0}]
+        alphas = band_alphas(figure, three, light="even", eps_pct=0)
+        self.assertEqual(len(alphas), 3)
+        composite = sticker(np.zeros((200, 200, 3)), figure, figure.astype(float),
+                            (255, 255, 255), "even", outlines=three)
+        for column, colour in ((141, (255, 0, 0)), (143, (0, 255, 0)),
+                               (145, (0, 0, 255)), (160, (255, 255, 255))):
+            with self.subTest(column=column):
+                np.testing.assert_allclose(composite[100, column], colour, atol=2)
+
+    def test_the_innermost_band_runs_under_the_figure_edge(self):
+        figure = self.square()
+        edge = figure & ~ndimage.binary_erosion(figure)
+        white, purple = band_alphas(figure, WHITE_PURPLE)
+        np.testing.assert_array_equal(white[edge], 1.0)
+        self.assertEqual(purple[figure].max(), 0.0)
+
+    def test_the_light_extrudes_only_the_outermost_band(self):
+        figure = self.square(400)
+        even = band_alphas(figure, WHITE_PURPLE, light="even")
+        lit = band_alphas(figure, WHITE_PURPLE, light="n")
+        np.testing.assert_array_equal(even[0], lit[0])
+        self.assertGreater((lit[1] >= 0.5).sum(), (even[1] >= 0.5).sum())
+
+    def test_no_bands_frame_nothing_and_throw_no_shadow(self):
+        figure = self.square()
+        backdrop = np.full((200, 200, 3), 200.0)
+        composite = sticker(np.zeros((200, 200, 3)), figure, figure.astype(float),
+                            backdrop, "n", shadow=True, outlines=[])
+        np.testing.assert_array_equal(composite[~figure], 200.0)
+        cut, _ = transparent(png(np.full((200, 200, 3), 40, np.uint8)),
+                             png(figure.astype(np.uint8) * 255), matted=True,
+                             outlines=[])
+        self.assertEqual(decode(cut)[..., 3][~figure].max(), 0)
+
+    def test_the_layers_composite_back_to_the_delivered_picture(self):
+        px, soft = purple_only_input()
+        for kwargs in (dict(light="n", backdrop="dots"),
+                       dict(light="se", backdrop="dots", scene="moon", light_from="se")):
+            with self.subTest(**kwargs):
+                picture, figure, outline, backdrop, _ = deliver_pngs(
+                    png(px), png(soft), matted=True, outlines=WHITE_PURPLE, **kwargs)
+                fig, out = decode(figure) / 255.0, decode(outline) / 255.0
+                result = decode(backdrop).astype(float)
+                for layer in (out, fig):
+                    result = (layer[..., :3] * 255 * layer[..., 3:]
+                              + result * (1 - layer[..., 3:]))
+                np.testing.assert_allclose(result, decode(picture), atol=2)
+
+    def test_a_transparent_delivery_has_no_backdrop_layer(self):
+        px, soft = purple_only_input()
+        picture, figure, outline, backdrop, _ = deliver_pngs(
+            png(px), png(soft), transparent=True, matted=True, light="n")
+        self.assertIsNone(backdrop)
+        self.assertEqual(Image.open(io.BytesIO(figure)).mode, "RGBA")
+        out, delivered = decode(outline), decode(picture)
+        self.assertGreater(out[..., 3].max(), 0)
+        self.assertTrue((delivered[..., 3].astype(int) >= out[..., 3].astype(int) - 1).all())
+
+    def test_a_kept_scene_is_its_own_backdrop_with_an_empty_outline(self):
+        px, soft = purple_only_input()
+        picture, figure, outline, backdrop, tag = deliver_pngs(
+            png(px), png(soft), keep_scene=True)
+        self.assertEqual(tag, "scene")
+        np.testing.assert_array_equal(decode(backdrop), px)
+        np.testing.assert_array_equal(decode(picture), px)
+        self.assertEqual(decode(outline)[..., 3].max(), 0)
+        np.testing.assert_array_equal(decode(figure)[..., 3], soft)
 
 
 if __name__ == "__main__":

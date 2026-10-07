@@ -15,14 +15,13 @@ from typing import NamedTuple
 # The backdrop every delivered picture is repainted to.
 BACKDROP = "#ffffff"
 
-# White band between the figure and the purple stroke, as a share of the
-# longest side. 0: the matting alpha meets the stroke directly.
-WHITE_WIDTH_PCT = 0.0
-
-# Purple marker around the figure, deliberately darker than the hair accent.
-STROKE = "#885b80"
-# Width as a share of the longest side.
-STROKE_WIDTH_PCT = 1.04
+# The bands framing the figure, innermost first: each a colour and a width
+# as a share of the longest side. The purple marker, outermost, is
+# deliberately darker than the hair accent.
+OUTLINES = ({"color": "#ffffff", "width": 0.4},
+            {"color": "#885b80", "width": 1.04})
+OUTLINES_MAX = 6
+OUTLINE_WIDTH_MAX_PCT = 5
 
 # Douglas-Peucker epsilon for the band outlines' outer edge, as a percent of
 # the longest side, for a hand-cut angular look instead of the smooth
@@ -30,17 +29,17 @@ STROKE_WIDTH_PCT = 1.04
 # branches on this.
 STROKE_CUT_EPS_PCT = 0.5
 
-# Purple width on the side facing the light / length of the extrusion away
-# from it, in uniform widths.
+# Outermost band width on the side facing the light / length of the
+# extrusion away from it, in its uniform widths.
 STROKE_LIGHT_THIN = 1.0
 STROKE_LIGHT_THICK = 2.8
-# Sigma of the distance-field blur the outline normal is read from, in purple
-# widths -- the smooth-ramp path (STROKE_CUT_EPS_PCT 0) only; the hand-cut
+# Sigma of the distance-field blur the outline normal is read from, in
+# outermost band widths -- the smooth-ramp path (STROKE_CUT_EPS_PCT 0) only; the hand-cut
 # extrusion sweeps a uniform band instead and does not use it.
 STROKE_LIGHT_SMOOTH = 1.0
 
-# Drop shadow throw, in purple widths, straight away from the light -- the
-# same direction the purple band is extruded.
+# Drop shadow throw, in outermost band widths, straight away from the light
+# -- the same direction that band is extruded.
 STICKER_SHADOW_OFFSET = 1.6
 # How much the shadow darkens the backdrop under it, 0..1.
 STICKER_SHADOW_DARKEN = 0.28
@@ -55,11 +54,10 @@ STROKE_LIGHTS = {
     "n": (0.0, -1.0), "ne": (_R, -_R), "e": (1.0, 0.0), "se": (_R, _R),
     "s": (0.0, 1.0), "sw": (-_R, _R), "w": (-1.0, 0.0), "nw": (-_R, -_R),
 }
-# `stroke_light` values without a light: no purple band, or a uniform one
-# (null is accepted as "even").
-STROKE_NONE = "none"
+# The `stroke_light` value without a light: a uniform outermost band (null
+# is accepted as "even").
 STROKE_EVEN = "even"
-STROKE_CHOICES = (STROKE_NONE, STROKE_EVEN, *STROKE_LIGHTS)
+STROKE_CHOICES = (STROKE_EVEN, *STROKE_LIGHTS)
 
 # `stripes` backdrop: diagonal bands in the hair's lavender with a white
 # radial burst. Lengths are shares of the longest side.
@@ -526,15 +524,9 @@ DOF_F_NUMBER = {"min": 1.4, "max": 22, "default": 2.8,
                 "stops": [1.4, 1.6, 1.8, 2.0, 2.2, 2.5, 2.8, 3.2, 3.5, 4.0, 4.5,
                           5.0, 5.6, 6.3, 7.1, 8.0, 9.0, 10.0, 11.0, 13.0, 14.0,
                           16.0, 18.0, 20.0, 22.0]}
-DOF_SCOPE = {"values": ["figure", "all"], "default": "all"}
+# The delivered layers a dof blurs, all of them unless the request says so.
+DOF_SCOPE = {"figure": True, "outline": True, "backdrop": True}
 DOF_VIEWFINDER = {"values": ["off", "on", "both"], "default": "off"}
-
-
-class Dof(NamedTuple):
-    focus: tuple[float, float]
-    f_number: float
-    scope: str | None = None
-    viewfinder: str = "off"
 
 
 class Light(NamedTuple):
@@ -577,7 +569,8 @@ LIGHT_SCENES = {
              "skin_keep": 0.5},
 }
 
-DELIVER_DEFAULTS = {"repin": True, "stroke_light": "n", "backdrop": "dots"}
+DELIVER_DEFAULTS = {"repin": True, "stroke_light": "n", "backdrop": "dots",
+                    "outlines": [dict(outline) for outline in OUTLINES]}
 
 # Replaces `STYLE`'s flat/cel-shaded finish with a rough, unfinished line
 # for the redraw's different checkpoint.

@@ -7,11 +7,12 @@ import unittest
 from comfyui_recipes.application.deliver import RECIPE_DEFAULT
 from comfyui_recipes.application.request_options import (
     deliver_arguments,
+    dof_arguments,
     masked_redraw_arguments,
     redraw_arguments,
     repair_arguments,
 )
-from comfyui_recipes.domain.yukari.delivery_style import Dof, Light
+from comfyui_recipes.domain.yukari.delivery_style import Light
 from comfyui_recipes.domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH
 from comfyui_recipes.domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 
@@ -113,7 +114,9 @@ class DeliverArgumentsTest(unittest.TestCase):
         self.assertEqual(deliver_arguments({}), {
             "repin": True, "skin": False, "recolor": False, "keep_legwear": None,
             "keep_scene": False, "transparent": False, "backdrop": "dots",
-            "stroke_light": RECIPE_DEFAULT, "deliver_size": None, "dof": None,
+            "stroke_light": RECIPE_DEFAULT, "deliver_size": None,
+            "outlines": [{"color": "#ffffff", "width": 0.4},
+                         {"color": "#885b80", "width": 1.04}],
             "light": None})
 
     def test_unknown_keys_are_rejected(self):
@@ -187,32 +190,81 @@ class DeliverArgumentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "light の from"):
             deliver_arguments({"light": {"scene": "moon", "from": "se"},
                                "stroke_light": "n"})
-        for neutral in ("none", "even"):
-            self.assertEqual(
-                deliver_arguments({"light": {"scene": "moon", "from": "se"},
-                                   "stroke_light": neutral})["stroke_light"],
-                neutral)
-
-    def test_dof_scope_defaults_by_whether_there_is_a_backdrop(self):
-        dof = {"focus": [0.5, 0.5], "f_number": 2.8}
-        self.assertEqual(deliver_arguments({"dof": dof})["dof"].scope, "all")
         self.assertEqual(
-            deliver_arguments({"dof": dof, "transparent": True})["dof"].scope,
-            "figure")
-        self.assertEqual(
-            deliver_arguments({"dof": {**dof, "viewfinder": "both"}})["dof"],
-            Dof((0.5, 0.5), 2.8, "all", "both"))
+            deliver_arguments({"light": {"scene": "moon", "from": "se"},
+                               "stroke_light": "even"})["stroke_light"],
+            "even")
 
-    def test_dof_scope_all_conflicts_with_a_transparent_delivery(self):
-        with self.assertRaisesRegex(ValueError, "scope 'all'"):
-            deliver_arguments({"transparent": True, "dof": {
-                "focus": [0.5, 0.5], "f_number": 2.8, "scope": "all"}})
+    def test_stroke_light_none_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "stroke_light"):
+            deliver_arguments({"stroke_light": "none"})
+
+    def test_dof_and_viewfinder_are_no_longer_deliver_options(self):
+        for key in ("dof", "viewfinder"):
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, key):
+                deliver_arguments({key: {"focus": [0.5, 0.5]}})
+
+    def test_outlines_take_a_list_of_bands_or_none(self):
+        bands = [{"color": "#FFFFFF", "width": 0.8}, {"color": "#885b80", "width": 2}]
+        self.assertEqual(deliver_arguments({"outlines": bands})["outlines"],
+                         [{"color": "#ffffff", "width": 0.8},
+                          {"color": "#885b80", "width": 2.0}])
+        self.assertEqual(deliver_arguments({"outlines": []})["outlines"], [])
+        self.assertEqual(deliver_arguments({"outlines": None})["outlines"],
+                         deliver_arguments({})["outlines"])
+        self.assertEqual(len(deliver_arguments(
+            {"outlines": [{"color": "#000000", "width": 5}] * 6})["outlines"]), 6)
+
+    def test_bad_outlines_are_rejected(self):
+        band = {"color": "#885b80", "width": 1.0}
+        for bad in ({"color": "#885b80"}, [band] * 7, [{"color": "885b80", "width": 1}],
+                    [{"color": "#885b8", "width": 1}], [{"color": "#885b80", "width": 0}],
+                    [{"color": "#885b80", "width": 5.1}],
+                    [{"color": "#885b80", "width": True}],
+                    [{"color": "#885b80", "width": 1, "extra": 1}], ["#885b80"]):
+            with self.subTest(bad=bad), self.assertRaisesRegex(ValueError, "outlines"):
+                deliver_arguments({"outlines": bad})
 
     def test_deliver_size_must_be_a_positive_integer(self):
         self.assertEqual(deliver_arguments({"deliver_size": 1536})["deliver_size"], 1536)
         for bad in (0, "big", True):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 deliver_arguments({"deliver_size": bad})
+
+
+class DofArgumentsTest(unittest.TestCase):
+    def test_defaults_take_the_catalog_values(self):
+        self.assertEqual(dof_arguments({"focus": [0.5, 0.25]}), {
+            "focus": (0.5, 0.25), "f_number": 2.8, "viewfinder": "off",
+            "scope": {"figure": True, "outline": True, "backdrop": True}})
+
+    def test_a_partial_scope_keeps_the_rest_on(self):
+        arguments = dof_arguments({"focus": [0, 1], "f_number": 1.4,
+                                   "scope": {"backdrop": False}, "viewfinder": "both"})
+        self.assertEqual(arguments["scope"],
+                         {"figure": True, "outline": True, "backdrop": False})
+        self.assertEqual((arguments["f_number"], arguments["viewfinder"]), (1.4, "both"))
+
+    def test_every_layer_off_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "scope"):
+            dof_arguments({"focus": [0.5, 0.5], "scope": {
+                "figure": False, "outline": False, "backdrop": False}})
+
+    def test_bad_options_are_rejected(self):
+        for bad, key in (({}, "focus"), ({"focus": [0.5]}, "focus"),
+                         ({"focus": [0.5, 1.2]}, "focus"),
+                         ({"focus": [0.5, True]}, "focus"),
+                         ({"focus": [0.5, 0.5], "f_number": 1.2}, "f_number"),
+                         ({"focus": [0.5, 0.5], "f_number": 23}, "f_number"),
+                         ({"focus": [0.5, 0.5], "scope": "all"}, "scope"),
+                         ({"focus": [0.5, 0.5], "scope": {"rim": True}}, "scope"),
+                         ({"focus": [0.5, 0.5], "scope": {"figure": 1}}, "scope"),
+                         ({"focus": [0.5, 0.5], "viewfinder": "yes"}, "viewfinder"),
+                         ({"focus": [0.5, 0.5], "blur": 1}, "blur")):
+            with self.subTest(bad=bad), self.assertRaisesRegex(ValueError, key):
+                dof_arguments(bad)
+        with self.assertRaisesRegex(ValueError, "object"):
+            dof_arguments([])
 
 
 class RepairArgumentsTest(unittest.TestCase):

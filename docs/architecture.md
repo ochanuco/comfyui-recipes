@@ -28,12 +28,15 @@ src/comfyui_recipes/
     ├── notifications/   # Discord side channel
     └── persistence/     # crash-resume state
 comfy_nodes/
-├── yukari_finalize/      # ComfyUI custom node pack wrapping imaging/ for the finalize graph
+├── yukari_finalize/      # ComfyUI custom node pack wrapping imaging/ for the finalize and deliver graphs
 └── yukari_worker/        # ComfyUI custom node pack hosting the worker's claim loop
 ```
 
 `infrastructure/imaging/` is shared: `comfy_nodes/yukari_finalize/` wraps its
 functions unchanged as ComfyUI nodes rather than duplicating them.
+`YukariMatting` turns the image and the coarse matte into the alpha, and
+`YukariForeground` estimates the figure's colour under an alpha; the deliver
+graph runs the first once per source picture and the second after every repin.
 
 ## Domain
 

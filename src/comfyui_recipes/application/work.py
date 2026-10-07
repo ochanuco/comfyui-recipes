@@ -15,15 +15,18 @@ from typing import Protocol
 from urllib.parse import quote
 
 from .catalog import publish_catalog as publish_catalog_document
+from .deliver import DeliverServices, deliver
 from .finalize import FinalizeServices, finalize
 from .generate import GenerateServices, generate, request_file_path
 from .masked_redraw import MaskedRedrawServices, masked_redraw
 from .repair import RepairServices, repair
 from .request_options import (
+    DELIVER_DIAL_KEYS,
     FINALIZE_DIAL_KEYS,
     REPAIR_DIAL_KEYS,
     _MASKED_REDRAW_DIAL_KEYS,
     _resolved_options,
+    deliver_arguments,
     dials_scope,
     finalize_arguments,
     masked_redraw_arguments,
@@ -47,18 +50,21 @@ class WorkServices:
     management: Management
     generate_services: GenerateServices
     finalize_services: FinalizeServices
+    deliver_services: DeliverServices
     repair_services: RepairServices
     masked_redraw_services: MaskedRedrawServices
     git_metadata: Callable[[], dict]
     worker_id: str
     generate: Callable[..., dict | None] = generate
     finalize: Callable[..., dict] = finalize
+    deliver: Callable[..., dict] = deliver
     repair: Callable[..., dict] = repair
     masked_redraw: Callable[..., dict] = masked_redraw
     emit: Callable[[str], None] = print
     sleep: Callable[[float], None] = time.sleep
     heartbeat_interval: float = 30
-    kinds: tuple[str, ...] = ("generate", "finalize", "repair", "masked_redraw")
+    kinds: tuple[str, ...] = ("generate", "finalize", "deliver", "repair",
+                              "masked_redraw")
     heartbeat: Callable[..., Heartbeat] = Heartbeat
     hub: Callable[[], Connection] | None = None
     draining: Callable[[], bool] | None = None
@@ -103,6 +109,26 @@ def _execute_finalize(services: WorkServices, row: Mapping) -> dict:
                                request_id=row["id"], context=context,
                                **arguments)
     result["resolved_options"] = _resolved_options(options, arguments, FINALIZE_DIAL_KEYS)
+    return result
+
+
+def _execute_deliver(services: WorkServices, row: Mapping) -> dict:
+    payload = row.get("payload") or {}
+    generation_id = payload.get("generation_id")
+    if not generation_id:
+        raise SystemExit("deliver payload.generation_id is required")
+    context, recipe = fetch_source(services.management, generation_id)
+    dials = dials_scope(recipe, "deliver")
+    options = payload.get("options") or {}
+    try:
+        arguments = deliver_arguments(options, dials)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    result = services.deliver(generation_id, services.deliver_services,
+                              key_prefix=f"request:{row['id']}",
+                              request_id=row["id"], context=context,
+                              **arguments)
+    result["resolved_options"] = _resolved_options(options, arguments, DELIVER_DIAL_KEYS)
     return result
 
 
@@ -156,6 +182,8 @@ def execute(services: WorkServices, row: Mapping) -> dict:
         return _execute_generate(services, row)
     if kind == "finalize":
         return _execute_finalize(services, row)
+    if kind == "deliver":
+        return _execute_deliver(services, row)
     if kind == "repair":
         return _execute_repair(services, row)
     if kind == "masked_redraw":

@@ -180,14 +180,17 @@ class DepthBlurGraphTest(unittest.TestCase):
     def assert_blur_between_matting_and_deliver(self, graph: dict) -> None:
         repin_id, _ = find(graph, "YukariRepin")
         matting_id, matting = find(graph, "YukariMatting")
+        foreground_id, foreground = find(graph, "YukariForeground")
         depth_id, depth = find(graph, DEPTH_NODE)
         blur_id, blur = find(graph, "YukariDepthBlur")
         _, deliver = find(graph, "YukariDeliver")
         self.assertEqual(matting["inputs"]["image"], [repin_id, 0])
+        self.assertEqual(foreground["inputs"],
+                         {"image": [repin_id, 0], "alpha": [matting_id, 0]})
         self.assertEqual(depth["inputs"]["ckpt_name"], DEPTH_CKPT)
-        self.assertEqual(depth["inputs"]["image"], [matting_id, 0])
-        self.assertEqual(blur["inputs"]["image"], [matting_id, 0])
-        self.assertEqual(blur["inputs"]["matte"], [matting_id, 1])
+        self.assertEqual(depth["inputs"]["image"], [foreground_id, 0])
+        self.assertEqual(blur["inputs"]["image"], [foreground_id, 0])
+        self.assertEqual(blur["inputs"]["matte"], [matting_id, 0])
         self.assertEqual(blur["inputs"]["depth"], [depth_id, 0])
         self.assertEqual(deliver["inputs"]["matte"], [blur_id, 1])
         self.assertEqual(
@@ -251,8 +254,8 @@ class DepthBlurGraphTest(unittest.TestCase):
                     if keep_scene:
                         source_id, matte_slot = repin_id, 0
                     else:
-                        source_id, _ = find(graph, "YukariMatting")
-                        matte_slot = 1
+                        source_id, _ = find(graph, "YukariForeground")
+                        matte_slot = 0
                     self.assertEqual(depth["inputs"]["image"], [source_id, 0])
                     self.assertEqual(deliver["inputs"]["image"], [source_id, 0])
                     self.assertEqual(deliver["inputs"]["matte"][1], matte_slot)

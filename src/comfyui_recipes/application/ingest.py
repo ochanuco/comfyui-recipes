@@ -6,6 +6,7 @@ import uuid
 from collections.abc import Sequence
 from pathlib import Path
 
+from ..infrastructure.comfyui.deliver_graph import ALPHA_SUFFIX, DEPTH_SUFFIX
 from ..infrastructure.comfyui.refinement_graph import (
     DELIVERED_SUFFIX, MATTE_SUFFIX, VIEWFINDER_SUFFIX)
 from ..infrastructure.imaging.safety import rate_image
@@ -32,6 +33,15 @@ def classify_outputs(outputs: list) -> tuple[list, list, list]:
                 and DELIVERED_SUFFIX not in out["filename"]
                 and VIEWFINDER_SUFFIX not in out["filename"]]
     return pictures, delivereds, mattes
+
+
+def classify_deliver_outputs(outputs: list) -> dict[str, list]:
+    """A deliver submission's outputs by role: `alpha` and `depth` when it
+    cut them itself, the `delivered` picture and its `viewfinder` twin."""
+    suffixes = {"alpha": ALPHA_SUFFIX, "depth": DEPTH_SUFFIX,
+                "delivered": DELIVERED_SUFFIX, "viewfinder": VIEWFINDER_SUFFIX}
+    return {role: [out for out in outputs if suffix in out["filename"]]
+            for role, suffix in suffixes.items()}
 
 
 def viewfinder_outputs(outputs: list) -> list:
@@ -103,12 +113,13 @@ def rate_generation(management, emit, generation_id: str, data: bytes) -> None:
 
 
 def attach_asset(management, generation_id: str, *, role: str, name: str,
-                 data: bytes, idempotency_key: str | None = None) -> None:
+                 data: bytes, idempotency_key: str | None = None,
+                 content_type: str = "image/png") -> None:
     management.request(
         "POST", f"/api/v1/generations/{generation_id}/assets",
         multipart=({"role": role,
                     "idempotency_key": idempotency_key or str(uuid.uuid4())},
-                   "file", name, data, "image/png"))
+                   "file", name, data, content_type))
 
 
 def ingest_seed_render(*, comfyui, management, output_root: Path, emit,

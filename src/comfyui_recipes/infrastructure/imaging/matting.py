@@ -1,5 +1,6 @@
 """Per-pixel alpha for the delivery cut: a trimap from the retraced matte,
-solved by a matting model, with the figure's own colour recovered under it.
+solved by a matting model, and the figure's own colour recovered under that
+alpha.
 
 The model and the foreground estimator are passed in, so this module stays
 numpy-only; the worker's node pack supplies both.
@@ -71,35 +72,47 @@ def tiled(predict: Predict, rgb: np.ndarray, known: np.ndarray, tile: int,
     return alpha
 
 
-def finish(px: np.ndarray, alpha: np.ndarray, known: np.ndarray,
-           foreground: Foreground) -> tuple[np.ndarray, np.ndarray]:
-    """The trimap's known regions forced onto `alpha`, and the figure's colour
-    under it: estimated where alpha > 0 and despilled of the raw key on the
-    soft edge, the raw pixel where alpha is 0."""
+def settle(alpha: np.ndarray, known: np.ndarray) -> np.ndarray:
+    """`alpha` clipped to the unit range with the trimap's known regions
+    forced onto it."""
     alpha = np.clip(alpha, 0.0, 1.0)
     alpha[known == KNOWN_FIGURE] = 1.0
     alpha[known == KNOWN_BACKDROP] = 0.0
+    return alpha
+
+
+def figure_colour(px: np.ndarray, alpha: np.ndarray,
+                  foreground: Foreground) -> np.ndarray:
+    """The figure's colour under `alpha`: estimated where alpha > 0 and
+    despilled of the raw key on the soft edge, the raw pixel where alpha is 0."""
     colour = np.clip(foreground(px / 255.0, alpha), 0.0, 1.0) * 255.0
     edge = (alpha > 0) & ~ndimage.binary_erosion(alpha >= 1.0)
     colour = delivery.despill(colour, ndimage.binary_dilation(edge, iterations=2),
                               delivery._corner_seed(px))
-    return np.where((alpha > 0)[..., None], colour, px), alpha
+    return np.where((alpha > 0)[..., None], colour, px)
 
 
-def matte_png(data: bytes, matte: bytes, predict: Predict,
-              foreground: Foreground) -> tuple[bytes, bytes]:
-    """The foreground picture (RGB PNG) and its alpha (L PNG) for `data`,
-    from the matte model's soft output `matte`."""
+def _png(array: np.ndarray, mode: str | None = None) -> bytes:
+    output = io.BytesIO()
+    Image.fromarray(np.clip(np.rint(array), 0, 255).astype(np.uint8), mode).save(
+        output, "PNG")
+    return output.getvalue()
+
+
+def alpha_png(data: bytes, matte: bytes, predict: Predict) -> bytes:
+    """The alpha (L PNG) of the figure in `data`, from the matte model's soft
+    output `matte`."""
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
     soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
     known = trimap(delivery.cut_figure(px, soft), delivery_style.MATTING_TRIMAP_PX)
     alpha = tiled(predict, px.astype(np.uint8), known,
                   delivery_style.MATTING_TILE_PX,
                   delivery_style.MATTING_TILE_OVERLAP_PX)
-    colour, alpha = finish(px, alpha, known, foreground)
-    image_out, alpha_out = io.BytesIO(), io.BytesIO()
-    Image.fromarray(np.clip(np.rint(colour), 0, 255).astype(np.uint8)).save(
-        image_out, "PNG")
-    Image.fromarray(np.clip(np.rint(alpha * 255), 0, 255).astype(np.uint8),
-                    "L").save(alpha_out, "PNG")
-    return image_out.getvalue(), alpha_out.getvalue()
+    return _png(settle(alpha, known) * 255, "L")
+
+
+def foreground_png(data: bytes, alpha: bytes, foreground: Foreground) -> bytes:
+    """The figure's colour (RGB PNG) in `data` under the alpha (L PNG)."""
+    px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
+    solved = np.array(Image.open(io.BytesIO(alpha)).convert("L")).astype(float) / 255.0
+    return _png(figure_colour(px, solved, foreground))

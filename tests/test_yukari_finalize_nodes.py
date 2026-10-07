@@ -136,8 +136,8 @@ class BridgeTest(unittest.TestCase):
 class NodeMappingTest(unittest.TestCase):
     def test_node_class_mappings_cover_every_node(self):
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS), {
-            "YukariRepinSkin", "YukariRepin", "YukariRecolor", "YukariDeliver",
-            "YukariDepthBlur", "YukariDepthBlurLayered", "YukariLight",
+            "YukariRepinSkin", "YukariRepin", "YukariRecolor", "YukariMatting",
+            "YukariDeliver", "YukariDepthBlur", "YukariDepthBlurLayered", "YukariLight",
             "YukariViewfinder",
             "YukariCompose",
             "YukariCutBackdrop",
@@ -189,6 +189,43 @@ class NodeRunTest(unittest.TestCase):
         self.assertEqual(image.array.shape[-1], 3)
         self.assertTrue(tag.startswith("clean-"))
 
+    def test_matting_wiring_returns_the_foreground_and_its_alpha(self):
+        seen = {}
+
+        def predict(rgb, known):
+            seen["known"] = known
+            return np.full(known.shape, 0.5)
+
+        def foreground(rgb, alpha):
+            seen["alpha"] = alpha
+            return rgb
+
+        node = nodes.YukariMatting()
+        pixels = swatch()
+        with mock.patch.object(nodes.vitmatte, "predict", predict), \
+                mock.patch.object(nodes.vitmatte, "foreground", foreground):
+            image, alpha = node.run(
+                image_tensor(pixels), mask_tensor(matte_array()))
+        self.assertEqual(image.array.shape, (1, 64, 64, 3))
+        self.assertEqual(alpha.array.shape, (1, 64, 64))
+        self.assertEqual(set(np.unique(seen["known"])), {0, 128, 255})
+        self.assertEqual(seen["alpha"].shape, (64, 64))
+        result = (alpha.array[0] * 255.0).round()
+        self.assertEqual(result[32, 32], 255)
+        self.assertEqual(result[0, 0], 0)
+        self.assertTrue(((result > 0) & (result < 255)).any())
+
+    def test_deliver_matted_takes_the_alpha_as_coverage(self):
+        node = nodes.YukariDeliver()
+        alpha = matte_array()
+        alpha[16:48, 47] = 128
+        image, tag = node.run(
+            image_tensor(swatch()), mask_tensor(alpha), keep_scene=False,
+            transparent=True, matted=True)
+        self.assertEqual(image.array.shape, (1, 64, 64, 4))
+        self.assertIn("-matted", tag)
+        self.assertNotIn("-key", tag)
+
     def test_deliver_keep_scene_returns_the_redraw_uncut(self):
         node = nodes.YukariDeliver()
         pixels = swatch()
@@ -204,7 +241,7 @@ class NodeRunTest(unittest.TestCase):
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, transparent=True)
         self.assertEqual(image.array.shape, (1, 64, 64, 4))
-        self.assertEqual(tag, "transparent-w1-p1-cut0.5")
+        self.assertEqual(tag, "transparent-w0-p1-cut0.5")
 
     def test_deliver_keep_scene_wins_over_transparent(self):
         node = nodes.YukariDeliver()
@@ -235,7 +272,7 @@ class NodeRunTest(unittest.TestCase):
         image, tag = node.run(
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, transparent=True)
-        self.assertEqual(tag, "transparent-w1-p1-cut0.5")
+        self.assertEqual(tag, "transparent-w0-p1-cut0.5")
 
     def test_deliver_backdrop_stripes_returns_rgb_and_a_bg_tag(self):
         node = nodes.YukariDeliver()

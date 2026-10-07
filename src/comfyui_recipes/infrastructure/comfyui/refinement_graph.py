@@ -12,7 +12,7 @@ from .base_graph import base_roles, sampler_settings
 # Both images come out of one submission, so the matte is the redraw's own
 # alpha rather than a second pass's guess at it.
 MATTE_SUFFIX = "-matte"
-# The delivered composite: background cut, white band, purple stroke.
+# The delivered composite: background cut, purple stroke.
 DELIVERED_SUFFIX = "-delivered"
 # The delivered picture with the camera viewfinder drawn over it.
 VIEWFINDER_SUFFIX = "-viewfinder"
@@ -47,6 +47,26 @@ def _matte_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
     graph[remove] = {"class_type": "RemoveBackground", "inputs": {
         "bg_removal_model": [bg_loader, 0], "image": image_ref}}
     return [remove, 0]
+
+
+def _save_matte(graph: dict, allocate: Callable[[], str], matte_ref: list,
+                prefix: str) -> None:
+    to_image = allocate()
+    graph[to_image] = {"class_type": "MaskToImage", "inputs": {"mask": matte_ref}}
+    save = allocate()
+    graph[save] = {"class_type": "SaveImage", "inputs": {
+        "images": [to_image, 0], "filename_prefix": prefix + MATTE_SUFFIX}}
+
+
+def _matting_node(graph: dict, allocate: Callable[[], str], image_ref: list,
+                  matte_ref: list, prefix: str) -> tuple[list, list]:
+    """The matting stage on the picture the delivery composites, its alpha
+    saved as the matte. Returns the foreground and alpha refs."""
+    node_id = allocate()
+    graph[node_id] = {"class_type": "YukariMatting", "inputs": {
+        "image": image_ref, "matte": matte_ref}}
+    _save_matte(graph, allocate, [node_id, 1], prefix)
+    return [node_id, 0], [node_id, 1]
 
 
 def _depth_nodes(graph: dict, allocate: Callable[[], str], image_ref: list
@@ -119,11 +139,8 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
     graph[raw_save] = {"class_type": "SaveImage", "inputs": {
         "images": image_ref, "filename_prefix": prefix}}
     matte_ref = _matte_nodes(graph, allocate, image_ref, matte_model)
-    to_image = allocate()
-    graph[to_image] = {"class_type": "MaskToImage", "inputs": {"mask": matte_ref}}
-    matte_save = allocate()
-    graph[matte_save] = {"class_type": "SaveImage", "inputs": {
-        "images": [to_image, 0], "filename_prefix": prefix + MATTE_SUFFIX}}
+    if keep_scene:
+        _save_matte(graph, allocate, matte_ref, prefix)
     if skin:
         load_source = allocate()
         graph[load_source] = {"class_type": "LoadImage", "inputs": {"image": source_image}}
@@ -142,6 +159,9 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
             "keep_legwear": keep_legwear is not None,
             "keep_legwear_cut": keep_legwear if keep_legwear is not None else 0.62}}
         image_ref = [repin_id, 0]
+    if not keep_scene:
+        image_ref, matte_ref = _matting_node(
+            graph, allocate, image_ref, matte_ref, prefix)
     if dof is not None:
         depth_ref = _depth_nodes(graph, allocate, image_ref)
         if dof.scope != "all":
@@ -151,7 +171,7 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
     graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
         "image": image_ref, "matte": matte_ref, "keep_scene": keep_scene,
         "transparent": transparent, "stroke_light": stroke_light or "",
-        "backdrop": backdrop or "",
+        "backdrop": backdrop or "", "matted": not keep_scene,
         **({"light_scene": light_scene, "light_from": light_from}
            if light_scene else {})}}
     delivered_ref = [deliver_id, 0]
@@ -389,12 +409,8 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             return node_id
 
         matte_ref = _matte_nodes(graph, allocate, [decode, 0], matte_model)
-        to_image = allocate()
-        graph[to_image] = {"class_type": "MaskToImage", "inputs": {
-            "mask": matte_ref}}
-        save = allocate()
-        graph[save] = {"class_type": "SaveImage", "inputs": {
-            "images": [to_image, 0], "filename_prefix": prefix + MATTE_SUFFIX}}
+        if not deliver or keep_scene:
+            _save_matte(graph, allocate, matte_ref, prefix)
         if deliver:
             if skin and not source_image:
                 raise ValueError("skin requires source_image")
@@ -431,6 +447,9 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                     "keep_legwear_cut": (keep_legwear if keep_legwear is not None
                                          else 0.62)}}
                 image_ref = [repin_id, 0]
+            if not keep_scene:
+                image_ref, matte_ref = _matting_node(
+                    graph, allocate, image_ref, matte_ref, prefix)
             if dof is not None:
                 depth_ref = _depth_nodes(graph, allocate, image_ref)
                 if dof.scope != "all":
@@ -441,6 +460,7 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                 "image": image_ref, "matte": matte_ref,
                 "keep_scene": keep_scene, "transparent": transparent,
                 "stroke_light": stroke_light or "", "backdrop": backdrop or "",
+                "matted": not keep_scene,
                 **({"light_scene": light_scene, "light_from": light_from}
                    if light_scene else {})}}
             delivered_ref = [deliver_id, 0]

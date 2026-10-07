@@ -13,14 +13,25 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
   per request. Defaults: `FINALIZE_DEFAULTS` in `delivery_style.py`. `[Anima]`
 - Finalize defaults: repin on, backdrop `dots`, stroke light from `n`. The
   diagonal stripes + faint focus lines backdrop is `backdrop=stripes`. `[Anima]`
-- Rim is `#885b80`, polygonised (Douglas–Peucker, eps 0.5%) for a hand-cut
-  look; eps stays well under the white band or the outline cuts inside it.
+- No white band: the purple rim sits directly against the matting alpha and
+  also runs under the figure's own edge pixels, so a soft edge blends into
+  the rim, not the backdrop. The prompt still draws `(white outline:1.3)`,
+  which ViTMatte keeps as figure, so a white line shows inside the rim. `[Anima]`
+- Rim is `#885b80`, 1.04% of the longest side, polygonised (Douglas–Peucker,
+  eps 0.5%) for a hand-cut look.
   Light-direction shading on the purple rim, 8 directions; the drop shadow
   falls straight away from the light, the same way the rim is extruded.
   `stroke_light` `even` is a uniform rim, `none` no purple rim. `[all]` (a6 §Hand-cut sticker rim)
-- Matte: RMBG BiRefNet-general + 1 px key alpha + projected despill. Every
-  pose renders on green (grey sat too close to the pale skin at the edge); hair-enclosed green gets `enclosed_cut`. Cast
-  shadows: `soft_clamped` + `shadow_cut` (#183). `[Anima]`
+- Matte: RMBG BiRefNet-general, retraced (`soft_clamped` + `shadow_cut` +
+  `enclosed_cut`), then ViTMatte (`YukariMatting`) on a ±12 px trimap of it,
+  in 512 px tiles; foreground colour by pymatting's estimate, despilled on
+  the soft edge only. The ViTMatte alpha is the saved `mask` asset. Every
+  pose renders on green (grey sat too close to the pale skin at the edge).
+  Green in small pockets between fingers is left by both the old cut and
+  ViTMatte. The 1 px key alpha and `drawn_outline` remain only for graphs
+  recorded before the matting stage. `[Anima]`
+- Depth of field `scope=figure` spreads the out-of-focus figure into a soft
+  alpha over the rim and backdrop instead of fading it into paper white. `[Anima]`
 - Detail density follows the redraw canvas: draw at 2560, shrink to 1536. `[IL]`
 
 ## Holds
@@ -39,8 +50,9 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
 - Transparent finalize composites the bands first and cuts the backdrop after;
   the colour test is bounded by the compose's own band geometry or it holes
   pale hair. `[all]` (a6 §`cut_backdrop`)
-- Stroke width is a share of the figure's own white band, not the canvas; a
-  median band estimate is "not found" past ~50% contour without outline. `[all]` (a4 §肩紐; a4 §The purple stroke's automatic width)
+- Stroke width is a share of the canvas's longest side; a median band
+  estimate from the figure is "not found" past ~50% contour without outline.
+  `[all]` (a4 §肩紐; a4 §The purple stroke's automatic width)
 - Backdrop recolour fringe: shift pixels by their backdrop share inside a 1 px
   feather; tolerance cannot separate fringe from skin. `[all]` (a4 §「じゃぎってる」; a4 §「輪郭の雰囲気)
 - The enclosed-pocket repaint cannot tell a gap from a pale detail inside the

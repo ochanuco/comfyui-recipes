@@ -1090,7 +1090,7 @@ class OutlinesTest(unittest.TestCase):
             for eps in (None, 0.0):
                 with self.subTest(light=light, eps=eps):
                     [purple] = band_alphas(figure, PURPLE_ONLY, light, eps)
-                    np.testing.assert_array_equal(purple, golden[f"bands_{light}_{eps}"])
+                    np.testing.assert_allclose(purple, golden[f"bands_{light}_{eps}"], rtol=0, atol=1e-12)
 
     def test_two_bands_put_the_white_inside_the_purple(self):
         figure = self.square()

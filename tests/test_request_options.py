@@ -145,6 +145,25 @@ class DeliverArgumentsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "backdrop"):
             deliver_arguments({"backdrop": "plaid"})
 
+    def test_null_backdrop_delivers_transparent(self):
+        arguments = deliver_arguments({"backdrop": None})
+        self.assertIs(arguments["transparent"], True)
+        self.assertIsNone(arguments["backdrop"])
+
+    def test_null_backdrop_with_transparent_false_stays_opaque(self):
+        arguments = deliver_arguments({"backdrop": None, "transparent": False})
+        self.assertIs(arguments["transparent"], False)
+        self.assertIsNone(arguments["backdrop"])
+
+    def test_omitted_backdrop_stays_opaque_dots(self):
+        arguments = deliver_arguments({})
+        self.assertIs(arguments["transparent"], False)
+        self.assertEqual(arguments["backdrop"], "dots")
+
+    def test_keep_scene_overrides_null_backdrop(self):
+        arguments = deliver_arguments({"keep_scene": True, "backdrop": None})
+        self.assertIs(arguments["transparent"], False)
+
     def test_keep_scene_overrides_transparent(self):
         arguments = deliver_arguments({"keep_scene": True, "transparent": True})
         self.assertIs(arguments["transparent"], False)

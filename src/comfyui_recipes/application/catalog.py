@@ -19,6 +19,7 @@ from ..domain.yukari.costumes import COSTUMES, LEGWEAR_STATES, LEGWEARS
 from ..domain.yukari.delivery_style import (
     BACKDROP,
     BACKDROP_LABELS,
+    DELIVER_DEFAULTS,
     DOF_F_NUMBER,
     DOF_SCOPE,
     DOF_VIEWFINDER,
@@ -88,6 +89,15 @@ def _yukari_recipe() -> dict:
                         for name, members in PART_GROUPS.items()},
         "identity_tags": sorted(identity_tags(sorted(POSES)[0])),
         "dials": DIALS,
+        "deliver": {
+            "defaults": DELIVER_DEFAULTS,
+            "dof": {"f_number": DOF_F_NUMBER, "scope": DOF_SCOPE,
+                    "viewfinder": DOF_VIEWFINDER,
+                    "focus": "fractions [x, y] of the source image",
+                    "guide_radius_per_f": round(sharp_reach_per_f(), 4)},
+            "stroke_light": list(STROKE_CHOICES),
+            "backdrop_color": BACKDROP,
+        },
         "finalize": {
             "defaults": FINALIZE_DEFAULTS,
             "dof": {"f_number": DOF_F_NUMBER, "scope": DOF_SCOPE,

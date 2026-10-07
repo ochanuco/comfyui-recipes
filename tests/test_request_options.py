@@ -6,6 +6,7 @@ import unittest
 
 from comfyui_recipes.application.finalize import RECIPE_DEFAULT, _Source, _resolve_plan
 from comfyui_recipes.application.request_options import (
+    deliver_arguments,
     finalize_arguments,
     masked_redraw_arguments,
     repair_arguments,
@@ -27,6 +28,94 @@ _REPAIR_DIALS = {
     "lora": {"on": DEFAULT_PART_LORA_WEIGHT},
 }
 _DENOISE_ONLY_DIALS = {"denoise": {"keep": 0.45}}
+
+
+class DeliverArgumentsTest(unittest.TestCase):
+    def test_defaults_are_the_recipes_delivery(self):
+        self.assertEqual(deliver_arguments({}), {
+            "repin": True, "skin": False, "recolor": False, "keep_legwear": None,
+            "keep_scene": False, "transparent": False, "backdrop": "dots",
+            "stroke_light": "n", "deliver_size": None, "dof": None,
+            "light": None})
+
+    def test_unknown_keys_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "denoise"):
+            deliver_arguments({"denoise": 0.4})
+        with self.assertRaisesRegex(ValueError, "deliver_only"):
+            deliver_arguments({"deliver_only": True})
+
+    def test_options_must_be_an_object(self):
+        with self.assertRaisesRegex(ValueError, "object"):
+            deliver_arguments([])
+
+    def test_transparent_drops_the_default_backdrop(self):
+        arguments = deliver_arguments({"transparent": True})
+        self.assertIsNone(arguments["backdrop"])
+        self.assertIs(arguments["transparent"], True)
+
+    def test_an_explicit_backdrop_survives_and_is_validated(self):
+        self.assertEqual(deliver_arguments({"backdrop": "#aabbcc"})["backdrop"],
+                         "#aabbcc")
+        self.assertIsNone(deliver_arguments({"backdrop": None})["backdrop"])
+        with self.assertRaisesRegex(ValueError, "backdrop"):
+            deliver_arguments({"backdrop": "plaid"})
+
+    def test_keep_scene_overrides_transparent(self):
+        arguments = deliver_arguments({"keep_scene": True, "transparent": True})
+        self.assertIs(arguments["transparent"], False)
+
+    def test_recolor_wins_over_repin(self):
+        arguments = deliver_arguments({"recolor": True})
+        self.assertIs(arguments["recolor"], True)
+        self.assertIs(arguments["repin"], False)
+
+    def test_repin_can_be_turned_off(self):
+        self.assertIs(deliver_arguments({"repin": False})["repin"], False)
+
+    def test_keep_legwear_resolves_dial_words_and_true(self):
+        dials = {"keep_legwear": {"on": 0.5}}
+        self.assertEqual(
+            deliver_arguments({"keep_legwear": "on"}, dials)["keep_legwear"], 0.5)
+        self.assertEqual(
+            deliver_arguments({"keep_legwear": True})["keep_legwear"], 0.62)
+        with self.assertRaisesRegex(ValueError, "unknown keep_legwear word"):
+            deliver_arguments({"keep_legwear": "off"}, dials)
+
+    def test_stroke_light_follows_the_light_direction(self):
+        arguments = deliver_arguments({"light": {"scene": "moon", "from": "se"}})
+        self.assertEqual(arguments["light"], Light("moon", "se"))
+        self.assertEqual(arguments["stroke_light"], "se")
+
+    def test_a_stroke_light_that_disagrees_with_light_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "light の from"):
+            deliver_arguments({"light": {"scene": "moon", "from": "se"},
+                               "stroke_light": "n"})
+        for neutral in ("none", "even"):
+            self.assertEqual(
+                deliver_arguments({"light": {"scene": "moon", "from": "se"},
+                                   "stroke_light": neutral})["stroke_light"],
+                neutral)
+
+    def test_dof_scope_defaults_by_whether_there_is_a_backdrop(self):
+        dof = {"focus": [0.5, 0.5], "f_number": 2.8}
+        self.assertEqual(deliver_arguments({"dof": dof})["dof"].scope, "all")
+        self.assertEqual(
+            deliver_arguments({"dof": dof, "transparent": True})["dof"].scope,
+            "figure")
+        self.assertEqual(
+            deliver_arguments({"dof": {**dof, "viewfinder": "both"}})["dof"],
+            Dof((0.5, 0.5), 2.8, "all", "both"))
+
+    def test_dof_scope_all_conflicts_with_a_transparent_delivery(self):
+        with self.assertRaisesRegex(ValueError, "scope 'all'"):
+            deliver_arguments({"transparent": True, "dof": {
+                "focus": [0.5, 0.5], "f_number": 2.8, "scope": "all"}})
+
+    def test_deliver_size_must_be_a_positive_integer(self):
+        self.assertEqual(deliver_arguments({"deliver_size": 1536})["deliver_size"], 1536)
+        for bad in (0, "big", True):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                deliver_arguments({"deliver_size": bad})
 
 
 class FinalizeArgumentsTest(unittest.TestCase):

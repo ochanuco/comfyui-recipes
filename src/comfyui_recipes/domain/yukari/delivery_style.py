@@ -15,15 +15,14 @@ from typing import NamedTuple
 # The backdrop every delivered picture is repainted to.
 BACKDROP = "#ffffff"
 
-# White band against the figure's die-cut edge, as a share of the longest
-# side. Computed by the delivery, not carried by the prompt.
-WHITE_WIDTH_PCT = 1.3
+# White band between the figure and the purple stroke, as a share of the
+# longest side. 0: the matting alpha meets the stroke directly.
+WHITE_WIDTH_PCT = 0.0
 
-# Purple marker outside the white band, deliberately darker than the hair
-# accent.
+# Purple marker around the figure, deliberately darker than the hair accent.
 STROKE = "#885b80"
-# Width as a share of the white band's own width, both computed together.
-STROKE_WIDTH_BAND = 0.80
+# Width as a share of the longest side.
+STROKE_WIDTH_PCT = 1.04
 
 # Douglas-Peucker epsilon for the band outlines' outer edge, as a percent of
 # the longest side, for a hand-cut angular look instead of the smooth
@@ -356,11 +355,11 @@ BACKDROP_SPREAD_MAX = 25.0
 CUT_BACKDROP_TOLERANCE = 40
 
 # `cut_backdrop`'s colour test only fires inside the compose's own
-# outside-the-bands mask, dilated by this share of the white band's width
+# outside-the-bands mask, dilated by this share of the purple band's width
 # to absorb the redraw's own edge drift. Colour alone can't bound the cut:
 # the figure's own light passages (pale hair, a pale prop) can sit inside
 # CUT_BACKDROP_TOLERANCE of the backdrop too.
-CUT_BACKDROP_MARGIN = 0.5
+CUT_BACKDROP_MARGIN = 0.625
 
 # The worker-side model that cuts the figure out; has to come from
 # something other than colour, since repin moves the figure's colours into
@@ -413,8 +412,8 @@ FRAME_WINDOW_FIGURE_REACH_PX = 12
 FRAME_WINDOW_MIN_AREA_PCT = 2
 FRAME_WINDOW_EDGE_PX = 12
 
-# A white outline the raw drew around the figure (`white outline` in the
-# prompt) is painted pure white so the white band continues it: a pixel
+# On the keyed-edge path, a white outline the raw drew around the figure
+# (`white outline` in the prompt) is painted pure white: a pixel
 # within MAX_TINT of a blend of the key and white, or of the key darkened
 # to no less than MIN_KEY_SHADE of itself, within DEPTH_BANDS edge
 # bands of the matte's edge
@@ -436,6 +435,18 @@ KEY_EDGE_RING_PX = 1
 # Coverage in that ring reaches 1 at this multiple of MATTE_EDGE_TOLERANCE
 # of colour distance from the local backdrop.
 KEY_EDGE_RAMP = 2.0
+
+# The matting stage between the matte model and the delivery: the retraced
+# figure, eroded and dilated by TRIMAP_PX, is the trimap's known figure and
+# known backdrop, and the model solves the alpha of the band between.
+MATTING_MODEL = "hustvl/vitmatte-base-composition-1k"
+MATTING_REVISION = "bf486d01a7d9e3dbcc8400f7942835caf0eaf76e"
+MATTING_TRIMAP_PX = 12
+# The model runs on square tiles of TILE_PX around the unknown band,
+# overlapping by OVERLAP_PX and feathered across it: its global attention
+# over a whole 2048-px picture does not fit the worker's GPU.
+MATTING_TILE_PX = 512
+MATTING_TILE_OVERLAP_PX = 64
 
 # Lineart-preserving recolour (infrastructure/imaging/recolor.py). Where
 # repin only nudges the render's own saturation, recolor asserts a

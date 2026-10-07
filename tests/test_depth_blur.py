@@ -70,7 +70,7 @@ class DepthBlurTest(unittest.TestCase):
         matte = self.matte.copy()
         matte[:, SIZE - 32:] = 0.0
         out, widened = depth_blur(self.image, self.depth, matte, 0.1, 0.5, 1.4)
-        outside = widened < 0.5
+        outside = (widened == 0.0) & (matte == 0.0)
         self.assertTrue(outside[:, SIZE - 8:].all())
         np.testing.assert_array_equal(out[outside], self.image[outside])
 
@@ -88,7 +88,7 @@ class DepthBlurTest(unittest.TestCase):
         self.assertLessEqual(int(excess[figure].max()), 1)
         np.testing.assert_array_equal(out[~figure], image[~figure])
 
-    def test_out_of_focus_silhouette_fades_into_paper(self):
+    def test_out_of_focus_silhouette_spreads_into_a_soft_alpha_without_whitening(self):
         image = np.zeros((SIZE, SIZE, 3), np.uint8)
         image[...] = (0, 255, 0)
         image[:, :SIZE // 2] = (255, 0, 0)
@@ -98,10 +98,12 @@ class DepthBlurTest(unittest.TestCase):
         depth[:, :SIZE // 4] = 1.0
         out, widened = depth_blur(image, depth, matte, 0.1, 0.5, 0.7)
         edge = SIZE // 2 + 1
-        self.assertEqual(float(widened[0, edge]), 1.0)
-        self.assertGreater(int(out[0, edge, 1]), 100)
+        self.assertGreater(float(widened[0, edge]), 0.0)
+        self.assertLess(float(widened[0, edge]), 1.0)
+        self.assertGreater(float(widened[0, SIZE // 2 - 2]), float(widened[0, edge]))
+        self.assertGreater(float(widened[0, edge]), float(widened[0, edge + 6]))
         self.assertGreater(int(out[0, edge, 0]), int(out[0, edge, 1]))
-        self.assertLess(int(out[0, SIZE // 2 - 2, 1]), int(out[0, edge, 1]))
+        self.assertLess(int(out[0, edge, 2]), 100)
 
     def test_in_focus_silhouette_keeps_its_matte(self):
         image = np.zeros((SIZE, SIZE, 3), np.uint8)
@@ -113,6 +115,15 @@ class DepthBlurTest(unittest.TestCase):
         out, widened = depth_blur(image, depth, matte, 0.45, 0.5, 0.7)
         self.assertEqual(float(widened[0, SIZE // 2 + 1]), 0.0)
         np.testing.assert_array_equal(out[:, SIZE // 2 - 2:], image[:, SIZE // 2 - 2:])
+
+    def test_in_focus_figure_keeps_a_soft_input_alpha(self):
+        matte = np.zeros((SIZE, SIZE), np.float32)
+        matte[:, :SIZE // 2] = 1.0
+        matte[:, SIZE // 2 - 3:SIZE // 2] = 0.4
+        depth = np.zeros((SIZE, SIZE), np.float32)
+        depth[:, :SIZE // 4] = 1.0
+        _, widened = depth_blur(self.image, depth, matte, 0.45, 0.5, 0.7)
+        np.testing.assert_allclose(widened, matte, atol=1e-5)
 
     def test_enclosed_key_pocket_stays_raw_for_the_key_cut(self):
         image = np.zeros((SIZE, SIZE, 3), np.uint8)
@@ -166,14 +177,17 @@ def find(graph: dict, class_type: str) -> tuple[str, dict]:
 
 
 class DepthBlurGraphTest(unittest.TestCase):
-    def assert_blur_between_repin_and_deliver(self, graph: dict) -> None:
+    def assert_blur_between_matting_and_deliver(self, graph: dict) -> None:
         repin_id, _ = find(graph, "YukariRepin")
+        matting_id, matting = find(graph, "YukariMatting")
         depth_id, depth = find(graph, DEPTH_NODE)
         blur_id, blur = find(graph, "YukariDepthBlur")
         _, deliver = find(graph, "YukariDeliver")
+        self.assertEqual(matting["inputs"]["image"], [repin_id, 0])
         self.assertEqual(depth["inputs"]["ckpt_name"], DEPTH_CKPT)
-        self.assertEqual(depth["inputs"]["image"], [repin_id, 0])
-        self.assertEqual(blur["inputs"]["image"], [repin_id, 0])
+        self.assertEqual(depth["inputs"]["image"], [matting_id, 0])
+        self.assertEqual(blur["inputs"]["image"], [matting_id, 0])
+        self.assertEqual(blur["inputs"]["matte"], [matting_id, 1])
         self.assertEqual(blur["inputs"]["depth"], [depth_id, 0])
         self.assertEqual(deliver["inputs"]["matte"], [blur_id, 1])
         self.assertEqual(
@@ -185,13 +199,13 @@ class DepthBlurGraphTest(unittest.TestCase):
         graph = chain_pass(base_graph(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True, repin=True,
                            dof=DOF)
-        self.assert_blur_between_repin_and_deliver(graph)
+        self.assert_blur_between_matting_and_deliver(graph)
 
     def test_deliver_only_route(self):
         graph = chain_pass(base_graph(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True, repin=True,
                            deliver_only=True, source_image="src.png", dof=DOF)
-        self.assert_blur_between_repin_and_deliver(graph)
+        self.assert_blur_between_matting_and_deliver(graph)
 
     def test_without_dof_the_graph_is_unchanged(self):
         for deliver_only in (False, True):
@@ -234,9 +248,14 @@ class DepthBlurGraphTest(unittest.TestCase):
                     depth_id, depth = find(graph, DEPTH_NODE)
                     deliver_id, deliver = find(graph, "YukariDeliver")
                     node_id, node = find(graph, "YukariDepthBlurLayered")
-                    self.assertEqual(depth["inputs"]["image"], [repin_id, 0])
-                    self.assertEqual(deliver["inputs"]["image"], [repin_id, 0])
-                    self.assertEqual(deliver["inputs"]["matte"][1], 0)
+                    if keep_scene:
+                        source_id, matte_slot = repin_id, 0
+                    else:
+                        source_id, _ = find(graph, "YukariMatting")
+                        matte_slot = 1
+                    self.assertEqual(depth["inputs"]["image"], [source_id, 0])
+                    self.assertEqual(deliver["inputs"]["image"], [source_id, 0])
+                    self.assertEqual(deliver["inputs"]["matte"][1], matte_slot)
                     self.assertEqual(node["inputs"], {
                         "image": [deliver_id, 0], "depth": [depth_id, 0],
                         "matte": deliver["inputs"]["matte"],

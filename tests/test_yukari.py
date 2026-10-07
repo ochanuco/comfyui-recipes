@@ -30,7 +30,7 @@ from comfyui_recipes.domain.yukari.recipe import (
     refinement_prompt, render_spec,
 )
 from comfyui_recipes.infrastructure.comfyui import anima_graph
-from comfyui_recipes.infrastructure.comfyui.refinement_graph import chain_pass
+from comfyui_recipes.infrastructure.comfyui.refinement_graph import redraw_graph
 from comfyui_recipes.interfaces import cli
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -923,13 +923,13 @@ class GraphTest(unittest.TestCase):
         self.assertEqual(graph["11"]["inputs"]["height"], spec.hires.height)
         self.assertEqual(graph["8"]["inputs"]["samples"], ["12", 0])
 
-    def test_chain_pass_accepts_the_built_graph(self):
+    def test_redraw_graph_accepts_the_built_graph(self):
         spec = render_spec("coffee", 42, "p")
         base = anima_graph.build_graph(spec)
-        out = chain_pass(
+        out = redraw_graph(
             base, 2560, 0.20, "fin-prefix",
             prompt=(spec.prompts.positive, spec.prompts.negative),
-            matte_model="birefnet.safetensors", latent_route=False,
+            latent_route=False,
             sampler=("euler", "normal"),
             canvas=(spec.width, spec.height))
         self.assertIsInstance(out, dict)

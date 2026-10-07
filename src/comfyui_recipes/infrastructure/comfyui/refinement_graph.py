@@ -1,17 +1,13 @@
-"""ComfyUI graph transformation for the delivery redraw."""
+"""ComfyUI graph transformation for the canvas redraw, and the stages the delivery graphs share."""
 
 from __future__ import annotations
 
 import json
 from collections.abc import Callable
 
-from ...domain.yukari.delivery_style import STROKE_CHOICES, Dof
-from ..imaging import backdrops
+from ...domain.yukari.delivery_style import Dof
 from .base_graph import base_roles, sampler_settings
 
-# Both images come out of one submission, so the matte is the redraw's own
-# alpha rather than a second pass's guess at it.
-MATTE_SUFFIX = "-matte"
 # The delivered composite: background cut, purple stroke.
 DELIVERED_SUFFIX = "-delivered"
 # The delivered picture with the camera viewfinder drawn over it.
@@ -58,11 +54,6 @@ def save_mask(graph: dict, allocate: Callable[[], str], mask_ref: list,
         "images": [to_image, 0], "filename_prefix": filename_prefix}}
 
 
-def _save_matte(graph: dict, allocate: Callable[[], str], matte_ref: list,
-                prefix: str) -> None:
-    save_mask(graph, allocate, matte_ref, prefix + MATTE_SUFFIX)
-
-
 def matting_node(graph: dict, allocate: Callable[[], str], image_ref: list,
                  matte_ref: list) -> list:
     """The ViTMatte alpha of the picture. Returns the alpha ref."""
@@ -79,15 +70,6 @@ def foreground_node(graph: dict, allocate: Callable[[], str], image_ref: list,
     graph[node_id] = {"class_type": "YukariForeground", "inputs": {
         "image": image_ref, "alpha": alpha_ref}}
     return [node_id, 0]
-
-
-def _matting_node(graph: dict, allocate: Callable[[], str], image_ref: list,
-                  matte_ref: list, prefix: str) -> tuple[list, list]:
-    """The matting stage on the picture the delivery composites, its alpha
-    saved as the matte. Returns the foreground and alpha refs."""
-    alpha_ref = matting_node(graph, allocate, image_ref, matte_ref)
-    _save_matte(graph, allocate, alpha_ref, prefix)
-    return foreground_node(graph, allocate, image_ref, alpha_ref), alpha_ref
 
 
 def _depth_nodes(graph: dict, allocate: Callable[[], str], image_ref: list
@@ -180,90 +162,6 @@ def delivery_tail(graph: dict, allocate: Callable[[], str], image_ref: list,
     return delivered_ref
 
 
-def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list,
-                       matte_model: str, prefix: str, *, skin: bool, repin: bool,
-                       recolor: bool, keep_legwear: float | None, keep_scene: bool,
-                       transparent: bool, backdrop: str | None,
-                       stroke_light: str | None, deliver_size: int | None,
-                       canvas: tuple[int, int],
-                       source_image: str | None = None,
-                       dof: Dof | None = None,
-                       light_scene: str | None = None,
-                       light_from: str | None = None) -> list:
-    """Appends the deliver-only chain onto `graph` (mutated). Returns the
-    delivered picture's ref. `image_ref` may already be someone else's
-    redraw or stitch, so `source_image` -- the unedited picture `skin`
-    reads its original tones from -- is loaded fresh rather than reused.
-    """
-    # A raw output alongside the matte and the delivered one, same three-way
-    # split finalize() classifies every other route by.
-    raw_save = allocate()
-    graph[raw_save] = {"class_type": "SaveImage", "inputs": {
-        "images": image_ref, "filename_prefix": prefix}}
-    matte_ref = _matte_nodes(graph, allocate, image_ref, matte_model)
-    if keep_scene:
-        _save_matte(graph, allocate, matte_ref, prefix)
-    if skin:
-        load_source = allocate()
-        graph[load_source] = {"class_type": "LoadImage", "inputs": {"image": source_image}}
-        repin_skin_id = allocate()
-        graph[repin_skin_id] = {"class_type": "YukariRepinSkin", "inputs": {
-            "image": image_ref, "source": [load_source, 0]}}
-        image_ref = [repin_skin_id, 0]
-    if recolor:
-        recolor_id = allocate()
-        graph[recolor_id] = {"class_type": "YukariRecolor", "inputs": {"image": image_ref}}
-        image_ref = [recolor_id, 0]
-    elif repin:
-        repin_id = allocate()
-        graph[repin_id] = {"class_type": "YukariRepin", "inputs": {
-            "image": image_ref,
-            "keep_legwear": keep_legwear is not None,
-            "keep_legwear_cut": keep_legwear if keep_legwear is not None else 0.62}}
-        image_ref = [repin_id, 0]
-    if not keep_scene:
-        image_ref, matte_ref = _matting_node(
-            graph, allocate, image_ref, matte_ref, prefix)
-    depth_ref = (_depth_nodes(graph, allocate, image_ref)
-                 if dof is not None else None)
-    return delivery_tail(
-        graph, allocate, image_ref, matte_ref, depth_ref, prefix,
-        keep_scene=keep_scene, transparent=transparent, backdrop=backdrop,
-        stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas,
-        dof=dof, light_scene=light_scene, light_from=light_from)
-
-
-def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
-                        skin: bool, repin: bool, recolor: bool,
-                        keep_legwear: float | None, keep_scene: bool,
-                        transparent: bool, backdrop: str | None,
-                        stroke_light: str | None, deliver_size: int | None,
-                        canvas: tuple[int, int],
-                        dof: Dof | None, light_scene: str | None,
-                        light_from: str | None) -> dict:
-    # A self-contained graph: nothing here depends on the base pass that
-    # produced source_image, so it carries none of that pass's own nodes.
-    graph: dict = {}
-    cursor = 1
-
-    def allocate() -> str:
-        nonlocal cursor
-        node_id = str(cursor)
-        cursor += 1
-        return node_id
-
-    load_id = allocate()
-    graph[load_id] = {"class_type": "LoadImage", "inputs": {"image": source_image}}
-    _deliver_only_tail(
-        graph, allocate, [load_id, 0], matte_model, prefix,
-        skin=skin, repin=repin, recolor=recolor, keep_legwear=keep_legwear,
-        keep_scene=keep_scene, transparent=transparent, backdrop=backdrop,
-        stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas,
-        source_image=source_image, dof=dof, light_scene=light_scene,
-        light_from=light_from)
-    return graph
-
-
 def redraw_graph(base: dict, size: int, denoise: float, prefix: str, *,
                  prompt: tuple[str, str] | None = None,
                  latent_route: bool = False,
@@ -275,65 +173,18 @@ def redraw_graph(base: dict, size: int, denoise: float, prefix: str, *,
                  upscale: str = "bicubic",
                  redraw_from_source: bool = False,
                  canvas: tuple[int, int]) -> dict:
-    """The redraw alone: `base` re-sampled on a bigger canvas, ending at the
-    base's own single SaveImage under `prefix`, with no cut or delivery."""
-    return chain_pass(
-        base, size, denoise, prefix, prompt=prompt, latent_route=latent_route,
-        sampler=sampler, loader=loader, sampling=sampling,
-        source_image=source_image, keep_mask_image=keep_mask_image,
-        upscale=upscale, redraw_from_source=redraw_from_source, canvas=canvas)
-
-
-def chain_pass(base: dict, size: int, denoise: float, prefix: str,
-               prompt: tuple[str, str] | None = None,
-               matte_model: str | None = None,
-               latent_route: bool = False,
-               sampler: tuple[str, str] | None = None,
-               loader: str | None = None,
-               sampling: tuple[int, float] | None = None, *,
-               skin: bool = False, repin: bool = False, recolor: bool = False,
-               keep_legwear: float | None = None, keep_scene: bool = False,
-               source_image: str | None = None,
-               keep_mask_image: str | None = None,
-               deliver: bool = False, transparent: bool = False,
-               backdrop: str | None = None,
-               upscale: str = "bicubic",
-               deliver_size: int | None = None,
-               stroke_light: str | None = None,
-               deliver_only: bool = False,
-               redraw_from_source: bool = False,
-               dof: Dof | None = None,
-               light_scene: str | None = None,
-               light_from: str | None = None,
-               canvas: tuple[int, int]) -> dict:
+    """`base` re-sampled on a bigger canvas, ending at the base's own single
+    SaveImage under `prefix`."""
     if redraw_from_source and not source_image:
         raise ValueError("redraw_from_source requires source_image")
     if upscale not in ("bicubic", "nearest-exact", "bilinear", "lanczos"):
         raise ValueError(f"unsupported upscale method: {upscale!r}")
-    if stroke_light is not None and stroke_light not in STROKE_CHOICES:
-        valid = ", ".join(repr(key) for key in STROKE_CHOICES)
-        raise ValueError(f"stroke_light must be null or one of {valid}, got {stroke_light!r}")
-    if backdrop is not None and not backdrops.is_backdrop(backdrop):
-        valid = ", ".join(repr(key) for key in sorted(backdrops.PATTERNS))
-        raise ValueError(
-            f"backdrop must be null, a #RRGGBB colour or one of {valid}, got {backdrop!r}")
     unsupported = [key for key in base
                    if not isinstance(key, str) or not key.isdecimal()]
     if unsupported:
         raise ValueError(
             "base graph has unsupported non-numeric node IDs: "
             + ", ".join(map(repr, unsupported)))
-    if deliver_only:
-        if not source_image:
-            raise ValueError("deliver_only requires source_image")
-        if not matte_model:
-            raise ValueError("deliver_only requires matte_model")
-        return _deliver_only_graph(
-            source_image, matte_model, prefix, skin=skin, repin=repin,
-            recolor=recolor, keep_legwear=keep_legwear, keep_scene=keep_scene,
-            transparent=transparent, backdrop=backdrop,
-            stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas,
-            dof=dof, light_scene=light_scene, light_from=light_from)
     graph = json.loads(json.dumps(base))
     roles = base_roles(graph)
     if latent_route and roles.stitched:
@@ -379,11 +230,6 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
             "clip": clip_ref, "text": prompt[1]}}
         positive, negative = [positive_id, 0], [negative_id, 0]
     width, height = sizes(*canvas, size)
-    longest = max(width, height)
-    deliver_target = None
-    if deliver_size is not None and deliver_size < longest:
-        deliver_target = (round(width * deliver_size / longest),
-                          round(height * deliver_size / longest))
     # The routes to the bigger latent draw different pictures: pixel space
     # is faithful, the latent route leaves a staircase on hard contours
     # that the redraw turns into visible stroke.
@@ -454,88 +300,4 @@ def chain_pass(base: dict, size: int, denoise: float, prefix: str,
         "samples": [sample, 0], "vae": vae_ref}}
     graph[roles.save_id]["inputs"]["images"] = [decode, 0]
     graph[roles.save_id]["inputs"]["filename_prefix"] = prefix
-    if deliver and not matte_model:
-        raise ValueError("deliver requires matte_model")
-    if matte_model:
-        cursor = next_id + 6
-
-        def allocate() -> str:
-            nonlocal cursor
-            node_id = str(cursor)
-            cursor += 1
-            return node_id
-
-        matte_ref = _matte_nodes(graph, allocate, [decode, 0], matte_model)
-        if not deliver or keep_scene:
-            _save_matte(graph, allocate, matte_ref, prefix)
-        if deliver:
-            if skin and not source_image:
-                raise ValueError("skin requires source_image")
-            # Not a fixed offset: an overriding `loader` claims next_id + 10
-            # for its own DiffusersLoader, so the free id has to be read off
-            # the graph as it stands rather than assumed.
-            cursor = max(int(key) for key in graph) + 1
-
-            def allocate() -> str:
-                nonlocal cursor
-                node_id = str(cursor)
-                cursor += 1
-                return node_id
-
-            image_ref = [decode, 0]
-            if skin:
-                load_source = allocate()
-                graph[load_source] = {"class_type": "LoadImage", "inputs": {
-                    "image": source_image}}
-                repin_skin_id = allocate()
-                graph[repin_skin_id] = {"class_type": "YukariRepinSkin", "inputs": {
-                    "image": image_ref, "source": [load_source, 0]}}
-                image_ref = [repin_skin_id, 0]
-            if recolor:
-                recolor_id = allocate()
-                graph[recolor_id] = {"class_type": "YukariRecolor", "inputs": {
-                    "image": image_ref}}
-                image_ref = [recolor_id, 0]
-            elif repin:
-                repin_id = allocate()
-                graph[repin_id] = {"class_type": "YukariRepin", "inputs": {
-                    "image": image_ref,
-                    "keep_legwear": keep_legwear is not None,
-                    "keep_legwear_cut": (keep_legwear if keep_legwear is not None
-                                         else 0.62)}}
-                image_ref = [repin_id, 0]
-            if not keep_scene:
-                image_ref, matte_ref = _matting_node(
-                    graph, allocate, image_ref, matte_ref, prefix)
-            if dof is not None:
-                depth_ref = _depth_nodes(graph, allocate, image_ref)
-                if dof.scope != "all":
-                    image_ref, matte_ref = _depth_blur_node(
-                        graph, allocate, image_ref, depth_ref, matte_ref, dof)
-            deliver_id = allocate()
-            graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
-                "image": image_ref, "matte": matte_ref,
-                "keep_scene": keep_scene, "transparent": transparent,
-                "stroke_light": stroke_light or "", "backdrop": backdrop or "",
-                "matted": not keep_scene,
-                **({"light_scene": light_scene, "light_from": light_from}
-                   if light_scene else {})}}
-            delivered_ref = [deliver_id, 0]
-            if dof is not None and dof.scope == "all":
-                delivered_ref = _layered_node(
-                    graph, allocate, delivered_ref, depth_ref, matte_ref, dof,
-                    "" if keep_scene else backdrop or "")
-            if deliver_target is not None:
-                deliver_scale = allocate()
-                graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {
-                    "image": delivered_ref, "upscale_method": "lanczos",
-                    "width": deliver_target[0], "height": deliver_target[1],
-                    "crop": "disabled"}}
-                delivered_ref = [deliver_scale, 0]
-            saved_ref = _viewfinder_nodes(graph, allocate, delivered_ref, dof,
-                                          prefix)
-            save_delivered = allocate()
-            graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
-                "images": saved_ref,
-                "filename_prefix": prefix + DELIVERED_SUFFIX}}
     return graph

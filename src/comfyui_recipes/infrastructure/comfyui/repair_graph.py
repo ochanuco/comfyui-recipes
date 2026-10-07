@@ -1,8 +1,8 @@
 """ComfyUI graph transformation for the repair pass: a masked local redraw.
 
 Crop the masked region, resample it in place with the source's own model,
-LoRA and prompts, and stitch it back -- instead of the redraw+matte+deliver
-chain `refinement_graph.chain_pass` builds, which redraws the whole canvas.
+LoRA and prompts, and stitch it back -- instead of the whole-canvas redraw
+`refinement_graph.redraw_graph` builds.
 """
 
 from __future__ import annotations
@@ -14,20 +14,12 @@ from dataclasses import dataclass, replace
 
 from .base_graph import (
     PASSTHROUGH as _PASSTHROUGH,
-    chain_origin as _chain_origin,
     consumers as _consumers,
     find_decode as _find_decode,
     find_sampler as _find_sampler,
     is_ref as _is_ref,
     sampler_settings as _sampler_settings,
-    source_prompts,
 )
-from .refinement_graph import _deliver_only_tail
-
-# Reused from refinement_graph's own delivery tail, so a source graph that
-# already carries a matte/delivered pair keeps the same suffix convention.
-MATTE_SUFFIX = "-matte"
-DELIVERED_SUFFIX = "-delivered"
 
 _INPAINT_CROP_DEFAULTS = {
     "downscale_algorithm": "lanczos",
@@ -93,25 +85,6 @@ def _upstream(graph: Mapping, refs: list[list | None]) -> set[str]:
             if _is_ref(value) and value[0] in graph:
                 stack.append(value[0])
     return keep
-
-
-def redraw_canvas(graph: Mapping) -> tuple[int, int]:
-    """The (width, height) of the final sampler's own canvas."""
-    decode_id = _find_decode(graph)
-    sampler_id = _find_sampler(graph, decode_id)
-    origin_id = _chain_origin(graph, sampler_id)
-    latent_ref = graph[origin_id]["inputs"]["latent_image"]
-    node = graph[latent_ref[0]]
-    class_type = node.get("class_type")
-    if class_type in ("LatentUpscale", "EmptyLatentImage"):
-        return node["inputs"]["width"], node["inputs"]["height"]
-    if class_type == "VAEEncode":
-        image_node = graph[node["inputs"]["pixels"][0]]
-        if image_node.get("class_type") == "ImageScale":
-            return image_node["inputs"]["width"], image_node["inputs"]["height"]
-    raise ValueError(
-        f"could not read the redraw canvas size from latent_image node "
-        f"{latent_ref[0]!r} ({class_type!r})")
 
 
 def _splice_reroll(graph: dict, allocate: Callable[[], str], *, image_ref: list,
@@ -398,13 +371,7 @@ def _prune_and_splice(source: Mapping, *, image_name: str, mask_name: str,
         node = result[node_id]
         if node.get("class_type") != "SaveImage" or node_id == save_id:
             continue
-        prefix_now = node["inputs"].get("filename_prefix", "")
-        if prefix_now.endswith(MATTE_SUFFIX):
-            node["inputs"]["filename_prefix"] = prefix + MATTE_SUFFIX
-        elif prefix_now.endswith(DELIVERED_SUFFIX):
-            node["inputs"]["filename_prefix"] = prefix + DELIVERED_SUFFIX
-        else:
-            node["inputs"]["filename_prefix"] = prefix
+        node["inputs"]["filename_prefix"] = prefix
 
     if save_id is None:
         save = allocate()
@@ -428,40 +395,6 @@ def repair_graph(source: Mapping, *, image_name: str, mask_name: str,
         loras=loras, model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
 
 
-def deliver_only_repair_graph(source: Mapping, *, image_name: str, mask_name: str,
-                              positive: str, negative: str, seed: int,
-                              denoise: float, size: int, prefix: str,
-                              matte_model: str, skin: bool = False,
-                              repin: bool = False, recolor: bool = False,
-                              transparent: bool = False,
-                              backdrop: str | None = None,
-                              stroke_light: str | None = None,
-                              deliver_size: int | None = None,
-                              canvas: tuple[int, int] = (0, 0),
-                              loras: Sequence[tuple[str, float]] = (),
-                              model_hooks: Sequence[RerollHook] = (),
-                              conditioning_hooks: Sequence[RerollHook] = ()) -> dict:
-    """Like `repair_graph`, but the stitched picture feeds a fresh
-    deliver-only tail (matte, optional skin/recolor/repin, YukariDeliver,
-    an optional deliver_size scale) instead of `source`'s own downstream
-    nodes -- the caller's current delivery options apply, not whatever
-    `source` had baked in.
-    """
-    result, _graph, _decode_id, allocate, repaired_ref, _load_image = _pruned_reroll(
-        source, image_name=image_name, mask_name=mask_name, positive=positive,
-        negative=negative, seed=seed, denoise=denoise, size=size,
-        mask_expand_pixels=_INPAINT_CROP_DEFAULTS["mask_expand_pixels"],
-        mask_blend_pixels=_INPAINT_CROP_DEFAULTS["mask_blend_pixels"],
-        loras=loras, model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
-    _deliver_only_tail(
-        result, allocate, repaired_ref, matte_model, prefix,
-        skin=skin, repin=repin, recolor=recolor, keep_legwear=None,
-        keep_scene=False, transparent=transparent, backdrop=backdrop,
-        stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas,
-        source_image=image_name)
-    return result
-
-
 def masked_redraw_graph(source: Mapping, *, image_name: str, mask_name: str,
                         positive: str, negative: str, seed: int, denoise: float,
                         mask_padding: int, mask_feather: int, size: int,
@@ -478,45 +411,3 @@ def masked_redraw_graph(source: Mapping, *, image_name: str, mask_name: str,
         negative=negative, seed=seed, denoise=denoise, size=size, prefix=prefix,
         mask_expand_pixels=mask_padding, mask_blend_pixels=mask_feather,
         model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
-
-
-def splice_repair(graph: Mapping, *, mask_name: str, positive: str, negative: str,
-                  denoise: float, size: int, seed: int | None = None,
-                  loras: Sequence[tuple[str, float]] = (),
-                  model_hooks: Sequence[RerollHook] = (),
-                  conditioning_hooks: Sequence[RerollHook] = ()) -> dict:
-    """Splice a masked reroll into an already-built graph (e.g. `chain_pass`'s).
-
-    Unlike `repair_graph`, nothing is pruned or renamed: the reroll's image
-    input is the final decode's own output (no staged-source LoadImage), every
-    other consumer of that output is rewired onto the stitch, and every
-    SaveImage prefix is left exactly as the caller built it.
-    """
-    result = json.loads(json.dumps(graph))
-    pass_ = _redraw_pass(result)
-    decode_id = pass_["decode_id"]
-
-    ids = itertools.count(max((int(key) for key in result), default=0) + 1)
-
-    def allocate() -> str:
-        return str(next(ids))
-
-    crop_id, repaired_ref = _splice_reroll(
-        result, allocate, image_ref=[decode_id, 0], mask_name=mask_name,
-        positive=positive, negative=negative, model_ref=pass_["model_ref"],
-        positive_clip_ref=pass_["positive_clip_ref"],
-        negative_clip_ref=pass_["negative_clip_ref"], vae_ref=pass_["vae_ref"],
-        steps=pass_["steps"], cfg=pass_["cfg"], sampler_name=pass_["sampler_name"],
-        scheduler=pass_["scheduler"],
-        seed=pass_["seed"] if seed is None else seed,
-        denoise=denoise, size=size, loras=loras,
-        model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
-
-    for node_id, node in result.items():
-        if node_id == crop_id:
-            continue
-        for key, value in list(node.get("inputs", {}).items()):
-            if _is_ref(value) and value[0] == decode_id:
-                node["inputs"][key] = repaired_ref
-
-    return result

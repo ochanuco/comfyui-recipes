@@ -11,6 +11,7 @@ from ..domain.generation.models import PromptPair
 from ..domain.repair.regions import rects_from_fractions
 from ..domain.yukari import delivery_style
 from ..domain.yukari.delivery_style import Light
+from ..domain.yukari.prompt_style import HEIGHT, WIDTH
 from ..domain.yukari.recipe import refinement_prompt
 from ..infrastructure.comfyui.base_graph import (
     BaseRoles,
@@ -31,7 +32,6 @@ from .cut_assets import (
     reusable,
     stored_cut,
 )
-from .finalize import KEEP_FEATHER_FRACTION, hires_pixels
 from .ingest import (
     classify_redraw_outputs,
     generation_key,
@@ -41,9 +41,21 @@ from .ingest import (
 )
 from .picture_source import DERIVED_KINDS, check_resample_source, is_delivered
 
+# `render_soft_mask_png`'s feather, as a share of the redraw canvas' longest side.
+KEEP_FEATHER_FRACTION = 0.03
+
+# Applies when `hires` is given without a denoise.
+HIRES_DENOISE = 0.45
+
 LINEAGE_HOPS = 10
 DELIVERED_SOURCE = ("納品済みの絵は redraw できません。"
                     "描き直しの元になる絵を指定してください")
+
+
+def hires_pixels(hires: int) -> int:
+    """The area `hires` asks for: the standard canvas' area with its long
+    side at `hires` px. Every aspect ratio gets that many pixels."""
+    return round(hires * hires * WIDTH / HEIGHT)
 
 
 @dataclass(frozen=True)
@@ -139,10 +151,10 @@ def _prepare_canvas(services: RedrawServices, source: _Source, prefix: str, *, d
                     keep_regions: Sequence[Sequence[float]],
                     keep_strength: float) -> _Prepared:
     roles = _require_anima(source)
-    denoise = delivery_style.FINALIZE_DENOISE if denoise is None else denoise
-    size = delivery_style.FINALIZE_SIZE if size is None else size
+    denoise = delivery_style.REDRAW_DENOISE if denoise is None else denoise
+    size = delivery_style.REDRAW_SIZE if size is None else size
     latent_route = bool(latent_route) and not roles.stitched
-    loader = finalizer or delivery_style.FINALIZE_MODEL
+    loader = finalizer or delivery_style.REDRAW_MODEL
     prompt = refinement_prompt(PromptPair(
         source.graph[roles.positive_id]["inputs"]["text"],
         source.graph[roles.negative_id]["inputs"]["text"]))
@@ -163,8 +175,8 @@ def _prepare_canvas(services: RedrawServices, source: _Source, prefix: str, *, d
         source.graph, size, denoise, prefix,
         prompt=(prompt.positive, prompt.negative),
         latent_route=latent_route,
-        sampler=delivery_style.FINALIZE_SAMPLER, loader=loader,
-        sampling=(delivery_style.FINALIZE_STEPS, delivery_style.FINALIZE_CFG),
+        sampler=delivery_style.REDRAW_SAMPLER, loader=loader,
+        sampling=(delivery_style.REDRAW_STEPS, delivery_style.REDRAW_CFG),
         source_image=source_image, keep_mask_image=keep_mask_image,
         upscale=upscale or "bicubic",
         redraw_from_source=source.derived and not latent_route,

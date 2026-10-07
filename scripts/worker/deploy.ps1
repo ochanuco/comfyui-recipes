@@ -75,9 +75,9 @@ if ($ComfyRoot) {
         & $embedded -m pip install pymatting 2>&1 | Out-Host
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
     }
-    # Fetched here so the first finalize after a deploy doesn't stall on the download.
+    # Fetched here so the first deliver after a deploy doesn't stall on the download.
     & $embedded -c "import sys; sys.path.insert(0, 'src'); from comfyui_recipes.domain.yukari.delivery_style import MATTING_MODEL, MATTING_REVISION; from huggingface_hub import snapshot_download; print('matting model:', snapshot_download(MATTING_MODEL, revision=MATTING_REVISION))" 2>$null
-    if ($LASTEXITCODE) { "matting model: download failed, the first finalize will retry it" }
+    if ($LASTEXITCODE) { "matting model: download failed, the first deliver will retry it" }
     $ErrorActionPreference = "Stop"
     "embedded python: $(if ($pip -match '^Successfully installed') { 'installed' } else { 'ok' })"
     # Unconditional: the drain above ended the claim loop, and the loop is a

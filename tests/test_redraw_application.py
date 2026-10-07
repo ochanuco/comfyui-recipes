@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 from comfyui_recipes.application.cut_assets import current_cut
-from comfyui_recipes.application.finalize import HIRES_DENOISE, hires_pixels
+from comfyui_recipes.application.redraw import HIRES_DENOISE, hires_pixels
 from comfyui_recipes.application.ingest import classify_redraw_outputs
 from comfyui_recipes.application.redraw import RedrawServices, redraw
 from comfyui_recipes.domain.yukari import delivery_style
@@ -177,11 +177,11 @@ class CanvasTest(RedrawCase):
         self.assertFalse({"YukariDeliver", "BiRefNetRMBG", "YukariMatting",
                           "RemoveBackground", "MaskToImage"} & set(classes(graph)))
         [(_, resample)] = [(k, n) for k, n in nodes_of(graph, "KSampler")
-                           if n["inputs"]["denoise"] == delivery_style.FINALIZE_DENOISE]
+                           if n["inputs"]["denoise"] == delivery_style.REDRAW_DENOISE]
         self.assertEqual(resample["inputs"]["seed"], 5)
         [(_, scale)] = nodes_of(graph, "ImageScale")
         self.assertEqual(max(scale["inputs"]["width"], scale["inputs"]["height"]),
-                         delivery_style.FINALIZE_SIZE)
+                         delivery_style.REDRAW_SIZE)
         self.assertEqual(management.asset_uploads(), [])
         self.assertEqual(result["generation_ids"], ["redrawn"])
 
@@ -206,7 +206,7 @@ class CanvasTest(RedrawCase):
         self.assertEqual(resolution["parameters"], {
             "kind": "redraw", "method": "canvas", "base_generation": "src",
             "size": 2048, "denoise": 0.5, "route": "latent",
-            "finalizer": delivery_style.FINALIZE_MODEL})
+            "finalizer": delivery_style.REDRAW_MODEL})
         job = next(call for call in management.calls
                    if call[0] == "POST" and call[1].endswith("/jobs"))
         self.assertEqual(job[2]["seed"], 5)
@@ -240,7 +240,7 @@ class CanvasTest(RedrawCase):
                 self.assertEqual(scale["inputs"]["image"], [load_id, 0])
                 [(_, resample)] = [
                     (k, n) for k, n in nodes_of(graph, "KSampler")
-                    if n["inputs"]["denoise"] == delivery_style.FINALIZE_DENOISE]
+                    if n["inputs"]["denoise"] == delivery_style.REDRAW_DENOISE]
                 self.assertEqual(resample["inputs"]["seed"], 5)
                 self.assertIn("rdw-src", saved_prefixes(graph))
 

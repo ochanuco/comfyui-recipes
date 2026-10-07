@@ -7,8 +7,9 @@ import unittest
 import numpy as np
 
 from comfyui_recipes.domain.yukari.delivery_style import Dof
+from comfyui_recipes.infrastructure.comfyui.deliver_graph import deliver_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import (
-    DEPTH_CKPT, DEPTH_NODE, chain_pass)
+    DEPTH_CKPT, DEPTH_NODE)
 from comfyui_recipes.infrastructure.imaging.depth_blur import blur_layered, depth_blur
 
 SIZE = 128
@@ -149,20 +150,13 @@ class DepthBlurTest(unittest.TestCase):
         np.testing.assert_array_equal(out, self.image)
 
 
-def base_graph() -> dict:
-    return {
-        "3": {"class_type": "KSampler",
-              "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
-        "4": {"class_type": "DiffusersLoader", "inputs": {}},
-        "5": {"class_type": "EmptyLatentImage",
-              "inputs": {"width": 832, "height": 1664}},
-        "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "p"}},
-        "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
-        "8": {"class_type": "VAEDecode",
-              "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
-        "9": {"class_type": "SaveImage",
-              "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
-    }
+def deliver_chain(**kwargs) -> dict:
+    options = dict(
+        skin=False, repin=True, recolor=False, keep_legwear=None,
+        keep_scene=False, transparent=False, backdrop=None, stroke_light=None,
+        deliver_size=None, canvas=(832, 1664), dof=None, light_scene=None,
+        light_from=None)
+    return deliver_graph("src.png", "birefnet", "fin", **{**options, **kwargs})
 
 
 DOF = Dof((0.82, 0.55), 2.8)
@@ -177,18 +171,20 @@ def find(graph: dict, class_type: str) -> tuple[str, dict]:
 
 
 class DepthBlurGraphTest(unittest.TestCase):
-    def assert_blur_between_matting_and_deliver(self, graph: dict) -> None:
+    def test_blur_sits_between_the_foreground_and_deliver(self):
+        graph = deliver_chain(dof=DOF)
+        load_id, _ = find(graph, "LoadImage")
         repin_id, _ = find(graph, "YukariRepin")
         matting_id, matting = find(graph, "YukariMatting")
         foreground_id, foreground = find(graph, "YukariForeground")
         depth_id, depth = find(graph, DEPTH_NODE)
         blur_id, blur = find(graph, "YukariDepthBlur")
         _, deliver = find(graph, "YukariDeliver")
-        self.assertEqual(matting["inputs"]["image"], [repin_id, 0])
+        self.assertEqual(matting["inputs"]["image"], [load_id, 0])
         self.assertEqual(foreground["inputs"],
                          {"image": [repin_id, 0], "alpha": [matting_id, 0]})
         self.assertEqual(depth["inputs"]["ckpt_name"], DEPTH_CKPT)
-        self.assertEqual(depth["inputs"]["image"], [foreground_id, 0])
+        self.assertEqual(depth["inputs"]["image"], [load_id, 0])
         self.assertEqual(blur["inputs"]["image"], [foreground_id, 0])
         self.assertEqual(blur["inputs"]["matte"], [matting_id, 0])
         self.assertEqual(blur["inputs"]["depth"], [depth_id, 0])
@@ -198,84 +194,55 @@ class DepthBlurGraphTest(unittest.TestCase):
              blur["inputs"]["f_number"]), (0.82, 0.55, 2.8))
         self.assertEqual(deliver["inputs"]["image"], [blur_id, 0])
 
-    def test_redraw_route(self):
-        graph = chain_pass(base_graph(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True, repin=True,
-                           dof=DOF)
-        self.assert_blur_between_matting_and_deliver(graph)
-
-    def test_deliver_only_route(self):
-        graph = chain_pass(base_graph(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True, repin=True,
-                           deliver_only=True, source_image="src.png", dof=DOF)
-        self.assert_blur_between_matting_and_deliver(graph)
-
     def test_without_dof_the_graph_is_unchanged(self):
-        for deliver_only in (False, True):
-            kwargs = dict(canvas=(832, 1664), matte_model="birefnet",
-                          deliver=True, repin=True, deliver_only=deliver_only,
-                          source_image="src.png")
-            plain = chain_pass(base_graph(), 2048, 0.45, "fin", **kwargs)
-            explicit = chain_pass(base_graph(), 2048, 0.45, "fin", dof=None, **kwargs)
-            self.assertEqual(plain, explicit)
-            classes = {node.get("class_type") for node in plain.values()}
-            self.assertNotIn("YukariDepthBlur", classes)
-            self.assertNotIn(DEPTH_NODE, classes)
+        plain = deliver_chain()
+        self.assertEqual(plain, deliver_chain(dof=None))
+        classes = {node.get("class_type") for node in plain.values()}
+        self.assertNotIn("YukariDepthBlur", classes)
+        self.assertNotIn(DEPTH_NODE, classes)
 
     def test_scope_figure_matches_omitted_scope(self):
-        kwargs = dict(canvas=(832, 1664), matte_model="birefnet", deliver=True,
-                      repin=True, source_image="src.png")
-        for deliver_only in (False, True):
-            omitted = chain_pass(base_graph(), 2048, 0.45, "fin",
-                                 deliver_only=deliver_only, dof=DOF, **kwargs)
-            figure = chain_pass(base_graph(), 2048, 0.45, "fin",
-                                deliver_only=deliver_only,
-                                dof=Dof((0.82, 0.55), 2.8, "figure"), **kwargs)
-            self.assertEqual(omitted, figure)
-            classes = {node.get("class_type") for node in omitted.values()}
-            self.assertNotIn("YukariDepthBlurLayered", classes)
+        omitted = deliver_chain(dof=DOF)
+        figure = deliver_chain(dof=Dof((0.82, 0.55), 2.8, "figure"))
+        self.assertEqual(omitted, figure)
+        classes = {node.get("class_type") for node in omitted.values()}
+        self.assertNotIn("YukariDepthBlurLayered", classes)
 
     def test_scope_all_blurs_the_delivered_picture_once(self):
-        for deliver_only in (False, True):
-            for keep_scene in (False, True):
-                with self.subTest(deliver_only=deliver_only, keep_scene=keep_scene):
-                    graph = chain_pass(
-                        base_graph(), 2048, 0.45, "fin", canvas=(832, 1664),
-                        matte_model="birefnet", deliver=True, repin=True,
-                        deliver_only=deliver_only, source_image="src.png",
-                        dof=DOF_ALL, keep_scene=keep_scene, backdrop="dots",
-                        deliver_size=1024)
-                    classes = {n.get("class_type") for n in graph.values()}
-                    self.assertNotIn("YukariDepthBlur", classes)
-                    repin_id, _ = find(graph, "YukariRepin")
-                    depth_id, depth = find(graph, DEPTH_NODE)
-                    deliver_id, deliver = find(graph, "YukariDeliver")
-                    node_id, node = find(graph, "YukariDepthBlurLayered")
-                    if keep_scene:
-                        source_id, matte_slot = repin_id, 0
-                    else:
-                        source_id, _ = find(graph, "YukariForeground")
-                        matte_slot = 0
-                    self.assertEqual(depth["inputs"]["image"], [source_id, 0])
-                    self.assertEqual(deliver["inputs"]["image"], [source_id, 0])
-                    self.assertEqual(deliver["inputs"]["matte"][1], matte_slot)
-                    self.assertEqual(node["inputs"], {
-                        "image": [deliver_id, 0], "depth": [depth_id, 0],
-                        "matte": deliver["inputs"]["matte"],
-                        "focus_x": 0.82, "focus_y": 0.55, "f_number": 2.8,
-                        "backdrop": "" if keep_scene else "dots"})
-                    scale = [n for n in graph.values()
-                             if n.get("class_type") == "ImageScale"
-                             and n["inputs"]["image"] == [node_id, 0]]
-                    self.assertEqual(len(scale), 1)
+        for keep_scene in (False, True):
+            with self.subTest(keep_scene=keep_scene):
+                graph = deliver_chain(
+                    dof=DOF_ALL, keep_scene=keep_scene, backdrop="dots",
+                    deliver_size=1024)
+                classes = {n.get("class_type") for n in graph.values()}
+                self.assertNotIn("YukariDepthBlur", classes)
+                load_id, _ = find(graph, "LoadImage")
+                repin_id, _ = find(graph, "YukariRepin")
+                matting_id, _ = find(graph, "YukariMatting")
+                depth_id, depth = find(graph, DEPTH_NODE)
+                deliver_id, deliver = find(graph, "YukariDeliver")
+                node_id, node = find(graph, "YukariDepthBlurLayered")
+                if keep_scene:
+                    source_id = repin_id
+                else:
+                    source_id, _ = find(graph, "YukariForeground")
+                self.assertEqual(depth["inputs"]["image"], [load_id, 0])
+                self.assertEqual(deliver["inputs"]["image"], [source_id, 0])
+                self.assertEqual(deliver["inputs"]["matte"], [matting_id, 0])
+                self.assertEqual(node["inputs"], {
+                    "image": [deliver_id, 0], "depth": [depth_id, 0],
+                    "matte": deliver["inputs"]["matte"],
+                    "focus_x": 0.82, "focus_y": 0.55, "f_number": 2.8,
+                    "backdrop": "" if keep_scene else "dots"})
+                scale = [n for n in graph.values()
+                         if n.get("class_type") == "ImageScale"
+                         and n["inputs"]["image"] == [node_id, 0]]
+                self.assertEqual(len(scale), 1)
 
 
 class ViewfinderGraphTest(unittest.TestCase):
-    def graph(self, mode: str, deliver_only: bool) -> dict:
-        return chain_pass(
-            base_graph(), 2048, 0.45, "fin", canvas=(832, 1664),
-            matte_model="birefnet", deliver=True, repin=True,
-            deliver_only=deliver_only, source_image="src.png",
+    def graph(self, mode: str) -> dict:
+        return deliver_chain(
             dof=Dof((0.82, 0.55), 2.8, "all", mode), backdrop="dots",
             deliver_size=1024)
 
@@ -285,40 +252,33 @@ class ViewfinderGraphTest(unittest.TestCase):
                 and n["inputs"]["filename_prefix"] == "fin" + suffix]
 
     def test_on_overlays_the_delivered_picture(self):
-        for deliver_only in (False, True):
-            with self.subTest(deliver_only=deliver_only):
-                graph = self.graph("on", deliver_only)
-                [plain] = self.saves(self.graph("off", deliver_only), "-delivered")
-                scale_id = plain["inputs"]["images"][0]
-                view_id, view = find(graph, "YukariViewfinder")
-                self.assertEqual(view["inputs"], {
-                    "image": [scale_id, 0], "focus_x": 0.82, "focus_y": 0.55,
-                    "f_number": 2.8})
-                [delivered] = self.saves(graph, "-delivered")
-                self.assertEqual(delivered["inputs"]["images"], [view_id, 0])
-                self.assertEqual(self.saves(graph, "-viewfinder"), [])
+        graph = self.graph("on")
+        [plain] = self.saves(self.graph("off"), "-delivered")
+        scale_id = plain["inputs"]["images"][0]
+        view_id, view = find(graph, "YukariViewfinder")
+        self.assertEqual(view["inputs"], {
+            "image": [scale_id, 0], "focus_x": 0.82, "focus_y": 0.55,
+            "f_number": 2.8})
+        [delivered] = self.saves(graph, "-delivered")
+        self.assertEqual(delivered["inputs"]["images"], [view_id, 0])
+        self.assertEqual(self.saves(graph, "-viewfinder"), [])
 
     def test_both_saves_a_second_picture_and_keeps_the_delivered_one_plain(self):
-        for deliver_only in (False, True):
-            with self.subTest(deliver_only=deliver_only):
-                graph = self.graph("both", deliver_only)
-                [plain] = self.saves(self.graph("off", deliver_only), "-delivered")
-                scale_id = plain["inputs"]["images"][0]
-                view_id, view = find(graph, "YukariViewfinder")
-                self.assertEqual(view["inputs"]["image"], [scale_id, 0])
-                [delivered] = self.saves(graph, "-delivered")
-                self.assertEqual(delivered["inputs"]["images"], [scale_id, 0])
-                [extra] = self.saves(graph, "-viewfinder")
-                self.assertEqual(extra["inputs"]["images"], [view_id, 0])
+        graph = self.graph("both")
+        [plain] = self.saves(self.graph("off"), "-delivered")
+        scale_id = plain["inputs"]["images"][0]
+        view_id, view = find(graph, "YukariViewfinder")
+        self.assertEqual(view["inputs"]["image"], [scale_id, 0])
+        [delivered] = self.saves(graph, "-delivered")
+        self.assertEqual(delivered["inputs"]["images"], [scale_id, 0])
+        [extra] = self.saves(graph, "-viewfinder")
+        self.assertEqual(extra["inputs"]["images"], [view_id, 0])
 
     def test_off_leaves_the_graph_as_it_was(self):
-        for deliver_only in (False, True):
-            with self.subTest(deliver_only=deliver_only):
-                off = self.graph("off", deliver_only)
-                self.assertNotIn(
-                    "YukariViewfinder",
-                    {n.get("class_type") for n in off.values()})
-                self.assertEqual(self.saves(off, "-viewfinder"), [])
+        off = self.graph("off")
+        self.assertNotIn(
+            "YukariViewfinder", {n.get("class_type") for n in off.values()})
+        self.assertEqual(self.saves(off, "-viewfinder"), [])
 
 
 class BlurLayeredTest(unittest.TestCase):

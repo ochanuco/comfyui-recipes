@@ -8,7 +8,7 @@ from pathlib import Path
 
 from ..infrastructure.comfyui.deliver_graph import ALPHA_SUFFIX, DEPTH_SUFFIX
 from ..infrastructure.comfyui.refinement_graph import (
-    DELIVERED_SUFFIX, MATTE_SUFFIX, VIEWFINDER_SUFFIX)
+    DELIVERED_SUFFIX, VIEWFINDER_SUFFIX)
 from ..infrastructure.imaging.safety import rate_image
 
 
@@ -23,16 +23,6 @@ def asset_key(key_prefix: str | None, job_index: int, role: str) -> str:
     if key_prefix is not None:
         return f"{key_prefix}:job:{job_index}:asset:{role}"
     return str(uuid.uuid4())
-
-
-def classify_outputs(outputs: list) -> tuple[list, list, list]:
-    mattes = [out for out in outputs if MATTE_SUFFIX in out["filename"]]
-    delivereds = [out for out in outputs if DELIVERED_SUFFIX in out["filename"]]
-    pictures = [out for out in outputs
-                if MATTE_SUFFIX not in out["filename"]
-                and DELIVERED_SUFFIX not in out["filename"]
-                and VIEWFINDER_SUFFIX not in out["filename"]]
-    return pictures, delivereds, mattes
 
 
 def classify_deliver_outputs(outputs: list) -> dict[str, list]:
@@ -54,10 +44,6 @@ def classify_redraw_outputs(outputs: list) -> dict[str, list]:
                         if not any(suffix in out["filename"]
                                    for suffix in cuts.values())]
     return found
-
-
-def viewfinder_outputs(outputs: list) -> list:
-    return [out for out in outputs if VIEWFINDER_SUFFIX in out["filename"]]
 
 
 def open_request(management, *, request_id: str | None,
@@ -140,57 +126,31 @@ def ingest_seed_render(*, comfyui, management, output_root: Path, emit,
                        mask_png: bytes,
                        source_generation_id: str | None = None) -> dict:
     outputs = comfyui.wait_for(prompt_id)
-    pictures, delivereds, mattes = classify_outputs(outputs)
-    if not pictures:
-        raise SystemExit(f"{job_prefix} produced no raw output")
-    raw_out = pictures[-1]
-    raw = comfyui.fetch(raw_out)
-    (output_root / raw_out["filename"]).write_bytes(raw)
+    if not outputs:
+        raise SystemExit(f"{job_prefix} produced no picture output")
+    picture_out = outputs[-1]
+    picture = comfyui.fetch(picture_out)
+    (output_root / picture_out["filename"]).write_bytes(picture)
 
     job = record_job(management, request_id, key_prefix=key_prefix,
                      index=index, seed=seed, prompt_id=prompt_id, graph=graph,
                      source_generation_id=source_generation_id)
 
-    ids: list[str] = []
-    urls: list[str] = []
     rendered = upload_generation(management, emit, job["id"], seed=seed,
-                                 name=raw_out["filename"], data=raw, index=0,
+                                 name=picture_out["filename"], data=picture,
+                                 index=0,
                                  idempotency_key=generation_key(
                                      key_prefix, index, 0))
-    raw_generation_id = rendered["id"]
-    ids.append(raw_generation_id)
-    urls.append(rendered["canonical_url"])
-
-    if delivereds:
-        delivered_out = delivereds[-1]
-        delivered = comfyui.fetch(delivered_out)
-        (output_root / delivered_out["filename"]).write_bytes(delivered)
-        rendered = upload_generation(management, emit, job["id"], seed=seed,
-                                     name=delivered_out["filename"],
-                                     data=delivered, index=1,
-                                     idempotency_key=generation_key(
-                                         key_prefix, index, 1))
-        ids.append(rendered["id"])
-        urls.append(rendered["canonical_url"])
-
-    if mattes:
-        matte_out = mattes[-1]
-        matte = comfyui.fetch(matte_out)
-        (output_root / matte_out["filename"]).write_bytes(matte)
-        attach_asset(management, raw_generation_id, role="mask",
-                     name=matte_out["filename"], data=matte,
-                     idempotency_key=asset_key(key_prefix, index, "mask"))
-        emit(f"{matte_out['filename']} -> mask on {raw_generation_id}")
-
-    attach_asset(management, raw_generation_id, role="repair-mask",
+    attach_asset(management, rendered["id"], role="repair-mask",
                  name=f"{job_prefix}-mask.png", data=mask_png,
                  idempotency_key=asset_key(key_prefix, index, "repair-mask"))
 
     management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
 
-    return {"generation_ids": ids, "generation_urls": urls,
-            "raw_filename": raw_out["filename"], "raw": raw}
+    return {"generation_ids": [rendered["id"]],
+            "generation_urls": [rendered["canonical_url"]],
+            "raw_filename": picture_out["filename"], "raw": picture}
 
 
 def import_images(management, emit, *, images: Sequence[Path],

@@ -528,13 +528,13 @@ RECOLOR_WHITE_S = 8
 RECOLOR_HAIR_S = 45
 RECOLOR_DARK_V = 120
 
-# What the finalize redraw runs at.
-FINALIZE_SIZE = 2560
-FINALIZE_DENOISE = 0.4
-FINALIZE_MODEL = "hassaku-il-v22"
-FINALIZE_SAMPLER = ("dpmpp_2m", "karras")
-FINALIZE_STEPS = 30
-FINALIZE_CFG = 5.0
+# What the canvas redraw runs at.
+REDRAW_SIZE = 2560
+REDRAW_DENOISE = 0.4
+REDRAW_MODEL = "hassaku-il-v22"
+REDRAW_SAMPLER = ("dpmpp_2m", "karras")
+REDRAW_STEPS = 30
+REDRAW_CFG = 5.0
 
 DOF_F_NUMBER = {"min": 1.4, "max": 22, "default": 2.8,
                 "stops": [1.4, 1.6, 1.8, 2.0, 2.2, 2.5, 2.8, 3.2, 3.5, 4.0, 4.5,
@@ -591,8 +591,6 @@ LIGHT_SCENES = {
              "skin_keep": 0.5},
 }
 
-FINALIZE_DEFAULTS = {"deliver_only": True, "repin": True, "stroke_light": "n",
-                     "backdrop": "dots"}
 DELIVER_DEFAULTS = {"repin": True, "stroke_light": "n", "backdrop": "dots"}
 
 # Replaces `STYLE`'s flat/cel-shaded finish with a rough, unfinished line

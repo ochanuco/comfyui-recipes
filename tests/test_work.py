@@ -1,8 +1,8 @@
 """Tests for the resident requests-queue worker.
 
 All collaborators are fakes: this suite never opens a network socket and
-never calls the real generate()/finalize() use cases (those are covered
-separately in test_generate_application.py and test_finalize_application.py).
+never calls the real use cases (those are covered by test_generate_application.py,
+test_redraw_application.py, test_deliver_application.py and the repair tests).
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from comfyui_recipes.application.work import (
     work_once,
 )
 from comfyui_recipes.application.worker_channels import Heartbeat, HubListener, ProgressRelay
+from comfyui_recipes.interfaces.agent import DEFAULT_KINDS
 
 
 class ManagementFake:
@@ -34,7 +35,7 @@ class ManagementFake:
         self.claim_error = None
         self.dry_run_items = dry_run_items or []
         self.running_items = []
-        # A finalize/repair/masked_redraw row's dial resolution fetches the
+        # A redraw/deliver/repair/masked_redraw row's dial resolution fetches the
         # source generation's context for `request.recipe`.
         self.context = context if context is not None else {
             "request": {"id": "request-1", "recipe": "yukari"}, "generations": []}
@@ -170,18 +171,16 @@ def make_generate_services(directory: Path, **overrides) -> GenerateServices:
 
 
 def make_services(directory: Path, management, *, heartbeats=None,
-                  generate=None, finalize=None, finalize_services=None,
+                  generate=None,
                   deliver=None, deliver_services=None,
                   redraw=None, redraw_services=None,
                   repair=None, repair_services=None,
                   masked_redraw=None, masked_redraw_services=None,
                   branch="dev/requests-worker", emit=None, sleep=None,
-                  kinds=("generate", "finalize")) -> WorkServices:
+                  kinds=("generate", "deliver")) -> WorkServices:
     kwargs = dict(
         management=management,
         generate_services=make_generate_services(Path(directory)),
-        finalize_services=(finalize_services if finalize_services is not None
-                          else "finalize-services"),
         redraw_services=(redraw_services if redraw_services is not None
                          else "redraw-services"),
         deliver_services=(deliver_services if deliver_services is not None
@@ -209,8 +208,6 @@ def make_services(directory: Path, management, *, heartbeats=None,
         kwargs["redraw"] = redraw
     if generate is not None:
         kwargs["generate"] = generate
-    if finalize is not None:
-        kwargs["finalize"] = finalize
     if repair is not None:
         kwargs["repair"] = repair
     if masked_redraw is not None:
@@ -222,11 +219,10 @@ def make_services(directory: Path, management, *, heartbeats=None,
 
 def make_hub_services(directory: Path, *, hub=None, progress_feed=None,
                       sleep=None, emit=None, ping_interval=0.05, backoff_max=1,
-                      clock=None, kinds=("generate", "finalize")) -> WorkServices:
+                      clock=None, kinds=("generate", "deliver")) -> WorkServices:
     kwargs = dict(
         management=ManagementFake(),
         generate_services=make_generate_services(Path(directory)),
-        finalize_services="finalize-services",
         redraw_services="redraw-services",
         deliver_services="deliver-services",
         repair_services="repair-services",
@@ -340,56 +336,6 @@ class ExecuteTest(unittest.TestCase):
             self.assertTrue(path.exists())
             self.assertEqual(key_prefix, "request:req-1")
 
-    def test_finalize_kind_passes_hires_options_through(self):
-        with tempfile.TemporaryDirectory() as directory:
-            finalize_calls = []
-
-            def fake_finalize(generation_id, finalize_services, **kwargs):
-                finalize_calls.append(kwargs)
-                return {"generation_ids": ["g2"]}
-
-            services = make_services(
-                directory, ManagementFake(), finalize=fake_finalize,
-                finalize_services="finalize-services-sentinel")
-            row = finalize_row(payload={
-                "generation_id": "gen-1",
-                "options": {"hires": 2048, "hires_denoise": 0.4}})
-            result = execute(services, row)
-            self.assertEqual(finalize_calls[0]["hires"], 2048)
-            self.assertEqual(finalize_calls[0]["hires_denoise"], 0.4)
-            self.assertEqual(result["resolved_options"],
-                             {"hires": 2048, "hires_denoise": 0.4})
-
-    def test_finalize_kind_maps_options_and_uses_the_configured_services(self):
-        with tempfile.TemporaryDirectory() as directory:
-            finalize_calls = []
-
-            def fake_finalize(generation_id, finalize_services, **kwargs):
-                finalize_calls.append((generation_id, finalize_services, kwargs))
-                return {"generation_ids": ["g2"]}
-
-            services = make_services(
-                directory, ManagementFake(), finalize=fake_finalize,
-                finalize_services="finalize-services-sentinel")
-            row = finalize_row(payload={
-                "generation_id": "gen-1",
-                "options": {"repin": True, "keep_legwear": True, "route": "pixel"},
-            })
-            result = execute(services, row)
-            self.assertEqual(result, {
-                "generation_ids": ["g2"],
-                "resolved_options": {"repin": True, "keep_legwear": 0.62, "route": "pixel"},
-            })
-            self.assertEqual(finalize_calls[0][0], "gen-1")
-            self.assertEqual(finalize_calls[0][2]["request_id"], "req-2")
-            self.assertEqual(finalize_calls[0][2]["key_prefix"], "request:req-2")
-            self.assertEqual(finalize_calls[0][1], "finalize-services-sentinel")
-            self.assertEqual(finalize_calls[0][2]["apply_repin"], True)
-            self.assertEqual(finalize_calls[0][2]["keep_legwear"], 0.62)
-            self.assertIs(finalize_calls[0][2]["latent_route"], False)
-            self.assertIs(finalize_calls[0][2]["keep_scene"], False)
-            self.assertIn("context", finalize_calls[0][2])
-
     def test_redraw_kind_maps_options_and_uses_the_redraw_services(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []
@@ -462,7 +408,7 @@ class ExecuteTest(unittest.TestCase):
             self.assertIsNone(kwargs["backdrop"])
             self.assertIn("context", kwargs)
 
-    def test_deliver_kind_rejects_finalize_only_options_and_a_missing_source(self):
+    def test_deliver_kind_rejects_redraw_options_and_a_missing_source(self):
         with tempfile.TemporaryDirectory() as directory:
             calls = []
             services = make_services(
@@ -475,68 +421,57 @@ class ExecuteTest(unittest.TestCase):
                 execute(services, deliver_row(payload={"options": {}}))
             self.assertEqual(calls, [])
 
-    def test_finalize_kind_with_bad_options_fails_before_finalizing(self):
+    def test_deliver_payload_ignores_extra_keys_such_as_chimeras_profile(self):
         with tempfile.TemporaryDirectory() as directory:
-            finalize_calls = []
             services = make_services(
                 directory, ManagementFake(),
-                finalize=lambda *a, **k: finalize_calls.append((a, k)))
-            row = finalize_row(payload={
-                "generation_id": "gen-1", "options": {"nope": True}})
-            with self.assertRaises(SystemExit) as ctx:
-                execute(services, row)
-            self.assertIn("nope", str(ctx.exception))
-            self.assertEqual(finalize_calls, [])
-
-    def test_finalize_kind_without_generation_id_fails(self):
-        with tempfile.TemporaryDirectory() as directory:
-            services = make_services(directory, ManagementFake())
-            row = finalize_row(payload={"options": {}})
-            with self.assertRaises(SystemExit):
-                execute(services, row)
-
-    def test_finalize_resolves_words_against_the_source_requests_recipe(self):
-        with tempfile.TemporaryDirectory() as directory:
-            management = ManagementFake(
-                context={"request": {"id": "request-1", "recipe": "yukari"},
-                         "generations": []})
-            services = make_services(
-                directory, management,
-                finalize=lambda generation_id, finalize_services, **kwargs: {
+                deliver=lambda generation_id, deliver_services, **kwargs: {
                     "generation_ids": ["g2"]})
-            row = finalize_row(payload={
-                "generation_id": "gen-1",
-                "options": {"denoise": "keep", "repin": True, "keep_legwear": True},
-            })
-            result = execute(services, row)
-            self.assertEqual(result["resolved_options"], {
-                "denoise": 0.4, "repin": True, "keep_legwear": 0.62,
-            })
-
-    def test_finalize_word_unknown_to_the_source_recipe_fails_the_request(self):
-        with tempfile.TemporaryDirectory() as directory:
-            # yukari (the default fake recipe) has no `redraw` word.
-            services = make_services(
-                directory, ManagementFake(),
-                finalize=lambda *a, **k: (_ for _ in ()).throw(
-                    AssertionError("finalize must not run")))
-            row = finalize_row(payload={
-                "generation_id": "gen-1", "options": {"denoise": "redraw"}})
-            with self.assertRaisesRegex(SystemExit, "denoise"):
-                execute(services, row)
-
-    def test_finalize_payload_ignores_extra_keys_such_as_chimeras_profile(self):
-        with tempfile.TemporaryDirectory() as directory:
-            services = make_services(
-                directory, ManagementFake(),
-                finalize=lambda generation_id, finalize_services, **kwargs: {
-                    "generation_ids": ["g2"]})
-            row = finalize_row(payload={
+            row = deliver_row(payload={
                 "generation_id": "gen-1", "options": {},
                 "profile": {"name": "cinema-tidy", "version": 3},
             })
             result = execute(services, row)
             self.assertEqual(result["generation_ids"], ["g2"])
+
+    def test_deliver_resolves_words_against_the_source_requests_recipe(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = make_services(
+                directory, ManagementFake(),
+                deliver=lambda generation_id, deliver_services, **kwargs: {
+                    "generation_ids": ["g2"]})
+            row = deliver_row(payload={
+                "generation_id": "gen-1",
+                "options": {"repin": True, "keep_legwear": True}})
+            result = execute(services, row)
+            self.assertEqual(result["resolved_options"],
+                             {"repin": True, "keep_legwear": 0.62})
+
+    def test_a_word_unknown_to_the_source_recipe_fails_the_request(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = make_services(
+                directory, ManagementFake(),
+                redraw=lambda *a, **k: (_ for _ in ()).throw(
+                    AssertionError("redraw must not run")))
+            row = redraw_row(payload={
+                "generation_id": "gen-1",
+                "options": {"method": "canvas", "denoise": "redraw"}})
+            with self.assertRaisesRegex(SystemExit, "denoise"):
+                execute(services, row)
+
+    def test_finalize_requests_are_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            services = make_services(directory, ManagementFake())
+            with self.assertRaisesRegex(SystemExit, "no longer supported"):
+                execute(services, finalize_row())
+
+    def test_the_default_kinds_are_exactly_the_five(self):
+        self.assertEqual(
+            WorkServices.__dataclass_fields__["kinds"].default,
+            ("generate", "redraw", "repair", "masked_redraw", "deliver"))
+        self.assertEqual(
+            DEFAULT_KINDS,
+            ("generate", "redraw", "repair", "masked_redraw", "deliver"))
 
     def test_unsupported_kind_fails(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -651,7 +586,7 @@ class WorkOnceTest(unittest.TestCase):
             self.assertFalse(work_once(services))
             self.assertEqual(management.calls, [
                 ("POST", "/api/v1/requests/claim",
-                 {"worker_id": "test-worker", "kinds": ["generate", "finalize"]}, None)])
+                 {"worker_id": "test-worker", "kinds": ["generate", "deliver"]}, None)])
 
     def test_done_row_patches_status_done_with_the_result(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1040,7 +975,7 @@ class HubListenerTest(unittest.TestCase):
                 self.assertTrue(wake.wait(2))
                 self.assertEqual(connection.sent[0], {
                     "type": "hello", "worker_id": "test-worker",
-                    "kinds": ["generate", "finalize"]})
+                    "kinds": ["generate", "deliver"]})
             finally:
                 listener.stop()
             self.assertTrue(connection.closed)
@@ -1251,23 +1186,6 @@ class WorkOnceHubTest(unittest.TestCase):
             services = make_services(directory, management, generate=fake_generate)
             work_once(services, listener=RecordingListener())
             self.assertIn(("req-1", "submit"), sent)
-
-    def test_sends_finalize_phase_for_a_finalize_row_after_claim(self):
-        with tempfile.TemporaryDirectory() as directory:
-            row = finalize_row()
-            management = ManagementFake(claim_responses=[row])
-            sent = []
-
-            class RecordingListener:
-                def send_progress(self, request_id, phase, **fields):
-                    sent.append((request_id, phase))
-
-            def fake_finalize(generation_id, finalize_services, **kwargs):
-                return {"generation_ids": []}
-
-            services = make_services(directory, management, finalize=fake_finalize)
-            work_once(services, listener=RecordingListener())
-            self.assertIn(("req-2", "finalize"), sent)
 
     def test_relay_current_is_set_during_execute_and_cleared_after(self):
         with tempfile.TemporaryDirectory() as directory:

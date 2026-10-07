@@ -1,9 +1,9 @@
 """Tests pinning repair_graph's transformation on the two reference graphs.
 
 `repair-graph-raw.json` is a plain generation (one SaveImage). `repair-graph-
-finalize.json` is a finalize output graph: redraw + birefnet matte + purple-
-stroke delivery, all downstream of the redraw's own VAEDecode. Both were
-captured from a real worker submission; see AGENTS.md for how to regenerate
+redraw.json` is a redraw output graph: a second sampling pass on a bigger
+canvas whose VAEDecode feeds the one SaveImage. Both were captured from a
+real worker submission; see AGENTS.md for how to regenerate
 fixtures like these if the node packs' contracts ever change.
 """
 
@@ -16,20 +16,15 @@ from pathlib import Path
 
 from comfyui_recipes.domain.yukari.recipe import render_spec
 from comfyui_recipes.infrastructure.comfyui import anima_graph
-from comfyui_recipes.infrastructure.comfyui.base_graph import base_roles
+from comfyui_recipes.infrastructure.comfyui.base_graph import base_roles, source_prompts
 from comfyui_recipes.infrastructure.comfyui.repair_graph import (
-    DELIVERED_SUFFIX,
-    MATTE_SUFFIX,
     masked_redraw_graph,
-    redraw_canvas,
     repair_graph,
-    source_prompts,
-    splice_repair,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
 RAW = json.loads((FIXTURES / "repair-graph-raw.json").read_text())
-FINALIZE = json.loads((FIXTURES / "repair-graph-finalize.json").read_text())
+REDRAW = json.loads((FIXTURES / "repair-graph-redraw.json").read_text())
 
 # A layerdiffuse raw: node 12 LayeredDiffusionApply wraps the model, 13
 # LayeredDiffusionDecode/14 InvertMask/15 JoinImageWithAlpha compute the RGBA
@@ -67,12 +62,12 @@ class SourcePromptsTest(unittest.TestCase):
         self.assertEqual(positive, RAW["6"]["inputs"]["text"])
         self.assertEqual(negative, RAW["7"]["inputs"]["text"])
 
-    def test_finalize_graph_reads_the_redraw_prompt_pair_not_pass1(self):
+    def test_redraw_graph_reads_the_redraw_prompt_pair_not_pass1(self):
         # The fixture's pass-1 and redraw prompts happen to carry the same
         # text; what matters is which node source_prompts reads them from.
-        positive, negative = source_prompts(FINALIZE)
-        self.assertEqual(positive, FINALIZE["15"]["inputs"]["text"])
-        self.assertEqual(negative, FINALIZE["16"]["inputs"]["text"])
+        positive, negative = source_prompts(REDRAW)
+        self.assertEqual(positive, REDRAW["15"]["inputs"]["text"])
+        self.assertEqual(negative, REDRAW["16"]["inputs"]["text"])
 
 
 class RepairGraphRawTest(unittest.TestCase):
@@ -176,81 +171,48 @@ class RepairGraphRawTest(unittest.TestCase):
         self.assertEqual(json.dumps(RAW, sort_keys=True), before)
 
 
-class RepairGraphFinalizeTest(unittest.TestCase):
+class RepairGraphRedrawTest(unittest.TestCase):
     def setUp(self):
         self.graph = repair_graph(
-            FINALIZE, image_name="src.png", mask_name="mask.png",
+            REDRAW, image_name="src.png", mask_name="mask.png",
             positive="p", negative="n", seed=42, denoise=0.6, size=1024,
             prefix="rep-xyz-s42")
 
-    def test_keeps_only_the_shared_loaders_plus_the_whole_tail(self):
-        kept_original = {key for key in self.graph if key in FINALIZE}
-        self.assertEqual(
-            kept_original,
-            {"4", "10", "9", "17", "18", "19", "20", "21", "22", "23", "24"})
+    def test_keeps_only_the_shared_loaders_plus_the_save(self):
+        kept_original = {key for key in self.graph if key in REDRAW}
+        self.assertEqual(kept_original, {"4", "10", "9"})
 
     def test_pass1_and_old_redraw_sampling_nodes_are_dropped(self):
         dropped = {"3", "5", "6", "7", "8", "11", "13", "15", "16"}
         self.assertFalse(dropped & set(self.graph))
 
-    def test_raw_saveimage_is_rewired_to_the_stitch_and_gets_the_bare_prefix(self):
+    def test_saveimage_is_rewired_to_the_stitch_and_gets_the_bare_prefix(self):
         save = self.graph["9"]
         self.assertEqual(save["inputs"]["filename_prefix"], "rep-xyz-s42")
         stitch_id = save["inputs"]["images"][0]
         self.assertEqual(self.graph[stitch_id]["class_type"], "InpaintStitchImproved")
 
-    def test_matte_saveimage_keeps_its_own_suffix(self):
-        save = self.graph["20"]
-        self.assertEqual(save["inputs"]["filename_prefix"],
-                         "rep-xyz-s42" + MATTE_SUFFIX)
-        # unchanged wiring -- it reads the birefnet matte-to-image node, not
-        # the redraw's own decode.
-        self.assertEqual(save["inputs"]["images"], ["19", 0])
-
-    def test_delivered_saveimage_keeps_its_own_suffix(self):
-        save = self.graph["24"]
-        self.assertEqual(save["inputs"]["filename_prefix"],
-                         "rep-xyz-s42" + DELIVERED_SUFFIX)
-
-    def test_only_three_saveimage_nodes_survive(self):
+    def test_only_one_saveimage_survives(self):
         saves = [node for node in self.graph.values()
                 if node["class_type"] == "SaveImage"]
-        self.assertEqual(len(saves), 3)
-
-    def test_bg_removal_loader_is_pulled_in_though_not_downstream_of_the_decode(self):
-        self.assertIn("17", self.graph)
-        self.assertEqual(self.graph["17"], FINALIZE["17"])
-        remove_background = self.graph["18"]
-        self.assertEqual(remove_background["inputs"]["bg_removal_model"], ["17", 0])
-
-    def test_tail_refs_to_the_old_decode_are_rewired_to_the_stitch(self):
-        stitch_id = self.graph["9"]["inputs"]["images"][0]
-        remove_background = self.graph["18"]
-        self.assertEqual(remove_background["inputs"]["image"], [stitch_id, 0])
-        repin = self.graph["21"]
-        self.assertEqual(repin["inputs"]["image"], [stitch_id, 0])
-
-    def test_tail_refs_not_pointing_at_the_old_decode_are_untouched(self):
-        deliver = self.graph["22"]
-        self.assertEqual(deliver["inputs"]["image"], ["21", 0])
-        self.assertEqual(deliver["inputs"]["matte"], ["18", 0])
+        self.assertEqual(len(saves), 1)
 
     def test_sampler_settings_come_from_the_redraw_pass_not_pass1(self):
         sample = next(node for node in self.graph.values()
                      if node["class_type"] == "KSampler")
         self.assertEqual(sample["inputs"]["sampler_name"],
-                         FINALIZE["13"]["inputs"]["sampler_name"])
+                         REDRAW["13"]["inputs"]["sampler_name"])
         self.assertEqual(sample["inputs"]["scheduler"],
-                         FINALIZE["13"]["inputs"]["scheduler"])
-        self.assertEqual(sample["inputs"]["steps"], FINALIZE["13"]["inputs"]["steps"])
-        self.assertEqual(sample["inputs"]["cfg"], FINALIZE["13"]["inputs"]["cfg"])
+                         REDRAW["13"]["inputs"]["scheduler"])
+        self.assertEqual(sample["inputs"]["steps"], REDRAW["13"]["inputs"]["steps"])
+        self.assertEqual(sample["inputs"]["cfg"], REDRAW["13"]["inputs"]["cfg"])
         self.assertNotEqual(sample["inputs"]["sampler_name"],
-                            FINALIZE["3"]["inputs"]["sampler_name"])
+                            REDRAW["3"]["inputs"]["sampler_name"])
 
     def test_vae_ref_matches_the_redraw_decode(self):
         encode = next(node for node in self.graph.values()
                      if node["class_type"] == "VAEEncode")
-        self.assertEqual(encode["inputs"]["vae"], FINALIZE["14"]["inputs"]["vae"])
+        self.assertEqual(encode["inputs"]["vae"], REDRAW["14"]["inputs"]["vae"])
 
 
 class RepairGraphLayerDiffuseTest(unittest.TestCase):
@@ -304,17 +266,6 @@ class RepairGraphLayerDiffuseTest(unittest.TestCase):
                     positive="p", negative="n", seed=1, denoise=0.5,
                     size=512, prefix="rep-ld")
         self.assertEqual(json.dumps(LAYERDIFFUSE, sort_keys=True), before)
-
-
-class SpliceRepairLayerDiffuseTest(unittest.TestCase):
-    def test_reroll_model_unwraps_the_layereddiffusionapply_node(self):
-        graph = splice_repair(
-            LAYERDIFFUSE, mask_name="mask.png", positive="p", negative="n",
-            denoise=0.6, size=1024)
-        sample = next(node for node in graph.values()
-                     if node["class_type"] == "KSampler"
-                     and node["inputs"]["denoise"] == 0.6)
-        self.assertEqual(sample["inputs"]["model"], ["4", 0])
 
 
 class MaskedRedrawGraphTest(unittest.TestCase):
@@ -493,7 +444,7 @@ class RerollHooksTest(unittest.TestCase):
         self.assertEqual(sample["inputs"]["positive"], [apply_id, 0])
         self.assertEqual(sample["inputs"]["negative"], [apply_id, 1])
 
-    def test_hooks_reach_masked_redraw_and_splice_repair(self):
+    def test_hooks_reach_masked_redraw(self):
         calls = []
 
         def note(graph, allocate, refs):
@@ -505,29 +456,9 @@ class RerollHooksTest(unittest.TestCase):
             negative="n", seed=1, denoise=0.45, mask_padding=0,
             mask_feather=20, size=512, prefix="mrd",
             model_hooks=[note], conditioning_hooks=[note])
-        splice_repair(
-            FINALIZE, mask_name="mask.png", positive="p", negative="n",
-            denoise=0.6, size=1024, model_hooks=[note], conditioning_hooks=[note])
-        self.assertEqual(len(calls), 4)
+        self.assertEqual(len(calls), 2)
         self.assertIsNone(calls[0].positive)
         self.assertIsNotNone(calls[1].positive)
-
-
-class SpliceRepairLorasTest(unittest.TestCase):
-    def test_lora_chains_ahead_of_the_reroll_sampler(self):
-        graph = splice_repair(
-            FINALIZE, mask_name="mask.png", positive="p", negative="n",
-            denoise=0.6, size=1024, loras=[("feet-xl-ill.safetensors", 0.8)])
-        loader_id, loader = next(
-            (key, node) for key, node in graph.items()
-            if key not in FINALIZE and node["class_type"] == "LoraLoader")
-        self.assertEqual(loader["inputs"]["lora_name"], "feet-xl-ill.safetensors")
-        self.assertEqual(loader["inputs"]["strength_model"], 0.8)
-        self.assertEqual(loader["inputs"]["strength_clip"], 0.8)
-        sample = next(node for node in graph.values()
-                     if node["class_type"] == "KSampler"
-                     and node["inputs"]["denoise"] == 0.6)
-        self.assertEqual(sample["inputs"]["model"], [loader_id, 0])
 
 
 class RepairGraphErrorsTest(unittest.TestCase):
@@ -570,91 +501,6 @@ class RepairGraphErrorsTest(unittest.TestCase):
                         size=512, prefix="rep")
 
 
-class RedrawCanvasTest(unittest.TestCase):
-    def test_finalize_graph_reads_the_latent_upscale_size(self):
-        self.assertEqual(redraw_canvas(FINALIZE), (1280, 2560))
-
-    def test_raw_graph_falls_back_to_the_empty_latent_size(self):
-        self.assertEqual(redraw_canvas(RAW), (832, 1664))
-
-
-class SpliceRepairFinalizeTest(unittest.TestCase):
-    def setUp(self):
-        self.graph = splice_repair(
-            FINALIZE, mask_name="mask.png", positive="p", negative="n",
-            denoise=0.6, size=1024)
-
-    def test_nothing_is_pruned(self):
-        self.assertTrue(set(FINALIZE) <= set(self.graph))
-
-    def test_the_crops_image_is_the_redraws_own_decode(self):
-        crop = next(node for node in self.graph.values()
-                   if node["class_type"] == "InpaintCropImproved")
-        self.assertEqual(crop["inputs"]["image"], ["14", 0])
-        self.assertEqual(crop["inputs"]["output_target_width"], 1024)
-        self.assertEqual(crop["inputs"]["output_target_height"], 1024)
-
-    def test_no_loadimage_is_added_for_a_staged_source(self):
-        load_images = [node for node in self.graph.values()
-                       if node["class_type"] == "LoadImage"]
-        self.assertEqual(len(load_images), 1)
-        self.assertEqual(load_images[0]["inputs"]["image"], "mask.png")
-
-    def test_tail_consumers_of_the_old_decode_are_rewired_to_the_stitch(self):
-        stitch_id = next(
-            key for key, node in self.graph.items()
-            if node["class_type"] == "InpaintStitchImproved")
-        self.assertEqual(self.graph["18"]["inputs"]["image"], [stitch_id, 0])
-        self.assertEqual(self.graph["21"]["inputs"]["image"], [stitch_id, 0])
-        self.assertEqual(self.graph["9"]["inputs"]["images"], [stitch_id, 0])
-
-    def test_saveimage_prefixes_are_left_untouched(self):
-        self.assertEqual(self.graph["9"]["inputs"]["filename_prefix"], "fin-g76ufg")
-        self.assertEqual(
-            self.graph["20"]["inputs"]["filename_prefix"], "fin-g76ufg-matte")
-        self.assertEqual(
-            self.graph["24"]["inputs"]["filename_prefix"], "fin-g76ufg-delivered")
-
-    def test_sampler_settings_come_from_the_redraw_pass(self):
-        sample = next(
-            node for node in self.graph.values()
-            if node["class_type"] == "KSampler" and node["inputs"]["denoise"] == 0.6)
-        self.assertEqual(sample["inputs"]["seed"], 8)
-        self.assertEqual(sample["inputs"]["sampler_name"], "euler")
-        self.assertEqual(sample["inputs"]["scheduler"], "normal")
-        self.assertEqual(sample["inputs"]["cfg"], 5)
-        self.assertEqual(sample["inputs"]["steps"], 30)
-
-    def test_explicit_seed_overrides_the_redraw_passs_own(self):
-        graph = splice_repair(
-            FINALIZE, mask_name="mask.png", positive="p", negative="n",
-            denoise=0.6, size=1024, seed=99)
-        sample = next(
-            node for node in graph.values()
-            if node["class_type"] == "KSampler" and node["inputs"]["denoise"] == 0.6)
-        self.assertEqual(sample["inputs"]["seed"], 99)
-
-    def test_does_not_mutate_the_source_graph(self):
-        before = json.dumps(FINALIZE, sort_keys=True)
-        splice_repair(FINALIZE, mask_name="m.png", positive="p", negative="n",
-                      denoise=0.5, size=512)
-        self.assertEqual(json.dumps(FINALIZE, sort_keys=True), before)
-
-
-class SpliceRepairRawTest(unittest.TestCase):
-    def test_the_only_saveimage_is_rewired_to_the_stitch(self):
-        graph = splice_repair(
-            RAW, mask_name="mask.png", positive="p", negative="n",
-            denoise=0.6, size=1024)
-        stitch_id = next(
-            key for key, node in graph.items()
-            if node["class_type"] == "InpaintStitchImproved")
-        self.assertEqual(graph["9"]["inputs"]["images"], [stitch_id, 0])
-        crop = next(node for node in graph.values()
-                   if node["class_type"] == "InpaintCropImproved")
-        self.assertEqual(crop["inputs"]["image"], ["8", 0])
-
-
 class GuidedStepsBaseTest(unittest.TestCase):
     """repair/masked_redraw must redraw a guided two-stage Anima base at its
     guided cfg (the first stage's own), not the final stage's own 1.0."""
@@ -663,24 +509,6 @@ class GuidedStepsBaseTest(unittest.TestCase):
         spec = render_spec("coffee", 42, "p")
         self.spec = spec
         self.base = anima_graph.build_graph(spec)
-
-    def test_redraw_canvas_reads_the_origin_stages_empty_latent(self):
-        self.assertEqual(
-            redraw_canvas(self.base), (self.spec.width, self.spec.height))
-
-    def test_splice_repair_reports_the_guided_cfg_not_the_final_stages_one(self):
-        graph = splice_repair(
-            self.base, mask_name="mask.png", positive="p", negative="n",
-            denoise=0.6, size=512)
-        sample = next(
-            node for node in graph.values()
-            if node["class_type"] == "KSampler" and node["inputs"]["denoise"] == 0.6)
-        self.assertEqual(sample["inputs"]["cfg"], self.spec.cfg)
-        self.assertNotEqual(sample["inputs"]["cfg"], 1.0)
-        self.assertEqual(sample["inputs"]["steps"], self.spec.steps)
-        self.assertEqual(sample["inputs"]["seed"], self.spec.seed)
-        self.assertEqual(sample["inputs"]["sampler_name"], self.spec.sampler_name)
-        self.assertEqual(sample["inputs"]["scheduler"], self.spec.scheduler)
 
     def test_repair_graph_reports_the_guided_cfg_not_the_final_stages_one(self):
         graph = repair_graph(

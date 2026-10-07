@@ -8,9 +8,10 @@ from pathlib import Path
 
 from comfyui_recipes.application.ingest import (
     attach_asset,
-    classify_outputs,
-    viewfinder_outputs,
+    classify_deliver_outputs,
+    classify_redraw_outputs,
     import_images,
+    ingest_seed_render,
     open_request,
     record_job,
 )
@@ -35,32 +36,63 @@ class ManagementFake:
 
 
 class ClassifyOutputsTests(unittest.TestCase):
-    def test_splits_raw_matte_and_delivered_by_filename(self):
+    def test_deliver_outputs_split_by_filename(self):
         outputs = [
-            {"filename": "a-matte.png"},
+            {"filename": "a-alpha.png"},
+            {"filename": "a-depth.png"},
             {"filename": "a-delivered.png"},
-            {"filename": "a.png"},
+            {"filename": "a-viewfinder.png"},
         ]
-        pictures, delivereds, mattes = classify_outputs(outputs)
-        self.assertEqual(pictures, [{"filename": "a.png"}])
-        self.assertEqual(delivereds, [{"filename": "a-delivered.png"}])
-        self.assertEqual(mattes, [{"filename": "a-matte.png"}])
+        found = classify_deliver_outputs(outputs)
+        self.assertEqual(found["alpha"], [outputs[0]])
+        self.assertEqual(found["depth"], [outputs[1]])
+        self.assertEqual(found["delivered"], [outputs[2]])
+        self.assertEqual(found["viewfinder"], [outputs[3]])
 
-    def test_viewfinder_is_neither_raw_nor_delivered(self):
-        outputs = [{"filename": "a.png"}, {"filename": "a-delivered.png"},
-                   {"filename": "a-viewfinder.png"}]
-        pictures, delivereds, _ = classify_outputs(outputs)
-        self.assertEqual(pictures, [{"filename": "a.png"}])
-        self.assertEqual(delivereds, [{"filename": "a-delivered.png"}])
-        self.assertEqual(viewfinder_outputs(outputs),
-                         [{"filename": "a-viewfinder.png"}])
+    def test_redraw_picture_is_what_the_cuts_are_not(self):
+        outputs = [{"filename": "a.png"}, {"filename": "a-alpha.png"},
+                   {"filename": "a-depth.png"}]
+        found = classify_redraw_outputs(outputs)
+        self.assertEqual(found["picture"], [outputs[0]])
+        self.assertEqual(found["alpha"], [outputs[1]])
+        self.assertEqual(found["depth"], [outputs[2]])
 
-    def test_no_matte_or_delivered(self):
-        outputs = [{"filename": "only.png"}]
-        pictures, delivereds, mattes = classify_outputs(outputs)
-        self.assertEqual(pictures, outputs)
-        self.assertEqual(delivereds, [])
-        self.assertEqual(mattes, [])
+
+class IngestSeedRenderTests(unittest.TestCase):
+    class Comfyui:
+        def __init__(self, outputs):
+            self.outputs = outputs
+
+        def wait_for(self, _prompt_id):
+            return self.outputs
+
+        def fetch(self, out):
+            return out["filename"].encode()
+
+    def ingest(self, outputs):
+        management = ManagementFake()
+        with tempfile.TemporaryDirectory() as root:
+            result = ingest_seed_render(
+                comfyui=self.Comfyui(outputs), management=management,
+                output_root=Path(root), emit=lambda _line: None,
+                request_id="request-1", key_prefix=None, index=0, seed=3,
+                prompt_id="prompt-1", graph={}, job_prefix="rep-s3",
+                mask_png=b"mask")
+        return management, result
+
+    def test_records_one_picture_and_its_repair_mask(self):
+        management, result = self.ingest([{"filename": "rep-s3_00001_.png"}])
+        self.assertEqual(len(result["generation_ids"]), 1)
+        uploads = [call for call in management.calls
+                   if call[1].endswith("/generations")]
+        self.assertEqual(len(uploads), 1)
+        assets = [call[3][0]["role"] for call in management.calls
+                  if call[1].endswith("/assets")]
+        self.assertEqual(assets, ["repair-mask"])
+
+    def test_no_output_fails(self):
+        with self.assertRaises(SystemExit):
+            self.ingest([])
 
 
 class RecordJobTests(unittest.TestCase):

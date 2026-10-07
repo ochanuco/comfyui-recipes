@@ -124,6 +124,20 @@ class ChimeraClient:
         with urllib.request.urlopen(request, timeout=120) as response:
             return response.read()
 
+    def fetch_asset(self, generation_id: str, role: str) -> bytes | None:
+        """The stored bytes of the generation's asset, or None when it has none."""
+        request = urllib.request.Request(
+            f"{self.base_url}/g/{generation_id}/assets/{urllib.parse.quote(role, safe='')}",
+            headers={**self.credentials(), "User-Agent": USER_AGENT},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return None
+            raise
+
     def put_semantic(self, generation_id: str, semantic: dict) -> dict:
         semantic.setdefault("schema_version", 1)
         semantic.setdefault("generated_by", {

@@ -8,7 +8,8 @@ import unittest
 import numpy as np
 from PIL import Image
 
-from comfyui_recipes.infrastructure.imaging import matting
+from comfyui_recipes.domain.yukari import delivery_style
+from comfyui_recipes.infrastructure.imaging import delivery, matting
 
 
 def rgb_png(pixels: np.ndarray) -> bytes:
@@ -43,71 +44,90 @@ class TrimapTest(unittest.TestCase):
         self.assertEqual(known[51, 32], 0)
 
 
-class FinishTest(unittest.TestCase):
-    def test_finish_forces_the_known_regions_onto_the_alpha(self):
-        px = np.full((8, 8, 3), 100.0)
+class SettleTest(unittest.TestCase):
+    def test_settle_forces_the_known_regions_onto_the_alpha(self):
         known = np.full((8, 8), matting.UNKNOWN, dtype=np.uint8)
         known[:, :2] = matting.KNOWN_FIGURE
         known[:, 6:] = matting.KNOWN_BACKDROP
-        alpha = np.full((8, 8), 0.5)
-        _, out = matting.finish(px, alpha, known, lambda rgb, a: rgb)
+        out = matting.settle(np.full((8, 8), 0.5), known)
         self.assertTrue((out[:, :2] == 1.0).all())
         self.assertTrue((out[:, 6:] == 0.0).all())
         self.assertTrue((out[:, 2:6] == 0.5).all())
 
-    def test_finish_keeps_the_raw_pixels_where_alpha_is_zero(self):
+    def test_settle_clips_the_models_alpha_to_the_unit_range(self):
+        known = np.full((4, 4), matting.UNKNOWN, dtype=np.uint8)
+        alpha = np.array([[-0.5, 1.5, 0.25, 0.75]] * 4)
+        np.testing.assert_array_equal(
+            matting.settle(alpha, known)[0], [0.0, 1.0, 0.25, 0.75])
+
+
+class FigureColourTest(unittest.TestCase):
+    def test_keeps_the_raw_pixels_where_alpha_is_zero(self):
         px = np.zeros((8, 8, 3))
         px[...] = (10.0, 20.0, 30.0)
         px[:, 6:] = (200.0, 100.0, 50.0)
-        known = np.full((8, 8), matting.UNKNOWN, dtype=np.uint8)
-        known[:, 6:] = matting.KNOWN_BACKDROP
-        known[:, :2] = matting.KNOWN_FIGURE
         alpha = np.full((8, 8), 0.5)
-
-        def foreground(rgb, a):
-            return np.zeros_like(rgb)
-
-        colour, out = matting.finish(px, alpha, known, foreground)
+        alpha[:, 6:] = 0.0
+        colour = matting.figure_colour(px, alpha, lambda rgb, a: np.zeros_like(rgb))
         np.testing.assert_array_equal(colour[:, 6:], px[:, 6:])
         self.assertEqual(float(colour[4, 0].max()), 0.0)
-        self.assertTrue((out[:, 6:] == 0.0).all())
-
-    def test_finish_clips_the_models_alpha_to_the_unit_range(self):
-        px = np.full((4, 4, 3), 50.0)
-        known = np.full((4, 4), matting.UNKNOWN, dtype=np.uint8)
-        alpha = np.array([[-0.5, 1.5, 0.25, 0.75]] * 4)
-        _, out = matting.finish(px, alpha, known, lambda rgb, a: rgb)
-        np.testing.assert_array_equal(out[0], [0.0, 1.0, 0.25, 0.75])
 
 
-class MattePngTest(unittest.TestCase):
-    def test_matte_png_round_trips_with_a_stand_in_model(self):
-        pixels = np.full((64, 64, 3), (210, 230, 235), dtype=np.uint8)
-        pixels[16:48, 16:48] = (40, 40, 40)
+class AlphaAndForegroundPngTest(unittest.TestCase):
+    def setUp(self):
+        self.pixels = np.full((64, 64, 3), (210, 230, 235), dtype=np.uint8)
+        self.pixels[16:48, 16:48] = (40, 40, 40)
         soft = np.zeros((64, 64), dtype=np.uint8)
         soft[16:48, 16:48] = 255
-        seen = {}
+        self.soft = soft
+        self.seen = {}
 
-        def predict(rgb, known):
-            seen["rgb"], seen["known"] = rgb, known
-            return np.full(known.shape, 0.5)
+    def predict(self, rgb, known):
+        self.seen["rgb"], self.seen["known"] = rgb, known
+        return np.full(known.shape, 0.5)
 
-        image_png, alpha_png = matting.matte_png(
-            rgb_png(pixels), rgb_png(soft), predict, lambda rgb, alpha: rgb)
-        image = np.array(Image.open(io.BytesIO(image_png)))
-        alpha_img = Image.open(io.BytesIO(alpha_png))
+    def test_alpha_png_is_the_settled_alpha_as_an_l_png(self):
+        alpha_img = Image.open(io.BytesIO(matting.alpha_png(
+            rgb_png(self.pixels), rgb_png(self.soft), self.predict)))
         alpha = np.array(alpha_img)
         self.assertEqual(alpha_img.mode, "L")
-        self.assertEqual(image.shape, (64, 64, 3))
-        self.assertEqual(seen["rgb"].dtype, np.uint8)
-        self.assertEqual(seen["known"].shape, (64, 64))
+        self.assertEqual(self.seen["rgb"].dtype, np.uint8)
+        self.assertEqual(self.seen["known"].shape, (64, 64))
         self.assertEqual(alpha[32, 32], 255)
         self.assertEqual(alpha[0, 0], 0)
-        unknown = seen["known"] == matting.UNKNOWN
+        unknown = self.seen["known"] == matting.UNKNOWN
         self.assertTrue(unknown.any())
         self.assertTrue((alpha[unknown] == 128).all())
-        np.testing.assert_array_equal(image[0, 0], pixels[0, 0])
+
+    def test_foreground_png_matches_the_colour_the_alpha_asks_for(self):
+        alpha_png = matting.alpha_png(
+            rgb_png(self.pixels), rgb_png(self.soft), self.predict)
+        image = np.array(Image.open(io.BytesIO(matting.foreground_png(
+            rgb_png(self.pixels), alpha_png, lambda rgb, alpha: rgb))))
+        self.assertEqual(image.shape, (64, 64, 3))
+        np.testing.assert_array_equal(image[0, 0], self.pixels[0, 0])
         np.testing.assert_allclose(image[32, 32], (40, 40, 40), atol=1)
+
+    def test_composed_stages_equal_the_single_pass_the_node_used_to_run(self):
+        px = self.pixels.astype(float)
+        known = matting.trimap(
+            delivery.cut_figure(px, self.soft), delivery_style.MATTING_TRIMAP_PX)
+        alpha = matting.settle(matting.tiled(
+            self.predict, self.pixels, known, delivery_style.MATTING_TILE_PX,
+            delivery_style.MATTING_TILE_OVERLAP_PX), known)
+        quantised = np.rint(alpha * 255) / 255.0
+
+        def foreground(rgb, a):
+            return rgb * a[..., None] + 0.1 * (1 - a[..., None])
+
+        expected = matting.figure_colour(px, quantised, foreground)
+        composed = np.array(Image.open(io.BytesIO(matting.foreground_png(
+            rgb_png(self.pixels),
+            matting.alpha_png(rgb_png(self.pixels), rgb_png(self.soft),
+                              self.predict),
+            foreground))))
+        np.testing.assert_array_equal(
+            composed, np.clip(np.rint(expected), 0, 255).astype(np.uint8))
 
 
 if __name__ == "__main__":

@@ -35,8 +35,7 @@ in [`findings/delivery.md`](../findings/delivery.md).
 - The `stroke_light` drop shadow falls straight away from the light, the
   same direction the purple band is extruded. `even` and `none` throw none.
 - The `stroke_light` drop shadow darkens only `clean_background`'s backdrop.
-  `compose` and `transparent` never draw it, and `outside_mask` does not
-  count it: `cut_backdrop` cuts by the flat backdrop colour.
+  `transparent` never draws it.
 - `STROKE_EDGE_SMOOTH` counts 2x-supersample pixels, not band widths.
 - A palette gate pass is not an approval; a FAIL never goes forward.
   `FIGURE_SAT_*` measures only pixels at V ≥ `FIGURE_MIDTONE_V`, so black

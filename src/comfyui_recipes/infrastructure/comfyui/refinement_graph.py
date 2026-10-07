@@ -264,6 +264,26 @@ def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,
     return graph
 
 
+def redraw_graph(base: dict, size: int, denoise: float, prefix: str, *,
+                 prompt: tuple[str, str] | None = None,
+                 latent_route: bool = False,
+                 sampler: tuple[str, str] | None = None,
+                 loader: str | None = None,
+                 sampling: tuple[int, float] | None = None,
+                 source_image: str | None = None,
+                 keep_mask_image: str | None = None,
+                 upscale: str = "bicubic",
+                 redraw_from_source: bool = False,
+                 canvas: tuple[int, int]) -> dict:
+    """The redraw alone: `base` re-sampled on a bigger canvas, ending at the
+    base's own single SaveImage under `prefix`, with no cut or delivery."""
+    return chain_pass(
+        base, size, denoise, prefix, prompt=prompt, latent_route=latent_route,
+        sampler=sampler, loader=loader, sampling=sampling,
+        source_image=source_image, keep_mask_image=keep_mask_image,
+        upscale=upscale, redraw_from_source=redraw_from_source, canvas=canvas)
+
+
 def chain_pass(base: dict, size: int, denoise: float, prefix: str,
                prompt: tuple[str, str] | None = None,
                matte_model: str | None = None,

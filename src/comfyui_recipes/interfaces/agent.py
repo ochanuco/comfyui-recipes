@@ -13,6 +13,7 @@ from pathlib import Path
 
 from ..application.deliver import DeliverServices
 from ..application.finalize import FinalizeServices
+from ..application.redraw import RedrawServices
 from ..application.generate import GenerateServices, request_graph
 from ..application.masked_redraw import MaskedRedrawServices
 from ..application.repair import RepairServices
@@ -36,7 +37,8 @@ DRAIN_FILE = ".local/_nogit/worker/drain"
 
 # Must track the `work` subparser's own defaults in interfaces/cli.py by
 # hand -- no single source both can read.
-DEFAULT_KINDS = ("generate", "finalize", "deliver", "repair", "masked_redraw")
+DEFAULT_KINDS = ("generate", "finalize", "redraw", "deliver", "repair",
+                 "masked_redraw")
 
 
 def default_worker_id() -> str:
@@ -111,6 +113,18 @@ def build_finalize_services(chimera: ChimeraClient, comfyui: ComfyUIClient, noti
     )
 
 
+def build_redraw_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
+                          repository: Path, repository_metadata) -> RedrawServices:
+    return RedrawServices(
+        management=chimera,
+        comfyui=comfyui,
+        graph_from_png=graph_from_png_or_none,
+        git_metadata=repository_metadata,
+        notifier=notifier,
+        output_root=repository / ".local/_nogit/redraw",
+    )
+
+
 def build_deliver_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
                            repository: Path, repository_metadata) -> DeliverServices:
     return DeliverServices(
@@ -179,6 +193,8 @@ def wire_work_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
         generate_services=build_generate_services(
             chimera, comfyui, notifier, repository, repository_metadata),
         finalize_services=build_finalize_services(
+            chimera, comfyui, notifier, repository, repository_metadata),
+        redraw_services=build_redraw_services(
             chimera, comfyui, notifier, repository, repository_metadata),
         deliver_services=build_deliver_services(
             chimera, comfyui, notifier, repository, repository_metadata),

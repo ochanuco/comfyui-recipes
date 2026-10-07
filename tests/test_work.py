@@ -172,6 +172,7 @@ def make_generate_services(directory: Path, **overrides) -> GenerateServices:
 def make_services(directory: Path, management, *, heartbeats=None,
                   generate=None, finalize=None, finalize_services=None,
                   deliver=None, deliver_services=None,
+                  redraw=None, redraw_services=None,
                   repair=None, repair_services=None,
                   masked_redraw=None, masked_redraw_services=None,
                   branch="dev/requests-worker", emit=None, sleep=None,
@@ -181,6 +182,8 @@ def make_services(directory: Path, management, *, heartbeats=None,
         generate_services=make_generate_services(Path(directory)),
         finalize_services=(finalize_services if finalize_services is not None
                           else "finalize-services"),
+        redraw_services=(redraw_services if redraw_services is not None
+                         else "redraw-services"),
         deliver_services=(deliver_services if deliver_services is not None
                           else "deliver-services"),
         repair_services=(repair_services if repair_services is not None
@@ -202,6 +205,8 @@ def make_services(directory: Path, management, *, heartbeats=None,
         kwargs["heartbeat"] = factory
     if deliver is not None:
         kwargs["deliver"] = deliver
+    if redraw is not None:
+        kwargs["redraw"] = redraw
     if generate is not None:
         kwargs["generate"] = generate
     if finalize is not None:
@@ -222,6 +227,7 @@ def make_hub_services(directory: Path, *, hub=None, progress_feed=None,
         management=ManagementFake(),
         generate_services=make_generate_services(Path(directory)),
         finalize_services="finalize-services",
+        redraw_services="redraw-services",
         deliver_services="deliver-services",
         repair_services="repair-services",
         masked_redraw_services="masked-redraw-services",
@@ -268,6 +274,16 @@ def generate_row(**overrides):
         "recipe_ref": "dev/requests-worker", "run_id": None, "attempt": 1,
         "payload": {"schema_version": 1, "request": {"count": 1},
                     "generation": {"recipe": "yukari"}, "semantic": {}},
+    }
+    row.update(overrides)
+    return row
+
+
+def redraw_row(**overrides):
+    row = {
+        "id": "req-6", "kind": "redraw", "status": "running",
+        "recipe_ref": "dev/requests-worker", "run_id": None, "attempt": 1,
+        "payload": {"generation_id": "gen-1", "options": {"method": "canvas"}},
     }
     row.update(overrides)
     return row
@@ -373,6 +389,50 @@ class ExecuteTest(unittest.TestCase):
             self.assertIs(finalize_calls[0][2]["latent_route"], False)
             self.assertIs(finalize_calls[0][2]["keep_scene"], False)
             self.assertIn("context", finalize_calls[0][2])
+
+    def test_redraw_kind_maps_options_and_uses_the_redraw_services(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def fake_redraw(generation_id, redraw_services, **kwargs):
+                calls.append((generation_id, redraw_services, kwargs))
+                return {"generation_ids": ["g2"]}
+
+            services = make_services(
+                directory, ManagementFake(), redraw=fake_redraw,
+                redraw_services="redraw-services-sentinel")
+            row = redraw_row(payload={
+                "generation_id": "gen-1",
+                "options": {"method": "canvas", "denoise": "keep", "size": 2048}})
+            result = execute(services, row)
+            self.assertEqual(result, {
+                "generation_ids": ["g2"],
+                "resolved_options": {"method": "canvas", "denoise": 0.4,
+                                     "size": 2048}})
+            generation_id, redraw_services, kwargs = calls[0]
+            self.assertEqual(generation_id, "gen-1")
+            self.assertEqual(redraw_services, "redraw-services-sentinel")
+            self.assertEqual(kwargs["method"], "canvas")
+            self.assertEqual(kwargs["request_id"], "req-6")
+            self.assertEqual(kwargs["key_prefix"], "request:req-6")
+            self.assertEqual(kwargs["denoise"], 0.4)
+            self.assertIn("context", kwargs)
+
+    def test_redraw_kind_rejects_bad_options_and_a_missing_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+            services = make_services(
+                directory, ManagementFake(),
+                redraw=lambda *a, **k: calls.append((a, k)))
+            for payload in (
+                    {"generation_id": "gen-1", "options": {}},
+                    {"generation_id": "gen-1"},
+                    {"generation_id": "gen-1",
+                     "options": {"method": "light", "scene": "moon", "size": 1}},
+                    {"options": {"method": "canvas"}}):
+                with self.subTest(payload=payload), self.assertRaises(SystemExit):
+                    execute(services, redraw_row(payload=payload))
+            self.assertEqual(calls, [])
 
     def test_deliver_kind_maps_options_and_uses_the_deliver_services(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -18,9 +18,11 @@ from comfyui_recipes.application.generate import validate_request
 from comfyui_recipes.application.request_options import (
     _KNOWN_DELIVER_OPTIONS,
     _KNOWN_FINALIZE_OPTIONS,
+    _KNOWN_REDRAW_OPTIONS,
     _KNOWN_REPAIR_OPTIONS,
     deliver_arguments,
     finalize_arguments,
+    redraw_arguments,
     repair_arguments,
 )
 from comfyui_recipes.domain.generation.patches import (
@@ -40,6 +42,7 @@ _DIAL_WORD = re.compile(r"^[a-z][a-z0-9-]*$")
 _DIAL_SCOPE_KEYS = {
     "deliver": _KNOWN_DELIVER_OPTIONS,
     "finalize": _KNOWN_FINALIZE_OPTIONS,
+    "redraw": _KNOWN_REDRAW_OPTIONS["canvas"],
     "repair": _KNOWN_REPAIR_OPTIONS,
     "patches": set(NUMBER_TARGETS),
 }
@@ -208,7 +211,7 @@ class DialsTest(unittest.TestCase):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
         self.assertEqual(set(by_name["yukari"]["dials"]),
-                         {"deliver", "finalize", "patches"})
+                         {"deliver", "finalize", "redraw", "patches"})
 
     def test_dial_keys_are_real_option_keys_of_their_scope(self):
         catalog = build_catalog(GIT)
@@ -242,6 +245,9 @@ class DialsTest(unittest.TestCase):
                                 deliver_arguments({key: word}, options)
                             elif scope == "finalize":
                                 finalize_arguments({key: word}, options)
+                            elif scope == "redraw":
+                                redraw_arguments(
+                                    {"method": "canvas", key: word}, options)
                             elif scope == "repair":
                                 repair_arguments({"parts": ["hands"], key: word}, options)
                             else:
@@ -380,3 +386,17 @@ class PublishCatalogTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RedrawSectionTest(unittest.TestCase):
+    def test_the_redraw_section_publishes_light_and_per_method_defaults(self):
+        redraw = build_catalog(GIT)["recipes"][0]["redraw"]
+        finalize = build_catalog(GIT)["recipes"][0]["finalize"]
+        self.assertEqual(redraw["light"], finalize["light"])
+        self.assertEqual(set(redraw["defaults"]), {"canvas", "hires"})
+        self.assertEqual(set(redraw["defaults"]["canvas"]),
+                         {"denoise", "size", "route"})
+        self.assertEqual(set(redraw["defaults"]["hires"]), {"hires_denoise"})
+
+    def test_the_schema_version_is_unchanged(self):
+        self.assertEqual(build_catalog(GIT)["schema_version"], 1)

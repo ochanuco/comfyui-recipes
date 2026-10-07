@@ -44,6 +44,18 @@ def classify_deliver_outputs(outputs: list) -> dict[str, list]:
             for role, suffix in suffixes.items()}
 
 
+def classify_redraw_outputs(outputs: list) -> dict[str, list]:
+    """A redraw submission's outputs by role: the redrawn `picture`, plus
+    `alpha` and `depth` when the graph cut them itself."""
+    cuts = {"alpha": ALPHA_SUFFIX, "depth": DEPTH_SUFFIX}
+    found = {role: [out for out in outputs if suffix in out["filename"]]
+             for role, suffix in cuts.items()}
+    found["picture"] = [out for out in outputs
+                        if not any(suffix in out["filename"]
+                                   for suffix in cuts.values())]
+    return found
+
+
 def viewfinder_outputs(outputs: list) -> list:
     return [out for out in outputs if VIEWFINDER_SUFFIX in out["filename"]]
 

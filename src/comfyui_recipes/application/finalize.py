@@ -45,6 +45,7 @@ from .ingest import (
     upload_generation,
     viewfinder_outputs,
 )
+from .picture_source import check_resample_source, stroke_light_conflict
 from .repair import RepairServices
 from .repair import repair as repair_use_case
 
@@ -196,14 +197,11 @@ def _load_source(generation_id: str, services: FinalizeServices,
 
 def _check_resample(source: _Source, option: str, *, deliver_only: bool,
                     repair_requested: bool) -> None:
-    if source.roles is None:
-        raise SystemExit(
-            f"この絵には ComfyUI の graph が無いので、{option} は使えません")
-    if source.is_repaired_raw or source.roles.stitched:
-        raise SystemExit(
-            f"repair や masked_redraw で直した絵には {option} は使えません")
-    if not source.is_anima:
-        raise SystemExit(f"{option} が使えるのは Anima で描いた絵だけです")
+    check_resample_source(
+        option, has_graph=source.roles is not None,
+        repaired=source.is_repaired_raw,
+        stitched=source.roles is not None and source.roles.stitched,
+        is_anima=source.is_anima)
     if not deliver_only:
         raise SystemExit(
             f"{option} は deliver_only（描き直し無しの納品）でだけ使えます")
@@ -334,9 +332,7 @@ def _resolve_plan(source: _Source, generation_id: str, *,
                         repair_requested=bool(repair_parts or repair_region_list
                                               or repair_seeds is not None))
         if stroke_light in delivery_style.STROKE_LIGHTS and stroke_light != light.direction:
-            raise SystemExit(
-                f"stroke_light の向きは light の from（{light.direction}）と同じで"
-                "なければなりません。none / even なら向きに関係なく使えます")
+            raise SystemExit(stroke_light_conflict(light.direction))
     if dof is not None and (repair_parts or repair_region_list
                             or repair_seeds is not None):
         raise SystemExit("dof は repair と一緒には使えません")

@@ -16,13 +16,16 @@ from ..application.finalize import RECIPE_DEFAULT, finalize
 from ..application.generate import generate
 from ..application.ingest import import_images
 from ..application.masked_redraw import masked_redraw
+from ..application.redraw import redraw
 from ..application.repair import repair
 from ..application.request_options import (
     DELIVER_DIAL_KEYS,
     FINALIZE_DIAL_KEYS,
+    REDRAW_DIAL_KEYS,
     REPAIR_DIAL_KEYS,
     deliver_arguments,
     dials_scope,
+    redraw_arguments,
     resolve_dial,
 )
 from ..application.watch import WatchServices, watch
@@ -54,6 +57,7 @@ from .agent import (
     build_finalize_services,
     build_generate_services,
     build_masked_redraw_services,
+    build_redraw_services,
     build_repair_services,
     default_worker_id,
     wire_work_services,
@@ -166,7 +170,7 @@ def parser() -> argparse.ArgumentParser:
     work_parser.add_argument("--dry-run", action="store_true")
     work_parser.add_argument("--worker-id", default=default_worker_id())
     work_parser.add_argument(
-        "--kinds", default="generate,finalize,deliver,repair,masked_redraw",
+        "--kinds", default="generate,finalize,redraw,deliver,repair,masked_redraw",
         help="comma-separated request kinds to claim")
     work_parser.add_argument(
         "--no-hub", action="store_true",
@@ -311,6 +315,53 @@ def parser() -> argparse.ArgumentParser:
         help="matte source for the delivery: a core background-removal "
              "model file, or rmbg:<model> for ComfyUI-RMBG's BiRefNetRMBG "
              "node")
+
+    redraw_parser = commands.add_parser(
+        "redraw", help="redraw one picture generation with a single method")
+    redraw_parser.add_argument("generation_id")
+    redraw_parser.add_argument(
+        "--method", required=True, choices=("canvas", "hires", "light"),
+        help="canvas: re-sample on a bigger canvas; hires: re-render the "
+             "stored graph at a larger area; light: paint a scene's light and "
+             "re-sample")
+    redraw_parser.add_argument(
+        "--denoise", type=_number_or_word,
+        help="canvas: the redraw's denoise (a number or a recipe word); "
+             "hires: the second pass's denoise, 0 < d <= 1")
+    redraw_parser.add_argument(
+        "--size", type=int, metavar="LONGEST",
+        help="canvas: longest side of the redraw")
+    redraw_route = redraw_parser.add_mutually_exclusive_group()
+    redraw_route.add_argument(
+        "--latent-route", dest="latent_route", action="store_const",
+        const=True, default=None, help="canvas: upscale the latent")
+    redraw_route.add_argument(
+        "--pixel-route", dest="latent_route", action="store_const",
+        const=False, help="canvas: upscale the decoded image (the default)")
+    redraw_parser.add_argument(
+        "--finalizer", metavar="MODEL",
+        help="canvas: model that redraws instead of the recipe's own")
+    redraw_parser.add_argument(
+        "--upscale", choices=["bicubic", "nearest-exact", "bilinear", "lanczos"],
+        help="canvas: pixel-route upscale method")
+    redraw_parser.add_argument(
+        "--keep-region", dest="keep_regions", action="append",
+        metavar="X0,Y0,X1,Y1",
+        help="canvas: fractional rectangle [0..1] shielded from the redraw "
+             "under a soft noise mask; repeatable")
+    redraw_parser.add_argument(
+        "--keep-strength", type=float, default=None, metavar="STRENGTH",
+        help="canvas: how much the redraw still touches a --keep-region, "
+             "0 < s < 1")
+    redraw_parser.add_argument(
+        "--hires", type=int, default=None, metavar="SIZE",
+        help="hires: long side in px of the area a 1024x1640 canvas has")
+    redraw_parser.add_argument(
+        "--light", metavar="SCENE[,FROM]",
+        help="light: the scene "
+             f"({', '.join(sorted(LIGHT_SCENES))}) and the direction "
+             f"({', '.join(sorted(STROKE_LIGHTS))}; default "
+             f"{LIGHT_FROM_DEFAULT}) it is lit from")
 
     deliver_parser = commands.add_parser(
         "deliver", help="cut and decorate one picture generation")
@@ -587,6 +638,40 @@ def main(argv: list[str] | None = None) -> None:
                  dof=dof,
                  light=light,
                  context=context)
+        return
+    if args.command == "redraw":
+        services = build_redraw_services(
+            chimera, comfyui, notifier, repository, repository_metadata)
+        light = _light_from_args(args)
+        context = None
+        denoise = args.denoise
+        if args.method == "canvas":
+            context, resolved = _resolve_word_args(
+                chimera, args.generation_id, "redraw",
+                {key: getattr(args, key) for key in REDRAW_DIAL_KEYS})
+            denoise = resolved["denoise"]
+        options = {
+            "method": args.method,
+            **({"denoise": denoise} if denoise is not None else {}),
+            **({"size": args.size} if args.size is not None else {}),
+            **({"route": "latent" if args.latent_route else "pixel"}
+               if args.latent_route is not None else {}),
+            **({"finalizer": args.finalizer} if args.finalizer else {}),
+            **({"upscale": args.upscale} if args.upscale else {}),
+            **({"keep_regions": [[float(value) for value in region.split(",")]
+                                 for region in args.keep_regions]}
+               if args.keep_regions else {}),
+            **({"keep_strength": args.keep_strength}
+               if args.keep_strength is not None else {}),
+            **({"hires": args.hires} if args.hires is not None else {}),
+            **({"scene": light.scene, "from": light.direction}
+               if light is not None else {}),
+        }
+        try:
+            arguments = redraw_arguments(options)
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
+        redraw(args.generation_id, services, context=context, **arguments)
         return
     if args.command == "deliver":
         services = build_deliver_services(

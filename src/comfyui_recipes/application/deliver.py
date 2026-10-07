@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -11,21 +10,26 @@ from pathlib import Path
 from ..domain.yukari import delivery_style
 from ..domain.yukari.delivery_style import Dof, Light
 from ..infrastructure.comfyui.deliver_graph import deliver_graph
-from ..infrastructure.comfyui.refinement_graph import DEPTH_CKPT, DEPTH_RESOLUTION
 from ..infrastructure.persistence.run_state import JsonRunState, operation_state_path
+from .cut_assets import (
+    ALPHA_ROLE,
+    DEPTH_ROLE,
+    attach_cut,
+    current_cut,
+    reusable,
+    stored_cut,
+)
+from .finalize import RECIPE_DEFAULT
 from .ingest import (
-    asset_key,
-    attach_asset,
     classify_deliver_outputs,
     generation_key,
     open_request,
     record_job,
     upload_generation,
 )
+from .picture_source import is_delivered, stroke_light_conflict
 
-CUT_ROLE = "cut"
-ALPHA_ROLE = "alpha"
-DEPTH_ROLE = "depth"
+LINEAGE_HOPS = 10
 PICTURE_ONLY = "納品済みの絵は deliver できません。納品の元になる絵を指定してください"
 
 
@@ -44,19 +48,22 @@ class DeliverServices:
     state: JsonRunState = field(default_factory=JsonRunState)
 
 
-def current_cut() -> dict:
-    """How this checkout makes the alpha and depth cut assets."""
-    return {
-        "alpha": {
-            "matte_model": delivery_style.MATTE_MODEL,
-            "matting_model": delivery_style.MATTING_MODEL,
-            "matting_revision": delivery_style.MATTING_REVISION,
-            "trimap_px": delivery_style.MATTING_TRIMAP_PX,
-            "tile_px": delivery_style.MATTING_TILE_PX,
-            "tile_overlap_px": delivery_style.MATTING_TILE_OVERLAP_PX,
-        },
-        "depth": {"ckpt": DEPTH_CKPT, "resolution": DEPTH_RESOLUTION},
-    }
+def inherited_light(management, generation_id: str, context: dict) -> Light | None:
+    """The scene of the nearest `light` redraw in the picture's lineage,
+    walking `base_generation` (or what the Generation refines) from the
+    source itself."""
+    record = context
+    for _ in range(LINEAGE_HOPS + 1):
+        parameters = (record.get("request") or {}).get("parameters") or {}
+        if parameters.get("kind") == "redraw" and parameters.get("method") == "light":
+            return Light(parameters["scene"],
+                         parameters.get("from", delivery_style.LIGHT_FROM_DEFAULT))
+        parent = (parameters.get("base_generation")
+                  or (record.get("refines_generation") or {}).get("id"))
+        if not parent:
+            return None
+        record = management.request("GET", f"/api/v1/generations/{parent}")
+    return None
 
 
 def _check_source(generation_id: str, services: DeliverServices, context: dict,
@@ -64,9 +71,7 @@ def _check_source(generation_id: str, services: DeliverServices, context: dict,
     request = context["request"]
     parameters = request.get("parameters") or {}
     kind = parameters.get("kind")
-    if (request.get("kind") in ("deliver", "finalize")
-            or kind in ("deliver", "hires-chain")
-            or (kind == "repair" and parameters.get("deliver_only"))):
+    if is_delivered(request):
         raise SystemExit(PICTURE_ONLY)
     repaired = kind in ("repair", "masked_redraw")
     base_id = parameters["base_generation"] if repaired else generation_id
@@ -79,27 +84,6 @@ def _check_source(generation_id: str, services: DeliverServices, context: dict,
     if graph and any(node.get("class_type") == "LayeredDiffusionApply"
                      for node in graph.values()):
         raise SystemExit("LayerDiffuse 由来の絵は deliver できません")
-
-
-def _stored_cut(services: DeliverServices, generation_id: str
-                ) -> tuple[dict, set[str]]:
-    roles = {asset["role"] for asset in
-             services.management.list_assets(generation_id)}
-    if CUT_ROLE not in roles:
-        return {}, roles
-    raw = services.management.fetch_asset(generation_id, CUT_ROLE)
-    try:
-        stored = json.loads(raw) if raw else {}
-    except ValueError:
-        stored = {}
-    return (stored if isinstance(stored, dict) else {}), roles
-
-
-def _reusable(services: DeliverServices, generation_id: str, role: str,
-              stored: dict, roles: set[str], current: dict) -> bytes | None:
-    if role not in roles or stored.get(role) != current[role]:
-        return None
-    return services.management.fetch_asset(generation_id, role)
 
 
 def _request_parameters(generation_id: str, *, repin: bool, skin: bool,
@@ -135,7 +119,7 @@ def deliver(generation_id: str, services: DeliverServices, *,
             keep_legwear: float | None = None, keep_scene: bool = False,
             transparent: bool = False,
             backdrop: str | None = delivery_style.DELIVER_DEFAULTS["backdrop"],
-            stroke_light: str | None = delivery_style.DELIVER_DEFAULTS["stroke_light"],
+            stroke_light: str | None | object = RECIPE_DEFAULT,
             deliver_size: int | None = None,
             dof: Dof | None = None, light: Light | None = None,
             key_prefix: str | None = None, request_id: str | None = None,
@@ -152,12 +136,20 @@ def deliver(generation_id: str, services: DeliverServices, *,
             "GET", f"/api/v1/generations/{generation_id}/context")
     picked = management.fetch_generation_image(generation_id)
     _check_source(generation_id, services, context, picked)
+    if light is None:
+        light = inherited_light(management, generation_id, context)
+        if (light is not None and stroke_light in delivery_style.STROKE_LIGHTS
+                and stroke_light != light.direction):
+            raise SystemExit(stroke_light_conflict(light.direction))
+    if stroke_light is RECIPE_DEFAULT:
+        stroke_light = (light.direction if light is not None
+                        else delivery_style.DELIVER_DEFAULTS["stroke_light"])
 
     prefix = f"dlv-{generation_id}"
     current = current_cut()
-    stored, roles = _stored_cut(services, generation_id)
-    alpha_bytes = _reusable(services, generation_id, ALPHA_ROLE, stored, roles, current)
-    depth_bytes = (_reusable(services, generation_id, DEPTH_ROLE, stored, roles, current)
+    stored, roles = stored_cut(services, generation_id)
+    alpha_bytes = reusable(services, generation_id, ALPHA_ROLE, stored, roles, current)
+    depth_bytes = (reusable(services, generation_id, DEPTH_ROLE, stored, roles, current)
                    if dof is not None else None)
 
     token = uuid.uuid4().hex[:8]
@@ -245,20 +237,9 @@ def deliver(generation_id: str, services: DeliverServices, *,
         ids.append(rendered["id"])
         urls.append(rendered["canonical_url"])
 
-    for role in cut_roles:
-        name, data = fetched[role]
-        attach_asset(management, generation_id, role=role, name=name, data=data,
-                     idempotency_key=asset_key(key_prefix, 0, role))
-        services.emit(f"{name} -> {role} on {generation_id}")
-    if cut_roles:
-        merged = {role: entry for role, entry in
-                  {**stored, **{role: current[role] for role in cut_roles}}.items()
-                  if role in roles or role in cut_roles}
-        attach_asset(management, generation_id, role=CUT_ROLE, name="cut.json",
-                     data=json.dumps(merged, indent=2).encode(),
-                     content_type="application/json",
-                     idempotency_key=asset_key(key_prefix, 0, CUT_ROLE))
-        services.emit(f"cut.json -> {CUT_ROLE} on {generation_id}")
+    attach_cut(management, services.emit, generation_id, key_prefix=key_prefix,
+               fetched=fetched, stored=stored, roles=roles, current=current,
+               cut_roles=cut_roles)
 
     management.request("PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
     delivered_name, delivered = fetched["delivered"]

@@ -129,7 +129,7 @@ class CliTest(unittest.TestCase):
         self.assertEqual(kwargs, {
             "repin": True, "skin": False, "recolor": False, "keep_legwear": None,
             "keep_scene": False, "transparent": False, "backdrop": "dots",
-            "stroke_light": "n", "deliver_size": None, "dof": None,
+            "stroke_light": RECIPE_DEFAULT, "deliver_size": None, "dof": None,
             "light": None, "context": None})
 
     @patch.object(cli, "deliver")
@@ -182,6 +182,40 @@ class CliTest(unittest.TestCase):
         self.assertEqual(kwargs["repair_pad"], 1.5)
         self.assertEqual(kwargs["repair_size"], 768)
         self.assertEqual(kwargs["repair_seeds"], 2)
+
+    @patch.object(cli, "redraw")
+    @patch.object(cli, "ChimeraClient")
+    def test_redraw_methods_dispatch_without_network(
+            self, chimera_class, run_redraw):
+        cli.main(["redraw", "gen-1", "--method", "canvas", "--denoise", "0.5",
+                  "--size", "2048", "--latent-route", "--upscale", "lanczos",
+                  "--keep-region", "0,0,0.5,0.5"])
+        args, kwargs = run_redraw.call_args
+        self.assertEqual(args[0], "gen-1")
+        self.assertEqual(kwargs["method"], "canvas")
+        self.assertEqual(kwargs["denoise"], 0.5)
+        self.assertEqual(kwargs["size"], 2048)
+        self.assertIs(kwargs["latent_route"], True)
+        self.assertEqual(kwargs["keep_regions"], [[0.0, 0.0, 0.5, 0.5]])
+        cli.main(["redraw", "gen-1", "--method", "hires", "--hires", "2048"])
+        kwargs = run_redraw.call_args.kwargs
+        self.assertEqual((kwargs["method"], kwargs["hires"], kwargs["denoise"]),
+                         ("hires", 2048, 0.45))
+        cli.main(["redraw", "gen-1", "--method", "light", "--light", "moon,se"])
+        kwargs = run_redraw.call_args.kwargs
+        self.assertEqual((kwargs["method"], kwargs["light"]),
+                         ("light", Light("moon", "se")))
+
+    @patch.object(cli, "redraw")
+    @patch.object(cli, "ChimeraClient")
+    def test_redraw_refuses_flags_of_another_method(
+            self, chimera_class, run_redraw):
+        with self.assertRaises(SystemExit):
+            cli.main(["redraw", "gen-1", "--method", "light", "--light", "moon",
+                      "--size", "2048"])
+        with self.assertRaises(SystemExit):
+            cli.main(["redraw", "gen-1"])
+        run_redraw.assert_not_called()
 
     @patch.object(cli, "finalize")
     @patch.object(cli, "ChimeraClient")
@@ -314,13 +348,14 @@ class CliTest(unittest.TestCase):
 
     @patch.object(cli, "work")
     @patch.object(cli, "ChimeraClient")
-    def test_work_default_kinds_include_deliver_repair_and_masked_redraw(
+    def test_work_default_kinds_include_redraw_deliver_repair_and_masked_redraw(
             self, chimera_class, run_work):
         cli.main(["work", "--once"])
         work_services = run_work.call_args.args[0]
         self.assertEqual(
             work_services.kinds,
-            ("generate", "finalize", "deliver", "repair", "masked_redraw"))
+            ("generate", "finalize", "redraw", "deliver", "repair",
+             "masked_redraw"))
         self.assertIs(
             work_services.deliver_services.management, chimera_class.return_value)
         self.assertIs(

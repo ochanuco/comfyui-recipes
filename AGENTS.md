@@ -30,23 +30,23 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
    `(@oshiki hitoshi:1.3), (@yoshikawa hideaki:0.5)` and no style LoRA:
    composition, proportion and hands obey the prompt there, and the artist
    tags set the face and line.
-2. **Finalize delivers the raw pick.** `finalize` cuts a matte, repins the
-   palette and composites the backdrop and purple stroke onto the Anima
-   pick itself -- no redraw. The raw is drawn on a green key with a
-   `(white outline:1.3)` around the figure; ViTMatte cuts it out with the
+2. **Deliver cuts and decorates the raw pick.** `deliver` cuts a matte,
+   repins the palette and composites the backdrop and purple stroke onto
+   the Anima pick itself -- no redraw. The raw is drawn on a green key with
+   a `(white outline:1.3)` around the figure; ViTMatte cuts it out with the
    white line kept, and the purple stroke sits right outside it, with no
    white band. It is the recipe default
    (`yukari/delivery_style.py`): the WebUI button and an
-   option-less `finalize_generation` both deliver this way.
+   option-less `deliver_generation` both deliver this way.
 
-An Illustrious redraw (hassaku-il-v22 at 2560, denoise 0.4) is a
-per-request opt-in the user names -- naming `denoise`, `size`, `route` or
-any other redraw-shaping option turns it on for that request. A defect in
-a redraw is fixed inside that same pass -- `denoise`, `keep_regions`,
-`repair` -- with the stage kept.
+An Illustrious redraw (`redraw` method `canvas`: hassaku-il-v22 at 2560,
+denoise 0.4) is a per-request opt-in the user names, and it makes a new
+picture that is delivered by a separate `deliver` request. A defect in a
+redraw is fixed by redrawing again with `denoise` or `keep_regions`, or by
+`repair_generation` on it, before it is delivered.
 
-Which model draws, which model redraws, and whether finalize redraws at all
-are the user's decisions. To change one: ask, then change the recipe default
+Which model draws, which model redraws, and whether a picture is redrawn
+at all are the user's decisions. To change one: ask, then change the recipe default
 and this section in the same PR.
 
 A new picture starts from the recipe, not from yesterday's render. Render
@@ -72,12 +72,12 @@ Turbo checkpoint's identity, costumes, poses and prompt edit order.
 `docs/yukari/anima.md` maps where each part lives. `domain/yukari/delivery_style.py`
 holds both the delivery identity (backdrop, purple stroke, acceptance band)
 every delivered picture wears, read by imaging, catalog, work, cli and
-repair alike, and the finalize redraw settings (stage-2 model, sampler,
+repair alike, and the redraw settings (stage-2 model, sampler,
 denoise); it is not itself a recipe.
 
-Finalize redraws an Anima source only (a `UNETLoader` node in its base
-graph). A source drawn by any other recipe is delivered with `deliver_only`
-and never redrawn, and a LayerDiffuse base is refused.
+`redraw` takes an Anima source only (a `UNETLoader` node in its base
+graph). A source drawn by any other recipe is delivered as it is and never
+redrawn, and a LayerDiffuse base is refused by both `redraw` and `deliver`.
 
 The ComfyUI node encoding is under `infrastructure/comfyui/`.
 `comfy-recipes yukari prompt --pose …` prints what the recipe sends.
@@ -158,7 +158,7 @@ list_generations                      find a starting ID: published=true is ever
 list_catalog                          every recipe's pose / costume names + patch/dial vocabulary (~2k)
 get_catalog_pose recipe pose          one pose: canvas, default costume, assembled prompts    (~1k)
 get_generation <short_id>             rating, semantic, request prompt + parameters, seed, the request's other generations
-get_generation_lineage <short_id>     what it was derived or finalized from, and what came after
+get_generation_lineage <short_id>     what it was derived, redrawn or delivered from, and what came after
 ```
 
 The catalog is what the worker published from its own checkout; it is the
@@ -212,24 +212,28 @@ list_generations      the base: `published=true` lists every delivered look
                       comes from -- never from a session's memory.
 derive_request        from a rated generation: same recipe, parameters and
                       patches, plus your diff (parameters override, patches
-                      appended or replaced). A finalized pick resolves to the
+                      appended or replaced). A delivered pick resolves to the
                       raw render it came from. Semantic summary is required.
                       → human rates on chimera →
-finalize_generation   the pick, delivered: one ComfyUI graph that redraws at
-                      2048, cuts a matte and composites the backdrop and purple
-                      stroke; recorded as a request that refines the source.
+redraw_generation     optional: the pick redrawn whole -- on a bigger canvas
+                      (`canvas`), re-rendered larger (`hires`) or relit
+                      (`light`); a new picture on the green key.
 repair_generation     optional: a masked local redraw of hands / feet.
+deliver_generation    the pick, delivered: one ComfyUI graph that cuts a matte
+                      and composites the backdrop and purple stroke; recorded
+                      as a request that refines the source.
 get_request           status of any of the above; list_requests for the queue.
 ```
 
-`create_request` is the raw form of all three (kind + payload) for anything
+`create_request` is the raw form of all of them (kind + payload) for anything
 the dedicated tools do not cover. A round is not closed until the pick has
-been finalized: generation 0 is the pre-delivery SaveImage output, and the
-delivery identity is what finalize adds on top of it. The birefnet matte is
-stored as a `mask` GenerationAsset of the raw redraw, so a cutout can be
-redone from the record without another 2048 pass.
+been delivered: what `generate`, `redraw` and `repair` leave is the
+pre-delivery SaveImage output, and the delivery identity is what `deliver`
+adds on top of it. The cutout (`alpha`, `depth`) is stored as assets of the
+picture that was delivered, so a delivery is redone from the record without
+cutting again.
 
-Discord notification is the worker's job — every ingest and every finalize
+Discord notification is the worker's job — every ingest and every delivery
 posts to the webhook. There is no separate watcher daemon. The webhook is a
 credential and lives in `.local/discord-webhook` on the box; never put it in a
 tracked file.
@@ -238,8 +242,8 @@ tracked file.
 
 - 生成の記録は chimera（https://chimera.chanu.co）。実行経路は chimera の
   requests 行を worker（GPU 機の `comfy-recipes work`）が実行する一本のみ。
-  Mac 側の入口は MCP（`derive_request` / `finalize_generation` /
-  `repair_generation` / `create_request`）か `POST /api/v1/requests`。
+  Mac 側の入口は MCP（`derive_request` / `redraw_generation` /
+  `deliver_generation` / `repair_generation` / `create_request`）か `POST /api/v1/requests`。
   semantic 判断（prompt 組み立て、reference の意味付け、検品）は呼び出し元
   エージェントの仕事で、chimera と worker は実行と記録だけを担う。
 - ComfyUI `/prompt` への直 POST は禁止。レシピが組めない graph は
@@ -255,7 +259,7 @@ tracked file.
   専用になる。graph に実在しない値を書くと chimera の記録だけが嘘になるので、
   graph に実際に入れた値だけを書く。
 - 派生は `derive_request` で作る。親の recipe / parameters / patches を
-  引き継ぎ、差分だけを渡す（派生は派生元の prompt + α、失敗の上に重ねず good へ戻る）。finalize 済みを親に
+  引き継ぎ、差分だけを渡す（派生は派生元の prompt + α、失敗の上に重ねず good へ戻る）。納品済みを親に
   渡すと raw まで自動で遡る。`.local/` に request 組み立てスクリプトを書く
   のは、この tool で表せない場合だけ。
 - chimera への記録は生成の完了条件。画像だけでなく semantics（各 arm の狙い、

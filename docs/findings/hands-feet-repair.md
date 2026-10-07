@@ -23,8 +23,8 @@ Tags and `a<n> §` pointers: see [`docs/README.md`](../README.md).
 - Denoise ladder in a masked hand: 0.45 sloppy, 0.65 restructures, style-only
   polish below 0.55. Unmasked, stay ≤0.25–0.3. `[all]` (a2 §Hands; a1 §Masked refine)
 - Region parts on Feet XL / Hands XL LoRA in the crop only (`lora: true`) got
-  toes 4/4. Frontal soles need rectangular `regions`, and start from a plain
-  finalize delivery. `[all]`
+  toes 4/4. Frontal soles need rectangular `regions`, and start from the plain
+  raw pick. `[all]`
 - A visible hand failure is an occlusion problem first: a sleeve tag hiding
   the hand, not anatomy. `[all]` (a1 §The hands were hidden)
 - A naming-the-feature lever beats naming the count (`toe scrunch` curled toes

@@ -249,51 +249,6 @@ class YukariDepthBlurLayered:
         return (bridge.png_to_image(data),)
 
 
-class YukariCompose:
-    CATEGORY = "yukari"
-    RETURN_TYPES = ("IMAGE", "STRING", "MASK")
-    RETURN_NAMES = ("image", "tag", "mask")
-    FUNCTION = "run"
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {"required": {
-            "image": ("IMAGE",),
-        }, "optional": {
-            "backdrop": ("STRING", {"default": ""}),
-            "stroke_light": ("STRING", {"default": ""}),
-            "bands": ("BOOLEAN", {"default": True}),
-        }}
-
-    def run(self, image, backdrop="", stroke_light="", bands=True):
-        image_png = bridge.image_to_png(image)
-        data, tag = delivery.compose(
-            image_png, backdrop or None, light=stroke_light or None, bands=bands)
-        mask_png = delivery.compose_outside_mask(image_png, light=stroke_light or None)
-        return (bridge.png_to_image(data, "RGB"), tag, bridge.png_to_mask(mask_png))
-
-
-class YukariCutBackdrop:
-    CATEGORY = "yukari"
-    RETURN_TYPES = ("IMAGE", "MASK", "STRING")
-    RETURN_NAMES = ("image", "matte", "tag")
-    FUNCTION = "run"
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {"required": {
-            "image": ("IMAGE",),
-            "outside": ("MASK",),
-        }, "optional": {
-            "backdrop": ("STRING", {"default": ""}),
-        }}
-
-    def run(self, image, outside, backdrop=""):
-        data, matte_png, tag = delivery.cut_backdrop(
-            bridge.image_to_png(image), bridge.mask_to_png(outside), backdrop or None)
-        return (bridge.png_to_image(data, "RGBA"), bridge.png_to_mask(matte_png), tag)
-
-
 NODE_CLASS_MAPPINGS = {
     "YukariRepinSkin": YukariRepinSkin,
     "YukariRepin": YukariRepin,
@@ -305,8 +260,6 @@ NODE_CLASS_MAPPINGS = {
     "YukariDepthBlurLayered": YukariDepthBlurLayered,
     "YukariLight": YukariLight,
     "YukariViewfinder": YukariViewfinder,
-    "YukariCompose": YukariCompose,
-    "YukariCutBackdrop": YukariCutBackdrop,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -320,6 +273,4 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "YukariDepthBlurLayered": "Yukari Depth Blur Layered",
     "YukariLight": "Yukari Light",
     "YukariViewfinder": "Yukari Viewfinder",
-    "YukariCompose": "Yukari Compose",
-    "YukariCutBackdrop": "Yukari Cut Backdrop",
 }

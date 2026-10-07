@@ -42,11 +42,11 @@ def _pose_outputs() -> dict:
 
 class ManagementFake:
     def __init__(self, *, request_parameters=None, generations=None,
-                request_recipe="yukari"):
+                request_recipe="yukari", request_kind=None):
         self.calls = []
         self.context = {
             "request": {"id": "source-request", "short_id": "srcreq",
-                        "recipe": request_recipe,
+                        "recipe": request_recipe, "kind": request_kind,
                         "parameters": request_parameters or {}},
             "generations": generations or [],
         }
@@ -104,11 +104,6 @@ class ComfyFake:
         return [{"filename": f"{prompt_id}-out.png"}]
 
     def fetch(self, image):
-        name = image["filename"]
-        if "-matte" in name:
-            return b"matte-bytes"
-        if "-delivered" in name:
-            return b"delivered-bytes"
         return b"raw-bytes"
 
 
@@ -145,25 +140,24 @@ def resolution_call(services):
 
 
 class RepairApplicationTest(unittest.TestCase):
-    def test_hires_chain_request_picks_the_largest_sibling(self):
-        with tempfile.TemporaryDirectory() as directory:
-            fetched = []
-            management = ManagementFake(
-                request_parameters={"kind": "hires-chain"},
-                generations=[
-                    {"id": "raw-gen", "short_id": "rawshort",
-                     "image_width": 1280, "image_height": 2560},
-                    {"id": "delivered-gen", "short_id": "delshort",
-                     "image_width": 768, "image_height": 1536},
-                ])
-            management.fetch_generation_image = lambda gid: (
-                fetched.append(gid) or b"picked")
-            services = base_services(directory, management=management)
-            repair("delivered-gen", services,
-                  parts=[], regions=[[0.0, 0.0, 0.1, 0.1]])
-            self.assertEqual(fetched, ["raw-gen"])
+    def test_delivered_sources_are_refused(self):
+        cases = [
+            dict(request_kind="deliver"),
+            dict(request_kind="finalize"),
+            dict(request_parameters={"kind": "deliver"}),
+            dict(request_parameters={"kind": "hires-chain"}),
+            dict(request_parameters={"kind": "repair", "deliver_only": True}),
+        ]
+        for case in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as directory:
+                services = base_services(
+                    directory, management=ManagementFake(**case))
+                with self.assertRaisesRegex(SystemExit, "納品済み"):
+                    repair("gen-1", services,
+                           parts=[], regions=[[0.0, 0.0, 0.1, 0.1]])
+                self.assertEqual(services.comfyui.submitted, [])
 
-    def test_non_hires_chain_request_uses_the_given_generation(self):
+    def test_a_picture_request_uses_the_given_generation(self):
         with tempfile.TemporaryDirectory() as directory:
             fetched = []
             management = ManagementFake(request_parameters={"kind": "generate"})
@@ -226,30 +220,17 @@ class RepairApplicationTest(unittest.TestCase):
             self.assertEqual(filename, "rep-out.png")
             self.assertEqual(data, b"raw-bytes")
 
-    def test_matte_output_uploaded_as_a_mask_asset_on_the_raw_generation(self):
+    def test_only_the_picture_is_recorded(self):
         with tempfile.TemporaryDirectory() as directory:
-            comfy = ComfyFake(outputs_per_job=[
-                {"filename": "rep-out.png"}, {"filename": "rep-out-matte.png"}])
-            services = base_services(directory, comfyui=comfy)
-            repair("gen-1", services, parts=["feet"], seeds=[7])
-            asset_posts = [call for call in services.management.calls
-                          if call[0] == "POST" and call[1].endswith("/assets")]
-            mask_posts = [call for call in asset_posts
-                          if call[3][0].get("role") == "mask"]
-            self.assertEqual(len(mask_posts), 1)
-            self.assertEqual(mask_posts[0][3][2], "rep-out-matte.png")
-            self.assertEqual(mask_posts[0][3][3], b"matte-bytes")
-
-    def test_delivered_output_recorded_as_a_second_generation(self):
-        with tempfile.TemporaryDirectory() as directory:
-            comfy = ComfyFake(outputs_per_job=[
-                {"filename": "rep-out.png"}, {"filename": "rep-out-delivered.png"}])
-            services = base_services(directory, comfyui=comfy)
+            services = base_services(directory)
             result = repair("gen-1", services, parts=["feet"], seeds=[7])
             generation_posts = [call for call in services.management.calls
                                 if call[0] == "POST" and call[1].endswith("/generations")]
-            self.assertEqual(len(generation_posts), 2)
-            self.assertEqual(len(result["generation_ids"]), 2)
+            self.assertEqual(len(generation_posts), 1)
+            self.assertEqual(len(result["generation_ids"]), 1)
+            roles = [call[3][0].get("role") for call in services.management.calls
+                     if call[0] == "POST" and call[1].endswith("/assets")]
+            self.assertEqual(roles, ["repair-mask"])
 
     def test_region_mask_uploaded_with_repair_mask_role(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -320,14 +301,11 @@ class RepairApplicationTest(unittest.TestCase):
     def test_worker_request_reports_resolution_and_jobs_source_the_redraw(self):
         with tempfile.TemporaryDirectory() as directory:
             management = ManagementFake(
-                request_parameters={"kind": "hires-chain"},
-                generations=[
-                    {"id": "raw-gen", "short_id": "rawshort",
-                     "image_width": 1280, "image_height": 2560},
-                    {"id": "delivered-gen", "short_id": "delshort",
-                     "image_width": 768, "image_height": 1536}])
+                request_parameters={"kind": "redraw"},
+                generations=[{"id": "raw-gen", "short_id": "rawshort",
+                              "image_width": 1280, "image_height": 2560}])
             services = base_services(directory, management=management)
-            repair("delivered-gen", services, parts=["feet"], seeds=[1, 2],
+            repair("raw-gen", services, parts=["feet"], seeds=[1, 2],
                    key_prefix="request:r1", request_id="r1")
             calls = management.calls
             self.assertFalse(any(call[1] == "/api/v1/requests" for call in calls))

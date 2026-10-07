@@ -1,7 +1,7 @@
 # delivery_style
 
 `src/comfyui_recipes/domain/yukari/delivery_style.py` holds what happens to a
-render after the model: the delivery identity and the finalize defaults.
+render after the model: the delivery identity and the redraw settings.
 Every tool reads its values from there, and `scripts/delivery_check.py`
 fingerprints them. The values live in the code; the reasons behind them are
 in [`findings/delivery.md`](../findings/delivery.md).
@@ -12,20 +12,20 @@ in [`findings/delivery.md`](../findings/delivery.md).
 |---|---|
 | `BACKDROP`, `STROKE`, `WHITE_WIDTH_PCT`, `STROKE_WIDTH_*` | band drawing in `infrastructure/imaging/delivery.py` |
 | `STROKE_CUT_EPS_PCT`, `STROKE_EDGE_SMOOTH` | `band_alphas`: hand-cut outline and edge rounding |
-| `STROKE_LIGHT_*`, `STROKE_LIGHTS`, `STROKE_CHOICES`, `STICKER_SHADOW_*` | the `stroke_light` finalize option |
+| `STROKE_LIGHT_*`, `STROKE_LIGHTS`, `STROKE_CHOICES`, `STICKER_SHADOW_*` | the `stroke_light` deliver option |
 | `STRIPES_*`, `WAVEFORM_*`, `EARS_*`, `BACKDROP_*` | named backdrops in `infrastructure/imaging/backdrops.py` |
 | `SAT_BAND`, `BG_SAT_MAX`, `FIGURE_SAT_*`, `BACKDROP_SPREAD_MAX` | `measure`/`verdict` in `palette.py`: the gate at ingest and in `palette_check.py` |
 | `FIGURE_LIGHT_*`, `PALETTE_WINDOWS`, `REPIN_*` | `repin` in `infrastructure/imaging/palette.py` |
 | `RECOLOR_*` | `--recolor` in `infrastructure/imaging/recolor.py` |
 | `MATTE_*`, `KEY_*`, `ENCLOSED_*`, `FRAME_WINDOW_*`, `DRAWN_OUTLINE_*` | matte, keyed edge, pocket cuts and the drawn outline in `delivery.py` |
-| `FINALIZE_*`, `ROUGH_STYLE`, `FINALIZE_DEFAULTS` | finalize: the opt-in IL redraw and the catalog's defaults |
+| `REDRAW_*`, `ROUGH_STYLE`, `DELIVER_DEFAULTS` | the opt-in IL `canvas` redraw and the deliver defaults the catalog publishes |
 
 ## Contracts
 
 - The delivered backdrop is repainted after the render; the render's own
   backdrop is not stable enough to keep. `BACKDROP` (white) is the flat
   colour when none is named, and the catalog publishes it as
-  `finalize.backdrop_color` for the WebUI's solid-colour choice.
+  `deliver.backdrop_color` for the WebUI's solid-colour choice.
 - Stroke width is the larger of a share of the white band and a share of the
   canvas. The canvas share is a floor.
 - `STROKE_CUT_EPS_PCT = 0` reproduces the smooth ramp exactly, and

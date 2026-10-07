@@ -1,4 +1,4 @@
-# Delivery: finalize, palette, matte, stroke
+# Delivery: deliver, palette, matte, stroke
 
 The delivery identity (solid backdrop `#ffffff`, purple stroke, acceptance band)
 lives in `domain/yukari/delivery_style.py`, fingerprinted by
@@ -8,10 +8,11 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
 
 ## The look now
 
-- Finalize delivers the raw Anima pick: matte, repin, backdrop and purple
-  stroke, no redraw. An IL redraw (hassaku-il-v22 at 2560, d0.4) is opt-in
-  per request. Defaults: `FINALIZE_DEFAULTS` in `delivery_style.py`. `[Anima]`
-- Finalize defaults: repin on, backdrop `dots`, stroke light from `n`. The
+- Deliver delivers the raw Anima pick: matte, repin, backdrop and purple
+  stroke, no redraw. An IL redraw (`redraw` method `canvas`: hassaku-il-v22
+  at 2560, d0.4) is opt-in per request and is delivered afterwards.
+  Defaults: `DELIVER_DEFAULTS` in `delivery_style.py`. `[Anima]`
+- Deliver defaults: repin on, backdrop `dots`, stroke light from `n`. The
   diagonal stripes + faint focus lines backdrop is `backdrop=stripes`. `[Anima]`
 - No white band: the purple rim sits directly against the matting alpha and
   also runs under the figure's own edge pixels, so a soft edge blends into
@@ -25,7 +26,7 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
 - Matte: RMBG BiRefNet-general, retraced (`soft_clamped` + `shadow_cut` +
   `enclosed_cut`), then ViTMatte (`YukariMatting`) on a ±12 px trimap of it,
   in 512 px tiles; foreground colour by pymatting's estimate, despilled on
-  the soft edge only. The ViTMatte alpha is the saved `mask` asset. Every
+  the soft edge only. The ViTMatte alpha is the saved `alpha` asset. Every
   pose renders on green (grey sat too close to the pale skin at the edge).
   Green in small pockets between fingers is left by both the old cut and
   ViTMatte. The 1 px key alpha and `drawn_outline` remain only for graphs
@@ -47,7 +48,7 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
   colour change without re-running the repaint. `[all]` (a5 §レイヤー分離)
 - Crop first, then stroke: a stroke drawn before a crop has no rim at the cut.
   `[all]` (a5 §2026-08-28 部屋着のピンク)
-- Transparent finalize composites the bands first and cuts the backdrop after;
+- The transparent compose route composites the bands first and cuts the backdrop after;
   the colour test is bounded by the compose's own band geometry or it holes
   pale hair. `[all]` (a6 §`cut_backdrop`)
 - Stroke width is a share of the canvas's longest side; a median band
@@ -101,7 +102,7 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
 ## Does not work
 
 - Post-process that removes part of the picture to make it acceptable. `[all]`
-- Handdrawn tag on finalize; d0.55 plain is the loose hand-drawn dial. `[IL]`
+- Handdrawn tag on the redraw; d0.55 plain is the loose hand-drawn dial. `[IL]`
 - A greyscale init for colourising a rough: no colour comes out. `[all]` (a5 §ラフに色を乗せる)
 - See-through part decomposition off-front: drops legs and legwear, and its
   output is a redraw. `[all]` (a5 §See-through)

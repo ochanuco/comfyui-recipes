@@ -15,7 +15,7 @@ The maintained application layout is:
 ```text
 src/comfyui_recipes/
 ├── interfaces/          # argparse and dependency wiring
-├── application/         # generate, finalize and metadata workflows
+├── application/         # generate, redraw, repair, deliver and metadata workflows
 ├── domain/
 │   ├── generation/      # shared values and prompt checks
 │   ├── repair/          # repair vocabulary: regions, prompt drops, models, LoRAs, ControlNet
@@ -28,12 +28,13 @@ src/comfyui_recipes/
     ├── notifications/   # Discord side channel
     └── persistence/     # crash-resume state
 comfy_nodes/
-├── yukari_finalize/      # ComfyUI custom node pack wrapping imaging/ for the finalize and deliver graphs
+├── yukari_finalize/      # ComfyUI custom node pack wrapping imaging/ for the redraw and deliver graphs
 └── yukari_worker/        # ComfyUI custom node pack hosting the worker's claim loop
 ```
 
-`infrastructure/imaging/` is shared: `comfy_nodes/yukari_finalize/` wraps its
-functions unchanged as ComfyUI nodes rather than duplicating them.
+`infrastructure/imaging/` is shared: `comfy_nodes/yukari_finalize/` (named for
+the junction already registered on the worker box) wraps its functions unchanged
+as ComfyUI nodes rather than duplicating them.
 `YukariMatting` turns the image and the coarse matte into the alpha, and
 `YukariForeground` estimates the figure's colour under an alpha; the deliver
 graph runs the first once per source picture and the second after every repin.
@@ -50,7 +51,7 @@ decides prompts, sampling parameters, sizes and filenames; the ComfyUI adapter
 decides how those values are encoded as nodes and links.
 
 `yukari/` owns a `dials.py`: the named words (`{word: number}`) it
-publishes for its own finalize/repair/patch option values, referencing the
+publishes for its own redraw/deliver/repair/patch option values, referencing the
 same constants the recipe itself uses rather than duplicating a number.
 `application/request_options.py`
 and `application/generate.py` resolve a request's word against the source
@@ -60,7 +61,7 @@ each recipe's `dials` block.
 ## Application
 
 `src/comfyui_recipes/application/` owns use cases: generate and record a request,
-finalize a selected generation, and manage its metadata. It coordinates domain
+redraw, repair or deliver a selected generation, and manage its metadata. It coordinates domain
 rules and concrete adapters without reimplementing either.
 
 ## Infrastructure
@@ -74,7 +75,7 @@ stay here.
 `src/comfyui_recipes/interfaces/` owns the single public `comfy-recipes` CLI.
 Argument parsing stops at this boundary; commands call application use cases.
 
-The worker's composition root -- wiring the generate/finalize/repair/
+The worker's composition root -- wiring the generate/redraw/deliver/repair/
 masked_redraw services, the hub and progress sockets and the drain sentinel
 into a `WorkServices` -- lives in `interfaces/agent.py`, not in the CLI
 itself. `comfy_nodes/yukari_worker/` calls the same `agent.run()` to host the

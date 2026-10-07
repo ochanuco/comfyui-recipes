@@ -1,15 +1,12 @@
-"""Named words for yukari's finalize options, published in the catalog."""
+"""Named words for yukari's request options, published in the catalog."""
 
 from __future__ import annotations
 
-from .delivery_style import FINALIZE_DENOISE
+from .delivery_style import REDRAW_DENOISE
 
 DIALS = {
-    "finalize": {
-        "denoise": {"keep": FINALIZE_DENOISE},
-    },
     "redraw": {
-        "denoise": {"keep": FINALIZE_DENOISE},
+        "denoise": {"keep": REDRAW_DENOISE},
     },
     "deliver": {
         "keep_legwear": {},

@@ -19,9 +19,7 @@ from comfyui_recipes.domain.yukari.recipe import render_spec
 from comfyui_recipes.infrastructure.chimera.client import ChimeraClient
 from comfyui_recipes.infrastructure.comfyui import anima_graph
 from comfyui_recipes.infrastructure.comfyui.client import ComfyUIClient, as_png
-from comfyui_recipes.infrastructure.comfyui.refinement_graph import (
-    DELIVERED_SUFFIX, MATTE_SUFFIX, chain_pass,
-)
+from comfyui_recipes.infrastructure.comfyui.refinement_graph import redraw_graph
 from comfyui_recipes.infrastructure.notifications.discord import DiscordNotifier
 from comfyui_recipes.infrastructure.persistence.run_state import JsonRunState
 
@@ -277,7 +275,7 @@ class AdapterTest(unittest.TestCase):
         self.assertTrue(
             request.headers["Content-type"].startswith("multipart/form-data"))
 
-    def test_chain_pass_rejects_a_base_with_no_vaedecode_and_non_numeric_ids(self):
+    def test_redraw_graph_rejects_a_base_with_no_vaedecode_and_non_numeric_ids(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"positive": ["6", 0], "negative": ["7", 0]}},
@@ -285,11 +283,11 @@ class AdapterTest(unittest.TestCase):
             "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "n"}},
         }
         with self.assertRaises(ValueError):
-            chain_pass(base, 2048, 0.2, "test", canvas=(832, 1664))
+            redraw_graph(base, 2048, 0.2, "test", canvas=(832, 1664))
         with self.assertRaisesRegex(ValueError, "non-numeric node IDs"):
-            chain_pass({**base, "output": {}}, 2048, 0.2, "test", canvas=(832, 1664))
+            redraw_graph({**base, "output": {}}, 2048, 0.2, "test", canvas=(832, 1664))
 
-    def test_chain_pass_upscales_the_decoded_image_in_pixel_space(self):
+    def test_redraw_graph_upscales_the_decoded_image_in_pixel_space(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
@@ -303,7 +301,7 @@ class AdapterTest(unittest.TestCase):
             "9": {"class_type": "SaveImage",
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
-        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664))
+        graph = redraw_graph(base, 2048, 0.45, "fin", canvas=(832, 1664))
         scale = graph["10"]
         self.assertEqual(scale["class_type"], "ImageScale")
         self.assertEqual(scale["inputs"]["upscale_method"], "bicubic")
@@ -316,7 +314,7 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(graph["12"]["inputs"]["latent_image"], ["11", 0])
         self.assertEqual(graph["9"]["inputs"]["images"], ["13", 0])
 
-    def test_chain_pass_redraw_from_source_loads_the_uploaded_picture(self):
+    def test_redraw_graph_redraw_from_source_loads_the_uploaded_picture(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
@@ -330,7 +328,7 @@ class AdapterTest(unittest.TestCase):
             "9": {"class_type": "SaveImage",
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
-        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664),
+        graph = redraw_graph(base, 2048, 0.45, "fin", canvas=(832, 1664),
                            source_image="mrd-source.png", redraw_from_source=True)
         load = graph["23"]
         self.assertEqual(load, {"class_type": "LoadImage",
@@ -338,7 +336,7 @@ class AdapterTest(unittest.TestCase):
         scale = graph["10"]
         self.assertEqual(scale["inputs"]["image"], ["23", 0])
 
-    def test_chain_pass_without_redraw_from_source_uses_the_base_saveimage(self):
+    def test_redraw_graph_without_redraw_from_source_uses_the_base_saveimage(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
@@ -352,13 +350,13 @@ class AdapterTest(unittest.TestCase):
             "9": {"class_type": "SaveImage",
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
-        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664),
+        graph = redraw_graph(base, 2048, 0.45, "fin", canvas=(832, 1664),
                            source_image="mrd-source.png")
         scale = graph["10"]
         self.assertEqual(scale["inputs"]["image"], ["8", 0])
         self.assertNotIn("23", graph)
 
-    def test_chain_pass_redraw_from_source_requires_source_image(self):
+    def test_redraw_graph_redraw_from_source_requires_source_image(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
@@ -373,9 +371,9 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
         with self.assertRaisesRegex(ValueError, "requires source_image"):
-            chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664), redraw_from_source=True)
+            redraw_graph(base, 2048, 0.45, "fin", canvas=(832, 1664), redraw_from_source=True)
 
-    def test_chain_pass_pixel_route_honours_the_upscale_method(self):
+    def test_redraw_graph_pixel_route_honours_the_upscale_method(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
@@ -389,12 +387,12 @@ class AdapterTest(unittest.TestCase):
             "9": {"class_type": "SaveImage",
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
-        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664), upscale="nearest-exact")
+        graph = redraw_graph(base, 2048, 0.45, "fin", canvas=(832, 1664), upscale="nearest-exact")
         scale = graph["10"]
         self.assertEqual(scale["class_type"], "ImageScale")
         self.assertEqual(scale["inputs"]["upscale_method"], "nearest-exact")
 
-    def test_chain_pass_rejects_an_unknown_upscale_method(self):
+    def test_redraw_graph_rejects_an_unknown_upscale_method(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
@@ -409,9 +407,9 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
         with self.assertRaisesRegex(ValueError, "unsupported upscale method"):
-            chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664), upscale="mitchell")
+            redraw_graph(base, 2048, 0.45, "fin", canvas=(832, 1664), upscale="mitchell")
 
-    def test_chain_pass_sampler_override_keeps_steps_cfg_and_seed(self):
+    def test_redraw_graph_sampler_override_keeps_steps_cfg_and_seed(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "steps": 30, "cfg": 5.0,
@@ -427,7 +425,7 @@ class AdapterTest(unittest.TestCase):
             "9": {"class_type": "SaveImage",
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
-        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664), sampler=("euler", "normal"))
+        graph = redraw_graph(base, 2048, 0.45, "fin", canvas=(832, 1664), sampler=("euler", "normal"))
         sample = graph["12"]
         self.assertEqual(sample["inputs"]["sampler_name"], "euler")
         self.assertEqual(sample["inputs"]["scheduler"], "normal")
@@ -435,7 +433,7 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(sample["inputs"]["cfg"], 5.0)
         self.assertEqual(sample["inputs"]["seed"], 7)
 
-    def test_chain_pass_loader_adds_a_diffusers_loader_and_reroutes(self):
+    def test_redraw_graph_loader_adds_a_diffusers_loader_and_reroutes(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"model": ["1", 0], "seed": 7, "steps": 25,
@@ -453,7 +451,7 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
         original = json.loads(json.dumps(base))
-        graph = chain_pass(base, 2048, 0.75, "fin", loader="hassaku-il-v22",
+        graph = redraw_graph(base, 2048, 0.75, "fin", loader="hassaku-il-v22",
                            canvas=(832, 1664))
         loader_id = "20"
         self.assertEqual(graph[loader_id],
@@ -467,7 +465,7 @@ class AdapterTest(unittest.TestCase):
         for key in ("3", "4", "5", "6", "7"):
             self.assertEqual(graph[key], original[key])
 
-    def test_chain_pass_loads_a_single_file_loader_as_a_checkpoint(self):
+    def test_redraw_graph_loads_a_single_file_loader_as_a_checkpoint(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"model": ["1", 0], "seed": 7, "steps": 25,
@@ -485,7 +483,7 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
         original = json.loads(json.dumps(base))
-        graph = chain_pass(base, 2048, 0.75, "fin", loader="animagine-xl-4.0-opt.safetensors",
+        graph = redraw_graph(base, 2048, 0.75, "fin", loader="animagine-xl-4.0-opt.safetensors",
                            canvas=(832, 1664))
         loader_id = "20"
         self.assertEqual(graph[loader_id],
@@ -499,7 +497,7 @@ class AdapterTest(unittest.TestCase):
         for key in ("3", "4", "5", "6", "7"):
             self.assertEqual(graph[key], original[key])
 
-    def test_chain_pass_sampling_override_sets_steps_and_cfg(self):
+    def test_redraw_graph_sampling_override_sets_steps_and_cfg(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "steps": 25, "cfg": 3.5,
@@ -516,7 +514,7 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
         original_node_3 = json.loads(json.dumps(base["3"]))
-        graph = chain_pass(base, 2048, 0.75, "fin",
+        graph = redraw_graph(base, 2048, 0.75, "fin",
                            sampler=("dpmpp_2m", "karras"),
                            sampling=(30, 5.0), canvas=(832, 1664))
         sample = graph["12"]
@@ -539,8 +537,8 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
 
-    def test_chain_pass_latent_route_with_source_image_encodes_it_then_upscales(self):
-        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+    def test_redraw_graph_latent_route_with_source_image_encodes_it_then_upscales(self):
+        graph = redraw_graph(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
                            latent_route=True, source_image="repaired.png")
         load = graph["23"]
         self.assertEqual(load, {"class_type": "LoadImage",
@@ -556,16 +554,16 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(sample["inputs"]["latent_image"], ["10", 0])
         self.assertEqual(sample["inputs"]["denoise"], 0.55)
 
-    def test_chain_pass_latent_route_without_source_image_upscales_the_base_latent(self):
-        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+    def test_redraw_graph_latent_route_without_source_image_upscales_the_base_latent(self):
+        graph = redraw_graph(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
                            latent_route=True)
         scale = graph["10"]
         self.assertEqual(scale["class_type"], "LatentUpscale")
         self.assertEqual(scale["inputs"]["samples"], ["3", 0])
         self.assertNotIn("23", graph)
 
-    def test_chain_pass_keep_mask_wires_between_latent_source_and_sampler(self):
-        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+    def test_redraw_graph_keep_mask_wires_between_latent_source_and_sampler(self):
+        graph = redraw_graph(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
                            keep_mask_image="keep.png")
         load = graph["24"]
         self.assertEqual(load, {"class_type": "LoadImage", "inputs": {"image": "keep.png"}})
@@ -580,16 +578,16 @@ class AdapterTest(unittest.TestCase):
         sample = graph["12"]
         self.assertEqual(sample["inputs"]["latent_image"], ["26", 0])
 
-    def test_chain_pass_keep_mask_wires_onto_the_latent_route_too(self):
-        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+    def test_redraw_graph_keep_mask_wires_onto_the_latent_route_too(self):
+        graph = redraw_graph(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
                            latent_route=True, keep_mask_image="keep.png")
         noise_mask = graph["26"]
         self.assertEqual(noise_mask["inputs"]["samples"], ["10", 0])
         sample = graph["12"]
         self.assertEqual(sample["inputs"]["latent_image"], ["26", 0])
 
-    def test_chain_pass_keep_mask_wires_onto_the_source_image_latent_route(self):
-        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+    def test_redraw_graph_keep_mask_wires_onto_the_source_image_latent_route(self):
+        graph = redraw_graph(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
                            latent_route=True, source_image="repaired.png",
                            keep_mask_image="keep.png")
         source_load_id = next(key for key, node in graph.items()
@@ -604,20 +602,20 @@ class AdapterTest(unittest.TestCase):
         sample = graph["12"]
         self.assertEqual(sample["inputs"]["latent_image"], ["26", 0])
 
-    def test_chain_pass_keep_mask_omitted_adds_nothing(self):
-        with_none = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
+    def test_redraw_graph_keep_mask_omitted_adds_nothing(self):
+        with_none = redraw_graph(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664),
                                keep_mask_image=None)
-        without_kwarg = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664))
+        without_kwarg = redraw_graph(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664))
         self.assertEqual(with_none, without_kwarg)
         self.assertFalse(
             any(node.get("class_type") in ("LoadImage", "ImageToMask", "SetLatentNoiseMask")
                 for node in with_none.values()))
 
-    def test_chain_pass_keep_mask_omitted_reproduces_the_pre_existing_graph_exactly(self):
-        # Pinned by hand against the shape chain_pass has always built for a
+    def test_redraw_graph_keep_mask_omitted_reproduces_the_pre_existing_graph_exactly(self):
+        # Pinned by hand against the shape redraw_graph has always built for a
         # plain pixel-route pass -- if this ever changes without a
         # keep_mask_image argument in play, something broke the no-op case.
-        graph = chain_pass(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664))
+        graph = redraw_graph(self._plain_base(), 2048, 0.55, "fin", canvas=(832, 1664))
         self.assertEqual(graph, {
             "3": {"class_type": "KSampler",
                  "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
@@ -643,7 +641,7 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"samples": ["12", 0], "vae": ["4", 2]}},
         })
 
-    def test_chain_pass_rejects_a_saved_image_that_is_not_decoded(self):
+    def test_redraw_graph_rejects_a_saved_image_that_is_not_decoded(self):
         base = {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
@@ -657,9 +655,9 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
         with self.assertRaisesRegex(ValueError, "must be fed by a VAEDecode"):
-            chain_pass(base, 2048, 0.45, "fin", canvas=(832, 1664))
+            redraw_graph(base, 2048, 0.45, "fin", canvas=(832, 1664))
 
-    def _deliver_base(self):
+    def _simple_base(self):
         return {
             "3": {"class_type": "KSampler",
                   "inputs": {"seed": 7, "positive": ["6", 0], "negative": ["7", 0]}},
@@ -674,374 +672,14 @@ class AdapterTest(unittest.TestCase):
                   "inputs": {"images": ["8", 0], "filename_prefix": "base"}},
         }
 
-    def test_chain_pass_deliver_requires_matte_model(self):
-        with self.assertRaisesRegex(ValueError, "deliver requires matte_model"):
-            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664), deliver=True)
-
-    def test_chain_pass_skin_requires_source_image(self):
-        with self.assertRaisesRegex(ValueError, "skin requires source_image"):
-            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                      matte_model="birefnet", deliver=True, skin=True)
-
-    def test_chain_pass_deliver_wires_deliver_onto_the_matte_branch(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True)
-        remove = graph["17"]
-        self.assertEqual(remove["class_type"], "RemoveBackground")
-        matting = graph["18"]
-        self.assertEqual(matting["class_type"], "YukariMatting")
-        self.assertEqual(matting["inputs"], {"image": ["13", 0], "matte": ["17", 0]})
-        foreground = graph["21"]
-        self.assertEqual(foreground["class_type"], "YukariForeground")
-        self.assertEqual(foreground["inputs"], {"image": ["13", 0], "alpha": ["18", 0]})
-        deliver_node = graph["22"]
-        self.assertEqual(deliver_node["class_type"], "YukariDeliver")
-        self.assertEqual(deliver_node["inputs"]["image"], ["21", 0])
-        self.assertEqual(deliver_node["inputs"]["matte"], ["18", 0])
-        self.assertIs(deliver_node["inputs"]["keep_scene"], False)
-        self.assertIs(deliver_node["inputs"]["transparent"], False)
-        self.assertIs(deliver_node["inputs"]["matted"], True)
-        save = graph["23"]
-        self.assertEqual(save["class_type"], "SaveImage")
-        self.assertEqual(save["inputs"]["images"], ["22", 0])
-        self.assertEqual(save["inputs"]["filename_prefix"], "fin" + DELIVERED_SUFFIX)
-        # The raw pass is untouched; the saved matte is the matting alpha.
-        self.assertEqual(graph["9"]["inputs"]["filename_prefix"], "fin")
-        self.assertEqual(graph["19"]["inputs"], {"mask": ["18", 0]})
-        self.assertEqual(graph["20"]["inputs"]["images"], ["19", 0])
-        self.assertEqual(graph["20"]["inputs"]["filename_prefix"],
-                         "fin" + MATTE_SUFFIX)
-
-    def test_chain_pass_deliver_rmbg_matte_model_uses_birefnet_rmbg_node(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="rmbg:BiRefNet-HR", deliver=True)
-        rmbg_nodes = [node for node in graph.values()
-                     if node.get("class_type") == "BiRefNetRMBG"]
-        self.assertEqual(len(rmbg_nodes), 1)
-        rmbg = rmbg_nodes[0]
-        self.assertEqual(rmbg["inputs"]["model"], "BiRefNet-HR")
-        self.assertIs(rmbg["inputs"]["refine_foreground"], False)
-        self.assertFalse(any(
-            node.get("class_type") in ("LoadBackgroundRemovalModel", "RemoveBackground")
-            for node in graph.values()))
-        rmbg_id = next(key for key, node in graph.items() if node is rmbg)
-        matting = self._single(graph, "YukariMatting")
-        self.assertEqual(matting["inputs"]["matte"], [rmbg_id, 1])
-        deliver_node = self._single(graph, "YukariDeliver")
-        self.assertEqual(deliver_node["inputs"]["matte"],
-                         [self._id_of(graph, matting), 0])
-
-    def test_chain_pass_deliver_keep_scene_is_passed_through(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True, keep_scene=True)
-        self.assertIs(graph["20"]["inputs"]["keep_scene"], True)
-        self.assertIs(graph["20"]["inputs"]["matted"], False)
-
-    def test_chain_pass_deliver_keep_scene_skips_the_matting_node_and_saves_the_birefnet_matte(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True, keep_scene=True)
-        self.assertFalse(any(node.get("class_type") == "YukariMatting"
-                             for node in graph.values()))
-        self.assertEqual(graph["18"]["inputs"], {"mask": ["17", 0]})
-        self.assertEqual(graph["19"]["inputs"]["images"], ["18", 0])
-        self.assertEqual(graph["19"]["inputs"]["filename_prefix"],
-                         "fin" + MATTE_SUFFIX)
-
-    def test_chain_pass_deliver_transparent_is_passed_through(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True, transparent=True)
-        self.assertIs(graph["22"]["inputs"]["transparent"], True)
-
-    def test_chain_pass_stroke_light_is_passed_onto_the_deliver_node(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True, stroke_light="sw")
-        self.assertEqual(graph["22"]["inputs"]["stroke_light"], "sw")
-
-    def test_chain_pass_stroke_light_defaults_to_an_empty_string(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True)
-        self.assertEqual(graph["22"]["inputs"]["stroke_light"], "")
-
-    def test_chain_pass_bad_stroke_light_raises(self):
-        with self.assertRaisesRegex(ValueError, "stroke_light"):
-            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                      matte_model="birefnet", deliver=True, stroke_light="north")
-
-    def test_chain_pass_backdrop_is_passed_onto_the_deliver_node(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True, backdrop="stripes")
-        self.assertEqual(graph["22"]["inputs"]["backdrop"], "stripes")
-
-    def test_chain_pass_backdrop_defaults_to_an_empty_string(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True)
-        self.assertEqual(graph["22"]["inputs"]["backdrop"], "")
-
-    def test_chain_pass_bad_backdrop_raises(self):
-        with self.assertRaisesRegex(ValueError, "backdrop"):
-            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                      matte_model="birefnet", deliver=True, backdrop="plaid")
-
-    def test_chain_pass_deliver_with_skin_chains_repin_skin_before_delivery(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True,
-                           skin=True, source_image="fin-source.png")
-        load_source = graph["18"]
-        self.assertEqual(load_source, {"class_type": "LoadImage",
-                                       "inputs": {"image": "fin-source.png"}})
-        repin_skin = graph["19"]
-        self.assertEqual(repin_skin["class_type"], "YukariRepinSkin")
-        self.assertEqual(repin_skin["inputs"]["image"], ["13", 0])
-        self.assertEqual(repin_skin["inputs"]["source"], ["18", 0])
-        matting = graph["20"]
-        self.assertEqual(matting["class_type"], "YukariMatting")
-        self.assertEqual(matting["inputs"]["image"], ["19", 0])
-        foreground = graph["23"]
-        self.assertEqual(foreground["class_type"], "YukariForeground")
-        self.assertEqual(foreground["inputs"], {"image": ["19", 0], "alpha": ["20", 0]})
-        deliver_node = graph["24"]
-        self.assertEqual(deliver_node["class_type"], "YukariDeliver")
-        self.assertEqual(deliver_node["inputs"]["image"], ["23", 0])
-        save = graph["25"]
-        self.assertEqual(save["inputs"]["images"], ["24", 0])
-
-    def test_chain_pass_deliver_with_repin_chains_repin_before_delivery(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True,
-                           repin=True, keep_legwear=0.4)
-        repin_node = graph["18"]
-        self.assertEqual(repin_node["class_type"], "YukariRepin")
-        self.assertEqual(repin_node["inputs"]["image"], ["13", 0])
-        self.assertIs(repin_node["inputs"]["keep_legwear"], True)
-        self.assertEqual(repin_node["inputs"]["keep_legwear_cut"], 0.4)
-        self.assertEqual(graph["19"]["inputs"]["image"], ["18", 0])
-        foreground = graph["22"]
-        self.assertEqual(foreground["class_type"], "YukariForeground")
-        self.assertEqual(foreground["inputs"]["image"], ["18", 0])
-        deliver_node = graph["23"]
-        self.assertEqual(deliver_node["inputs"]["image"], ["22", 0])
-
-    def test_chain_pass_deliver_repin_without_keep_legwear_defaults_the_cut(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True, repin=True)
-        repin_node = graph["18"]
-        self.assertIs(repin_node["inputs"]["keep_legwear"], False)
-        self.assertEqual(repin_node["inputs"]["keep_legwear_cut"], 0.62)
-
-    def test_chain_pass_deliver_recolor_wins_over_repin(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True,
-                           repin=True, recolor=True)
-        recolor_node = graph["18"]
-        self.assertEqual(recolor_node["class_type"], "YukariRecolor")
-        self.assertFalse(any(node.get("class_type") == "YukariRepin"
-                             for node in graph.values()))
-        matting = graph["19"]
-        self.assertEqual(matting["class_type"], "YukariMatting")
-        self.assertEqual(matting["inputs"]["image"], ["18", 0])
-        foreground = graph["22"]
-        self.assertEqual(foreground["class_type"], "YukariForeground")
-        self.assertEqual(foreground["inputs"]["image"], ["18", 0])
-        deliver_node = graph["23"]
-        self.assertEqual(deliver_node["class_type"], "YukariDeliver")
-        self.assertEqual(deliver_node["inputs"]["image"], ["22", 0])
-
-    def _single(self, graph, class_type):
-        matches = [node for node in graph.values()
-                  if node.get("class_type") == class_type]
-        self.assertEqual(len(matches), 1, class_type)
-        return matches[0]
-
-    def _id_of(self, graph, node):
-        return next(key for key, candidate in graph.items() if candidate is node)
-
-    def test_chain_pass_deliver_size_scales_the_delivered_save_image(self):
-        base = self._deliver_base()
-        base["5"]["inputs"]["width"] = 1024
-        base["5"]["inputs"]["height"] = 1280
-        graph = chain_pass(base, 2560, 0.45, "fin", canvas=(1024, 1280),
-                           matte_model="birefnet", deliver=True,
-                           deliver_size=1536)
-        deliver_node = self._single(graph, "YukariDeliver")
-        deliver_id = self._id_of(graph, deliver_node)
-        scale = next(node for node in graph.values()
-                    if node.get("class_type") == "ImageScale"
-                    and node["inputs"]["image"] == [deliver_id, 0])
-        self.assertEqual(scale["inputs"]["upscale_method"], "lanczos")
-        self.assertEqual(
-            (scale["inputs"]["width"], scale["inputs"]["height"]), (1229, 1536))
-        self.assertEqual(scale["inputs"]["crop"], "disabled")
-        scale_id = self._id_of(graph, scale)
-        matches = [node for node in graph.values()
-                  if node.get("class_type") == "SaveImage"
-                  and node["inputs"]["filename_prefix"] == "fin" + DELIVERED_SUFFIX]
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0]["inputs"]["images"], [scale_id, 0])
-        # The raw pass and the matte are untouched by the downscale.
-        self.assertEqual(graph["9"]["inputs"]["filename_prefix"], "fin")
-        matte_save = next(node for node in graph.values()
-                          if node.get("class_type") == "SaveImage"
-                          and node["inputs"]["filename_prefix"] == "fin" + MATTE_SUFFIX)
-        self.assertNotEqual(matte_save["inputs"]["images"], [scale_id, 0])
-
-    def test_chain_pass_deliver_size_at_or_above_the_redraw_adds_no_scale(self):
-        base = self._deliver_base()
-        base["5"]["inputs"]["width"] = 1024
-        base["5"]["inputs"]["height"] = 1280
-        graph = chain_pass(base, 2560, 0.45, "fin", canvas=(1024, 1280),
-                           matte_model="birefnet", deliver=True,
-                           latent_route=True, deliver_size=2560)
-        self.assertFalse(any(node.get("class_type") == "ImageScale"
-                             for node in graph.values()))
-
-    def test_chain_pass_deliver_size_none_adds_no_scale(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           matte_model="birefnet", deliver=True,
-                           latent_route=True)
-        self.assertFalse(any(node.get("class_type") == "ImageScale"
-                             for node in graph.values()))
-
-    def test_chain_pass_canvas_drives_sizes_not_the_bases_empty_latent_image(self):
-        base = self._deliver_base()
+    def test_redraw_graph_canvas_drives_sizes_not_the_bases_empty_latent_image(self):
+        base = self._simple_base()
         # The base's own EmptyLatentImage stays 832x1664; a caller-given
         # canvas of a different shape is what the redraw is sized from.
-        graph = chain_pass(base, 2048, 0.45, "fin", canvas=(1000, 1000))
+        graph = redraw_graph(base, 2048, 0.45, "fin", canvas=(1000, 1000))
         scale = graph["10"]
         self.assertEqual(
             (scale["inputs"]["width"], scale["inputs"]["height"]), (2048, 2048))
-
-    def test_chain_pass_deliver_only_requires_source_image(self):
-        with self.assertRaisesRegex(ValueError, "deliver_only requires source_image"):
-            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                      deliver_only=True, matte_model="birefnet")
-
-    def test_chain_pass_deliver_only_requires_matte_model(self):
-        with self.assertRaisesRegex(ValueError, "deliver_only requires matte_model"):
-            chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                      deliver_only=True, source_image="picked.png")
-
-    def test_chain_pass_deliver_only_builds_a_self_contained_delivery_chain(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           deliver_only=True, source_image="picked.png",
-                           matte_model="birefnet")
-        forbidden = {"KSampler", "VAEEncode", "VAEDecode", "DiffusersLoader"}
-        self.assertFalse(
-            any(node.get("class_type") in forbidden for node in graph.values()))
-        load = next(node for node in graph.values()
-                   if node.get("class_type") == "LoadImage")
-        self.assertEqual(load["inputs"]["image"], "picked.png")
-        load_id = next(key for key, node in graph.items() if node is load)
-        raw_save = next(node for node in graph.values()
-                        if node.get("class_type") == "SaveImage"
-                        and node["inputs"]["filename_prefix"] == "fin")
-        self.assertEqual(raw_save["inputs"]["images"], [load_id, 0])
-        remove = next(node for node in graph.values()
-                     if node.get("class_type") == "RemoveBackground")
-        self.assertEqual(remove["inputs"]["image"], [load_id, 0])
-        remove_id = next(key for key, node in graph.items() if node is remove)
-        matting = self._single(graph, "YukariMatting")
-        matting_id = self._id_of(graph, matting)
-        self.assertEqual(matting["inputs"],
-                         {"image": [load_id, 0], "matte": [remove_id, 0]})
-        to_image = self._single(graph, "MaskToImage")
-        self.assertEqual(to_image["inputs"]["mask"], [matting_id, 0])
-        matte_save = next(node for node in graph.values()
-                          if node.get("class_type") == "SaveImage"
-                          and node["inputs"]["filename_prefix"] == "fin" + MATTE_SUFFIX)
-        self.assertEqual(matte_save["inputs"]["images"],
-                         [self._id_of(graph, to_image), 0])
-        foreground = self._single(graph, "YukariForeground")
-        self.assertEqual(foreground["inputs"],
-                         {"image": [load_id, 0], "alpha": [matting_id, 0]})
-        deliver_node = next(node for node in graph.values()
-                            if node.get("class_type") == "YukariDeliver")
-        self.assertEqual(deliver_node["inputs"]["image"],
-                         [self._id_of(graph, foreground), 0])
-        self.assertEqual(deliver_node["inputs"]["matte"], [matting_id, 0])
-        deliver_id = next(key for key, node in graph.items() if node is deliver_node)
-        delivered_save = next(node for node in graph.values()
-                              if node.get("class_type") == "SaveImage"
-                              and node["inputs"]["filename_prefix"] == "fin" + DELIVERED_SUFFIX)
-        self.assertEqual(delivered_save["inputs"]["images"], [deliver_id, 0])
-
-    def test_chain_pass_deliver_only_rmbg_matte_model_uses_birefnet_rmbg_node(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           deliver_only=True, source_image="picked.png",
-                           matte_model="rmbg:BiRefNet-HR")
-        rmbg_nodes = [node for node in graph.values()
-                     if node.get("class_type") == "BiRefNetRMBG"]
-        self.assertEqual(len(rmbg_nodes), 1)
-        rmbg = rmbg_nodes[0]
-        self.assertEqual(rmbg["inputs"]["model"], "BiRefNet-HR")
-        self.assertIs(rmbg["inputs"]["refine_foreground"], False)
-        self.assertFalse(any(
-            node.get("class_type") in ("LoadBackgroundRemovalModel", "RemoveBackground")
-            for node in graph.values()))
-        rmbg_id = next(key for key, node in graph.items() if node is rmbg)
-        matting = self._single(graph, "YukariMatting")
-        self.assertEqual(matting["inputs"]["matte"], [rmbg_id, 1])
-
-    def test_chain_pass_deliver_only_ignores_the_bases_own_nodes(self):
-        # _deliver_base() carries a KSampler/DiffusersLoader/VAEDecode of its
-        # own; deliver_only must not copy any of it into the result.
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           deliver_only=True, source_image="picked.png",
-                           matte_model="birefnet")
-        self.assertNotIn({"class_type": "DiffusersLoader", "inputs": {}}, graph.values())
-
-    def test_chain_pass_deliver_only_applies_deliver_size(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(1000, 2000),
-                           deliver_only=True, source_image="picked.png",
-                           matte_model="birefnet", deliver_size=1000)
-        scale = next(node for node in graph.values()
-                    if node.get("class_type") == "ImageScale")
-        self.assertEqual((scale["inputs"]["width"], scale["inputs"]["height"]), (500, 1000))
-        delivered_save = next(node for node in graph.values()
-                              if node.get("class_type") == "SaveImage"
-                              and node["inputs"]["filename_prefix"] == "fin" + DELIVERED_SUFFIX)
-        scale_id = next(key for key, node in graph.items() if node is scale)
-        self.assertEqual(delivered_save["inputs"]["images"], [scale_id, 0])
-
-    def test_chain_pass_deliver_only_omits_scale_below_deliver_size(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(1000, 2000),
-                           deliver_only=True, source_image="picked.png",
-                           matte_model="birefnet", deliver_size=4000)
-        self.assertFalse(
-            any(node.get("class_type") == "ImageScale" for node in graph.values()))
-
-    def test_chain_pass_deliver_only_chains_skin_before_delivery(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           deliver_only=True, source_image="picked.png",
-                           matte_model="birefnet", skin=True)
-        loads = [node for node in graph.values() if node.get("class_type") == "LoadImage"]
-        self.assertEqual(len(loads), 2)
-        skin_node = next(node for node in graph.values()
-                         if node.get("class_type") == "YukariRepinSkin")
-        matting = self._single(graph, "YukariMatting")
-        skin_id = next(key for key, node in graph.items() if node is skin_node)
-        self.assertEqual(matting["inputs"]["image"], [skin_id, 0])
-        foreground = self._single(graph, "YukariForeground")
-        self.assertEqual(foreground["inputs"]["image"], [skin_id, 0])
-        deliver_node = self._single(graph, "YukariDeliver")
-        self.assertEqual(deliver_node["inputs"]["image"],
-                         [self._id_of(graph, foreground), 0])
-
-    def test_chain_pass_deliver_only_recolor_wins_over_repin(self):
-        graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-                           deliver_only=True, source_image="picked.png",
-                           matte_model="birefnet", repin=True, recolor=True)
-        self.assertFalse(
-            any(node.get("class_type") == "YukariRepin" for node in graph.values()))
-        self.assertTrue(
-            any(node.get("class_type") == "YukariRecolor" for node in graph.values()))
-
-    def test_chain_pass_deliver_only_absent_is_a_byte_identical_no_op(self):
-        with_default = chain_pass(self._deliver_base(), 2048, 0.45, "fin",
-                                  canvas=(832, 1664), matte_model="birefnet", deliver=True)
-        with_explicit_false = chain_pass(
-            self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
-            matte_model="birefnet", deliver=True, deliver_only=False)
-        self.assertEqual(with_default, with_explicit_false)
 
     def test_discord_closes_response_and_swallows_transport_errors(self):
         notifier = DiscordNotifier(Path("."))
@@ -1078,8 +716,8 @@ class AdapterTest(unittest.TestCase):
                              ["state.json"])
 
 
-class ChainPassGuidedStepsBaseTest(unittest.TestCase):
-    """`chain_pass` must redraw a guided two-stage Anima base at its guided
+class RedrawGraphGuidedStepsBaseTest(unittest.TestCase):
+    """`redraw_graph` must redraw a guided two-stage Anima base at its guided
     cfg (the first stage's own), not the final stage's own cfg of 1.0."""
 
     def setUp(self):
@@ -1087,7 +725,7 @@ class ChainPassGuidedStepsBaseTest(unittest.TestCase):
         self.base = anima_graph.build_graph(self.spec)
 
     def test_pixel_route_reports_the_guided_cfg(self):
-        graph = chain_pass(self.base, 2048, 0.45, "fin",
+        graph = redraw_graph(self.base, 2048, 0.45, "fin",
                            canvas=(self.spec.width, self.spec.height))
         sample = next(node for node in graph.values()
                      if node["class_type"] == "KSampler")
@@ -1097,7 +735,7 @@ class ChainPassGuidedStepsBaseTest(unittest.TestCase):
         self.assertEqual(sample["inputs"]["seed"], self.spec.seed)
 
     def test_latent_route_reports_the_guided_cfg(self):
-        graph = chain_pass(self.base, 2048, 0.45, "fin", latent_route=True,
+        graph = redraw_graph(self.base, 2048, 0.45, "fin", latent_route=True,
                            canvas=(self.spec.width, self.spec.height))
         sample = next(node for node in graph.values()
                      if node["class_type"] == "KSampler")

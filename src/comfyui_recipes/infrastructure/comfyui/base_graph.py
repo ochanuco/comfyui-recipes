@@ -13,8 +13,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 # Nodes a finished picture can pass through, unmodified, between decode and
-# SaveImage. Excludes a finalize base's own matte/delivered branches, so a
-# finalize-of-a-finalize still resolves to the raw picture's save.
+# SaveImage. Excludes a delivery's own matte/delivered branches, so they never
+# resolve as the picture's save.
 PASSTHROUGH = ("JoinImageWithAlpha", "LayeredDiffusionDecode", "InpaintStitchImproved")
 
 

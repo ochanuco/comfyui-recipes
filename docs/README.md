@@ -12,7 +12,7 @@ tokens (`uv run scripts/atlas.py docs` prints the live numbers).
 | [findings/legwear-costume.md](findings/legwear-costume.md) | 1k | canonical legwear, gloss, garment colour and fit |
 | [findings/hands-feet-repair.md](findings/hands-feet-repair.md) | 1k | toes and fingers, `repair`, masked redraw |
 | [findings/composition.md](findings/composition.md) | 1.1k | canvas, framing, pose structure |
-| [findings/delivery.md](findings/delivery.md) | 1.3k | finalize, matte, stroke, backdrop, repin |
+| [findings/delivery.md](findings/delivery.md) | 1.3k | deliver, matte, stroke, backdrop, repin |
 | [findings/checkpoints.md](findings/checkpoints.md) | 1.3k | Anima vs IL, LoRA, ControlNet / region tools, checking a new stage-1 model |
 | [findings/evaluation.md](findings/evaluation.md) | 1.1k | metrics that failed, judging and process rules |
 

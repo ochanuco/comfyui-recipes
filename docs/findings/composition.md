@@ -47,7 +47,7 @@ Tags and `a<n> §` pointers: see [`docs/README.md`](../README.md).
   it and too many bans give stick legs. A block tuned on one checkpoint
   overshoots on another. `[all]` (a6 §The proportion block)
 - Floor shadow: `no shadow` 1.3 + four floor-shadow negative words; the rest is
-  finalize's key. `flat lighting` / hatching bans blacken the tights. `[Anima]`
+  the deliver cut's key. `flat lighting` / hatching bans blacken the tights. `[Anima]`
 - `floor visible` calls a rug. Patterned tights leak into the leg on redraw.
   `[Anima]`
 

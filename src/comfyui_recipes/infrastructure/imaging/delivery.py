@@ -804,7 +804,7 @@ def compose(data: bytes, backdrop: str | None = None,
     The alpha is a layerdiffuse render's own -- islands and holes are left
     as drawn, unlike `clean_background`'s retraced matte. `bands=False`
     skips the white/purple ring and plain alpha-composites onto the
-    backdrop instead, for the transparent finalize path, which draws its
+    backdrop instead, for the transparent delivery path, which draws its
     own band later from the redrawn pixels' own matte and leaves
     `backdrop` unset (so this reads `delivery_style.BACKDROP` instead).
     """

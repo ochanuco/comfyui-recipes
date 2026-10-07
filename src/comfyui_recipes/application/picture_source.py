@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+# "hires-chain" and the request kind "finalize" name pictures delivered before
+# deliver existed; their rows are still read.
 DELIVERED_KINDS = ("deliver", "hires-chain")
 DERIVED_KINDS = ("repair", "masked_redraw", "redraw")
 

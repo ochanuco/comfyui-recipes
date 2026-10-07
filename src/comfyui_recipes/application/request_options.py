@@ -24,17 +24,9 @@ from ..domain.yukari.delivery_style import (
 )
 from ..domain.yukari.dials import DIALS
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
-from .finalize import HIRES_DENOISE, RECIPE_DEFAULT
+from .deliver import RECIPE_DEFAULT
 from .picture_source import stroke_light_conflict
-
-_KNOWN_FINALIZE_OPTIONS = frozenset({
-    "denoise", "repin", "recolor", "keep_legwear", "route", "finalizer",
-    "size", "skin", "keep_scene", "transparent",
-    "backdrop", "upscale", "deliver_size", "stroke_light",
-    "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
-    "repair_lora", "repair_seeds", "keep_regions", "keep_strength",
-    "deliver_only", "hires", "hires_denoise", "dof", "light",
-})
+from .redraw import HIRES_DENOISE
 
 _KNOWN_DELIVER_OPTIONS = frozenset({
     "repin", "recolor", "skin", "keep_legwear", "keep_scene", "transparent",
@@ -68,10 +60,9 @@ _RECIPE_DIALS = {
     "yukari": DIALS,
 }
 
-# Kept in sync by hand with the resolve_dial() call sites in
-# finalize_arguments()/repair_arguments(). Public: interfaces/cli.py reads
-# them too, to resolve the same keys' words from its own parsed args.
-FINALIZE_DIAL_KEYS = ("denoise", "keep_legwear", "repair_denoise", "repair_lora")
+# Kept in sync by hand with the resolve_dial() call sites in the *_arguments()
+# functions. Public: interfaces/cli.py reads them too, to resolve the same
+# keys' words from its own parsed args.
 REDRAW_DIAL_KEYS = ("denoise",)
 DELIVER_DIAL_KEYS = ("keep_legwear",)
 REPAIR_DIAL_KEYS = ("denoise", "lora")
@@ -105,8 +96,6 @@ def _resolved_options(options: Mapping, arguments: Mapping,
            for key, value in options.items()}
 
 
-# Shared by finalize_arguments' repair/repair_* options and
-# repair_arguments' own, under different option names and defaults.
 def _parts_argument(value: object, *, key: str = "parts") -> list[str]:
     if (not isinstance(value, list)
             or any(not isinstance(part, str) for part in value)):
@@ -227,16 +216,6 @@ def _crop_size_argument(value: object, *, key: str = "size") -> int:
     return value
 
 
-def _repair_seeds_argument(value: object, *, key: str = "repair_seeds") -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        raise ValueError(f"{key} must be an integer, got {type(value).__name__}")
-    if not (1 <= value <= 8):
-        raise ValueError(f"{key} must be between 1 and 8, got {value!r}")
-    return value
-
-
-# Shared by finalize_arguments' repair_lora and repair_arguments' own lora:
-# both select the reroll's LoraLoader chain weight.
 def _part_lora_argument(value: object, *, key: str = "lora") -> float | None:
     if value is True:
         return DEFAULT_PART_LORA_WEIGHT
@@ -275,179 +254,6 @@ def _control_strength_argument(value: object, *,
     if not (0 < value <= 2):
         raise ValueError(f"{key} must be > 0 and <= 2, got {value!r}")
     return float(value)
-
-
-def finalize_arguments(options: Mapping,
-                       dials: Mapping[str, Mapping[str, float]] | None = None) -> dict:
-    """Validate a finalize request's `options` and map it to finalize() kwargs.
-
-    Missing keys mean false/null; unknown keys or a wrong type raise
-    ValueError naming the offending key.
-    """
-    if not isinstance(options, Mapping):
-        raise ValueError(
-            f"finalize options must be an object, got {type(options).__name__}")
-    unknown = sorted(set(options) - _KNOWN_FINALIZE_OPTIONS)
-    if unknown:
-        raise ValueError(f"finalize が受け付けない option です: {', '.join(unknown)}")
-    dials = dials or {}
-
-    def boolean(key: str) -> bool:
-        value = options.get(key, False)
-        if not isinstance(value, bool):
-            raise ValueError(f"{key} must be a boolean, got {type(value).__name__}")
-        return value
-
-    def defaultable_boolean(key: str) -> bool | object:
-        if key not in options:
-            return RECIPE_DEFAULT
-        value = options[key]
-        if not isinstance(value, bool):
-            raise ValueError(f"{key} must be a boolean, got {type(value).__name__}")
-        return value
-
-    def number(key: str) -> float | int | None:
-        value = resolve_dial(key, options.get(key), dials)
-        if value is None or (isinstance(value, (int, float))
-                             and not isinstance(value, bool)):
-            return value
-        raise ValueError(f"{key} must be null or a number, got {type(value).__name__}")
-
-    denoise = number("denoise")
-
-    keep_legwear = resolve_dial("keep_legwear", options.get("keep_legwear"), dials)
-    if keep_legwear is True:
-        keep_legwear = 0.62
-    elif keep_legwear is not None and not (
-            isinstance(keep_legwear, (int, float)) and not isinstance(keep_legwear, bool)):
-        raise ValueError(
-            "keep_legwear must be null, true or a number, got "
-            f"{type(keep_legwear).__name__}")
-
-    route = options.get("route")
-    if route is None:
-        latent_route = None
-    elif route == "latent":
-        latent_route = True
-    elif route == "pixel":
-        latent_route = False
-    else:
-        raise ValueError(f"route must be null, 'latent' or 'pixel', got {route!r}")
-
-    finalizer = options.get("finalizer")
-    if finalizer is not None and not isinstance(finalizer, str):
-        raise ValueError(f"finalizer must be null or a string, got {type(finalizer).__name__}")
-
-    size = options.get("size")
-    if size is not None and not (isinstance(size, int) and not isinstance(size, bool)):
-        raise ValueError(f"size must be null or an integer, got {type(size).__name__}")
-
-    deliver_size = options.get("deliver_size")
-    if deliver_size is not None and not (
-            isinstance(deliver_size, int) and not isinstance(deliver_size, bool)):
-        raise ValueError(
-            f"deliver_size must be null or an integer, got {type(deliver_size).__name__}")
-    if deliver_size is not None and deliver_size < 1:
-        raise ValueError(f"deliver_size must be at least 1, got {deliver_size!r}")
-
-    transparent = options.get("transparent")
-    if transparent is not None and not isinstance(transparent, bool):
-        raise ValueError(
-            f"transparent must be null or a boolean, got {type(transparent).__name__}")
-
-    if "backdrop" not in options:
-        backdrop = RECIPE_DEFAULT
-    else:
-        backdrop = options["backdrop"]
-        if backdrop is not None:
-            if not isinstance(backdrop, str):
-                raise ValueError(
-                    f"backdrop must be null or a string, got {type(backdrop).__name__}")
-            if not is_backdrop(backdrop):
-                names = ", ".join(repr(key) for key in sorted(PATTERNS))
-                raise ValueError(
-                    f"backdrop must be null, a #RRGGBB colour or one of {names}, "
-                    f"got {backdrop!r}")
-
-    upscale = options.get("upscale")
-    if upscale is not None and upscale not in (
-            "bicubic", "nearest-exact", "bilinear", "lanczos"):
-        raise ValueError(
-            "upscale must be null, 'bicubic', 'nearest-exact', 'bilinear' or "
-            f"'lanczos', got {upscale!r}")
-
-    if "stroke_light" not in options:
-        stroke_light = RECIPE_DEFAULT
-    else:
-        stroke_light = options["stroke_light"]
-        if stroke_light is not None and stroke_light not in STROKE_CHOICES:
-            valid = ", ".join(repr(key) for key in STROKE_CHOICES)
-            raise ValueError(
-                f"stroke_light must be null or one of {valid}, got {stroke_light!r}")
-
-    repair_raw = options.get("repair")
-    repair = (None if repair_raw is None
-             else _parts_argument(repair_raw, key="repair"))
-    repair_regions = _regions_argument(
-        options.get("repair_regions", []), key="repair_regions")
-    repair_denoise = _denoise_argument(
-        resolve_dial("repair_denoise", options.get("repair_denoise", 0.6), dials),
-        key="repair_denoise")
-    repair_pad = _pad_argument(options.get("repair_pad", 1.0), key="repair_pad")
-    # None (an absent key) reaches finalize() as its own "caller omitted
-    # this" sentinel; deliver_only + repair_seeds resolves it by picture size.
-    repair_size = (_crop_size_argument(options["repair_size"], key="repair_size")
-                  if "repair_size" in options else None)
-    repair_lora = _part_lora_argument(
-        resolve_dial("repair_lora", options.get("repair_lora"), dials),
-        key="repair_lora")
-    repair_seeds = (_repair_seeds_argument(options["repair_seeds"], key="repair_seeds")
-                    if "repair_seeds" in options else None)
-    keep_regions = _regions_argument(
-        options.get("keep_regions", []), key="keep_regions")
-    keep_strength = _keep_strength_argument(options.get("keep_strength", 0.25))
-
-    hires = options.get("hires")
-    if hires is not None:
-        if not (isinstance(hires, int) and not isinstance(hires, bool)):
-            raise ValueError(
-                f"hires must be null or an integer, got {type(hires).__name__}")
-        if hires <= 0:
-            raise ValueError(f"hires must be at least 1, got {hires!r}")
-    hires_denoise = options.get("hires_denoise")
-    if hires_denoise is not None:
-        hires_denoise = _denoise_argument(hires_denoise, key="hires_denoise")
-
-    return {
-        "denoise": float(denoise) if denoise is not None else None,
-        "apply_repin": defaultable_boolean("repin"),
-        "apply_skin": boolean("skin"),
-        "apply_recolor": boolean("recolor"),
-        "keep_legwear": float(keep_legwear) if keep_legwear is not None else None,
-        "size": size,
-        "deliver_size": deliver_size,
-        "latent_route": latent_route,
-        "finalizer": finalizer,
-        "keep_scene": boolean("keep_scene"),
-        "transparent": transparent,
-        "backdrop": backdrop,
-        "upscale": upscale,
-        "stroke_light": stroke_light,
-        "repair": repair,
-        "repair_regions": repair_regions,
-        "repair_denoise": repair_denoise,
-        "repair_pad": repair_pad,
-        "repair_size": repair_size,
-        "repair_lora": repair_lora,
-        "repair_seeds": repair_seeds,
-        "keep_regions": keep_regions,
-        "keep_strength": keep_strength,
-        "deliver_only": defaultable_boolean("deliver_only"),
-        "hires": hires,
-        "hires_denoise": hires_denoise,
-        "dof": _dof_argument(options.get("dof")),
-        "light": _light_argument(options.get("light")),
-    }
 
 
 def redraw_arguments(options: Mapping,

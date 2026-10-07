@@ -33,7 +33,7 @@ Anima recipe itself in [`docs/yukari/anima.md`](../yukari/anima.md). Tags and
 - A checkpoint's best face and best palette can be different checkpoints; on
   IL, the checkpoint moved style more than any prompt change. `[IL]` (a1 §The base draws the face)
 - The IL redraw needs an Anima source (a `UNETLoader` in its base graph);
-  other sources are delivered with `deliver_only`, LayerDiffuse bases refused. `[all]`
+  other sources are delivered as drawn, LayerDiffuse bases refused. `[all]`
 - `/object_info/<node>` returns 200 with `{}` for a missing node; check the
   body, or let `/prompt` report `missing_node_type`. `[all]` (a3 §「解像度を上げれば)
 - No upscale model is installed on the worker; Lanczos is the only purely

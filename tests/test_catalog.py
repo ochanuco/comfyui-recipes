@@ -17,11 +17,9 @@ from comfyui_recipes.application.catalog import build_catalog, publish_catalog
 from comfyui_recipes.application.generate import validate_request
 from comfyui_recipes.application.request_options import (
     _KNOWN_DELIVER_OPTIONS,
-    _KNOWN_FINALIZE_OPTIONS,
     _KNOWN_REDRAW_OPTIONS,
     _KNOWN_REPAIR_OPTIONS,
     deliver_arguments,
-    finalize_arguments,
     redraw_arguments,
     repair_arguments,
 )
@@ -41,7 +39,6 @@ _DIAL_WORD = re.compile(r"^[a-z][a-z0-9-]*$")
 # scope -> the real option/target keys a dial in that scope may name.
 _DIAL_SCOPE_KEYS = {
     "deliver": _KNOWN_DELIVER_OPTIONS,
-    "finalize": _KNOWN_FINALIZE_OPTIONS,
     "redraw": _KNOWN_REDRAW_OPTIONS["canvas"],
     "repair": _KNOWN_REPAIR_OPTIONS,
     "patches": set(NUMBER_TARGETS),
@@ -69,7 +66,7 @@ _DUMMY_VALUES = {
 class BuildCatalogTest(unittest.TestCase):
     def test_schema_version_and_git_metadata(self):
         catalog = build_catalog(GIT)
-        self.assertEqual(catalog["schema_version"], 1)
+        self.assertEqual(catalog["schema_version"], 2)
         self.assertEqual(catalog["git_commit"], "abc123")
         self.assertEqual(catalog["git_branch"], "dev/catalog-publish")
         self.assertIs(catalog["git_dirty"], False)
@@ -211,7 +208,7 @@ class DialsTest(unittest.TestCase):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
         self.assertEqual(set(by_name["yukari"]["dials"]),
-                         {"deliver", "finalize", "redraw", "patches"})
+                         {"deliver", "redraw", "patches"})
 
     def test_dial_keys_are_real_option_keys_of_their_scope(self):
         catalog = build_catalog(GIT)
@@ -243,8 +240,6 @@ class DialsTest(unittest.TestCase):
                                 recipe=recipe["name"], scope=scope, key=key, word=word):
                             if scope == "deliver":
                                 deliver_arguments({key: word}, options)
-                            elif scope == "finalize":
-                                finalize_arguments({key: word}, options)
                             elif scope == "redraw":
                                 redraw_arguments(
                                     {"method": "canvas", key: word}, options)
@@ -255,68 +250,6 @@ class DialsTest(unittest.TestCase):
                                     [{"target": key, "op": "set", "value": word,
                                       "reason": "catalog pin"}],
                                     options)
-
-
-class FinalizeDefaultsTest(unittest.TestCase):
-    def test_every_recipe_publishes_a_finalize_defaults_dict(self):
-        catalog = build_catalog(GIT)
-        for recipe in catalog["recipes"]:
-            with self.subTest(recipe=recipe["name"]):
-                self.assertIsInstance(recipe["finalize"]["defaults"], dict)
-
-    def test_finalize_default_keys_are_known_finalize_options(self):
-        catalog = build_catalog(GIT)
-        for recipe in catalog["recipes"]:
-            for key in recipe["finalize"]["defaults"]:
-                with self.subTest(recipe=recipe["name"], key=key):
-                    self.assertIn(key, _KNOWN_FINALIZE_OPTIONS)
-
-    def test_finalize_default_values_satisfy_the_real_validator(self):
-        catalog = build_catalog(GIT)
-        for recipe in catalog["recipes"]:
-            defaults = recipe["finalize"]["defaults"]
-            with self.subTest(recipe=recipe["name"]):
-                finalize_arguments(defaults)
-
-    def test_finalize_publishes_the_dof_f_number_scale(self):
-        by_name = {recipe["name"]: recipe for recipe in build_catalog(GIT)["recipes"]}
-        dof = by_name["yukari"]["finalize"]["dof"]
-        self.assertEqual(dof["f_number"], {
-            "min": 1.4, "max": 22, "default": 2.8,
-            "stops": [1.4, 1.6, 1.8, 2.0, 2.2, 2.5, 2.8, 3.2, 3.5, 4.0, 4.5,
-                      5.0, 5.6, 6.3, 7.1, 8.0, 9.0, 10.0, 11.0, 13.0, 14.0,
-                      16.0, 18.0, 20.0, 22.0]})
-        self.assertEqual(dof["scope"],
-                         {"values": ["figure", "all"], "default": "all"})
-        self.assertEqual(dof["viewfinder"],
-                         {"values": ["off", "on", "both"], "default": "off"})
-        self.assertEqual(dof["focus"], "fractions [x, y] of the source image")
-        self.assertEqual(dof["guide_radius_per_f"], 0.0417)
-        self.assertNotIn("dof", by_name["yukari"]["finalize"]["defaults"])
-
-    def test_finalize_publishes_the_light_options(self):
-        by_name = {recipe["name"]: recipe for recipe in build_catalog(GIT)["recipes"]}
-        light = by_name["yukari"]["finalize"]["light"]
-        self.assertEqual(light["scenes"], ["sunset", "moon"])
-        self.assertEqual(light["from"],
-                         ["e", "n", "ne", "nw", "s", "se", "sw", "w"])
-        self.assertEqual(light["default_from"], "nw")
-        self.assertNotIn("light", by_name["yukari"]["finalize"]["defaults"])
-
-    def test_finalize_publishes_the_stroke_choices_and_solid_backdrop(self):
-        by_name = {recipe["name"]: recipe for recipe in build_catalog(GIT)["recipes"]}
-        finalize = by_name["yukari"]["finalize"]
-        self.assertEqual(finalize["stroke_light"],
-                         ["none", "even", "n", "ne", "e", "se", "s", "sw", "w", "nw"])
-        self.assertEqual(finalize["backdrop_color"], "#ffffff")
-
-    def test_yukari_defaults_to_deliver_only_with_repin(self):
-        catalog = build_catalog(GIT)
-        by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
-        self.assertEqual(
-            by_name["yukari"]["finalize"]["defaults"],
-            {"deliver_only": True, "repin": True, "stroke_light": "n",
-             "backdrop": "dots"})
 
 
 class DeliverSectionTest(unittest.TestCase):
@@ -331,12 +264,27 @@ class DeliverSectionTest(unittest.TestCase):
         self.assertLessEqual(set(defaults), _KNOWN_DELIVER_OPTIONS)
         deliver_arguments(defaults)
 
-    def test_publishes_the_same_shapes_as_the_finalize_section(self):
-        by_name = {recipe["name"]: recipe for recipe in build_catalog(GIT)["recipes"]}
-        finalize = by_name["yukari"]["finalize"]
+    def test_publishes_the_dof_f_number_scale(self):
         section = self.section()
-        for key in ("dof", "stroke_light", "backdrop_color"):
-            self.assertEqual(section[key], finalize[key])
+        dof = section["dof"]
+        self.assertEqual(dof["f_number"], {
+            "min": 1.4, "max": 22, "default": 2.8,
+            "stops": [1.4, 1.6, 1.8, 2.0, 2.2, 2.5, 2.8, 3.2, 3.5, 4.0, 4.5,
+                      5.0, 5.6, 6.3, 7.1, 8.0, 9.0, 10.0, 11.0, 13.0, 14.0,
+                      16.0, 18.0, 20.0, 22.0]})
+        self.assertEqual(dof["scope"],
+                         {"values": ["figure", "all"], "default": "all"})
+        self.assertEqual(dof["viewfinder"],
+                         {"values": ["off", "on", "both"], "default": "off"})
+        self.assertEqual(dof["focus"], "fractions [x, y] of the source image")
+        self.assertEqual(dof["guide_radius_per_f"], 0.0417)
+        self.assertNotIn("dof", section["defaults"])
+
+    def test_publishes_the_stroke_choices_and_solid_backdrop(self):
+        section = self.section()
+        self.assertEqual(section["stroke_light"],
+                         ["none", "even", "n", "ne", "e", "se", "s", "sw", "w", "nw"])
+        self.assertEqual(section["backdrop_color"], "#ffffff")
 
 
 class BackdropsBlockTest(unittest.TestCase):
@@ -384,19 +332,25 @@ class PublishCatalogTest(unittest.TestCase):
         self.assertEqual(catalog["git_branch"], "dev/catalog-publish")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class RedrawSectionTest(unittest.TestCase):
     def test_the_redraw_section_publishes_light_and_per_method_defaults(self):
         redraw = build_catalog(GIT)["recipes"][0]["redraw"]
-        finalize = build_catalog(GIT)["recipes"][0]["finalize"]
-        self.assertEqual(redraw["light"], finalize["light"])
+        light = redraw["light"]
+        self.assertEqual(light["scenes"], ["sunset", "moon"])
+        self.assertEqual(light["from"],
+                         ["e", "n", "ne", "nw", "s", "se", "sw", "w"])
+        self.assertEqual(light["default_from"], "nw")
         self.assertEqual(set(redraw["defaults"]), {"canvas", "hires"})
         self.assertEqual(set(redraw["defaults"]["canvas"]),
                          {"denoise", "size", "route"})
         self.assertEqual(set(redraw["defaults"]["hires"]), {"hires_denoise"})
 
-    def test_the_schema_version_is_unchanged(self):
-        self.assertEqual(build_catalog(GIT)["schema_version"], 1)
+    def test_only_the_current_request_kinds_are_published(self):
+        recipe = build_catalog(GIT)["recipes"][0]
+        self.assertIn("deliver", recipe)
+        self.assertIn("redraw", recipe)
+        self.assertNotIn("finalize", recipe)
+
+
+if __name__ == "__main__":
+    unittest.main()

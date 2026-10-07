@@ -1,4 +1,4 @@
-"""Torch tensor <-> PNG byte conversions for the finalize node pack.
+"""Torch tensor <-> PNG byte conversions for the yukari node pack.
 
 The array-level functions have no torch dependency, so the bridge's numpy
 core can be tested without it; the tensor wrappers import torch lazily so the

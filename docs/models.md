@@ -11,7 +11,7 @@ The code names the files; this is where to look.
 | Role | File | Named in |
 |---|---|---|
 | Stage 1 | `diffusion_models/silvermoonmixAnimaEvolved_v2329BTurbo.safetensors` (SilvermoonMix-Anima-Evolved v2.3_2.9B_Turbo) + `qwen_3_06b_base` + `qwen_image_vae` | `domain/yukari/prompt_style.py` `MODEL`, `GUIDED_STEPS` |
-| Opt-in finalize redraw | `diffusers/hassaku-il-v22` | `domain/yukari/delivery_style.py` `FINALIZE_MODEL` |
+| Opt-in canvas redraw | `diffusers/hassaku-il-v22` | `domain/yukari/delivery_style.py` `REDRAW_MODEL` |
 | Repair reroll models | `sudachiAnima_v10`, `hassakuAnima_v13`, `anima_baseV10` | `domain/repair/models.py` |
 | Repair part LoRAs | `feet-xl-ill`, `hands-xl-ill` | `domain/repair/loras.py` |
 | Repair ControlNet | `noob-lineart-anime-fp16` | `domain/repair/controlnet.py` |

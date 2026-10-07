@@ -30,7 +30,7 @@ production worker sees it.
 | `components.py` | the component model: `(name, section, priority, text)`, legacy part groups |
 | `recipe.py` | assembly, `render_spec`, identity tags, the IL redraw prompt |
 | `dials.py` | words for `render.width`/`render.height` patches |
-| `delivery_style.py` | delivery identity and finalize defaults; see [delivery_style.md](delivery_style.md) |
+| `delivery_style.py` | delivery identity, redraw settings and deliver defaults; see [delivery_style.md](delivery_style.md) |
 
 The graph is built by `infrastructure/comfyui/anima_graph.py`.
 
@@ -50,6 +50,6 @@ The graph is built by `infrastructure/comfyui/anima_graph.py`.
 - Canvas precedence is `pose.canvas`, then the framing's canvas, then
   `1024x1640`. `hires` scales that canvas to the given long side (multiple
   of 8), and `denoise` needs `hires`.
-- Finalize redraws only an Anima source (a `UNETLoader` in its base graph),
-  on the IL checkpoint, with `refinement_prompt`'s rough style. Other
-  sources go through `deliver_only`.
+- `redraw` takes only an Anima source (a `UNETLoader` in its base graph); the
+  `canvas` method runs on the IL checkpoint with `refinement_prompt`'s rough
+  style. Other sources are delivered as drawn.

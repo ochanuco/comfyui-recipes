@@ -12,7 +12,6 @@ from ..application import metadata, safety
 from ..application.catalog import build_catalog
 from ..application.catalog import publish_catalog as publish_catalog_document
 from ..application.deliver import deliver
-from ..application.finalize import RECIPE_DEFAULT, finalize
 from ..application.generate import generate
 from ..application.ingest import import_images
 from ..application.masked_redraw import masked_redraw
@@ -20,7 +19,6 @@ from ..application.redraw import redraw
 from ..application.repair import repair
 from ..application.request_options import (
     DELIVER_DIAL_KEYS,
-    FINALIZE_DIAL_KEYS,
     REDRAW_DIAL_KEYS,
     REPAIR_DIAL_KEYS,
     deliver_arguments,
@@ -54,7 +52,6 @@ from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.repository import discover_repository, git_metadata
 from .agent import (
     build_deliver_services,
-    build_finalize_services,
     build_generate_services,
     build_masked_redraw_services,
     build_redraw_services,
@@ -170,7 +167,7 @@ def parser() -> argparse.ArgumentParser:
     work_parser.add_argument("--dry-run", action="store_true")
     work_parser.add_argument("--worker-id", default=default_worker_id())
     work_parser.add_argument(
-        "--kinds", default="generate,finalize,redraw,deliver,repair,masked_redraw",
+        "--kinds", default="generate,redraw,repair,masked_redraw,deliver",
         help="comma-separated request kinds to claim")
     work_parser.add_argument(
         "--no-hub", action="store_true",
@@ -178,143 +175,6 @@ def parser() -> argparse.ArgumentParser:
     work_parser.add_argument(
         "--no-catalog", action="store_true",
         help="skip publishing the recipe catalog to chimera at startup")
-
-    finalize_parser = commands.add_parser("finalize", help="deliver one picked render")
-    finalize_parser.add_argument("generation_id")
-    finalize_parser.add_argument("--denoise", type=_number_or_word)
-    finalize_parser.add_argument(
-        "--deliver-only", action="store_true",
-        help="skip the redraw and run only the delivery tail (matte, repin/"
-             "skin/recolor, backdrop and stroke) over the picked picture's "
-             "own pixels; mutually exclusive with every redraw-shaping flag")
-    finalize_parser.add_argument(
-        "--repin", action="store_true", help="repin the delivery's palette")
-    finalize_parser.add_argument(
-        "--skin", action="store_true",
-        help="pin the redraw's skin back to the base render's own")
-    finalize_parser.add_argument(
-        "--size", type=int, metavar="LONGEST",
-        help="longest side of the delivery redraw; a DiT's cost tracks pixel "
-             "count, so this is the speed dial")
-    finalize_parser.add_argument(
-        "--deliver-size", type=int, metavar="LONGEST",
-        help="downscale the delivered file to this longest side (lanczos) "
-             "after the redraw; the redraw itself still runs at --size")
-    route_group = finalize_parser.add_mutually_exclusive_group()
-    route_group.add_argument(
-        "--latent-route", dest="latent_route", action="store_const",
-        const=True, default=None,
-        help="upscale the latent instead of the decoded image; the staircase "
-             "it leaves is what the redraw turns into visible stroke")
-    route_group.add_argument(
-        "--pixel-route", dest="latent_route", action="store_const",
-        const=False,
-        help="force the pixel-space route explicitly, finalize's own default")
-    finalize_parser.add_argument(
-        "--finalizer", metavar="MODEL",
-        help="DiffusersLoader model_path that redraws instead of the base "
-             "pass's own checkpoint")
-    finalize_parser.add_argument(
-        "--keep-scene", action="store_true",
-        help="deliver the redraw uncut, background and all")
-    transparent_group = finalize_parser.add_mutually_exclusive_group()
-    transparent_group.add_argument(
-        "--transparent", dest="transparent", action="store_const",
-        const=True, default=None,
-        help="deliver the figure alone as an RGBA cutout")
-    transparent_group.add_argument(
-        "--opaque", dest="transparent", action="store_const", const=False,
-        help="composite on the backdrop with the purple stroke instead")
-    finalize_parser.add_argument("--recolor", action="store_true")
-    finalize_parser.add_argument(
-        "--keep-legwear", nargs="?", const=0.62, type=_number_or_word, default=None,
-        metavar="COL_CUT",
-        help="keep the asserted legwear verbatim through repin; the value is "
-             "the width share the legs stay left of (default 0.62)")
-    finalize_parser.add_argument(
-        "--backdrop", metavar="#RRGGBB|" + "|".join(BACKDROP_PATTERNS),
-        help="backdrop under the sticker -- a colour or a named pattern; "
-             "setting it delivers opaque instead of the transparent cutout")
-    finalize_parser.add_argument(
-        "--upscale",
-        choices=["bicubic", "nearest-exact", "bilinear", "lanczos"],
-        help="pixel-route upscale method feeding the redraw, overriding the "
-             "delivery's own bicubic default")
-    finalize_parser.add_argument(
-        "--stroke-light", choices=STROKE_CHOICES,
-        help="light direction the purple stroke is shaded from (thin toward "
-             "it, thick away from it), 'even' for a uniform stroke or 'none' "
-             "for no purple stroke")
-    finalize_parser.add_argument(
-        "--repair", metavar="PARTS",
-        help="comma-separated hands/feet to reroll in this same submission "
-             "(default: off)")
-    finalize_parser.add_argument(
-        "--repair-region", dest="repair_regions", action="append",
-        metavar="X0,Y0,X1,Y1",
-        help="fractional rectangle [0..1], in the redraw's own frame, added "
-             "to the repair mask; repeatable")
-    finalize_parser.add_argument(
-        "--repair-denoise", type=_number_or_word, default=0.6,
-        help="the repair reroll's own denoise")
-    finalize_parser.add_argument(
-        "--repair-pad", type=float, default=1.0,
-        help="multiplier on the repair's auto-detected region radius")
-    finalize_parser.add_argument(
-        "--repair-size", type=int, default=None, metavar="LONGEST",
-        help="the repair crop's target long side; defaults to 1536 when "
-             "combined with --deliver-only on a picture whose long side is "
-             "at least 2048, else 1024")
-    finalize_parser.add_argument(
-        "--repair-lora", type=_number_or_word, nargs="?",
-        const=DEFAULT_PART_LORA_WEIGHT, metavar="WEIGHT",
-        help="load each repaired part's own LoRA (Feet XL / Hands XL) inside "
-             "the repair crop, at this strength; off by default")
-    finalize_parser.add_argument(
-        "--repair-seeds", type=int, default=None, metavar="N",
-        help="with --deliver-only: one delivered candidate per seed 1..N "
-             "(default 4, 1..8), each its own masked reroll of --repair/"
-             "--repair-region instead of one spliced into a redraw")
-    finalize_parser.add_argument(
-        "--keep-region", dest="keep_regions", action="append",
-        metavar="X0,Y0,X1,Y1",
-        help="fractional rectangle [0..1], in the redraw's own frame, "
-             "shielded from the redraw under a soft noise mask; repeatable")
-    finalize_parser.add_argument(
-        "--keep-strength", type=float, default=0.25, metavar="STRENGTH",
-        help="how much the redraw still touches a --keep-region, 0 < s < 1; "
-             "lower keeps more of the source pixels")
-    finalize_parser.add_argument(
-        "--hires", type=int, default=None, metavar="SIZE",
-        help="with --deliver-only on an Anima render: first re-render the "
-             "picture at the area a 1024x1640 canvas has with this long side "
-             "in px, keeping its own aspect ratio (latent upscale + same-seed "
-             "pass over its stored graph), then deliver that picture")
-    finalize_parser.add_argument(
-        "--hires-denoise", type=float, default=None, metavar="DENOISE",
-        help="with --hires: denoise of the second pass, 0 < d <= 1 "
-             "(default 0.45)")
-    finalize_parser.add_argument(
-        "--dof", metavar="X,Y,F[,SCOPE]",
-        help="depth-of-field blur: focus point as fractions of the picture "
-             "width and height, then the f-number (1.4..22), then optionally 'figure' (default) or 'all' (also blur the rim and backdrop); off by default")
-    finalize_parser.add_argument(
-        "--viewfinder", choices=DOF_VIEWFINDER["values"],
-        default=DOF_VIEWFINDER["default"],
-        help="with --dof: draw a camera viewfinder over the delivered "
-             "picture ('on'), or keep it plain and add the viewfinder picture "
-             "as an extra generation ('both')")
-    finalize_parser.add_argument(
-        "--light", metavar="SCENE[,FROM]",
-        help="with --deliver-only on an Anima render: light the figure as a "
-             f"scene ({', '.join(sorted(LIGHT_SCENES))}) from a direction "
-             f"({', '.join(sorted(STROKE_LIGHTS))}; default "
-             f"{LIGHT_FROM_DEFAULT}) and tint the backdrop to match")
-    finalize_parser.add_argument(
-        "--matte-model", default=None,
-        help="matte source for the delivery: a core background-removal "
-             "model file, or rmbg:<model> for ComfyUI-RMBG's BiRefNetRMBG "
-             "node")
 
     redraw_parser = commands.add_parser(
         "redraw", help="redraw one picture generation with a single method")
@@ -592,52 +452,6 @@ def main(argv: list[str] | None = None) -> None:
         )
         work(work_services, interval=args.interval, once=args.once,
              dry_run=args.dry_run, publish_catalog=not args.no_catalog)
-        return
-    if args.command == "finalize":
-        services = build_finalize_services(
-            chimera, comfyui, notifier, repository, repository_metadata)
-        repair_parts = ([part.strip() for part in args.repair.split(",") if part.strip()]
-                        if args.repair else None)
-        repair_regions = [[float(value) for value in region.split(",")]
-                          for region in (args.repair_regions or [])]
-        keep_regions = [[float(value) for value in region.split(",")]
-                       for region in (args.keep_regions or [])]
-        dof = _dof_from_args(args)
-        light = _light_from_args(args)
-        context, dial_values = _resolve_word_args(
-            chimera, args.generation_id, "finalize",
-            {key: getattr(args, key) for key in FINALIZE_DIAL_KEYS})
-        finalize(args.generation_id, services, denoise=dial_values["denoise"],
-                 apply_repin=args.repin,
-                 apply_skin=args.skin,
-                 apply_recolor=args.recolor,
-                 keep_legwear=dial_values["keep_legwear"],
-                 keep_scene=args.keep_scene,
-                 transparent=args.transparent,
-                 size=args.size,
-                 latent_route=args.latent_route,
-                 finalizer=args.finalizer,
-                 backdrop=args.backdrop,
-                 upscale=args.upscale,
-                 deliver_size=args.deliver_size,
-                 stroke_light=(RECIPE_DEFAULT if light and args.stroke_light is None
-                               else args.stroke_light),
-                 repair=repair_parts,
-                 repair_regions=repair_regions,
-                 repair_denoise=dial_values["repair_denoise"],
-                 repair_pad=args.repair_pad,
-                 repair_size=args.repair_size,
-                 repair_lora=dial_values["repair_lora"],
-                 repair_seeds=args.repair_seeds,
-                 keep_regions=keep_regions,
-                 keep_strength=args.keep_strength,
-                 deliver_only=args.deliver_only,
-                 matte_model=args.matte_model,
-                 hires=args.hires,
-                 hires_denoise=args.hires_denoise,
-                 dof=dof,
-                 light=light,
-                 context=context)
         return
     if args.command == "redraw":
         services = build_redraw_services(

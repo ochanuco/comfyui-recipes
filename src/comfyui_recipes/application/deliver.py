@@ -19,7 +19,6 @@ from .cut_assets import (
     reusable,
     stored_cut,
 )
-from .finalize import RECIPE_DEFAULT
 from .ingest import (
     classify_deliver_outputs,
     generation_key,
@@ -28,6 +27,9 @@ from .ingest import (
     upload_generation,
 )
 from .picture_source import is_delivered, stroke_light_conflict
+
+# Passed for repin/backdrop/stroke_light to mean "use DELIVER_DEFAULTS' value".
+RECIPE_DEFAULT = object()
 
 LINEAGE_HOPS = 10
 PICTURE_ONLY = "納品済みの絵は deliver できません。納品の元になる絵を指定してください"

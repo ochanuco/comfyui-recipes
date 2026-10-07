@@ -127,7 +127,9 @@ Options, defaults and ranges live here:
   `light`, with the same values as the finalize options of those names; any
   other key is an error. An absent `repin`, `stroke_light` or `backdrop`
   takes the recipe's `deliver.defaults`. `light` only shades the
-  stroke and tints the backdrop; it does not redraw.
+  stroke and tints the backdrop; it does not redraw. An explicit
+  `backdrop: null` without `transparent` delivers a transparent picture;
+  `transparent: false` keeps the white background.
 - The cut is stored on the source Generation: `alpha` (ViTMatte alpha),
   `depth` (only built when `dof` is set) and a json `cut` asset recording
   the matte model, matting model and revision, trimap and tile sizes, and

@@ -66,6 +66,15 @@ if ($ComfyRoot) {
         & $embedded -m pip install onnxruntime
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
     }
+    # YukariMatting's foreground estimator; transformers already comes with the box.
+    & $embedded -c "import pymatting" 2>$null
+    if ($LASTEXITCODE) {
+        & $embedded -m pip install pymatting
+        if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    }
+    # Fetched here so the first finalize after a deploy doesn't stall on the download.
+    & $embedded -c "import sys; sys.path.insert(0, 'src'); from comfyui_recipes.domain.yukari.delivery_style import MATTING_MODEL, MATTING_REVISION; from huggingface_hub import snapshot_download; print('matting model:', snapshot_download(MATTING_MODEL, revision=MATTING_REVISION))"
+    if ($LASTEXITCODE) { "matting model: download failed, the first finalize will retry it" }
     "embedded python: $(if ($pip -match '^Successfully installed') { 'installed' } else { 'ok' })"
     # Unconditional: the drain above ended the claim loop, and the loop is a
     # thread in this process, so nothing brings the worker back but this.

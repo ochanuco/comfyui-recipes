@@ -7,10 +7,11 @@ PNG bytes back to tensors. The imaging logic itself lives in
 
 from __future__ import annotations
 
-from comfyui_recipes.infrastructure.imaging import delivery, depth_blur, palette, recolor, viewfinder
+from comfyui_recipes.infrastructure.imaging import (
+    delivery, depth_blur, matting, palette, recolor, viewfinder)
 from comfyui_recipes.infrastructure.imaging import light as lighting
 
-from . import bridge
+from . import bridge, vitmatte
 
 
 class YukariRepinSkin:
@@ -69,6 +70,26 @@ class YukariRecolor:
         return (bridge.png_to_image(data), "\n".join(report))
 
 
+class YukariMatting:
+    CATEGORY = "yukari"
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("image", "alpha")
+    FUNCTION = "run"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"image": ("IMAGE",), "matte": ("MASK",)}}
+
+    def run(self, image, matte):
+        try:
+            data, alpha = matting.matte_png(
+                bridge.image_to_png(image), bridge.mask_to_png(matte),
+                vitmatte.predict, vitmatte.foreground)
+        finally:
+            vitmatte.release()
+        return (bridge.png_to_image(data), bridge.png_to_mask(alpha))
+
+
 class YukariDeliver:
     CATEGORY = "yukari"
     RETURN_TYPES = ("IMAGE", "STRING")
@@ -87,20 +108,23 @@ class YukariDeliver:
             "backdrop": ("STRING", {"default": ""}),
             "light_scene": ("STRING", {"default": ""}),
             "light_from": ("STRING", {"default": ""}),
+            "matted": ("BOOLEAN", {"default": False}),
         }}
 
     def run(self, image, matte, keep_scene, transparent=False, stroke_light="",
-           backdrop="", light_scene="", light_from=""):
+           backdrop="", light_scene="", light_from="", matted=False):
         image_png, matte_png = bridge.image_to_png(image), bridge.mask_to_png(matte)
         light = stroke_light or None
         if keep_scene:
             data, tag = delivery.keep_scene(image_png, matte_png)
         elif transparent:
-            data, tag = delivery.transparent(image_png, matte_png, light=light)
+            data, tag = delivery.transparent(image_png, matte_png, light=light,
+                                             matted=matted)
         else:
             data, tag = delivery.clean_background(
                 image_png, matte_png, light=light, backdrop=backdrop or None,
-                scene=light_scene or None, light_from=light_from or None)
+                scene=light_scene or None, light_from=light_from or None,
+                matted=matted)
         mode = "RGBA" if (transparent and not keep_scene) else "RGB"
         return (bridge.png_to_image(data, mode), tag)
 
@@ -257,6 +281,7 @@ NODE_CLASS_MAPPINGS = {
     "YukariRepinSkin": YukariRepinSkin,
     "YukariRepin": YukariRepin,
     "YukariRecolor": YukariRecolor,
+    "YukariMatting": YukariMatting,
     "YukariDeliver": YukariDeliver,
     "YukariDepthBlur": YukariDepthBlur,
     "YukariDepthBlurLayered": YukariDepthBlurLayered,
@@ -270,6 +295,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "YukariRepinSkin": "Yukari Repin Skin",
     "YukariRepin": "Yukari Repin",
     "YukariRecolor": "Yukari Recolor",
+    "YukariMatting": "Yukari Matting",
     "YukariDeliver": "Yukari Deliver",
     "YukariDepthBlur": "Yukari Depth Blur",
     "YukariDepthBlurLayered": "Yukari Depth Blur Layered",

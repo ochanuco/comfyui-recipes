@@ -530,9 +530,9 @@ def keep_scene(data: bytes, matte: bytes) -> tuple[bytes, str]:
 
 
 def _band_widths(height: int, width: int) -> tuple[float, float]:
-    white_w = max(height, width) * delivery_style.WHITE_WIDTH_PCT / 100
-    purple_w = white_w * delivery_style.STROKE_WIDTH_BAND
-    return white_w, purple_w
+    longest = max(height, width)
+    return (longest * delivery_style.WHITE_WIDTH_PCT / 100,
+            longest * delivery_style.STROKE_WIDTH_PCT / 100)
 
 
 def band_alphas(figure: np.ndarray, light: str | None = None,
@@ -545,7 +545,9 @@ def band_alphas(figure: np.ndarray, light: str | None = None,
     0 reproduces the old smooth-ramp geometry. `light`, one of
     `delivery_style.STROKE_LIGHTS`' keys, shades the purple band's width by
     direction; `STROKE_EVEN` (or None) keeps it uniform and `STROKE_NONE`
-    leaves it out. The white band is never shaded.
+    leaves it out. The white band is never shaded. Without a white band
+    the purple band also runs under the figure's own edge pixels, so a soft
+    matting alpha there blends into the stroke, not the backdrop.
     """
     height, width = figure.shape
     white_w, purple_w = _band_widths(height, width)
@@ -558,8 +560,9 @@ def band_alphas(figure: np.ndarray, light: str | None = None,
     if eps <= 0:
         bg2 = ~(np.array(Image.fromarray(figure)
                          .resize((width * 2, height * 2), Image.NEAREST)))
-        white_a = down2(stroke_alpha(bg2, 0.0, white_w * 2,
-                                     delivery_style.STROKE_EDGE_SMOOTH))
+        white_a = (down2(stroke_alpha(bg2, 0.0, white_w * 2,
+                                      delivery_style.STROKE_EDGE_SMOOTH))
+                   if white_w > 0 else np.zeros(figure.shape))
         if light == delivery_style.STROKE_NONE:
             purple_a = np.zeros_like(white_a)
         elif light_vec is None:
@@ -574,9 +577,13 @@ def band_alphas(figure: np.ndarray, light: str | None = None,
                 delivery_style.STROKE_EDGE_SMOOTH))
         return white_a, purple_a
 
-    distance = ndimage.distance_transform_edt(~figure)
-    white_a = _polygon_coverage(distance <= white_w, eps)
-    white_mask = white_a >= 0.5
+    if white_w > 0:
+        distance = ndimage.distance_transform_edt(~figure)
+        white_a = _polygon_coverage(distance <= white_w, eps)
+        white_mask = white_a >= 0.5
+    else:
+        white_a = np.zeros(figure.shape)
+        white_mask = figure
     if light == delivery_style.STROKE_NONE:
         purple_a = np.zeros_like(white_a)
     else:
@@ -588,8 +595,11 @@ def band_alphas(figure: np.ndarray, light: str | None = None,
                 purple_w * delivery_style.STROKE_LIGHT_THICK, light_vec)
         purple_a = _polygon_coverage(purple_region, eps)
     white_a = np.where(figure, 0.0, white_a)
-    purple_a = np.where(figure, 0.0, purple_a)
-    return white_a, purple_a
+    if white_w > 0:
+        return white_a, np.where(figure, 0.0, purple_a)
+    if light != delivery_style.STROKE_NONE:
+        purple_a = np.where(figure, 1.0, purple_a)
+    return white_a, np.where(ndimage.binary_erosion(figure), 0.0, purple_a)
 
 
 def outside_mask(figure: np.ndarray, light: str | None = None,
@@ -695,10 +705,22 @@ def scene_backdrop(backdrop_rgb: np.ndarray, light: str | None,
     return tinted * (base - slope * far)[..., None]
 
 
+def cut_figure(px: np.ndarray, soft: np.ndarray) -> np.ndarray:
+    """The silhouette the matte model's soft output and the colour retrace
+    agree on, without cast shadow or enclosed key pockets."""
+    height, width = px.shape[:2]
+    band = int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100)
+    tolerance = delivery_style.MATTE_EDGE_TOLERANCE
+    figure = soft_clamped(refine_matte(px, soft > 127, band, tolerance), soft)
+    figure = shadow_cut(px, figure, soft, band)
+    return enclosed_cut(px, figure, tolerance)
+
+
 def clean_background(data: bytes, matte: bytes, light: str | None = None,
                      backdrop: str | None = None,
                      scene: str | None = None,
-                     light_from: str | None = None) -> tuple[bytes, str]:
+                     light_from: str | None = None,
+                     matted: bool = False) -> tuple[bytes, str]:
     """Frame the figure the matte cuts out, in the delivery's own colours.
 
     `light_from` is the scene light's direction: it tints the backdrop and
@@ -708,27 +730,32 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     the figure's own colours, and pale hair lands inside the backdrop's
     tolerance once it has. A chromatic raw backdrop (a green screen) is
     despilled from the figure's rim.
+
+    `matted`: `matte` is the matting stage's alpha and `data` its
+    foreground, already cut and despilled; the alpha is the coverage as is.
     """
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(float)
     soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
     height, width = px.shape[:2]
     band = int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100)
     tolerance = delivery_style.MATTE_EDGE_TOLERANCE
-    figure = soft_clamped(refine_matte(px, soft > 127, band, tolerance), soft)
-    figure = shadow_cut(px, figure, soft, band)
-    figure = enclosed_cut(px, figure, tolerance)
+    figure = soft >= 128 if matted else cut_figure(px, soft)
     frame = frame_window(px, figure)
     window, key = frame if frame is not None else (None, _corner_seed(px))
     inner = None if window is None else ndimage.binary_erosion(
         window, iterations=delivery_style.FRAME_WINDOW_EDGE_PX)
     raw = px
-    outline_drawn = drawn_outline(px, figure, band, key, inner)
-    local = local_backdrop(px, figure, band, region=window)
-    coverage = keyed_coverage(px, figure, local, band, tolerance)
-    px = despill(unpremultiply(px, local, coverage),
-                 figure_rim(figure, band), key)
-    px[outline_drawn] = 255.0
-    coverage[outline_drawn] = 1.0
+    if matted:
+        outline_drawn = np.zeros(figure.shape, dtype=bool)
+        coverage = soft / 255.0
+    else:
+        outline_drawn = drawn_outline(px, figure, band, key, inner)
+        local = local_backdrop(px, figure, band, region=window)
+        coverage = keyed_coverage(px, figure, local, band, tolerance)
+        px = despill(unpremultiply(px, local, coverage),
+                     figure_rim(figure, band), key)
+        px[outline_drawn] = 255.0
+        coverage[outline_drawn] = 1.0
     backdrop_rgb = backdrops.render(backdrop, height, width)
     if scene is not None:
         backdrop_rgb = scene_backdrop(backdrop_rgb, light_from or light, scene)
@@ -746,12 +773,12 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
         composite = np.where(window[..., None], composite, outer)
     white_w, purple_w = _band_widths(height, width)
 
-    keyed = _key_excess(key) >= delivery_style.KEY_DESPILL_MIN_EXCESS
+    keyed = not matted and _key_excess(key) >= delivery_style.KEY_DESPILL_MIN_EXCESS
     output = io.BytesIO()
     Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
     tag = (f"clean-w{white_w:.0f}-p{purple_w:.0f}"
           + _backdrop_tag_suffix(backdrop) + _cut_tag_suffix()
-          + ("-key" if keyed else "")
+          + ("-key" if keyed else "") + ("-matted" if matted else "")
           + ("-outline" if outline_drawn.any() else ""))
     return output.getvalue(), tag + _light_tag_suffix(light, shadow=True)
 
@@ -819,18 +846,22 @@ def compose_outside_mask(data: bytes, light: str | None = None) -> bytes:
     return output.getvalue()
 
 
-def transparent(data: bytes, matte: bytes,
-                light: str | None = None) -> tuple[bytes, str]:
+def transparent(data: bytes, matte: bytes, light: str | None = None,
+                matted: bool = False) -> tuple[bytes, str]:
     """Cut the figure out and frame it with the sticker bands on alpha 0.
 
     Same silhouette authority as `clean_background`. The figure gets a
     sub-pixel ramp so retraced strands keep partial coverage, and the soft
     matte only adds coverage inside a 1-px ring around it. Outside the
     white/purple bands, alpha is 0 instead of the backdrop colour.
+    `matted` takes `matte` as the matting stage's alpha, as `clean_background`.
     """
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(np.uint8)
     soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
     height, width = px.shape[:2]
+    if matted:
+        return _transparent_over_bands(px, soft >= 128, soft / 255.0, light,
+                                       "-matted")
     band = int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100)
     figure = refine_matte(
         px.astype(float), soft > 127, band, delivery_style.MATTE_EDGE_TOLERANCE)
@@ -848,7 +879,14 @@ def transparent(data: bytes, matte: bytes,
     coverage[~halo] = 0.0
     coverage[ndimage.binary_erosion(figure, iterations=1)] = 1.0
     coverage[outline_drawn] = 1.0
+    return _transparent_over_bands(
+        px, figure, coverage, light, "-outline" if outline_drawn.any() else "")
 
+
+def _transparent_over_bands(px: np.ndarray, figure: np.ndarray,
+                            coverage: np.ndarray, light: str | None,
+                            suffix: str) -> tuple[bytes, str]:
+    height, width = px.shape[:2]
     white_a, purple_a = band_alphas(figure, light)
     band_alpha = np.clip(white_a + purple_a, 0.0, 1.0)
     band_rgb = _bands_over(white_a, purple_a, np.zeros(px.shape))
@@ -866,7 +904,7 @@ def transparent(data: bytes, matte: bytes,
     output = io.BytesIO()
     Image.fromarray(rgba, "RGBA").save(output, "PNG")
     tag = (f"transparent-w{white_w:.0f}-p{purple_w:.0f}" + _cut_tag_suffix()
-           + ("-outline" if outline_drawn.any() else ""))
+           + suffix)
     return output.getvalue(), tag + _light_tag_suffix(light)
 
 
@@ -893,7 +931,7 @@ def cut_backdrop(data: bytes, outside_mask: bytes,
     outside_img = Image.open(io.BytesIO(outside_mask)).convert("L")
     outside = np.array(
         outside_img.resize((width, height), Image.BILINEAR)) > 127
-    margin = round(_band_widths(height, width)[0] * delivery_style.CUT_BACKDROP_MARGIN)
+    margin = round(_band_widths(height, width)[1] * delivery_style.CUT_BACKDROP_MARGIN)
     if margin > 0:
         outside = ndimage.binary_dilation(outside, iterations=margin)
     seed = backdrops.render(backdrop, height, width)[0, 0]

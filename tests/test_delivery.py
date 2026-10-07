@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from PIL.PngImagePlugin import PngInfo
+from scipy import ndimage
 
 from comfyui_recipes.domain.yukari import delivery_style
 from comfyui_recipes.infrastructure.imaging.palette import repin_skin_png
@@ -166,9 +167,9 @@ class DeliveryTest(unittest.TestCase):
         soft[256:768, 256:640] = 255
         cleaned, _ = clean_background(png(pixels), png(soft))
         arr = np.array(Image.open(io.BytesIO(cleaned)))
-        # The shadow is band, not figure: the white band paints over it
+        # The shadow is band, not figure: the purple stroke paints over it
         # right up to the soft matte's edge.
-        np.testing.assert_array_equal(arr[512, 640], (255, 255, 255))
+        np.testing.assert_array_equal(arr[512, 640], parse_color(delivery_style.STROKE))
         np.testing.assert_array_equal(arr[512, 638], (40, 40, 40))
 
     def test_shadow_cut_drops_the_cast_shadow_the_matte_kept_and_no_more(self):
@@ -450,7 +451,7 @@ class DeliveryTest(unittest.TestCase):
         self.assertTrue(tag.endswith("-outline"))
         self.assertTrue((rgba[147:154, 200:300] == 255).all())
 
-    def test_clean_background_paints_the_drawn_outline_white_inside_a_bezel(self):
+    def test_clean_background_keeps_the_drawn_outline_white_inside_a_bezel(self):
         pixels, soft = self.outlined_figure(ring=True)
         bezel = np.ones((512, 512), dtype=bool)
         bezel[40:472, 40:472] = False
@@ -459,7 +460,7 @@ class DeliveryTest(unittest.TestCase):
         cleaned, tag = clean_background(png(pixels), png(soft), backdrop="#102030")
         arr = np.array(Image.open(io.BytesIO(cleaned))).astype(int)
         self.assertIn("-outline", tag)
-        self.assertTrue((arr[147:154, 200:300] == 255).all())
+        self.assertTrue((arr[150:154, 200:300] == 255).all())
 
     def test_clean_background_without_a_drawn_outline_has_no_outline_tag(self):
         pixels, soft = self.outlined_figure(ring=False)
@@ -468,7 +469,7 @@ class DeliveryTest(unittest.TestCase):
         _, tag = transparent(png(pixels), png(soft))
         self.assertNotIn("-outline", tag)
 
-    def test_clean_background_band_widths_derive_from_longest_side_and_each_other(self):
+    def test_clean_background_band_widths_derive_from_the_longest_side(self):
         pixels = np.full((30, 50, 3), (210, 230, 235), dtype=np.uint8)
         pixels[8:24, 15:35] = (20, 20, 20)
         _, tag = clean_background(png(pixels), matte(pixels.shape[:2],
@@ -476,17 +477,18 @@ class DeliveryTest(unittest.TestCase):
         match = re.match(r"^clean-w(\d+)-p(\d+)-cut0\.5$", tag)
         self.assertIsNotNone(match)
         white_w = max(30, 50) * delivery_style.WHITE_WIDTH_PCT / 100
-        purple_w = white_w * delivery_style.STROKE_WIDTH_BAND
+        purple_w = max(30, 50) * delivery_style.STROKE_WIDTH_PCT / 100
         self.assertEqual(match.group(1), f"{white_w:.0f}")
+        self.assertEqual(match.group(1), "0")
         self.assertEqual(match.group(2), f"{purple_w:.0f}")
 
     @mock.patch.object(delivery_style, "BACKDROP", "#c7e5e9")
-    def test_clean_background_composites_purple_under_white_under_figure(self):
-        # Walking outward from the figure's edge should cross the white band
-        # first, the purple band second, and only then the flat backdrop --
-        # the layer order the delivery is supposed to draw them in. Pinned at
-        # eps 0 (the smooth ramp): the bands are only a few px wide on this
-        # canvas, too thin for the polygon cut to resolve a pure colour.
+    def test_clean_background_composites_purple_directly_against_the_figure(self):
+        # Walking outward from the figure's edge should cross the purple
+        # stroke and then reach the flat backdrop, with no white band between
+        # the figure and the stroke. Pinned at eps 0 (the smooth ramp): the
+        # stroke is only a few px wide on this canvas, too thin for the
+        # polygon cut to resolve a pure colour.
         height = width = 240
         pixels = np.full((height, width, 3), (233, 229, 199), dtype=np.uint8)
         pixels[80:160, 80:160] = (10, 10, 10)
@@ -509,11 +511,11 @@ class DeliveryTest(unittest.TestCase):
             self.assertTrue(hits.size, f"strip never reaches {color}")
             return cols[hits[0]]
 
-        white_at = first_match(white)
         purple_at = first_match(purple)
         backdrop_at = first_match(backdrop)
-        self.assertLess(white_at, purple_at)
+        self.assertLessEqual(purple_at, 162)
         self.assertLess(purple_at, backdrop_at)
+        self.assertGreater(np.abs(strip - white).sum(axis=1).min(), 20)
 
     def test_transparent_frames_the_cutout_with_the_sticker_bands(self):
         # Pinned at eps 0 (the smooth ramp), same reason as the clean
@@ -531,30 +533,31 @@ class DeliveryTest(unittest.TestCase):
         # Inside the figure: its own pixels, opaque.
         np.testing.assert_array_equal(arr[128, 100, :3], (40, 40, 40))
         self.assertEqual(arr[128, 100, 3], 255)
-        # 256 * 1.3% = 3.3px of white, then 0.8x that of purple, then nothing.
-        np.testing.assert_array_equal(arr[128, 162, :3], white)
-        self.assertEqual(arr[128, 162, 3], 255)
-        np.testing.assert_array_equal(arr[128, 164, :3], purple)
-        self.assertEqual(arr[128, 164, 3], 255)
+        # 256 * 1.04% = 2.7px of purple straight against the figure, then nothing.
+        np.testing.assert_array_equal(arr[128, 161, :3], purple)
+        self.assertEqual(arr[128, 161, 3], 255)
+        self.assertEqual(arr[128, 164, 3], 0)
         self.assertEqual(arr[128, 172, 3], 0)
         self.assertEqual(arr[0, 0, 3], 0)
-        self.assertEqual(tag, "transparent-w3-p3")
+        opaque = arr[..., 3] > 0
+        self.assertFalse((arr[..., :3] == white).all(axis=2)[opaque].any())
+        self.assertEqual(tag, "transparent-w0-p3")
 
     def test_transparent_keeps_the_retrace_inside_the_soft_matte(self):
         pixels = np.full((256, 256, 3), (210, 230, 235), dtype=np.uint8)
         pixels[64:192, 64:160] = (40, 40, 40)
         pixels[64:192, 160:161] = (150, 150, 150)   # backdrop shading at the edge
-        pixels[120:136, 159:160] = (215, 228, 232)  # a light passage at the edge
+        pixels[120:136, 158:160] = (215, 228, 232)  # a light passage at the edge
         soft = np.zeros((256, 256), dtype=np.uint8)
         soft[64:192, 64:160] = 255
         cut, _ = transparent(png(pixels), png(soft))
         arr = np.array(Image.open(io.BytesIO(cut)))
-        # The shading column is band, not figure: the white band paints over
-        # it, and the figure's own edge stays where the soft matte put it.
-        np.testing.assert_array_equal(arr[128, 161, :3], (255, 255, 255))
-        self.assertGreater(arr[128, 160, :3].min(), 200)
-        np.testing.assert_array_equal(arr[128, 159, :3], (215, 228, 232))
-        self.assertEqual(arr[128, 159, 3], 255)
+        # The shading column is band, not figure: the purple stroke paints
+        # over it, and the figure's own edge stays where the soft matte put it.
+        purple = parse_color(delivery_style.STROKE)
+        np.testing.assert_array_equal(arr[128, 161, :3], purple)
+        np.testing.assert_array_equal(arr[128, 158, :3], (215, 228, 232))
+        self.assertEqual(arr[128, 158, 3], 255)
 
     def test_stroke_alpha_ramps_over_one_pixel_at_the_outer_edge(self):
         mask = np.ones((1, 12), dtype=bool)
@@ -594,8 +597,7 @@ class DeliveryTest(unittest.TestCase):
 
     def test_band_alphas_extrusion_widths_match_thin_and_thick_multiples(self):
         figure, cy, cx, radius = self._disc_figure(size=400, radius=80)
-        white_w = max(400, 400) * delivery_style.WHITE_WIDTH_PCT / 100
-        purple_w = white_w * delivery_style.STROKE_WIDTH_BAND
+        purple_w = 400 * delivery_style.STROKE_WIDTH_PCT / 100
         white, purple = band_alphas(figure, light="n")
         visible_purple = (purple >= 0.5) & (white < 0.5)
         column = int(cx)
@@ -616,17 +618,79 @@ class DeliveryTest(unittest.TestCase):
         # staircasing. Ramping off the raw distance transform inherits the
         # boundary's steps and collapses the band edge onto a handful of
         # repeated coverage levels there; rounding the field off first spreads
-        # it over many. At STROKE_EDGE_SMOOTH = 0 this band yields 9 distinct
-        # levels, at 1.0 it yields 26.
+        # it over many.
         figure, cy, _, radius = self._disc_figure()
         r = 2 ** -0.5
         row_center = int(cy - radius * r)
         rows = np.arange(row_center - 15, row_center + 15)
-        _, purple = band_alphas(figure, eps_pct=0)
-        values = purple[rows].ravel()
-        intermediate = values[(values > 0.05) & (values < 0.95)]
-        self.assertGreater(intermediate.size, 0)
-        self.assertGreater(len(np.unique(np.round(intermediate, 3))), 15)
+
+        def levels(edge_smooth):
+            with mock.patch.object(delivery_style, "STROKE_EDGE_SMOOTH", edge_smooth):
+                _, purple = band_alphas(figure, eps_pct=0)
+            values = purple[rows].ravel()
+            intermediate = values[(values > 0.05) & (values < 0.95)]
+            return len(np.unique(np.round(intermediate, 3)))
+
+        raw = levels(0.0)
+        self.assertGreater(raw, 0)
+        self.assertGreater(levels(delivery_style.STROKE_EDGE_SMOOTH), raw * 2)
+
+    def test_band_alphas_without_a_white_band_starts_the_purple_at_the_figure_edge(self):
+        figure = np.zeros((200, 200), dtype=bool)
+        figure[60:140, 60:140] = True
+        edge = figure & ~ndimage.binary_erosion(figure)
+        for eps in (None, 0.0):
+            with self.subTest(eps=eps):
+                white, purple = band_alphas(figure, eps_pct=eps)
+                self.assertEqual(white.max(), 0.0)
+                self.assertGreater(purple[100, 141], 0.5)
+                self.assertEqual(purple[100, 150], 0.0)
+        white, purple = band_alphas(figure)
+        np.testing.assert_array_equal(purple[edge], 1.0)
+        self.assertEqual(purple[ndimage.binary_erosion(figure)].max(), 0.0)
+
+    def test_band_alphas_none_light_without_a_white_band_has_no_purple(self):
+        figure = np.zeros((200, 200), dtype=bool)
+        figure[60:140, 60:140] = True
+        white, purple = band_alphas(figure, light="none")
+        self.assertEqual(white.max(), 0.0)
+        self.assertEqual(purple.max(), 0.0)
+
+    def test_clean_background_matted_blends_a_soft_edge_with_the_stroke(self):
+        size = 200
+        figure_rgb = (40, 40, 40)
+        pixels = np.full((size, size, 3), figure_rgb, dtype=np.uint8)
+        alpha = np.zeros((size, size), dtype=np.uint8)
+        alpha[60:140, 60:140] = 255
+        alpha[60:140, 139] = 128
+        cleaned, tag = clean_background(
+            png(pixels), png(alpha), backdrop="#102030", matted=True)
+        arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB")).astype(float)
+        stroke = np.array(parse_color(delivery_style.STROKE), dtype=float)
+        expected = (128 / 255) * np.array(figure_rgb) + (1 - 128 / 255) * stroke
+        np.testing.assert_allclose(arr[100, 139], expected, atol=3)
+        np.testing.assert_array_equal(arr[100, 100], figure_rgb)
+        self.assertIn("-matted", tag)
+        self.assertNotIn("-key", tag)
+        self.assertNotIn("-outline", tag)
+
+    def test_transparent_matted_blends_a_soft_edge_with_the_stroke(self):
+        size = 200
+        figure_rgb = (40, 40, 40)
+        pixels = np.full((size, size, 3), figure_rgb, dtype=np.uint8)
+        alpha = np.zeros((size, size), dtype=np.uint8)
+        alpha[60:140, 60:140] = 255
+        alpha[60:140, 139] = 128
+        cut, tag = transparent(png(pixels), png(alpha), matted=True)
+        rgba = np.array(Image.open(io.BytesIO(cut))).astype(float)
+        stroke = np.array(parse_color(delivery_style.STROKE), dtype=float)
+        expected = (128 / 255) * np.array(figure_rgb) + (1 - 128 / 255) * stroke
+        np.testing.assert_allclose(rgba[100, 139, :3], expected, atol=3)
+        self.assertEqual(rgba[100, 139, 3], 255)
+        np.testing.assert_array_equal(rgba[100, 100], (*figure_rgb, 255))
+        self.assertEqual(rgba[0, 0, 3], 0)
+        self.assertIn("-matted", tag)
+        self.assertNotIn("-key", tag)
 
     def test_band_alphas_without_light_matches_omitting_the_argument(self):
         figure, *_ = self._disc_figure()
@@ -685,8 +749,9 @@ class DeliveryTest(unittest.TestCase):
 
     def test_band_alphas_cut_eps_straightens_a_noisy_outline(self):
         figure = self._noisy_circle_figure()
-        smooth_white, _ = band_alphas(figure, eps_pct=0)
-        cut_white, _ = band_alphas(figure, eps_pct=1.0)
+        with mock.patch.object(delivery_style, "WHITE_WIDTH_PCT", 1.3):
+            smooth_white, _ = band_alphas(figure, eps_pct=0)
+            cut_white, _ = band_alphas(figure, eps_pct=1.0)
         smooth_vertices = self._contour_vertex_count(smooth_white >= 0.5)
         cut_vertices = self._contour_vertex_count(cut_white >= 0.5)
         self.assertLess(cut_vertices, smooth_vertices / 3)
@@ -704,7 +769,7 @@ class DeliveryTest(unittest.TestCase):
         pixels[64:192, 64:160] = (40, 40, 40)
         _, tag = transparent(png(pixels), matte(pixels.shape[:2], (64, 192, 64, 160)),
                              light="ne")
-        self.assertEqual(tag, "transparent-w3-p3-cut0.5-light-ne")
+        self.assertEqual(tag, "transparent-w0-p3-cut0.5-light-ne")
 
     def test_clean_background_light_appends_a_tag_suffix(self):
         pixels = np.full((32, 32, 3), (210, 230, 235), dtype=np.uint8)
@@ -844,7 +909,13 @@ class DeliveryTest(unittest.TestCase):
         self.assertTrue(re.search(r"-key(-light-|$)", tag))
         arr = np.array(Image.open(io.BytesIO(cleaned)).convert("RGB")).astype(float)
 
-        np.testing.assert_allclose(arr[box[0], 100], mixed_row, atol=3)
+        # The mixed row is the figure's own edge: its partial coverage blends
+        # into the purple stroke under it, not into the green backdrop, and
+        # it carries no green fringe.
+        edge = arr[box[0], 100]
+        self.assertLessEqual(edge[1], max(edge[0], edge[2]))
+        np.testing.assert_allclose(
+            arr[box[0] - 1, 100], parse_color(delivery_style.STROKE), atol=12)
         np.testing.assert_array_equal(arr[box[0] + 5, 100], figure_colour)
 
         fig_slice = (slice(box[0], box[1]), slice(box[2], box[3]))
@@ -1162,10 +1233,10 @@ class CutBackdropTest(unittest.TestCase):
         self.assertEqual(arr[0, 0, 3], 255)
 
     @mock.patch.object(delivery_style, "BACKDROP", "#c7e5e9")
-    def test_cut_backdrop_keeps_the_white_band_and_purple_rim(self):
+    def test_cut_backdrop_keeps_the_purple_rim(self):
         # A compose-with-bands, standing in for the redrawn picture the real
-        # node sees -- the bands are already baked in, and cutting must not
-        # touch them. A large canvas keeps the bands many pixels wide, so a
+        # node sees -- the stroke is already baked in, and cutting must not
+        # touch it. A large canvas keeps the stroke many pixels wide, so a
         # sample point can sit well clear of cut_backdrop's own 1px edge
         # soften.
         size = 800
@@ -1177,25 +1248,22 @@ class CutBackdropTest(unittest.TestCase):
         outside = compose_outside_mask(data)
         cut, _, _ = cut_backdrop(composed, outside)
         arr = np.array(Image.open(io.BytesIO(cut)).convert("RGBA"))
-        white = np.array([255, 255, 255])
         purple = np.array(parse_color(delivery_style.STROKE))
         row = 400
         cols = np.arange(600, size)
         strip_rgb = arr[row, cols, :3].astype(int)
 
         def middle_of_exact_run(color):
-            # The pixel or two right at a band's own seam can, by pure
+            # The pixel or two right at the stroke's own seam can, by pure
             # colour coincidence, fall inside the backdrop tolerance and
             # lose a sliver of alpha to the edge soften; sampling the
-            # middle of the band's solid run instead of its first pixel is
+            # middle of the stroke's solid run instead of its first pixel is
             # what this test means to check, not that coincidence.
             hits = np.where((strip_rgb == color).all(axis=1))[0]
             self.assertTrue(hits.size, f"strip never reaches {color}")
             return cols[hits[len(hits) // 2]]
 
-        white_at = middle_of_exact_run(white)
         purple_at = middle_of_exact_run(purple)
-        self.assertEqual(arr[row, white_at, 3], 255)
         self.assertEqual(arr[row, purple_at, 3], 255)
         # Well past the rim, the flat backdrop is cut.
         self.assertEqual(arr[row, size - 1, 3], 0)
@@ -1205,8 +1273,8 @@ class CutBackdropTest(unittest.TestCase):
         edge = 1000
         pixels = np.full((size, size, 3), (40, 40, 40), dtype=np.uint8)
         backdrop = parse_color(delivery_style.BACKDROP)
-        white_w = size * delivery_style.WHITE_WIDTH_PCT / 100
-        margin = round(white_w * delivery_style.CUT_BACKDROP_MARGIN)
+        purple_w = size * delivery_style.STROKE_WIDTH_PCT / 100
+        margin = round(purple_w * delivery_style.CUT_BACKDROP_MARGIN)
         self.assertGreaterEqual(margin, 15, "margin too small for this test's buffers")
         # The redraw's own backdrop starts drifting well before the outside
         # mask's own edge -- colour alone would cut from here on, but the

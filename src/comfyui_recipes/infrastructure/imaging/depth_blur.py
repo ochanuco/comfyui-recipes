@@ -1,7 +1,7 @@
 """Depth-of-field blur: a lens-disc circle of confusion that grows with
 distance from a focus point, applied to the figure in linear light. Where the
-figure is out of focus its silhouette fades into PAPER and the matte widens to
-take the fade in. Key-coloured pockets the matte encloses stay raw, for
+figure is out of focus its silhouette spreads into a soft alpha, and the
+matte widens to carry it. Key-coloured pockets the matte encloses stay raw, for
 delivery's own key cut. `blur_layered` instead blurs the delivered picture in
 depth slices composited back to front, so a blurred near object spreads over
 what stands behind it: the figure keeps its own depth, the sticker rim and
@@ -30,7 +30,6 @@ STICKER_TOLERANCE = 6
 STICKER_CLOSING = 2
 SLICES = 16
 OWN_SLICE = 0.5
-PAPER = (255, 255, 255)
 # A blur radius up to this share of the long side still reads as sharp.
 SHARP_FRACTION = 0.001
 
@@ -94,9 +93,9 @@ def depth_blur(rgb: np.ndarray, depth: np.ndarray, alpha: np.ndarray,
                focus_x: float, focus_y: float, f_number: float
                ) -> tuple[np.ndarray, np.ndarray]:
     """`rgb` is HxWx3 uint8, `depth` HxW float with higher = nearer, `alpha`
-    HxW float 0..1. Returns the blurred picture and the matte widened to
-    where the out-of-focus figure fades into PAPER; pixels outside that
-    matte, and key-coloured pockets inside the matte, come back untouched."""
+    HxW float 0..1. Returns the blurred picture and its alpha, widened to
+    where the out-of-focus figure spreads; pixels outside that widening, and
+    key-coloured pockets inside the matte, come back untouched."""
     height, width = alpha.shape
     long_side = max(width, height)
     source_alpha = alpha
@@ -124,7 +123,7 @@ def depth_blur(rgb: np.ndarray, depth: np.ndarray, alpha: np.ndarray,
             continue
         level_radius = r_max * level / (LEVELS - 1)
         if level_radius < 0.5:
-            layer, layer_cover = source, np.ones_like(alpha)
+            layer, layer_cover = source, alpha
         else:
             kernel = _disc(level_radius)
             contributes = alpha * np.clip(
@@ -144,11 +143,9 @@ def depth_blur(rgb: np.ndarray, depth: np.ndarray, alpha: np.ndarray,
         colour += layer * weight[..., None]
         cover += layer_cover * weight
     cover = np.clip(cover, 0.0, 1.0)
-    paper = _to_linear(np.array(PAPER, np.float32))
-    painted = _to_srgb(colour * cover[..., None] + paper * (1.0 - cover[..., None]))
     widened = (inside | (spread > SPREAD_CUT)) & ~pocket
-    result = np.where(widened[..., None], painted, rgb.astype(np.float32))
-    matte = np.maximum(source_alpha, widened.astype(np.float32))
+    result = np.where(widened[..., None], _to_srgb(colour), rgb.astype(np.float32))
+    matte = np.where(widened, cover, source_alpha)
     return np.clip(np.rint(result), 0, 255).astype(np.uint8), matte
 
 

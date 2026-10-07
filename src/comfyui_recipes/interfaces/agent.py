@@ -12,7 +12,6 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ..application.deliver import DeliverServices
-from ..application.finalize import FinalizeServices
 from ..application.redraw import RedrawServices
 from ..application.generate import GenerateServices, request_graph
 from ..application.masked_redraw import MaskedRedrawServices
@@ -24,7 +23,6 @@ from ..domain.yukari.recipe import identity_tags, render_spec
 from ..infrastructure.chimera.client import USER_AGENT, ChimeraClient
 from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_graph
 from ..infrastructure.comfyui.client import ComfyUIClient
-from ..infrastructure.comfyui.refinement_graph import chain_pass
 from ..infrastructure.imaging.delivery import graph_from_png, graph_from_png_or_none, image_size
 from ..infrastructure.imaging.palette import summarize
 from ..infrastructure.notifications.discord import DiscordNotifier
@@ -37,8 +35,7 @@ DRAIN_FILE = ".local/_nogit/worker/drain"
 
 # Must track the `work` subparser's own defaults in interfaces/cli.py by
 # hand -- no single source both can read.
-DEFAULT_KINDS = ("generate", "finalize", "redraw", "deliver", "repair",
-                 "masked_redraw")
+DEFAULT_KINDS = ("generate", "redraw", "repair", "masked_redraw", "deliver")
 
 
 def default_worker_id() -> str:
@@ -96,20 +93,6 @@ def build_generate_services(chimera: ChimeraClient, comfyui: ComfyUIClient, noti
         presets=chimera.get_preset,
         pose_fingerprint=_pose_fingerprint,
         identity_tags=_identity_tags,
-    )
-
-
-def build_finalize_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
-                       repository: Path, repository_metadata) -> FinalizeServices:
-    return FinalizeServices(
-        management=chimera,
-        comfyui=comfyui,
-        graph_from_png=graph_from_png_or_none,
-        chain_pass=chain_pass,
-        git_metadata=repository_metadata,
-        notifier=notifier,
-        output_root=repository / ".local/_nogit/finalize",
-        measure=summarize,
     )
 
 
@@ -191,8 +174,6 @@ def wire_work_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
     return WorkServices(
         management=chimera,
         generate_services=build_generate_services(
-            chimera, comfyui, notifier, repository, repository_metadata),
-        finalize_services=build_finalize_services(
             chimera, comfyui, notifier, repository, repository_metadata),
         redraw_services=build_redraw_services(
             chimera, comfyui, notifier, repository, repository_metadata),

@@ -19,7 +19,7 @@ from .ingest import create_job, open_request, rate_generation
 PresetFetcher = Callable[[str, str, str, int], dict]
 
 # `generation.recipe` -> its `dials.patches` vocabulary (target -> word ->
-# number). Mirrored by request_options.py's _RECIPE_DIALS for finalize/repair.
+# number). Mirrored by request_options.py's _RECIPE_DIALS for the other request kinds.
 PATCH_DIALS: dict[str, Mapping[str, Mapping[str, float]]] = {
     "yukari": DIALS.get("patches", {}),
 }

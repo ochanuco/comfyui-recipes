@@ -11,19 +11,16 @@ from ..domain.repair.controlnet import DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import part_loras
 from ..domain.repair.prompt import repair_prompt
 from ..domain.repair.regions import rects_from_fractions, regions_from_pose
-from ..domain.yukari import delivery_style
 from ..infrastructure.comfyui.pose_graph import pose_from_outputs, pose_graph
 from ..infrastructure.comfyui.repair_controlnet import control_hook
-from ..infrastructure.comfyui.repair_graph import (
-    deliver_only_repair_graph,
-    repair_graph,
-    source_prompts,
-)
+from ..infrastructure.comfyui.base_graph import source_prompts
+from ..infrastructure.comfyui.repair_graph import repair_graph
 from ..infrastructure.comfyui.repair_model import anima_model_hook
 from ..infrastructure.imaging.masks import mask_bbox_fraction, render_mask_png
 from ..infrastructure.imaging.toe_template import reference_hint
 from ..infrastructure.persistence.run_state import JsonRunState, operation_state_path
 from .ingest import ingest_seed_render, open_request
+from .picture_source import is_delivered
 
 
 @dataclass(frozen=True)
@@ -38,7 +35,6 @@ class RepairServices:
     emit: Callable[[str], None] = print
     pose_graph: Callable[..., dict] = pose_graph
     repair_graph: Callable[..., dict] = repair_graph
-    deliver_repair_graph: Callable[..., dict] = deliver_only_repair_graph
     state: JsonRunState = field(default_factory=JsonRunState)
 
 
@@ -49,17 +45,10 @@ def _source_short(generations: Sequence[Mapping], generation_id: str) -> str:
     return generation_id
 
 
-def _resolve_source(context: dict, generation_id: str) -> str:
-    """The redraw generation a repair actually redraws.
-
-    A finalize request's raw redraw and delivered sticker sit side by side;
-    the redraw is the larger one by pixel count.
-    """
-    if (context["request"].get("parameters") or {}).get("kind") != "hires-chain":
-        return generation_id
-    return max(
-        context["generations"],
-        key=lambda g: g["image_width"] * g["image_height"])["id"]
+def _check_source(context: dict) -> None:
+    if is_delivered(context["request"]):
+        raise SystemExit(
+            "納品済みの絵は直せません。描き直しの元になる絵を指定してください")
 
 
 def repair(generation_id: str, services: RepairServices, *,
@@ -71,11 +60,6 @@ def repair(generation_id: str, services: RepairServices, *,
           model: str | None = None,
           control: str | None = None,
           control_strength: float = DEFAULT_CONTROL_STRENGTH,
-          deliver_only: bool = False,
-          matte_model: str | None = None,
-          repin: bool = False, recolor: bool = False, skin: bool = False,
-          backdrop: str | None = None, stroke_light: str | None = None,
-          transparent: bool = False, deliver_size: int | None = None,
           graph_generation_id: str | None = None,
           key_prefix: str | None = None,
           request_id: str | None = None,
@@ -89,7 +73,8 @@ def repair(generation_id: str, services: RepairServices, *,
     if context is None:
         context = services.management.request(
             "GET", f"/api/v1/generations/{generation_id}/context")
-    source_id = _resolve_source(context, generation_id)
+    _check_source(context)
+    source_id = generation_id
     source_short = _source_short(context.get("generations") or [], source_id)
     prefix = f"rep-{source_short}"
 
@@ -111,7 +96,6 @@ def repair(generation_id: str, services: RepairServices, *,
     # Illustrious checkpoint only; a UNETLoader marks an anima source.
     is_anima_source = any(node.get("class_type") == "UNETLoader"
                           for node in source_graph.values())
-    resolved_matte_model = matte_model or delivery_style.MATTE_MODEL
 
     # A fresh staged name per run: ComfyUI reports a cached node's pose text
     # for nothing, so the pose pass must not hit the cache.
@@ -167,13 +151,6 @@ def repair(generation_id: str, services: RepairServices, *,
             "control_strength": control_strength if control else None,
             "seeds": list(seeds),
             "mask_bbox": list(mask_bbox),
-            **({"deliver_only": True, "repin": repin, "recolor": recolor,
-                "skin": skin, "matte_model": resolved_matte_model,
-                **({"backdrop": backdrop} if backdrop else {}),
-                **({"stroke_light": stroke_light} if stroke_light is not None else {}),
-                **({"transparent": True} if transparent else {}),
-                **({"deliver_size": deliver_size} if deliver_size is not None else {})}
-               if deliver_only else {}),
         },
         "git_commit": git["commit"], "git_dirty": git["dirty"],
         "references": [{"source_generation_id": source_id,
@@ -190,22 +167,11 @@ def repair(generation_id: str, services: RepairServices, *,
     last_raw_filename, last_raw = None, None
     for index, seed in enumerate(seeds):
         job_prefix = f"{prefix}-s{seed}"
-        if deliver_only:
-            graph = services.deliver_repair_graph(
-                source_graph, image_name=staged_source, mask_name=staged_mask,
-                positive=positive, negative=base_negative, seed=seed,
-                denoise=denoise, size=size, prefix=job_prefix,
-                matte_model=resolved_matte_model, skin=skin, repin=repin,
-                recolor=recolor, transparent=transparent, backdrop=backdrop,
-                stroke_light=stroke_light, deliver_size=deliver_size,
-                canvas=(width, height), loras=loras, model_hooks=model_hooks,
-                conditioning_hooks=conditioning_hooks)
-        else:
-            graph = services.repair_graph(
-                source_graph, image_name=staged_source, mask_name=staged_mask,
-                positive=positive, negative=base_negative, seed=seed,
-                denoise=denoise, size=size, prefix=job_prefix, loras=loras,
-                model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
+        graph = services.repair_graph(
+            source_graph, image_name=staged_source, mask_name=staged_mask,
+            positive=positive, negative=base_negative, seed=seed,
+            denoise=denoise, size=size, prefix=job_prefix, loras=loras,
+            model_hooks=model_hooks, conditioning_hooks=conditioning_hooks)
         prompt_ids = state.setdefault("prompt_ids", {})
         prompt_id = prompt_ids.get(str(index))
         knows = getattr(services.comfyui, "knows", None)

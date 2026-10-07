@@ -106,7 +106,7 @@ class DeliverGraphTest(unittest.TestCase):
         self.assertIn(DEPTH_NODE, classes(graph))
         self.assertEqual(saved_prefixes(graph), ["dlv-g-depth", "dlv-g-delivered"])
 
-    def test_repin_skin_recolor_follow_the_finalize_rules(self):
+    def test_repin_skin_recolor_follow_the_delivery_rules(self):
         graph = build(skin=True, recolor=True, repin=True)
         [(load_id, _)] = nodes_of(graph, "LoadImage")
         [(skin_id, skin)] = nodes_of(graph, "YukariRepinSkin")
@@ -354,7 +354,7 @@ class DeliverUseCaseTest(unittest.TestCase):
         self.assertEqual(uploaded, ["dlv-src-delivered_00001_.png",
                                     "dlv-src-viewfinder_00001_.png"])
 
-    def test_deliver_and_finalize_outputs_are_refused_as_sources(self):
+    def test_delivered_outputs_are_refused_as_sources(self):
         cases = [
             dict(request_kind="deliver"),
             dict(request_kind="finalize"),

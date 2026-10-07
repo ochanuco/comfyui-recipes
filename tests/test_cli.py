@@ -5,9 +5,9 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-from comfyui_recipes.application.finalize import RECIPE_DEFAULT
+from comfyui_recipes.application.deliver import RECIPE_DEFAULT
 from comfyui_recipes.domain.yukari.delivery_style import Dof, Light
 from comfyui_recipes.interfaces import cli
 
@@ -166,23 +166,6 @@ class CliTest(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "--viewfinder needs --dof"):
             cli.main(["deliver", "gen-1", "--viewfinder", "on"])
 
-    @patch.object(cli, "finalize")
-    @patch.object(cli, "ChimeraClient")
-    def test_finalize_repair_flags_dispatch_without_network(
-            self, chimera_class, run_finalize):
-        cli.main(["finalize", "gen-1", "--repair", "hands, feet",
-                  "--repair-region", "0.1,0.2,0.3,0.4",
-                  "--repair-denoise", "0.7", "--repair-pad", "1.5",
-                  "--repair-size", "768", "--repair-seeds", "2"])
-        args, kwargs = run_finalize.call_args
-        self.assertEqual(args[0], "gen-1")
-        self.assertEqual(kwargs["repair"], ["hands", "feet"])
-        self.assertEqual(kwargs["repair_regions"], [[0.1, 0.2, 0.3, 0.4]])
-        self.assertEqual(kwargs["repair_denoise"], 0.7)
-        self.assertEqual(kwargs["repair_pad"], 1.5)
-        self.assertEqual(kwargs["repair_size"], 768)
-        self.assertEqual(kwargs["repair_seeds"], 2)
-
     @patch.object(cli, "redraw")
     @patch.object(cli, "ChimeraClient")
     def test_redraw_methods_dispatch_without_network(
@@ -217,102 +200,44 @@ class CliTest(unittest.TestCase):
             cli.main(["redraw", "gen-1"])
         run_redraw.assert_not_called()
 
-    @patch.object(cli, "finalize")
-    @patch.object(cli, "ChimeraClient")
-    def test_finalize_hires_flags_dispatch_without_network(
-            self, chimera_class, run_finalize):
-        cli.main(["finalize", "gen-1", "--deliver-only", "--hires", "2048",
-                  "--hires-denoise", "0.4"])
-        kwargs = run_finalize.call_args.kwargs
-        self.assertEqual(kwargs["hires"], 2048)
-        self.assertEqual(kwargs["hires_denoise"], 0.4)
-
-    @patch.object(cli, "finalize")
-    @patch.object(cli, "ChimeraClient")
-    def test_finalize_light_flag_dispatches_without_network(
-            self, chimera_class, run_finalize):
-        cli.main(["finalize", "gen-1", "--deliver-only", "--light", "moon,se"])
-        kwargs = run_finalize.call_args.kwargs
-        self.assertEqual(kwargs["light"], Light("moon", "se"))
-        self.assertIs(kwargs["stroke_light"], RECIPE_DEFAULT)
-        cli.main(["finalize", "gen-1", "--deliver-only", "--light", "sunset"])
-        self.assertEqual(run_finalize.call_args.kwargs["light"],
-                         Light("sunset", "nw"))
-        cli.main(["finalize", "gen-1"])
-        self.assertIsNone(run_finalize.call_args.kwargs["light"])
-        self.assertIsNone(run_finalize.call_args.kwargs["stroke_light"])
-
-    @patch.object(cli, "finalize")
-    @patch.object(cli, "ChimeraClient")
-    def test_finalize_hires_defaults_to_off(self, chimera_class, run_finalize):
-        cli.main(["finalize", "gen-1"])
-        kwargs = run_finalize.call_args.kwargs
-        self.assertIsNone(kwargs["hires"])
-        self.assertIsNone(kwargs["hires_denoise"])
-
-    @patch.object(cli, "finalize")
-    @patch.object(cli, "ChimeraClient")
-    def test_finalize_repair_defaults_need_no_flags(self, chimera_class, run_finalize):
-        cli.main(["finalize", "gen-1"])
-        args, kwargs = run_finalize.call_args
-        self.assertIsNone(kwargs["repair"])
-        self.assertEqual(kwargs["repair_regions"], [])
-        self.assertEqual(kwargs["repair_denoise"], 0.6)
-        self.assertEqual(kwargs["repair_pad"], 1.0)
-        self.assertIsNone(kwargs["repair_size"])
-        self.assertIsNone(kwargs["repair_seeds"])
-        self.assertEqual(kwargs["keep_regions"], [])
-        self.assertEqual(kwargs["keep_strength"], 0.25)
-
-    @patch.object(cli, "finalize")
-    @patch.object(cli, "ChimeraClient")
-    def test_finalize_keep_region_flags_dispatch_without_network(
-            self, chimera_class, run_finalize):
-        cli.main(["finalize", "gen-1", "--keep-region", "0.3,0.58,0.85,0.8",
-                  "--keep-region", "0.0,0.84,0.65,1.0", "--keep-strength", "0.45"])
-        args, kwargs = run_finalize.call_args
-        self.assertEqual(kwargs["keep_regions"],
-                         [[0.3, 0.58, 0.85, 0.8], [0.0, 0.84, 0.65, 1.0]])
-        self.assertEqual(kwargs["keep_strength"], 0.45)
-
     @patch.object(cli, "dials_scope")
     @patch.object(cli, "fetch_source")
-    @patch.object(cli, "finalize")
+    @patch.object(cli, "redraw")
     @patch.object(cli, "ChimeraClient")
-    def test_finalize_denoise_word_resolves_through_the_source_recipe(
-            self, chimera_class, run_finalize, fetch_source, dials_scope):
+    def test_redraw_denoise_word_resolves_through_the_source_recipe(
+            self, chimera_class, run_redraw, fetch_source, dials_scope):
         context = object()
         fetch_source.return_value = (context, "yukari")
         dials_scope.return_value = {"denoise": {"tidy": 0.65}}
-        cli.main(["finalize", "gen-1", "--denoise", "tidy"])
+        cli.main(["redraw", "gen-1", "--method", "canvas", "--denoise", "tidy"])
         fetch_source.assert_called_once_with(chimera_class.return_value, "gen-1")
-        dials_scope.assert_called_once_with("yukari", "finalize")
-        args, kwargs = run_finalize.call_args
+        dials_scope.assert_called_once_with("yukari", "redraw")
+        args, kwargs = run_redraw.call_args
         self.assertEqual(kwargs["denoise"], 0.65)
         # The context fetch_source already made is passed through so
-        # finalize() does not fetch it again.
+        # redraw() does not fetch it again.
         self.assertIs(kwargs["context"], context)
 
     @patch.object(cli, "dials_scope")
     @patch.object(cli, "fetch_source")
-    @patch.object(cli, "finalize")
+    @patch.object(cli, "redraw")
     @patch.object(cli, "ChimeraClient")
-    def test_finalize_unknown_word_exits_before_finalizing(
-            self, chimera_class, run_finalize, fetch_source, dials_scope):
+    def test_redraw_unknown_word_exits_before_redrawing(
+            self, chimera_class, run_redraw, fetch_source, dials_scope):
         fetch_source.return_value = ({}, "yukari")
         dials_scope.return_value = {"denoise": {"keep": 0.4}}
         with self.assertRaises(SystemExit):
-            cli.main(["finalize", "gen-1", "--denoise", "blurry"])
-        run_finalize.assert_not_called()
+            cli.main(["redraw", "gen-1", "--method", "canvas", "--denoise", "blurry"])
+        run_redraw.assert_not_called()
 
     @patch.object(cli, "fetch_source")
-    @patch.object(cli, "finalize")
+    @patch.object(cli, "redraw")
     @patch.object(cli, "ChimeraClient")
-    def test_finalize_numeric_denoise_never_looks_up_the_recipe(
-            self, chimera_class, run_finalize, fetch_source):
-        cli.main(["finalize", "gen-1", "--denoise", "0.7"])
+    def test_redraw_numeric_denoise_never_looks_up_the_recipe(
+            self, chimera_class, run_redraw, fetch_source):
+        cli.main(["redraw", "gen-1", "--method", "canvas", "--denoise", "0.7"])
         fetch_source.assert_not_called()
-        kwargs = run_finalize.call_args.kwargs
+        kwargs = run_redraw.call_args.kwargs
         self.assertEqual(kwargs["denoise"], 0.7)
         self.assertIsNone(kwargs["context"])
 
@@ -354,8 +279,9 @@ class CliTest(unittest.TestCase):
         work_services = run_work.call_args.args[0]
         self.assertEqual(
             work_services.kinds,
-            ("generate", "finalize", "redraw", "deliver", "repair",
-             "masked_redraw"))
+            ("generate", "redraw", "repair", "masked_redraw", "deliver"))
+        self.assertIs(
+            work_services.redraw_services.management, chimera_class.return_value)
         self.assertIs(
             work_services.deliver_services.management, chimera_class.return_value)
         self.assertIs(
@@ -376,7 +302,7 @@ class CliTest(unittest.TestCase):
             cli.main(["catalog"])
         chimera_class.return_value.put_catalog.assert_not_called()
         document = cli.json.loads(output.getvalue())
-        self.assertEqual(document["schema_version"], 1)
+        self.assertEqual(document["schema_version"], 2)
         self.assertEqual(
             {recipe["name"] for recipe in document["recipes"]},
             {"yukari"})

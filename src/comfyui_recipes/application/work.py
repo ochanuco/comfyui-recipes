@@ -16,21 +16,18 @@ from urllib.parse import quote
 
 from .catalog import publish_catalog as publish_catalog_document
 from .deliver import DeliverServices, deliver
-from .finalize import FinalizeServices, finalize
 from .generate import GenerateServices, generate, request_file_path
 from .masked_redraw import MaskedRedrawServices, masked_redraw
 from .redraw import RedrawServices, redraw
 from .repair import RepairServices, repair
 from .request_options import (
     DELIVER_DIAL_KEYS,
-    FINALIZE_DIAL_KEYS,
     REDRAW_DIAL_KEYS,
     REPAIR_DIAL_KEYS,
     _MASKED_REDRAW_DIAL_KEYS,
     _resolved_options,
     deliver_arguments,
     dials_scope,
-    finalize_arguments,
     masked_redraw_arguments,
     redraw_arguments,
     repair_arguments,
@@ -52,7 +49,6 @@ def fetch_source(management: Management, generation_id: str) -> tuple[dict, str]
 class WorkServices:
     management: Management
     generate_services: GenerateServices
-    finalize_services: FinalizeServices
     deliver_services: DeliverServices
     redraw_services: RedrawServices
     repair_services: RepairServices
@@ -60,7 +56,6 @@ class WorkServices:
     git_metadata: Callable[[], dict]
     worker_id: str
     generate: Callable[..., dict | None] = generate
-    finalize: Callable[..., dict] = finalize
     deliver: Callable[..., dict] = deliver
     redraw: Callable[..., dict] = redraw
     repair: Callable[..., dict] = repair
@@ -68,8 +63,8 @@ class WorkServices:
     emit: Callable[[str], None] = print
     sleep: Callable[[float], None] = time.sleep
     heartbeat_interval: float = 30
-    kinds: tuple[str, ...] = ("generate", "finalize", "redraw", "deliver",
-                              "repair", "masked_redraw")
+    kinds: tuple[str, ...] = ("generate", "redraw", "repair", "masked_redraw",
+                              "deliver")
     heartbeat: Callable[..., Heartbeat] = Heartbeat
     hub: Callable[[], Connection] | None = None
     draining: Callable[[], bool] | None = None
@@ -95,26 +90,6 @@ def _execute_generate(services: WorkServices, row: Mapping) -> dict:
         path, services.generate_services, key_prefix=f"request:{request_id}",
         request_id=request_id)
     return result or {"generation_ids": []}
-
-
-def _execute_finalize(services: WorkServices, row: Mapping) -> dict:
-    payload = row.get("payload") or {}
-    generation_id = payload.get("generation_id")
-    if not generation_id:
-        raise SystemExit("finalize payload.generation_id is required")
-    context, recipe = fetch_source(services.management, generation_id)
-    dials = dials_scope(recipe, "finalize")
-    options = payload.get("options") or {}
-    try:
-        arguments = finalize_arguments(options, dials)
-    except ValueError as error:
-        raise SystemExit(str(error)) from error
-    result = services.finalize(generation_id, services.finalize_services,
-                               key_prefix=f"request:{row['id']}",
-                               request_id=row["id"], context=context,
-                               **arguments)
-    result["resolved_options"] = _resolved_options(options, arguments, FINALIZE_DIAL_KEYS)
-    return result
 
 
 def _execute_redraw(services: WorkServices, row: Mapping) -> dict:
@@ -205,8 +180,6 @@ def execute(services: WorkServices, row: Mapping) -> dict:
     kind = row.get("kind")
     if kind == "generate":
         return _execute_generate(services, row)
-    if kind == "finalize":
-        return _execute_finalize(services, row)
     if kind == "redraw":
         return _execute_redraw(services, row)
     if kind == "deliver":
@@ -215,6 +188,9 @@ def execute(services: WorkServices, row: Mapping) -> dict:
         return _execute_repair(services, row)
     if kind == "masked_redraw":
         return _execute_masked_redraw(services, row)
+    if kind == "finalize":
+        raise SystemExit(
+            "finalize requests are no longer supported; use redraw and deliver")
     raise SystemExit(f"unsupported request kind: {kind!r}")
 
 
@@ -249,8 +225,7 @@ def work_once(services: WorkServices, *, dry_run: bool = False,
     if row is None:
         return False
     if listener is not None:
-        phase = "finalize" if row.get("kind") == "finalize" else "submit"
-        listener.send_progress(row["id"], phase)
+        listener.send_progress(row["id"], "submit")
     failure: BaseException | None = None
     with services.heartbeat(services.management, row["id"], services.worker_id,
                             interval=services.heartbeat_interval, emit=services.emit):

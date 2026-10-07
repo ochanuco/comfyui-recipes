@@ -9,10 +9,12 @@ from pathlib import Path
 
 from ..domain.repair.prompt import masked_redraw_prompt
 from ..domain.repair.regions import rects_from_fractions
-from ..infrastructure.comfyui.repair_graph import masked_redraw_graph, source_prompts
+from ..infrastructure.comfyui.base_graph import source_prompts
+from ..infrastructure.comfyui.repair_graph import masked_redraw_graph
 from ..infrastructure.imaging.masks import mask_bbox_fraction, render_mask_png
 from ..infrastructure.persistence.run_state import JsonRunState, operation_state_path
 from .ingest import ingest_seed_render, open_request
+from .picture_source import is_delivered
 
 
 @dataclass(frozen=True)
@@ -36,17 +38,10 @@ def _source_short(generations: Sequence[Mapping], generation_id: str) -> str:
     return generation_id
 
 
-def _resolve_source(context: dict, generation_id: str) -> str:
-    """The redraw generation a masked redraw actually redraws.
-
-    A finalize request's raw redraw and delivered sticker sit side by side;
-    the redraw is the larger one by pixel count.
-    """
-    if (context["request"].get("parameters") or {}).get("kind") != "hires-chain":
-        return generation_id
-    return max(
-        context["generations"],
-        key=lambda g: g["image_width"] * g["image_height"])["id"]
+def _check_source(context: dict) -> None:
+    if is_delivered(context["request"]):
+        raise SystemExit(
+            "納品済みの絵は直せません。描き直しの元になる絵を指定してください")
 
 
 def masked_redraw(generation_id: str, services: MaskedRedrawServices, *,
@@ -67,7 +62,8 @@ def masked_redraw(generation_id: str, services: MaskedRedrawServices, *,
     if context is None:
         context = services.management.request(
             "GET", f"/api/v1/generations/{generation_id}/context")
-    source_id = _resolve_source(context, generation_id)
+    _check_source(context)
+    source_id = generation_id
     source_short = _source_short(context.get("generations") or [], source_id)
     prefix = f"mrd-{source_short}"
 

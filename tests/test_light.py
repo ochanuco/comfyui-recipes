@@ -12,9 +12,9 @@ from PIL import Image
 
 from comfyui_recipes.domain.yukari import delivery_style
 from comfyui_recipes.infrastructure.comfyui.base_graph import base_roles
+from comfyui_recipes.infrastructure.comfyui.deliver_graph import deliver_graph
 from comfyui_recipes.infrastructure.comfyui.light_graph import light_graph, light_words
-from comfyui_recipes.infrastructure.comfyui.refinement_graph import (
-    DEPTH_NODE, chain_pass)
+from comfyui_recipes.infrastructure.comfyui.refinement_graph import DEPTH_NODE
 from comfyui_recipes.infrastructure.imaging import light
 from comfyui_recipes.infrastructure.imaging.delivery import band_alphas, clean_background, sticker
 
@@ -100,25 +100,22 @@ class LightGraphTest(unittest.TestCase):
 
 
 class DeliverGraphTest(unittest.TestCase):
-    def deliver(self, deliver_only: bool, **kwargs) -> dict:
-        graph = chain_pass(
-            copy.deepcopy(SOURCE), 2048, 0.45, "fin", canvas=(832, 1664),
-            matte_model="birefnet", deliver=True, deliver_only=deliver_only,
-            source_image="src.png", **kwargs)
+    def deliver(self, **kwargs) -> dict:
+        graph = deliver_graph(
+            "src.png", "birefnet", "fin", skin=False, repin=True,
+            recolor=False, keep_legwear=None, keep_scene=False,
+            transparent=False, backdrop=None, stroke_light=None,
+            deliver_size=None, canvas=(832, 1664), dof=None,
+            **{"light_scene": None, "light_from": None, **kwargs})
         return find(graph, "YukariDeliver")[1]["inputs"]
 
-    def test_both_routes_pass_the_scene_to_the_delivery(self):
-        for deliver_only in (False, True):
-            with self.subTest(deliver_only=deliver_only):
-                inputs = self.deliver(deliver_only, light_scene="moon",
-                                      light_from="sw")
-                self.assertEqual(inputs["light_scene"], "moon")
-                self.assertEqual(inputs["light_from"], "sw")
+    def test_the_delivery_gets_the_scene(self):
+        inputs = self.deliver(light_scene="moon", light_from="sw")
+        self.assertEqual(inputs["light_scene"], "moon")
+        self.assertEqual(inputs["light_from"], "sw")
 
     def test_without_a_scene_the_delivery_is_unchanged(self):
-        for deliver_only in (False, True):
-            with self.subTest(deliver_only=deliver_only):
-                self.assertNotIn("light_scene", self.deliver(deliver_only))
+        self.assertNotIn("light_scene", self.deliver())
 
 
 def figure_image(colour=(128, 128, 128), size=128):

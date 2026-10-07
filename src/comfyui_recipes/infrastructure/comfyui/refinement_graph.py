@@ -49,24 +49,45 @@ def _matte_nodes(graph: dict, allocate: Callable[[], str], image_ref: list,
     return [remove, 0]
 
 
-def _save_matte(graph: dict, allocate: Callable[[], str], matte_ref: list,
-                prefix: str) -> None:
+def save_mask(graph: dict, allocate: Callable[[], str], mask_ref: list,
+              filename_prefix: str) -> None:
     to_image = allocate()
-    graph[to_image] = {"class_type": "MaskToImage", "inputs": {"mask": matte_ref}}
+    graph[to_image] = {"class_type": "MaskToImage", "inputs": {"mask": mask_ref}}
     save = allocate()
     graph[save] = {"class_type": "SaveImage", "inputs": {
-        "images": [to_image, 0], "filename_prefix": prefix + MATTE_SUFFIX}}
+        "images": [to_image, 0], "filename_prefix": filename_prefix}}
+
+
+def _save_matte(graph: dict, allocate: Callable[[], str], matte_ref: list,
+                prefix: str) -> None:
+    save_mask(graph, allocate, matte_ref, prefix + MATTE_SUFFIX)
+
+
+def matting_node(graph: dict, allocate: Callable[[], str], image_ref: list,
+                 matte_ref: list) -> list:
+    """The ViTMatte alpha of the picture. Returns the alpha ref."""
+    node_id = allocate()
+    graph[node_id] = {"class_type": "YukariMatting", "inputs": {
+        "image": image_ref, "matte": matte_ref}}
+    return [node_id, 0]
+
+
+def foreground_node(graph: dict, allocate: Callable[[], str], image_ref: list,
+                    alpha_ref: list) -> list:
+    """The figure's colour under the alpha. Returns the foreground ref."""
+    node_id = allocate()
+    graph[node_id] = {"class_type": "YukariForeground", "inputs": {
+        "image": image_ref, "alpha": alpha_ref}}
+    return [node_id, 0]
 
 
 def _matting_node(graph: dict, allocate: Callable[[], str], image_ref: list,
                   matte_ref: list, prefix: str) -> tuple[list, list]:
     """The matting stage on the picture the delivery composites, its alpha
     saved as the matte. Returns the foreground and alpha refs."""
-    node_id = allocate()
-    graph[node_id] = {"class_type": "YukariMatting", "inputs": {
-        "image": image_ref, "matte": matte_ref}}
-    _save_matte(graph, allocate, [node_id, 1], prefix)
-    return [node_id, 0], [node_id, 1]
+    alpha_ref = matting_node(graph, allocate, image_ref, matte_ref)
+    _save_matte(graph, allocate, alpha_ref, prefix)
+    return foreground_node(graph, allocate, image_ref, alpha_ref), alpha_ref
 
 
 def _depth_nodes(graph: dict, allocate: Callable[[], str], image_ref: list
@@ -118,6 +139,47 @@ def _viewfinder_nodes(graph: dict, allocate: Callable[[], str],
     return delivered_ref
 
 
+def delivery_tail(graph: dict, allocate: Callable[[], str], image_ref: list,
+                  matte_ref: list, depth_ref: list | None, prefix: str, *,
+                  keep_scene: bool, transparent: bool, backdrop: str | None,
+                  stroke_light: str | None, deliver_size: int | None,
+                  canvas: tuple[int, int], dof: Dof | None,
+                  light_scene: str | None, light_from: str | None) -> list:
+    """Appends the figure-blur, composite, background-blur, downscale and
+    viewfinder stages onto `graph` (mutated), saving the delivered picture.
+    `depth_ref` is required when `dof` is set. Returns the delivered ref."""
+    if dof is not None and dof.scope != "all":
+        image_ref, matte_ref = _depth_blur_node(
+            graph, allocate, image_ref, depth_ref, matte_ref, dof)
+    deliver_id = allocate()
+    graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
+        "image": image_ref, "matte": matte_ref, "keep_scene": keep_scene,
+        "transparent": transparent, "stroke_light": stroke_light or "",
+        "backdrop": backdrop or "", "matted": not keep_scene,
+        **({"light_scene": light_scene, "light_from": light_from}
+           if light_scene else {})}}
+    delivered_ref = [deliver_id, 0]
+    if dof is not None and dof.scope == "all":
+        delivered_ref = _layered_node(
+            graph, allocate, delivered_ref, depth_ref, matte_ref, dof,
+            "" if keep_scene else backdrop or "")
+    width, height = canvas
+    longest = max(width, height)
+    if deliver_size is not None and deliver_size < longest:
+        target = (round(width * deliver_size / longest),
+                 round(height * deliver_size / longest))
+        deliver_scale = allocate()
+        graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {
+            "image": delivered_ref, "upscale_method": "lanczos",
+            "width": target[0], "height": target[1], "crop": "disabled"}}
+        delivered_ref = [deliver_scale, 0]
+    saved_ref = _viewfinder_nodes(graph, allocate, delivered_ref, dof, prefix)
+    save_delivered = allocate()
+    graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
+        "images": saved_ref, "filename_prefix": prefix + DELIVERED_SUFFIX}}
+    return delivered_ref
+
+
 def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list,
                        matte_model: str, prefix: str, *, skin: bool, repin: bool,
                        recolor: bool, keep_legwear: float | None, keep_scene: bool,
@@ -162,38 +224,13 @@ def _deliver_only_tail(graph: dict, allocate: Callable[[], str], image_ref: list
     if not keep_scene:
         image_ref, matte_ref = _matting_node(
             graph, allocate, image_ref, matte_ref, prefix)
-    if dof is not None:
-        depth_ref = _depth_nodes(graph, allocate, image_ref)
-        if dof.scope != "all":
-            image_ref, matte_ref = _depth_blur_node(
-                graph, allocate, image_ref, depth_ref, matte_ref, dof)
-    deliver_id = allocate()
-    graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
-        "image": image_ref, "matte": matte_ref, "keep_scene": keep_scene,
-        "transparent": transparent, "stroke_light": stroke_light or "",
-        "backdrop": backdrop or "", "matted": not keep_scene,
-        **({"light_scene": light_scene, "light_from": light_from}
-           if light_scene else {})}}
-    delivered_ref = [deliver_id, 0]
-    if dof is not None and dof.scope == "all":
-        delivered_ref = _layered_node(
-            graph, allocate, delivered_ref, depth_ref, matte_ref, dof,
-            "" if keep_scene else backdrop or "")
-    width, height = canvas
-    longest = max(width, height)
-    if deliver_size is not None and deliver_size < longest:
-        target = (round(width * deliver_size / longest),
-                 round(height * deliver_size / longest))
-        deliver_scale = allocate()
-        graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {
-            "image": delivered_ref, "upscale_method": "lanczos",
-            "width": target[0], "height": target[1], "crop": "disabled"}}
-        delivered_ref = [deliver_scale, 0]
-    saved_ref = _viewfinder_nodes(graph, allocate, delivered_ref, dof, prefix)
-    save_delivered = allocate()
-    graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
-        "images": saved_ref, "filename_prefix": prefix + DELIVERED_SUFFIX}}
-    return delivered_ref
+    depth_ref = (_depth_nodes(graph, allocate, image_ref)
+                 if dof is not None else None)
+    return delivery_tail(
+        graph, allocate, image_ref, matte_ref, depth_ref, prefix,
+        keep_scene=keep_scene, transparent=transparent, backdrop=backdrop,
+        stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas,
+        dof=dof, light_scene=light_scene, light_from=light_from)
 
 
 def _deliver_only_graph(source_image: str, matte_model: str, prefix: str, *,

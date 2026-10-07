@@ -11,6 +11,7 @@ from ..domain.repair.controlnet import CONTROL_MODELS, DEFAULT_CONTROL_STRENGTH
 from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
 from ..domain.yukari.delivery_style import (
+    DELIVER_DEFAULTS,
     DOF_F_NUMBER,
     DOF_SCOPE,
     DOF_VIEWFINDER,
@@ -32,6 +33,11 @@ _KNOWN_FINALIZE_OPTIONS = frozenset({
     "repair", "repair_regions", "repair_denoise", "repair_pad", "repair_size",
     "repair_lora", "repair_seeds", "keep_regions", "keep_strength",
     "deliver_only", "hires", "hires_denoise", "dof", "light",
+})
+
+_KNOWN_DELIVER_OPTIONS = frozenset({
+    "repin", "recolor", "skin", "keep_legwear", "keep_scene", "transparent",
+    "backdrop", "stroke_light", "deliver_size", "dof", "light",
 })
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
@@ -58,6 +64,7 @@ _RECIPE_DIALS = {
 # finalize_arguments()/repair_arguments(). Public: interfaces/cli.py reads
 # them too, to resolve the same keys' words from its own parsed args.
 FINALIZE_DIAL_KEYS = ("denoise", "keep_legwear", "repair_denoise", "repair_lora")
+DELIVER_DIAL_KEYS = ("keep_legwear",)
 REPAIR_DIAL_KEYS = ("denoise", "lora")
 _MASKED_REDRAW_DIAL_KEYS = ("denoise",)
 
@@ -431,6 +438,105 @@ def finalize_arguments(options: Mapping,
         "hires_denoise": hires_denoise,
         "dof": _dof_argument(options.get("dof")),
         "light": _light_argument(options.get("light")),
+    }
+
+
+def deliver_arguments(options: Mapping,
+                      dials: Mapping[str, Mapping[str, float]] | None = None) -> dict:
+    """Validate a deliver request's `options` and map it to deliver() kwargs.
+
+    Absent keys take DELIVER_DEFAULTS; unknown keys or a wrong type raise
+    ValueError naming the offending key.
+    """
+    if not isinstance(options, Mapping):
+        raise ValueError(
+            f"deliver options must be an object, got {type(options).__name__}")
+    unknown = sorted(set(options) - _KNOWN_DELIVER_OPTIONS)
+    if unknown:
+        raise ValueError(f"deliver が受け付けない option です: {', '.join(unknown)}")
+    dials = dials or {}
+
+    def boolean(key: str, default: bool = False) -> bool:
+        value = options.get(key, default)
+        if not isinstance(value, bool):
+            raise ValueError(f"{key} must be a boolean, got {type(value).__name__}")
+        return value
+
+    keep_legwear = resolve_dial("keep_legwear", options.get("keep_legwear"), dials)
+    if keep_legwear is True:
+        keep_legwear = 0.62
+    elif keep_legwear is not None and not (
+            isinstance(keep_legwear, (int, float)) and not isinstance(keep_legwear, bool)):
+        raise ValueError(
+            "keep_legwear must be null, true or a number, got "
+            f"{type(keep_legwear).__name__}")
+
+    deliver_size = options.get("deliver_size")
+    if deliver_size is not None and not (
+            isinstance(deliver_size, int) and not isinstance(deliver_size, bool)):
+        raise ValueError(
+            f"deliver_size must be null or an integer, got {type(deliver_size).__name__}")
+    if deliver_size is not None and deliver_size < 1:
+        raise ValueError(f"deliver_size must be at least 1, got {deliver_size!r}")
+
+    transparent = options.get("transparent")
+    if transparent is not None and not isinstance(transparent, bool):
+        raise ValueError(
+            f"transparent must be null or a boolean, got {type(transparent).__name__}")
+    keep_scene = boolean("keep_scene")
+    transparent = bool(transparent) and not keep_scene
+
+    if "backdrop" not in options:
+        backdrop = None if transparent else DELIVER_DEFAULTS["backdrop"]
+    else:
+        backdrop = options["backdrop"]
+        if backdrop is not None:
+            if not isinstance(backdrop, str):
+                raise ValueError(
+                    f"backdrop must be null or a string, got {type(backdrop).__name__}")
+            if not is_backdrop(backdrop):
+                names = ", ".join(repr(key) for key in sorted(PATTERNS))
+                raise ValueError(
+                    f"backdrop must be null, a #RRGGBB colour or one of {names}, "
+                    f"got {backdrop!r}")
+
+    light = _light_argument(options.get("light"))
+    if "stroke_light" not in options:
+        stroke_light = (light.direction if light is not None
+                        else DELIVER_DEFAULTS["stroke_light"])
+    else:
+        stroke_light = options["stroke_light"]
+        if stroke_light is not None and stroke_light not in STROKE_CHOICES:
+            valid = ", ".join(repr(key) for key in STROKE_CHOICES)
+            raise ValueError(
+                f"stroke_light must be null or one of {valid}, got {stroke_light!r}")
+    if (light is not None and stroke_light in STROKE_LIGHTS
+            and stroke_light != light.direction):
+        raise ValueError(
+            f"stroke_light の向きは light の from（{light.direction}）と同じで"
+            "なければなりません。none / even なら向きに関係なく使えます")
+
+    dof = _dof_argument(options.get("dof"))
+    without_backdrop = not keep_scene and (transparent or backdrop is None)
+    if dof is not None and dof.scope is None:
+        dof = dof._replace(scope="figure" if without_backdrop else DOF_SCOPE["default"])
+    if dof is not None and dof.scope == "all" and without_backdrop:
+        raise ValueError(
+            "dof の scope 'all' は背景をぼかすので、透過納品とは一緒に使えません")
+
+    recolor = boolean("recolor")
+    return {
+        "repin": boolean("repin", DELIVER_DEFAULTS["repin"]) and not recolor,
+        "skin": boolean("skin"),
+        "recolor": recolor,
+        "keep_legwear": float(keep_legwear) if keep_legwear is not None else None,
+        "keep_scene": keep_scene,
+        "transparent": transparent,
+        "backdrop": backdrop,
+        "stroke_light": stroke_light,
+        "deliver_size": deliver_size,
+        "dof": dof,
+        "light": light,
     }
 
 

@@ -593,6 +593,7 @@ LIGHT_SCENES = {
 
 FINALIZE_DEFAULTS = {"deliver_only": True, "repin": True, "stroke_light": "n",
                      "backdrop": "dots"}
+DELIVER_DEFAULTS = {"repin": True, "stroke_light": "n", "backdrop": "dots"}
 
 # Replaces `STYLE`'s flat/cel-shaded finish with a rough, unfinished line
 # for the redraw's different checkpoint.

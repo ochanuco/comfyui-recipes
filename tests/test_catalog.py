@@ -16,8 +16,10 @@ from PIL import Image
 from comfyui_recipes.application.catalog import build_catalog, publish_catalog
 from comfyui_recipes.application.generate import validate_request
 from comfyui_recipes.application.request_options import (
+    _KNOWN_DELIVER_OPTIONS,
     _KNOWN_FINALIZE_OPTIONS,
     _KNOWN_REPAIR_OPTIONS,
+    deliver_arguments,
     finalize_arguments,
     repair_arguments,
 )
@@ -36,6 +38,7 @@ _DIAL_WORD = re.compile(r"^[a-z][a-z0-9-]*$")
 
 # scope -> the real option/target keys a dial in that scope may name.
 _DIAL_SCOPE_KEYS = {
+    "deliver": _KNOWN_DELIVER_OPTIONS,
     "finalize": _KNOWN_FINALIZE_OPTIONS,
     "repair": _KNOWN_REPAIR_OPTIONS,
     "patches": set(NUMBER_TARGETS),
@@ -205,7 +208,7 @@ class DialsTest(unittest.TestCase):
         catalog = build_catalog(GIT)
         by_name = {recipe["name"]: recipe for recipe in catalog["recipes"]}
         self.assertEqual(set(by_name["yukari"]["dials"]),
-                         {"finalize", "patches"})
+                         {"deliver", "finalize", "patches"})
 
     def test_dial_keys_are_real_option_keys_of_their_scope(self):
         catalog = build_catalog(GIT)
@@ -235,7 +238,9 @@ class DialsTest(unittest.TestCase):
                     for word in words:
                         with self.subTest(
                                 recipe=recipe["name"], scope=scope, key=key, word=word):
-                            if scope == "finalize":
+                            if scope == "deliver":
+                                deliver_arguments({key: word}, options)
+                            elif scope == "finalize":
                                 finalize_arguments({key: word}, options)
                             elif scope == "repair":
                                 repair_arguments({"parts": ["hands"], key: word}, options)
@@ -306,6 +311,26 @@ class FinalizeDefaultsTest(unittest.TestCase):
             by_name["yukari"]["finalize"]["defaults"],
             {"deliver_only": True, "repin": True, "stroke_light": "n",
              "backdrop": "dots"})
+
+
+class DeliverSectionTest(unittest.TestCase):
+    def section(self) -> dict:
+        by_name = {recipe["name"]: recipe for recipe in build_catalog(GIT)["recipes"]}
+        return by_name["yukari"]["deliver"]
+
+    def test_defaults_are_the_delivery_recipe_and_valid_options(self):
+        defaults = self.section()["defaults"]
+        self.assertEqual(defaults, {"repin": True, "stroke_light": "n",
+                                    "backdrop": "dots"})
+        self.assertLessEqual(set(defaults), _KNOWN_DELIVER_OPTIONS)
+        deliver_arguments(defaults)
+
+    def test_publishes_the_same_shapes_as_the_finalize_section(self):
+        by_name = {recipe["name"]: recipe for recipe in build_catalog(GIT)["recipes"]}
+        finalize = by_name["yukari"]["finalize"]
+        section = self.section()
+        for key in ("dof", "stroke_light", "backdrop_color"):
+            self.assertEqual(section[key], finalize[key])
 
 
 class BackdropsBlockTest(unittest.TestCase):

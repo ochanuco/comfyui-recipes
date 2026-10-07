@@ -17,8 +17,8 @@ Options, defaults and ranges live here:
 | Question | Source |
 |---|---|
 | The wire contract (claim, heartbeat, done/failed) | chimera `docs/worker-protocol.md` |
-| Every option of a kind, its default and range | `uv run comfy-recipes <generate\|work\|finalize\|repair\|masked_redraw> --help`, `application/request_options.py` |
-| Poses, costumes, parts, patch targets, dials, finalize defaults | `list_catalog` / `get_catalog_pose` on the MCP, or `uv run comfy-recipes catalog` |
+| Every option of a kind, its default and range | `uv run comfy-recipes <generate\|work\|finalize\|deliver\|repair\|masked_redraw> --help`, `application/request_options.py` |
+| Poses, costumes, parts, patch targets, dials, finalize and deliver defaults | `list_catalog` / `get_catalog_pose` on the MCP, or `uv run comfy-recipes catalog` |
 | Patch targets and their ops | `domain/generation/patches.py` |
 | What a request would render, without rendering | `uv run comfy-recipes generate --request r.json --dry-run` |
 
@@ -28,6 +28,7 @@ Options, defaults and ranges live here:
 |---|---|---|
 | `generate` | a request.json body | render the recipe with its parameters and patches |
 | `finalize` | `{generation_id, options}` | deliver a pick: matte, repin, backdrop, stroke; redraw only on request |
+| `deliver` | `{generation_id, options}` | cut and decorate a picture Generation: repin, backdrop, stroke; never redraws |
 | `repair` | `{generation_id, options}` | DWPose-masked crop-and-stitch reroll of hands/feet |
 | `masked_redraw` | `{generation_id, options}` | the same reroll on caller rectangles with a free-text prompt patch |
 
@@ -81,6 +82,28 @@ Options, defaults and ranges live here:
   `keep_scene` deliveries take the lit figure without the backdrop tint.
 - Dial words (`"keep"`, `"on"`, …) are accepted wherever a number is. The
   row's result carries `resolved_options` with what actually ran.
+
+### Deliver options
+
+- The source must be a picture: a `deliver` or `finalize` output, a
+  `repair` output delivered with `deliver_only` and a LayerDiffuse picture
+  are refused. Any other recipe or model is delivered as drawn.
+- The options are `repin`, `recolor`, `skin`, `keep_legwear`, `keep_scene`,
+  `transparent`, `backdrop`, `stroke_light`, `deliver_size`, `dof` and
+  `light`, with the same values as the finalize options of those names; any
+  other key is an error. An absent `repin`, `stroke_light` or `backdrop`
+  takes the recipe's `deliver.defaults`. `light` only shades the
+  stroke and tints the backdrop; it does not redraw.
+- The cut is stored on the source Generation: `alpha` (ViTMatte alpha),
+  `depth` (only built when `dof` is set) and a json `cut` asset recording
+  the matte model, matting model and revision, trimap and tile sizes, and
+  the depth checkpoint and resolution. A later deliver loads an asset when
+  its `cut` entry equals the worker's current values, and cuts again (and
+  replaces the asset) when it differs or the asset is missing. Both are cut
+  from the unrepinned source, so changing `repin`, `recolor` or `dof` reuses
+  them; the foreground colour is estimated again after the repin each time.
+- The delivered Generation refines the source; `dof.viewfinder: "both"`
+  adds the viewfinder picture as a second one. No `mask` asset is attached.
 
 ### Repair and masked redraw
 

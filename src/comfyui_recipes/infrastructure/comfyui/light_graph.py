@@ -8,6 +8,7 @@ from collections.abc import Mapping
 
 from ...domain.yukari import delivery_style
 from .base_graph import BaseRoles, sampler_settings, source_prompts
+from .deliver_graph import alpha_nodes, depth_nodes
 from .refinement_graph import _depth_nodes, _matte_nodes
 
 OUTPUT_CLASSES = ("SaveImage", "PreviewImage")
@@ -22,10 +23,17 @@ def light_words(scene: str, direction: str) -> str:
 
 def light_graph(graph: Mapping, roles: BaseRoles, source_image: str,
                 matte_model: str, scene: str, direction: str,
-                prefix: str) -> dict:
+                prefix: str, *, cut: bool = False,
+                alpha_image: str | None = None,
+                depth_image: str | None = None) -> dict:
     """A copy of `graph` without its outputs, so its own sampling does not
     run again, that lights the uploaded `source_image` and re-samples it with
-    the source's seed and negative and a positive that adds the scene's words."""
+    the source's seed and negative and a positive that adds the scene's words.
+
+    With `cut`, the matte is the ViTMatte alpha and the depth is the cut
+    asset of the picture: loaded from `alpha_image` / `depth_image` when
+    given, otherwise built here and saved under `prefix` + "-alpha" /
+    "-depth". Without it the matte is the coarse background-removal one."""
     result = {key: node for key, node in copy.deepcopy(dict(graph)).items()
               if node.get("class_type") not in OUTPUT_CLASSES}
     settings = sampler_settings(result, roles.sampler_id)
@@ -45,8 +53,14 @@ def light_graph(graph: Mapping, roles: BaseRoles, source_image: str,
     load_id = allocate()
     result[load_id] = {"class_type": "LoadImage", "inputs": {"image": source_image}}
     image_ref = [load_id, 0]
-    depth_ref = _depth_nodes(result, allocate, image_ref)
-    matte_ref = _matte_nodes(result, allocate, image_ref, matte_model)
+    if cut:
+        matte_ref = alpha_nodes(
+            result, allocate, image_ref, matte_model, prefix, alpha_image)
+        depth_ref = depth_nodes(
+            result, allocate, image_ref, prefix, depth_image)
+    else:
+        depth_ref = _depth_nodes(result, allocate, image_ref)
+        matte_ref = _matte_nodes(result, allocate, image_ref, matte_model)
     light_id = allocate()
     result[light_id] = {"class_type": "YukariLight", "inputs": {
         "image": image_ref, "depth": depth_ref, "matte": matte_ref,

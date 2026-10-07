@@ -24,7 +24,8 @@ from ..domain.yukari.delivery_style import (
 )
 from ..domain.yukari.dials import DIALS
 from ..infrastructure.imaging.backdrops import PATTERNS, is_backdrop
-from .finalize import RECIPE_DEFAULT
+from .finalize import HIRES_DENOISE, RECIPE_DEFAULT
+from .picture_source import stroke_light_conflict
 
 _KNOWN_FINALIZE_OPTIONS = frozenset({
     "denoise", "repin", "recolor", "keep_legwear", "route", "finalizer",
@@ -39,6 +40,13 @@ _KNOWN_DELIVER_OPTIONS = frozenset({
     "repin", "recolor", "skin", "keep_legwear", "keep_scene", "transparent",
     "backdrop", "stroke_light", "deliver_size", "dof", "light",
 })
+
+_KNOWN_REDRAW_OPTIONS = {
+    "canvas": frozenset({"denoise", "size", "route", "finalizer", "upscale",
+                         "keep_regions", "keep_strength"}),
+    "hires": frozenset({"hires", "denoise"}),
+    "light": frozenset({"scene", "from"}),
+}
 
 _KNOWN_REPAIR_OPTIONS = frozenset({
     "parts", "regions", "denoise", "seeds", "size", "pad", "lora", "model",
@@ -64,6 +72,7 @@ _RECIPE_DIALS = {
 # finalize_arguments()/repair_arguments(). Public: interfaces/cli.py reads
 # them too, to resolve the same keys' words from its own parsed args.
 FINALIZE_DIAL_KEYS = ("denoise", "keep_legwear", "repair_denoise", "repair_lora")
+REDRAW_DIAL_KEYS = ("denoise",)
 DELIVER_DIAL_KEYS = ("keep_legwear",)
 REPAIR_DIAL_KEYS = ("denoise", "lora")
 _MASKED_REDRAW_DIAL_KEYS = ("denoise",)
@@ -441,6 +450,85 @@ def finalize_arguments(options: Mapping,
     }
 
 
+def redraw_arguments(options: Mapping,
+                     dials: Mapping[str, Mapping[str, float]] | None = None) -> dict:
+    """Validate a redraw request's `options` and map it to redraw() kwargs.
+
+    `method` selects which options are accepted; unknown keys or a wrong
+    type raise ValueError naming the offending key.
+    """
+    if not isinstance(options, Mapping):
+        raise ValueError(
+            f"redraw options must be an object, got {type(options).__name__}")
+    method = options.get("method")
+    if method not in _KNOWN_REDRAW_OPTIONS:
+        raise ValueError(
+            f"method must be one of {sorted(_KNOWN_REDRAW_OPTIONS)}, got {method!r}")
+    unknown = sorted(set(options) - _KNOWN_REDRAW_OPTIONS[method] - {"method"})
+    if unknown:
+        raise ValueError(
+            f"redraw {method} が受け付けない option です: {', '.join(unknown)}")
+    dials = dials or {}
+
+    if method == "light":
+        light = _light_argument(
+            {"scene": options.get("scene"),
+             **({"from": options["from"]} if "from" in options else {})},
+            key="light")
+        return {"method": method, "light": light}
+
+    if method == "hires":
+        hires = options.get("hires")
+        if not (isinstance(hires, int) and not isinstance(hires, bool)):
+            raise ValueError(f"hires must be an integer, got {hires!r}")
+        if hires <= 0:
+            raise ValueError(f"hires must be at least 1, got {hires!r}")
+        denoise = (_denoise_argument(options["denoise"]) if "denoise" in options
+                   else HIRES_DENOISE)
+        return {"method": method, "hires": hires, "denoise": denoise}
+
+    denoise = resolve_dial("denoise", options.get("denoise"), dials)
+    if denoise is not None:
+        denoise = _denoise_argument(denoise)
+
+    route = options.get("route")
+    if route is None:
+        latent_route = None
+    elif route == "latent":
+        latent_route = True
+    elif route == "pixel":
+        latent_route = False
+    else:
+        raise ValueError(f"route must be null, 'latent' or 'pixel', got {route!r}")
+
+    finalizer = options.get("finalizer")
+    if finalizer is not None and not isinstance(finalizer, str):
+        raise ValueError(f"finalizer must be null or a string, got {type(finalizer).__name__}")
+
+    size = options.get("size")
+    if size is not None and not (isinstance(size, int) and not isinstance(size, bool)):
+        raise ValueError(f"size must be null or an integer, got {type(size).__name__}")
+
+    upscale = options.get("upscale")
+    if upscale is not None and upscale not in (
+            "bicubic", "nearest-exact", "bilinear", "lanczos"):
+        raise ValueError(
+            "upscale must be null, 'bicubic', 'nearest-exact', 'bilinear' or "
+            f"'lanczos', got {upscale!r}")
+
+    return {
+        "method": method,
+        "denoise": denoise,
+        "size": size,
+        "latent_route": latent_route,
+        "finalizer": finalizer,
+        "upscale": upscale,
+        "keep_regions": _regions_argument(
+            options.get("keep_regions", []), key="keep_regions"),
+        "keep_strength": _keep_strength_argument(options.get("keep_strength", 0.25)),
+    }
+
+
 def deliver_arguments(options: Mapping,
                       dials: Mapping[str, Mapping[str, float]] | None = None) -> dict:
     """Validate a deliver request's `options` and map it to deliver() kwargs.
@@ -502,8 +590,7 @@ def deliver_arguments(options: Mapping,
 
     light = _light_argument(options.get("light"))
     if "stroke_light" not in options:
-        stroke_light = (light.direction if light is not None
-                        else DELIVER_DEFAULTS["stroke_light"])
+        stroke_light = light.direction if light is not None else RECIPE_DEFAULT
     else:
         stroke_light = options["stroke_light"]
         if stroke_light is not None and stroke_light not in STROKE_CHOICES:
@@ -512,9 +599,7 @@ def deliver_arguments(options: Mapping,
                 f"stroke_light must be null or one of {valid}, got {stroke_light!r}")
     if (light is not None and stroke_light in STROKE_LIGHTS
             and stroke_light != light.direction):
-        raise ValueError(
-            f"stroke_light の向きは light の from（{light.direction}）と同じで"
-            "なければなりません。none / even なら向きに関係なく使えます")
+        raise ValueError(stroke_light_conflict(light.direction))
 
     dof = _dof_argument(options.get("dof"))
     without_backdrop = not keep_scene and (transparent or backdrop is None)

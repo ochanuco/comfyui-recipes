@@ -28,6 +28,7 @@ Options, defaults and ranges live here:
 |---|---|---|
 | `generate` | a request.json body | render the recipe with its parameters and patches |
 | `finalize` | `{generation_id, options}` | deliver a pick: matte, repin, backdrop, stroke; redraw only on request |
+| `redraw` | `{generation_id, options}` | one pixel-changing `method` (`canvas`, `hires` or `light`) on a picture Generation; uploads one green-background picture |
 | `deliver` | `{generation_id, options}` | cut and decorate a picture Generation: repin, backdrop, stroke; never redraws |
 | `repair` | `{generation_id, options}` | DWPose-masked crop-and-stitch reroll of hands/feet |
 | `masked_redraw` | `{generation_id, options}` | the same reroll on caller rectangles with a free-text prompt patch |
@@ -83,6 +84,39 @@ Options, defaults and ranges live here:
 - Dial words (`"keep"`, `"on"`, …) are accepted wherever a number is. The
   row's result carries `resolved_options` with what actually ran.
 
+### Redraw options
+
+- `options` is required and names a `method`; any key the method does not
+  take is an error. One request changes the picture once and uploads one
+  picture Generation (green background, no delivery, no `mask` asset) that
+  refines the source, saved under `rdw-<generation id>`. The request's
+  `parameters` are `kind: "redraw"`, `method`, `base_generation` and the
+  resolved options; `seed` is the sampler seed that ran.
+- `canvas` takes `denoise`, `size`, `route`, `finalizer`, `upscale`,
+  `keep_regions` and `keep_strength`, with the values and defaults those
+  options have under finalize (`redraw.defaults.canvas` in the catalog).
+  `denoise` accepts the `redraw` dial words. It re-samples the source on a
+  bigger canvas and only redraws an Anima source.
+- `hires` takes `hires` (the long side in px of the area a 1024x1640 canvas
+  has) and `denoise` (0 < d <= 1, default 0.45). It re-samples the stored
+  graph of the Anima generate output, so a `repair`, `masked_redraw` or
+  `redraw` output and a stitched base are refused.
+- `light` takes `scene` and `from` (default `nw`), with the finalize `light`
+  values (`redraw.light` in the catalog): the picture is painted with the
+  scene's shade, tint and rim, then re-sampled at denoise 0.40 with the
+  original graph's seed and negative and a positive that adds the scene's
+  words. It works on any Anima picture, a `repair`, `masked_redraw` or
+  `redraw` output included. The scene is cut with the source's `alpha` and
+  `depth` assets under the same `cut` rule as deliver; assets that are
+  missing or stale are cut in the graph and attached to the source.
+- A source is refused when it is a delivered picture (the same set deliver
+  refuses) or a LayerDiffuse picture. A `repair`, `masked_redraw` or
+  `redraw` output is redrawn from its own pixels, with prompts and seed read
+  from the original generate graph by following `base_generation`
+  (at most 10 hops).
+- Dial words are accepted for the `canvas` `denoise`. The row's result
+  carries `resolved_options` with what actually ran.
+
 ### Deliver options
 
 - The source must be a picture: a `deliver` or `finalize` output, a
@@ -104,6 +138,11 @@ Options, defaults and ranges live here:
   them; the foreground colour is estimated again after the repin each time.
 - The delivered Generation refines the source; `dof.viewfinder: "both"`
   adds the viewfinder picture as a second one. No `mask` asset is attached.
+- An absent `light` takes the `scene` and `from` of the nearest `light`
+  redraw in the source's lineage (the source, then `base_generation` or what
+  it refines, at most 10 hops). The inherited light is recorded in the
+  request's `parameters`, and an absent `stroke_light` follows its `from`;
+  an explicit `stroke_light` direction that differs is an error.
 
 ### Repair and masked redraw
 

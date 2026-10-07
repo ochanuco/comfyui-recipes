@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from ...domain.yukari.delivery_style import STROKE_CHOICES, Dof
 from ..imaging import backdrops
 from .refinement_graph import (
@@ -15,6 +17,42 @@ from .refinement_graph import (
 
 ALPHA_SUFFIX = "-alpha"
 DEPTH_SUFFIX = "-depth"
+
+
+def alpha_nodes(graph: dict, allocate: Callable[[], str], source_ref: list,
+                matte_model: str, prefix: str,
+                alpha_image: str | None) -> list:
+    """The ViTMatte alpha of `source_ref`: loaded from the uploaded
+    `alpha_image`, or cut here and saved under `prefix` + ALPHA_SUFFIX.
+    Returns the alpha mask ref."""
+    if alpha_image is not None:
+        load_alpha = allocate()
+        graph[load_alpha] = {"class_type": "LoadImage", "inputs": {
+            "image": alpha_image}}
+        to_mask = allocate()
+        graph[to_mask] = {"class_type": "ImageToMask", "inputs": {
+            "image": [load_alpha, 0], "channel": "red"}}
+        return [to_mask, 0]
+    coarse_ref = _matte_nodes(graph, allocate, source_ref, matte_model)
+    alpha_ref = matting_node(graph, allocate, source_ref, coarse_ref)
+    save_mask(graph, allocate, alpha_ref, prefix + ALPHA_SUFFIX)
+    return alpha_ref
+
+
+def depth_nodes(graph: dict, allocate: Callable[[], str], source_ref: list,
+                prefix: str, depth_image: str | None) -> list:
+    """The depth of `source_ref`: loaded from the uploaded `depth_image`, or
+    built here and saved under `prefix` + DEPTH_SUFFIX. Returns the depth ref."""
+    if depth_image is not None:
+        load_depth = allocate()
+        graph[load_depth] = {"class_type": "LoadImage", "inputs": {
+            "image": depth_image}}
+        return [load_depth, 0]
+    depth_ref = _depth_nodes(graph, allocate, source_ref)
+    save_depth = allocate()
+    graph[save_depth] = {"class_type": "SaveImage", "inputs": {
+        "images": depth_ref, "filename_prefix": prefix + DEPTH_SUFFIX}}
+    return depth_ref
 
 
 def deliver_graph(source_image: str, matte_model: str, prefix: str, *,
@@ -53,31 +91,11 @@ def deliver_graph(source_image: str, matte_model: str, prefix: str, *,
     graph[load_id] = {"class_type": "LoadImage", "inputs": {"image": source_image}}
     source_ref = [load_id, 0]
 
-    if alpha_image is not None:
-        load_alpha = allocate()
-        graph[load_alpha] = {"class_type": "LoadImage", "inputs": {
-            "image": alpha_image}}
-        to_mask = allocate()
-        graph[to_mask] = {"class_type": "ImageToMask", "inputs": {
-            "image": [load_alpha, 0], "channel": "red"}}
-        alpha_ref = [to_mask, 0]
-    else:
-        coarse_ref = _matte_nodes(graph, allocate, source_ref, matte_model)
-        alpha_ref = matting_node(graph, allocate, source_ref, coarse_ref)
-        save_mask(graph, allocate, alpha_ref, prefix + ALPHA_SUFFIX)
+    alpha_ref = alpha_nodes(
+        graph, allocate, source_ref, matte_model, prefix, alpha_image)
 
-    depth_ref = None
-    if dof is not None:
-        if depth_image is not None:
-            load_depth = allocate()
-            graph[load_depth] = {"class_type": "LoadImage", "inputs": {
-                "image": depth_image}}
-            depth_ref = [load_depth, 0]
-        else:
-            depth_ref = _depth_nodes(graph, allocate, source_ref)
-            save_depth = allocate()
-            graph[save_depth] = {"class_type": "SaveImage", "inputs": {
-                "images": depth_ref, "filename_prefix": prefix + DEPTH_SUFFIX}}
+    depth_ref = (depth_nodes(graph, allocate, source_ref, prefix, depth_image)
+                 if dof is not None else None)
 
     image_ref = source_ref
     if skin:

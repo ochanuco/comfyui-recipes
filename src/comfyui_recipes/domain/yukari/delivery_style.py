@@ -347,20 +347,6 @@ ACCENT_VALUE_RAMP = (FIGURE_MIDTONE_V, 40.0)  # start, width
 # backdrop does.
 BACKDROP_SPREAD_MAX = 25.0
 
-# The redraw retints and textures the backdrop a compose laid down, so
-# cut_backdrop's colour test cannot be exact. Must stay under the distance
-# to the nearest other delivery colour, so a compose meant for cut_backdrop
-# names a backdrop other than the white `BACKDROP`, or the white band gets
-# misread as backdrop.
-CUT_BACKDROP_TOLERANCE = 40
-
-# `cut_backdrop`'s colour test only fires inside the compose's own
-# outside-the-bands mask, dilated by this share of the purple band's width
-# to absorb the redraw's own edge drift. Colour alone can't bound the cut:
-# the figure's own light passages (pale hair, a pale prop) can sit inside
-# CUT_BACKDROP_TOLERANCE of the backdrop too.
-CUT_BACKDROP_MARGIN = 0.625
-
 # The worker-side model that cuts the figure out; has to come from
 # something other than colour, since repin moves the figure's colours into
 # the backdrop's tolerance before the delivery ever sees them. A `rmbg:`

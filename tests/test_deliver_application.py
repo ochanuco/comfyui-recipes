@@ -19,7 +19,7 @@ from comfyui_recipes.application.deliver import (
 )
 from comfyui_recipes.application.ingest import classify_deliver_outputs
 from comfyui_recipes.domain.yukari import delivery_style
-from comfyui_recipes.domain.yukari.delivery_style import Dof
+from comfyui_recipes.domain.yukari.delivery_style import Dof, Light
 from comfyui_recipes.infrastructure.comfyui.deliver_graph import deliver_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import DEPTH_NODE
 
@@ -158,7 +158,8 @@ class DeliverGraphTest(unittest.TestCase):
 
 class ManagementFake:
     def __init__(self, *, parameters=None, request_kind="generate", assets=None,
-                 graph=None):
+                 graph=None, records=None):
+        self.records = records or {}
         self.calls = []
         self.assets = dict(assets or {})
         self.context = {"request": {"id": "source-request", "recipe": "yukari",
@@ -173,6 +174,8 @@ class ManagementFake:
             return self.context
         if (method == "GET" and path.startswith("/api/v1/generations/")
                 and path.count("/") == 4):
+            if path.rsplit("/", 1)[1] in self.records:
+                return self.records[path.rsplit("/", 1)[1]]
             return {"id": path.rsplit("/", 1)[1],
                     "comfy_job": {"graph": self.graph} if self.graph else None}
         if (method == "PUT" and path.endswith("/resolution")) or (
@@ -392,6 +395,119 @@ class DeliverUseCaseTest(unittest.TestCase):
             svc = services(directory, comfyui=Silent())
             with self.assertRaisesRegex(SystemExit, "delivered"):
                 deliver("src", svc)
+
+
+def light_redraw(**parameters):
+    return {"request": {"parameters": {
+        "kind": "redraw", "method": "light", "base_generation": "gen",
+        **parameters}}}
+
+
+def lineage(*steps):
+    """Records for ancestors g1, g2, ... where each step is a request's
+    parameters, the last being the oldest."""
+    return {f"g{index + 1}": {"request": {"parameters": parameters}}
+            for index, parameters in enumerate(steps)}
+
+
+class InheritedLightTest(unittest.TestCase):
+    def run_deliver(self, management, **kwargs):
+        with tempfile.TemporaryDirectory() as directory:
+            svc = services(directory, management=management)
+            deliver("src", svc, **kwargs)
+        return svc, management
+
+    def parameters(self, management):
+        return next(call for call in management.calls
+                    if call[0] == "POST" and call[1] == "/api/v1/requests")[2]["parameters"]
+
+    def test_a_light_redraw_ancestor_lights_the_delivery_and_sets_stroke_light(self):
+        management = ManagementFake(
+            parameters={"kind": "repair", "base_generation": "g1"},
+            records=lineage(
+                {"kind": "redraw", "method": "canvas", "base_generation": "g2"},
+                {"kind": "redraw", "method": "light", "scene": "moon",
+                 "from": "se", "base_generation": "g3"},
+                {"kind": "redraw", "method": "light", "scene": "sunset",
+                 "from": "n", "base_generation": "g4"}))
+        svc, _ = self.run_deliver(management)
+        [(_, delivered)] = nodes_of(svc.comfyui.submitted[0], "YukariDeliver")
+        self.assertEqual(delivered["inputs"]["light_scene"], "moon")
+        self.assertEqual(delivered["inputs"]["light_from"], "se")
+        self.assertEqual(delivered["inputs"]["stroke_light"], "se")
+        parameters = self.parameters(management)
+        self.assertEqual(parameters["light"], {"scene": "moon", "from": "se"})
+        self.assertEqual(parameters["stroke_light"], "se")
+
+    def test_the_source_itself_may_be_the_light_redraw(self):
+        management = ManagementFake(parameters={
+            "kind": "redraw", "method": "light", "scene": "sunset", "from": "w",
+            "base_generation": "g1"}, records=lineage({}))
+        svc, _ = self.run_deliver(management)
+        [(_, delivered)] = nodes_of(svc.comfyui.submitted[0], "YukariDeliver")
+        self.assertEqual(delivered["inputs"]["light_scene"], "sunset")
+        self.assertEqual(delivered["inputs"]["stroke_light"], "w")
+
+    def test_an_explicit_light_wins_over_the_lineage(self):
+        management = ManagementFake(parameters={
+            "kind": "redraw", "method": "light", "scene": "sunset", "from": "w",
+            "base_generation": "g1"}, records=lineage({}))
+        svc, _ = self.run_deliver(management, light=Light("moon", "e"))
+        [(_, delivered)] = nodes_of(svc.comfyui.submitted[0], "YukariDeliver")
+        self.assertEqual(delivered["inputs"]["light_scene"], "moon")
+        self.assertEqual(delivered["inputs"]["stroke_light"], "e")
+
+    def test_neutral_stroke_lights_are_kept_with_an_inherited_light(self):
+        for neutral in ("none", "even", None):
+            with self.subTest(stroke_light=neutral):
+                management = ManagementFake(parameters={
+                    "kind": "redraw", "method": "light", "scene": "moon",
+                    "from": "se", "base_generation": "g1"}, records=lineage({}))
+                svc, _ = self.run_deliver(management, stroke_light=neutral)
+                [(_, delivered)] = nodes_of(svc.comfyui.submitted[0], "YukariDeliver")
+                self.assertEqual(delivered["inputs"]["light_scene"], "moon")
+                self.assertEqual(delivered["inputs"]["stroke_light"], neutral or "")
+
+    def test_a_conflicting_explicit_stroke_light_is_refused(self):
+        management = ManagementFake(parameters={
+            "kind": "redraw", "method": "light", "scene": "moon", "from": "se",
+            "base_generation": "g1"}, records=lineage({}))
+        with tempfile.TemporaryDirectory() as directory:
+            svc = services(directory, management=management)
+            with self.assertRaisesRegex(SystemExit, "light の from"):
+                deliver("src", svc, stroke_light="n")
+        self.assertEqual(svc.comfyui.submitted, [])
+
+    def test_without_a_light_redraw_the_recipe_defaults_apply(self):
+        management = ManagementFake(
+            parameters={"kind": "redraw", "method": "canvas", "base_generation": "g1"},
+            records=lineage({}))
+        svc, _ = self.run_deliver(management)
+        [(_, delivered)] = nodes_of(svc.comfyui.submitted[0], "YukariDeliver")
+        self.assertNotIn("light_scene", delivered["inputs"])
+        self.assertEqual(delivered["inputs"]["stroke_light"], "n")
+        self.assertNotIn("light", self.parameters(management))
+
+    def test_the_walk_stops_after_ten_hops(self):
+        steps = [{"kind": "redraw", "method": "canvas",
+                  "base_generation": f"g{index + 2}"} for index in range(11)]
+        steps[10] = {"kind": "redraw", "method": "light", "scene": "moon",
+                     "from": "se"}
+        management = ManagementFake(
+            parameters={"kind": "redraw", "method": "canvas", "base_generation": "g1"},
+            records=lineage(*steps))
+        svc, _ = self.run_deliver(management)
+        [(_, delivered)] = nodes_of(svc.comfyui.submitted[0], "YukariDeliver")
+        self.assertNotIn("light_scene", delivered["inputs"])
+
+    def test_the_refines_link_is_followed_when_there_is_no_base_generation(self):
+        management = ManagementFake(
+            records={"g1": {"request": {"parameters": {
+                "kind": "redraw", "method": "light", "scene": "moon", "from": "se"}}}})
+        management.context["refines_generation"] = {"id": "g1"}
+        svc, _ = self.run_deliver(management)
+        [(_, delivered)] = nodes_of(svc.comfyui.submitted[0], "YukariDeliver")
+        self.assertEqual(delivered["inputs"]["light_scene"], "moon")
 
 
 if __name__ == "__main__":

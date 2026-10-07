@@ -8,6 +8,9 @@ DIALS = {
     "finalize": {
         "denoise": {"keep": FINALIZE_DENOISE},
     },
+    "redraw": {
+        "denoise": {"keep": FINALIZE_DENOISE},
+    },
     "deliver": {
         "keep_legwear": {},
     },

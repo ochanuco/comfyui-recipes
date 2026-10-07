@@ -24,6 +24,8 @@ from ..domain.yukari.delivery_style import (
     DOF_SCOPE,
     DOF_VIEWFINDER,
     FINALIZE_DEFAULTS,
+    FINALIZE_DENOISE,
+    FINALIZE_SIZE,
     LIGHT_FROM_DEFAULT,
     LIGHT_SCENES,
     STROKE_CHOICES,
@@ -36,6 +38,7 @@ from ..domain.yukari.recipe import PART_GROUPS, identity_tags, render_spec
 from ..infrastructure.imaging.backdrops import PATTERNS as BACKDROP_PATTERNS
 from ..infrastructure.imaging.backdrops import thumbnail as backdrop_thumbnail
 from ..infrastructure.imaging.depth_blur import sharp_reach_per_f
+from .finalize import HIRES_DENOISE
 from .generate import KNOWN_PARAMETERS, RECIPE_REJECTED_PARAMETERS
 
 SCHEMA_VERSION = 1
@@ -97,6 +100,15 @@ def _yukari_recipe() -> dict:
                     "guide_radius_per_f": round(sharp_reach_per_f(), 4)},
             "stroke_light": list(STROKE_CHOICES),
             "backdrop_color": BACKDROP,
+        },
+        "redraw": {
+            "defaults": {
+                "canvas": {"denoise": FINALIZE_DENOISE, "size": FINALIZE_SIZE,
+                           "route": "pixel"},
+                "hires": {"hires_denoise": HIRES_DENOISE},
+            },
+            "light": {"scenes": list(LIGHT_SCENES), "from": sorted(STROKE_LIGHTS),
+                      "default_from": LIGHT_FROM_DEFAULT},
         },
         "finalize": {
             "defaults": FINALIZE_DEFAULTS,

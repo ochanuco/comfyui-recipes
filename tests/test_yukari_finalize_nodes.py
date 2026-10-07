@@ -137,7 +137,8 @@ class NodeMappingTest(unittest.TestCase):
     def test_node_class_mappings_cover_every_node(self):
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS), {
             "YukariRepinSkin", "YukariRepin", "YukariRecolor", "YukariMatting",
-            "YukariDeliver", "YukariDepthBlur", "YukariDepthBlurLayered", "YukariLight",
+            "YukariForeground", "YukariDeliver", "YukariDepthBlur",
+            "YukariDepthBlurLayered", "YukariLight",
             "YukariViewfinder",
             "YukariCompose",
             "YukariCutBackdrop",
@@ -189,31 +190,38 @@ class NodeRunTest(unittest.TestCase):
         self.assertEqual(image.array.shape[-1], 3)
         self.assertTrue(tag.startswith("clean-"))
 
-    def test_matting_wiring_returns_the_foreground_and_its_alpha(self):
+    def test_matting_wiring_returns_the_alpha(self):
         seen = {}
 
         def predict(rgb, known):
             seen["known"] = known
             return np.full(known.shape, 0.5)
 
-        def foreground(rgb, alpha):
-            seen["alpha"] = alpha
-            return rgb
-
         node = nodes.YukariMatting()
-        pixels = swatch()
-        with mock.patch.object(nodes.vitmatte, "predict", predict), \
-                mock.patch.object(nodes.vitmatte, "foreground", foreground):
-            image, alpha = node.run(
-                image_tensor(pixels), mask_tensor(matte_array()))
-        self.assertEqual(image.array.shape, (1, 64, 64, 3))
+        with mock.patch.object(nodes.vitmatte, "predict", predict):
+            (alpha,) = node.run(image_tensor(swatch()), mask_tensor(matte_array()))
         self.assertEqual(alpha.array.shape, (1, 64, 64))
         self.assertEqual(set(np.unique(seen["known"])), {0, 128, 255})
-        self.assertEqual(seen["alpha"].shape, (64, 64))
         result = (alpha.array[0] * 255.0).round()
         self.assertEqual(result[32, 32], 255)
         self.assertEqual(result[0, 0], 0)
         self.assertTrue(((result > 0) & (result < 255)).any())
+
+    def test_foreground_wiring_estimates_the_colour_under_the_alpha(self):
+        seen = {}
+
+        def foreground(rgb, alpha):
+            seen["alpha"] = alpha
+            return rgb
+
+        node = nodes.YukariForeground()
+        pixels = swatch()
+        with mock.patch.object(nodes.vitmatte, "foreground", foreground):
+            (image,) = node.run(image_tensor(pixels), mask_tensor(matte_array()))
+        self.assertEqual(image.array.shape, (1, 64, 64, 3))
+        self.assertEqual(seen["alpha"].shape, (64, 64))
+        np.testing.assert_allclose(
+            (image.array[0] * 255.0).round(), pixels, atol=1)
 
     def test_deliver_matted_takes_the_alpha_as_coverage(self):
         node = nodes.YukariDeliver()

@@ -661,20 +661,23 @@ class AdapterTest(unittest.TestCase):
         matting = graph["18"]
         self.assertEqual(matting["class_type"], "YukariMatting")
         self.assertEqual(matting["inputs"], {"image": ["13", 0], "matte": ["17", 0]})
-        deliver_node = graph["21"]
+        foreground = graph["21"]
+        self.assertEqual(foreground["class_type"], "YukariForeground")
+        self.assertEqual(foreground["inputs"], {"image": ["13", 0], "alpha": ["18", 0]})
+        deliver_node = graph["22"]
         self.assertEqual(deliver_node["class_type"], "YukariDeliver")
-        self.assertEqual(deliver_node["inputs"]["image"], ["18", 0])
-        self.assertEqual(deliver_node["inputs"]["matte"], ["18", 1])
+        self.assertEqual(deliver_node["inputs"]["image"], ["21", 0])
+        self.assertEqual(deliver_node["inputs"]["matte"], ["18", 0])
         self.assertIs(deliver_node["inputs"]["keep_scene"], False)
         self.assertIs(deliver_node["inputs"]["transparent"], False)
         self.assertIs(deliver_node["inputs"]["matted"], True)
-        save = graph["22"]
+        save = graph["23"]
         self.assertEqual(save["class_type"], "SaveImage")
-        self.assertEqual(save["inputs"]["images"], ["21", 0])
+        self.assertEqual(save["inputs"]["images"], ["22", 0])
         self.assertEqual(save["inputs"]["filename_prefix"], "fin" + DELIVERED_SUFFIX)
         # The raw pass is untouched; the saved matte is the matting alpha.
         self.assertEqual(graph["9"]["inputs"]["filename_prefix"], "fin")
-        self.assertEqual(graph["19"]["inputs"], {"mask": ["18", 1]})
+        self.assertEqual(graph["19"]["inputs"], {"mask": ["18", 0]})
         self.assertEqual(graph["20"]["inputs"]["images"], ["19", 0])
         self.assertEqual(graph["20"]["inputs"]["filename_prefix"],
                          "fin" + MATTE_SUFFIX)
@@ -696,7 +699,7 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(matting["inputs"]["matte"], [rmbg_id, 1])
         deliver_node = self._single(graph, "YukariDeliver")
         self.assertEqual(deliver_node["inputs"]["matte"],
-                         [self._id_of(graph, matting), 1])
+                         [self._id_of(graph, matting), 0])
 
     def test_chain_pass_deliver_keep_scene_is_passed_through(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
@@ -717,17 +720,17 @@ class AdapterTest(unittest.TestCase):
     def test_chain_pass_deliver_transparent_is_passed_through(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True, transparent=True)
-        self.assertIs(graph["21"]["inputs"]["transparent"], True)
+        self.assertIs(graph["22"]["inputs"]["transparent"], True)
 
     def test_chain_pass_stroke_light_is_passed_onto_the_deliver_node(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True, stroke_light="sw")
-        self.assertEqual(graph["21"]["inputs"]["stroke_light"], "sw")
+        self.assertEqual(graph["22"]["inputs"]["stroke_light"], "sw")
 
     def test_chain_pass_stroke_light_defaults_to_an_empty_string(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True)
-        self.assertEqual(graph["21"]["inputs"]["stroke_light"], "")
+        self.assertEqual(graph["22"]["inputs"]["stroke_light"], "")
 
     def test_chain_pass_bad_stroke_light_raises(self):
         with self.assertRaisesRegex(ValueError, "stroke_light"):
@@ -737,12 +740,12 @@ class AdapterTest(unittest.TestCase):
     def test_chain_pass_backdrop_is_passed_onto_the_deliver_node(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True, backdrop="stripes")
-        self.assertEqual(graph["21"]["inputs"]["backdrop"], "stripes")
+        self.assertEqual(graph["22"]["inputs"]["backdrop"], "stripes")
 
     def test_chain_pass_backdrop_defaults_to_an_empty_string(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
                            matte_model="birefnet", deliver=True)
-        self.assertEqual(graph["21"]["inputs"]["backdrop"], "")
+        self.assertEqual(graph["22"]["inputs"]["backdrop"], "")
 
     def test_chain_pass_bad_backdrop_raises(self):
         with self.assertRaisesRegex(ValueError, "backdrop"):
@@ -763,11 +766,14 @@ class AdapterTest(unittest.TestCase):
         matting = graph["20"]
         self.assertEqual(matting["class_type"], "YukariMatting")
         self.assertEqual(matting["inputs"]["image"], ["19", 0])
-        deliver_node = graph["23"]
+        foreground = graph["23"]
+        self.assertEqual(foreground["class_type"], "YukariForeground")
+        self.assertEqual(foreground["inputs"], {"image": ["19", 0], "alpha": ["20", 0]})
+        deliver_node = graph["24"]
         self.assertEqual(deliver_node["class_type"], "YukariDeliver")
-        self.assertEqual(deliver_node["inputs"]["image"], ["20", 0])
-        save = graph["24"]
-        self.assertEqual(save["inputs"]["images"], ["23", 0])
+        self.assertEqual(deliver_node["inputs"]["image"], ["23", 0])
+        save = graph["25"]
+        self.assertEqual(save["inputs"]["images"], ["24", 0])
 
     def test_chain_pass_deliver_with_repin_chains_repin_before_delivery(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
@@ -779,8 +785,11 @@ class AdapterTest(unittest.TestCase):
         self.assertIs(repin_node["inputs"]["keep_legwear"], True)
         self.assertEqual(repin_node["inputs"]["keep_legwear_cut"], 0.4)
         self.assertEqual(graph["19"]["inputs"]["image"], ["18", 0])
-        deliver_node = graph["22"]
-        self.assertEqual(deliver_node["inputs"]["image"], ["19", 0])
+        foreground = graph["22"]
+        self.assertEqual(foreground["class_type"], "YukariForeground")
+        self.assertEqual(foreground["inputs"]["image"], ["18", 0])
+        deliver_node = graph["23"]
+        self.assertEqual(deliver_node["inputs"]["image"], ["22", 0])
 
     def test_chain_pass_deliver_repin_without_keep_legwear_defaults_the_cut(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),
@@ -800,9 +809,12 @@ class AdapterTest(unittest.TestCase):
         matting = graph["19"]
         self.assertEqual(matting["class_type"], "YukariMatting")
         self.assertEqual(matting["inputs"]["image"], ["18", 0])
-        deliver_node = graph["22"]
+        foreground = graph["22"]
+        self.assertEqual(foreground["class_type"], "YukariForeground")
+        self.assertEqual(foreground["inputs"]["image"], ["18", 0])
+        deliver_node = graph["23"]
         self.assertEqual(deliver_node["class_type"], "YukariDeliver")
-        self.assertEqual(deliver_node["inputs"]["image"], ["19", 0])
+        self.assertEqual(deliver_node["inputs"]["image"], ["22", 0])
 
     def _single(self, graph, class_type):
         matches = [node for node in graph.values()
@@ -902,16 +914,20 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(matting["inputs"],
                          {"image": [load_id, 0], "matte": [remove_id, 0]})
         to_image = self._single(graph, "MaskToImage")
-        self.assertEqual(to_image["inputs"]["mask"], [matting_id, 1])
+        self.assertEqual(to_image["inputs"]["mask"], [matting_id, 0])
         matte_save = next(node for node in graph.values()
                           if node.get("class_type") == "SaveImage"
                           and node["inputs"]["filename_prefix"] == "fin" + MATTE_SUFFIX)
         self.assertEqual(matte_save["inputs"]["images"],
                          [self._id_of(graph, to_image), 0])
+        foreground = self._single(graph, "YukariForeground")
+        self.assertEqual(foreground["inputs"],
+                         {"image": [load_id, 0], "alpha": [matting_id, 0]})
         deliver_node = next(node for node in graph.values()
                             if node.get("class_type") == "YukariDeliver")
-        self.assertEqual(deliver_node["inputs"]["image"], [matting_id, 0])
-        self.assertEqual(deliver_node["inputs"]["matte"], [matting_id, 1])
+        self.assertEqual(deliver_node["inputs"]["image"],
+                         [self._id_of(graph, foreground), 0])
+        self.assertEqual(deliver_node["inputs"]["matte"], [matting_id, 0])
         deliver_id = next(key for key, node in graph.items() if node is deliver_node)
         delivered_save = next(node for node in graph.values()
                               if node.get("class_type") == "SaveImage"
@@ -974,9 +990,11 @@ class AdapterTest(unittest.TestCase):
         matting = self._single(graph, "YukariMatting")
         skin_id = next(key for key, node in graph.items() if node is skin_node)
         self.assertEqual(matting["inputs"]["image"], [skin_id, 0])
+        foreground = self._single(graph, "YukariForeground")
+        self.assertEqual(foreground["inputs"]["image"], [skin_id, 0])
         deliver_node = self._single(graph, "YukariDeliver")
         self.assertEqual(deliver_node["inputs"]["image"],
-                         [self._id_of(graph, matting), 0])
+                         [self._id_of(graph, foreground), 0])
 
     def test_chain_pass_deliver_only_recolor_wins_over_repin(self):
         graph = chain_pass(self._deliver_base(), 2048, 0.45, "fin", canvas=(832, 1664),

@@ -72,8 +72,8 @@ class YukariRecolor:
 
 class YukariMatting:
     CATEGORY = "yukari"
-    RETURN_TYPES = ("IMAGE", "MASK")
-    RETURN_NAMES = ("image", "alpha")
+    RETURN_TYPES = ("MASK",)
+    RETURN_NAMES = ("alpha",)
     FUNCTION = "run"
 
     @classmethod
@@ -82,12 +82,29 @@ class YukariMatting:
 
     def run(self, image, matte):
         try:
-            data, alpha = matting.matte_png(
+            alpha = matting.alpha_png(
                 bridge.image_to_png(image), bridge.mask_to_png(matte),
-                vitmatte.predict, vitmatte.foreground)
+                vitmatte.predict)
         finally:
             vitmatte.release()
-        return (bridge.png_to_image(data), bridge.png_to_mask(alpha))
+        return (bridge.png_to_mask(alpha),)
+
+
+class YukariForeground:
+    CATEGORY = "yukari"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "run"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"image": ("IMAGE",), "alpha": ("MASK",)}}
+
+    def run(self, image, alpha):
+        data = matting.foreground_png(
+            bridge.image_to_png(image), bridge.mask_to_png(alpha),
+            vitmatte.foreground)
+        return (bridge.png_to_image(data),)
 
 
 class YukariDeliver:
@@ -282,6 +299,7 @@ NODE_CLASS_MAPPINGS = {
     "YukariRepin": YukariRepin,
     "YukariRecolor": YukariRecolor,
     "YukariMatting": YukariMatting,
+    "YukariForeground": YukariForeground,
     "YukariDeliver": YukariDeliver,
     "YukariDepthBlur": YukariDepthBlur,
     "YukariDepthBlurLayered": YukariDepthBlurLayered,
@@ -296,6 +314,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "YukariRepin": "Yukari Repin",
     "YukariRecolor": "Yukari Recolor",
     "YukariMatting": "Yukari Matting",
+    "YukariForeground": "Yukari Foreground",
     "YukariDeliver": "Yukari Deliver",
     "YukariDepthBlur": "Yukari Depth Blur",
     "YukariDepthBlurLayered": "Yukari Depth Blur Layered",

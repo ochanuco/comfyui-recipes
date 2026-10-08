@@ -40,6 +40,10 @@ EXPRESSIONS = {
     "gao": Expression(
         mouth="(open mouth:1.35), (fang:1.3), ",
         eyes="(confident:1.18), ", eye_quality=EyeQuality.BLANK),
+    "disdain": Expression(
+        mouth="(closed mouth:1.2), ",
+        eyes="(half-closed eyes:1.35), (cold eyes:1.3), (unamused:1.2), ",
+        eye_quality=EyeQuality.BLANK),
     "jitome": Expression(
         mouth="(closed mouth:1.2), ",
         eyes="(half-closed eyes:1.35), (unamused:1.35), (expressionless:1.2), ",

@@ -1,10 +1,11 @@
-"""Decode a ComfyUI PNG and apply Yukari's delivery background and stroke."""
+"""Decode a ComfyUI PNG and apply Yukari's delivery backdrop and outlines."""
 
 from __future__ import annotations
 
 import io
 import json
 import string
+from typing import NamedTuple
 
 import cv2
 import numpy as np
@@ -430,7 +431,7 @@ def stroke_alpha(mask: np.ndarray, gap: float, width: float,
 def directional_stroke_alpha(mask: np.ndarray, gap: float, w_min: float,
                              w_max: float, light: tuple[float, float],
                              smooth: float, edge_smooth: float) -> np.ndarray:
-    """Coverage of a purple band whose width follows the outline's own normal.
+    """Coverage of a band whose width follows the outline's own normal.
 
     Thin where the outward normal faces `light` (image coords, x right, y
     down), thick on the opposite side. The normal comes from a
@@ -509,10 +510,10 @@ def _extruded_region(mask: np.ndarray, w_min: float, w_max: float,
 
 
 def _shadow_shift(light: tuple[float, float],
-                  purple_w: float) -> tuple[float, float]:
+                  outer_w: float) -> tuple[float, float]:
     """The `(dy, dx)` an `ndimage.shift` throws a sticker's own shape by:
     straight away from `light` (image coords)."""
-    off = purple_w * delivery_style.STICKER_SHADOW_OFFSET
+    off = outer_w * delivery_style.STICKER_SHADOW_OFFSET
     return -light[1] * off, -light[0] * off
 
 
@@ -522,133 +523,174 @@ def _shadow_coverage(region: np.ndarray, eps_pct: float) -> np.ndarray:
     return _polygon_coverage(region, eps_pct)
 
 
+class Layers(NamedTuple):
+    """A delivery split into what it was composited from, back to front.
+
+    Colours are straight (not premultiplied) 0..255 floats, alphas 0..1;
+    `backdrop` is None for a transparent delivery.
+    """
+    picture: np.ndarray
+    figure: np.ndarray
+    figure_alpha: np.ndarray
+    outline: np.ndarray
+    outline_alpha: np.ndarray
+    backdrop: np.ndarray | None
+    tag: str
+
+
 def keep_scene(data: bytes, matte: bytes) -> tuple[bytes, str]:
     """Deliver the redraw as drawn, background included."""
     return data, "scene"
 
 
-def _band_widths(height: int, width: int) -> tuple[float, float]:
+def _outlines(outlines) -> list[dict]:
+    return list(delivery_style.OUTLINES if outlines is None else outlines)
+
+
+def _band_widths(height: int, width: int, outlines=None) -> list[float]:
     longest = max(height, width)
-    return (longest * delivery_style.WHITE_WIDTH_PCT / 100,
-            longest * delivery_style.STROKE_WIDTH_PCT / 100)
+    return [longest * float(outline["width"]) / 100 for outline in _outlines(outlines)]
 
 
-def band_alphas(figure: np.ndarray, light: str | None = None,
-                eps_pct: float | None = None) -> tuple[np.ndarray, np.ndarray]:
-    """Coverage of the white band and the purple band outside `figure`.
+def _band_colours(outlines=None) -> list[np.ndarray]:
+    return [np.array(parse_color(outline["color"]), dtype=float)
+            for outline in _outlines(outlines)]
 
-    `eps_pct` (default `delivery_style.STROKE_CUT_EPS_PCT`) is the
-    Douglas-Peucker epsilon, as a percent of the longest side, each band's
-    outer outline is simplified to, for a hand-cut rather than die-cut edge;
-    0 reproduces the old smooth-ramp geometry. `light`, one of
-    `delivery_style.STROKE_LIGHTS`' keys, shades the purple band's width by
-    direction; `STROKE_EVEN` (or None) keeps it uniform and `STROKE_NONE`
-    leaves it out. The white band is never shaded. Without a white band
-    the purple band also runs under the figure's own edge pixels, so a soft
-    matting alpha there blends into the stroke, not the backdrop.
+
+def band_alphas(figure: np.ndarray, outlines=None, light: str | None = None,
+                eps_pct: float | None = None) -> list[np.ndarray]:
+    """Coverage of each outline band outside `figure`, innermost first.
+
+    `outlines` (default `delivery_style.OUTLINES`) lists `{"color", "width"}`
+    bands; each starts at the previous band's outer edge. `eps_pct` (default
+    `delivery_style.STROKE_CUT_EPS_PCT`) is the Douglas-Peucker epsilon, as a
+    percent of the longest side, each band's outer outline is simplified to,
+    for a hand-cut rather than die-cut edge; 0 reproduces the smooth-ramp
+    geometry. `light`, one of `delivery_style.STROKE_LIGHTS`' keys, shades
+    the outermost band's width by direction; `STROKE_EVEN` (or None) keeps
+    it uniform. The innermost band also runs under the figure's own edge
+    pixels, so a soft matting alpha there blends into the band, not the
+    backdrop.
     """
     height, width = figure.shape
-    white_w, purple_w = _band_widths(height, width)
+    widths = _band_widths(height, width, outlines)
     if light is not None and light not in delivery_style.STROKE_CHOICES:
         valid = ", ".join(repr(key) for key in delivery_style.STROKE_CHOICES)
         raise ValueError(f"light must be null or one of {valid}, got {light!r}")
     light_vec = delivery_style.STROKE_LIGHTS.get(light)
+    last = len(widths) - 1
 
     eps = delivery_style.STROKE_CUT_EPS_PCT if eps_pct is None else eps_pct
     if eps <= 0:
         bg2 = ~(np.array(Image.fromarray(figure)
                          .resize((width * 2, height * 2), Image.NEAREST)))
-        white_a = (down2(stroke_alpha(bg2, 0.0, white_w * 2,
-                                      delivery_style.STROKE_EDGE_SMOOTH))
-                   if white_w > 0 else np.zeros(figure.shape))
-        if light == delivery_style.STROKE_NONE:
-            purple_a = np.zeros_like(white_a)
-        elif light_vec is None:
-            purple_a = down2(stroke_alpha(bg2, white_w * 2, purple_w * 2,
-                                          delivery_style.STROKE_EDGE_SMOOTH))
+        alphas, gap = [], 0.0
+        for index, band_w in enumerate(widths):
+            if index == last and light_vec is not None:
+                alpha = directional_stroke_alpha(
+                    bg2, gap * 2,
+                    band_w * 2 * delivery_style.STROKE_LIGHT_THIN,
+                    band_w * 2 * delivery_style.STROKE_LIGHT_THICK,
+                    light_vec, delivery_style.STROKE_LIGHT_SMOOTH * band_w * 2,
+                    delivery_style.STROKE_EDGE_SMOOTH)
+            else:
+                alpha = stroke_alpha(bg2, gap * 2, band_w * 2,
+                                     delivery_style.STROKE_EDGE_SMOOTH)
+            alphas.append(down2(alpha))
+            gap += band_w
+        return alphas
+
+    alphas, inner = [], figure
+    for index, band_w in enumerate(widths):
+        if index == last and light_vec is not None:
+            region = _extruded_region(
+                inner, band_w * delivery_style.STROKE_LIGHT_THIN,
+                band_w * delivery_style.STROKE_LIGHT_THICK, light_vec)
         else:
-            purple_a = down2(directional_stroke_alpha(
-                bg2, white_w * 2,
-                purple_w * 2 * delivery_style.STROKE_LIGHT_THIN,
-                purple_w * 2 * delivery_style.STROKE_LIGHT_THICK,
-                light_vec, delivery_style.STROKE_LIGHT_SMOOTH * purple_w * 2,
-                delivery_style.STROKE_EDGE_SMOOTH))
-        return white_a, purple_a
-
-    if white_w > 0:
-        distance = ndimage.distance_transform_edt(~figure)
-        white_a = _polygon_coverage(distance <= white_w, eps)
-        white_mask = white_a >= 0.5
-    else:
-        white_a = np.zeros(figure.shape)
-        white_mask = figure
-    if light == delivery_style.STROKE_NONE:
-        purple_a = np.zeros_like(white_a)
-    else:
-        if light_vec is None:
-            purple_region = ndimage.distance_transform_edt(~white_mask) <= purple_w
-        else:
-            purple_region = _extruded_region(
-                white_mask, purple_w * delivery_style.STROKE_LIGHT_THIN,
-                purple_w * delivery_style.STROKE_LIGHT_THICK, light_vec)
-        purple_a = _polygon_coverage(purple_region, eps)
-    white_a = np.where(figure, 0.0, white_a)
-    if white_w > 0:
-        return white_a, np.where(figure, 0.0, purple_a)
-    if light != delivery_style.STROKE_NONE:
-        purple_a = np.where(figure, 1.0, purple_a)
-    return white_a, np.where(ndimage.binary_erosion(figure), 0.0, purple_a)
+            region = ndimage.distance_transform_edt(~inner) <= band_w
+        alpha = _polygon_coverage(region, eps)
+        alphas.append(alpha)
+        inner = alpha >= 0.5
+    if not alphas:
+        return alphas
+    first = np.where(figure, 1.0, alphas[0])
+    return ([np.where(ndimage.binary_erosion(figure), 0.0, first)]
+            + [np.where(figure, 0.0, alpha) for alpha in alphas[1:]])
 
 
-def _bands_over(white_a: np.ndarray, purple_a: np.ndarray,
+def _bands_over(alphas: list[np.ndarray], colours: list[np.ndarray],
                 flat: np.ndarray) -> np.ndarray:
-    white_rgb = np.array([255.0, 255.0, 255.0])
-    purple_rgb = np.array(parse_color(delivery_style.STROKE), dtype=float)
-    bands = flat + purple_a[..., None] * (purple_rgb - flat)
-    return bands + white_a[..., None] * (white_rgb - bands)
+    bands = flat
+    for alpha, colour in zip(reversed(alphas), reversed(colours)):
+        bands = bands + alpha[..., None] * (colour - bands)
+    return bands
+
+
+def _sticker_layers(figure: np.ndarray, backdrop_rgb, shape: tuple[int, ...],
+                    light: str | None, clip: np.ndarray | None, shadow: bool,
+                    scene: str | None, shadow_from: str | None, outlines
+                    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """The backdrop, the bands over it, and those bands (with the shadow) as
+    one straight-alpha layer whose composite over the backdrop is exactly
+    the bands."""
+    alphas = band_alphas(figure, outlines, light)
+    if clip is not None:
+        alphas = [np.where(clip, alpha, 0.0) for alpha in alphas]
+    # backdrop_rgb may be a 3-vector or a full (H, W, 3) pattern; either
+    # broadcasts onto the picture's shape unchanged.
+    flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), shape).copy()
+    shaded = flat
+    shade = np.ones(shape)
+    if shadow_from is None and light in delivery_style.STROKE_LIGHTS:
+        shadow_from = light
+    if shadow and shadow_from is not None and alphas:
+        outer_w = _band_widths(*figure.shape, outlines)[-1]
+        region = figure.copy()
+        for alpha in alphas:
+            region |= alpha >= 0.5
+        shift = _shadow_shift(delivery_style.STROKE_LIGHTS[shadow_from], outer_w)
+        shifted = ndimage.shift(region, shift, order=0, mode="constant", cval=False)
+        shadow_a = _shadow_coverage(shifted, delivery_style.STROKE_CUT_EPS_PCT) \
+            * (1 - np.clip(sum(alphas), 0.0, 1.0))
+        if clip is not None:
+            shadow_a = np.where(clip, shadow_a, 0.0)
+        if scene is None:
+            darken = 1 - shadow_a[..., None] * delivery_style.STICKER_SHADOW_DARKEN
+            shaded = flat * darken
+            shade = np.broadcast_to(darken, shape)
+        else:
+            cast = np.array(delivery_style.LIGHT_SCENES[scene]["cast"])
+            weight = delivery_style.LIGHT_CAST_STRENGTH * shadow_a[..., None]
+            shaded = flat * (1 - weight) + flat * cast * weight
+            shade = (1 - weight) + cast * weight
+    bands = _bands_over(alphas, _band_colours(outlines), shaded)
+    transmission = np.ones(figure.shape)
+    for alpha in alphas:
+        transmission = transmission * (1 - alpha)
+    outline_alpha = 1 - shade.min(axis=2) * transmission
+    outline = ((bands - flat * (1 - outline_alpha)[..., None])
+               / np.maximum(outline_alpha, 1e-6)[..., None])
+    outline[outline_alpha <= 0.0] = 0.0
+    return flat, bands, np.clip(outline, 0, 255), outline_alpha
 
 
 def sticker(px: np.ndarray, figure: np.ndarray, coverage: np.ndarray,
-           backdrop_rgb, light: str | None = None,
-           clip: np.ndarray | None = None,
-           shadow: bool = False, scene: str | None = None,
-           shadow_from: str | None = None) -> np.ndarray:
-    """Frame `figure` on `backdrop_rgb`, white band then purple band outside it.
+            backdrop_rgb, light: str | None = None,
+            clip: np.ndarray | None = None,
+            shadow: bool = False, scene: str | None = None,
+            shadow_from: str | None = None, outlines=None) -> np.ndarray:
+    """Frame `figure` on `backdrop_rgb` with the `outlines` bands outside it.
 
     `coverage` is the figure's own per-pixel alpha in 0..1; the composite is
-    coverage * px + (1 - coverage) * (the stroke bands over the backdrop).
+    coverage * px + (1 - coverage) * (the bands over the backdrop).
     `figure` alone decides where the bands sit -- coverage may be soft at
     the edge the bands are drawn from a hard boundary. `clip`, a frame
     window, keeps the bands and the shadow inside it. `shadow` throws a
     translucent drop shadow of the sticker's own shape onto the backdrop,
     away from `shadow_from`, or from `light` when that is a direction.
     """
-    white_a, purple_a = band_alphas(figure, light)
-    if clip is not None:
-        white_a = np.where(clip, white_a, 0.0)
-        purple_a = np.where(clip, purple_a, 0.0)
-    # backdrop_rgb may be a 3-vector or a full (H, W, 3) pattern; either
-    # broadcasts onto px.shape unchanged.
-    flat = np.broadcast_to(np.array(backdrop_rgb, dtype=float), px.shape).copy()
-    if shadow_from is None and light in delivery_style.STROKE_LIGHTS:
-        shadow_from = light
-    if shadow and shadow_from is not None:
-        _, purple_w = _band_widths(*figure.shape)
-        region = figure | (white_a >= 0.5) | (purple_a >= 0.5)
-        shift = _shadow_shift(delivery_style.STROKE_LIGHTS[shadow_from], purple_w)
-        shifted = ndimage.shift(region, shift, order=0, mode="constant", cval=False)
-        shadow_a = _shadow_coverage(shifted, delivery_style.STROKE_CUT_EPS_PCT) \
-            * (1 - np.clip(white_a + purple_a, 0.0, 1.0))
-        if clip is not None:
-            shadow_a = np.where(clip, shadow_a, 0.0)
-        if scene is None:
-            flat = flat * (1 - shadow_a[..., None]
-                           * delivery_style.STICKER_SHADOW_DARKEN)
-        else:
-            cast = np.array(delivery_style.LIGHT_SCENES[scene]["cast"])
-            weight = delivery_style.LIGHT_CAST_STRENGTH * shadow_a[..., None]
-            flat = flat * (1 - weight) + flat * cast * weight
-    bands = _bands_over(white_a, purple_a, flat)
+    _, bands, _, _ = _sticker_layers(figure, backdrop_rgb, px.shape, light,
+                                     clip, shadow, scene, shadow_from, outlines)
     return bands + coverage[..., None] * (px - bands)
 
 
@@ -659,9 +701,13 @@ def _backdrop_tag_suffix(backdrop: str | None) -> str:
     return f"-bg-{name}"
 
 
+def _bands_tag(height: int, width: int, outlines) -> str:
+    widths = _band_widths(height, width, outlines)
+    return ("o" + "+".join(f"{band_w:.0f}" for band_w in widths)
+            if widths else "nooutline")
+
+
 def _light_tag_suffix(light: str | None, shadow: bool = False) -> str:
-    if light == delivery_style.STROKE_NONE:
-        return "-nostroke"
     if light in delivery_style.STROKE_LIGHTS:
         return f"-light-{light}" + ("-shadow" if shadow else "")
     return ""
@@ -701,15 +747,20 @@ def cut_figure(px: np.ndarray, soft: np.ndarray) -> np.ndarray:
     return enclosed_cut(px, figure, tolerance)
 
 
-def clean_background(data: bytes, matte: bytes, light: str | None = None,
-                     backdrop: str | None = None,
-                     scene: str | None = None,
-                     light_from: str | None = None,
-                     matted: bool = False) -> tuple[bytes, str]:
+def _png(array: np.ndarray, mode: str) -> bytes:
+    output = io.BytesIO()
+    Image.fromarray(array, mode).save(output, "PNG")
+    return output.getvalue()
+
+
+def clean_layers(data: bytes, matte: bytes, light: str | None = None,
+                 backdrop: str | None = None, scene: str | None = None,
+                 light_from: str | None = None, matted: bool = False,
+                 outlines=None) -> Layers:
     """Frame the figure the matte cuts out, in the delivery's own colours.
 
     `light_from` is the scene light's direction: it tints the backdrop and
-    throws the drop shadow whatever `light` does to the purple band.
+    throws the drop shadow whatever `light` does to the outermost band.
 
     The matte is the authority on the silhouette, not colour: repin moves
     the figure's own colours, and pale hair lands inside the backdrop's
@@ -744,46 +795,56 @@ def clean_background(data: bytes, matte: bytes, light: str | None = None,
     backdrop_rgb = backdrops.render(backdrop, height, width)
     if scene is not None:
         backdrop_rgb = scene_backdrop(backdrop_rgb, light_from or light, scene)
-    if window is None:
-        composite = sticker(px, figure, coverage, backdrop_rgb, light,
-                            shadow=True, scene=scene, shadow_from=light_from)
-    else:
-        composite = sticker(px, figure & inner, coverage, backdrop_rgb, light,
-                            window, shadow=True, scene=scene,
-                            shadow_from=light_from)
+    flat, bands, outline, outline_alpha = _sticker_layers(
+        figure if window is None else figure & inner, backdrop_rgb, px.shape,
+        light, window, True, scene, light_from, outlines)
+    composite = bands + coverage[..., None] * (px - bands)
+    if window is not None:
         excess = raw[..., 1] - np.maximum(raw[..., 0], raw[..., 2])
         half = delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS / 2
         green = np.clip((excess - half) / half, 0.0, 1.0)[..., None]
         outer = raw + green * (backdrop_rgb - raw)
         composite = np.where(window[..., None], composite, outer)
-    white_w, purple_w = _band_widths(height, width)
+        flat = np.where(window[..., None], flat, outer)
+        coverage = np.where(window, coverage, 0.0)
 
     keyed = not matted and _key_excess(key) >= delivery_style.KEY_DESPILL_MIN_EXCESS
-    output = io.BytesIO()
-    Image.fromarray(np.clip(composite, 0, 255).astype(np.uint8)).save(output, "PNG")
-    tag = (f"clean-w{white_w:.0f}-p{purple_w:.0f}"
-          + _backdrop_tag_suffix(backdrop) + _cut_tag_suffix()
-          + ("-key" if keyed else "") + ("-matted" if matted else "")
-          + ("-outline" if outline_drawn.any() else ""))
-    return output.getvalue(), tag + _light_tag_suffix(light, shadow=True)
+    tag = ("clean-" + _bands_tag(height, width, outlines)
+           + _backdrop_tag_suffix(backdrop) + _cut_tag_suffix()
+           + ("-key" if keyed else "") + ("-matted" if matted else "")
+           + ("-outline" if outline_drawn.any() else ""))
+    return Layers(composite, px, coverage, outline, outline_alpha, flat,
+                  tag + _light_tag_suffix(light, shadow=True))
 
 
-def transparent(data: bytes, matte: bytes, light: str | None = None,
-                matted: bool = False) -> tuple[bytes, str]:
+def clean_background(data: bytes, matte: bytes, light: str | None = None,
+                     backdrop: str | None = None,
+                     scene: str | None = None,
+                     light_from: str | None = None,
+                     matted: bool = False, outlines=None) -> tuple[bytes, str]:
+    """`clean_layers`' composite as a PNG, with its tag."""
+    layers = clean_layers(data, matte, light, backdrop, scene, light_from,
+                          matted, outlines)
+    return (_png(np.clip(layers.picture, 0, 255).astype(np.uint8), "RGB"),
+            layers.tag)
+
+
+def transparent_layers(data: bytes, matte: bytes, light: str | None = None,
+                       matted: bool = False, outlines=None) -> Layers:
     """Cut the figure out and frame it with the sticker bands on alpha 0.
 
-    Same silhouette authority as `clean_background`. The figure gets a
+    Same silhouette authority as `clean_layers`. The figure gets a
     sub-pixel ramp so retraced strands keep partial coverage, and the soft
     matte only adds coverage inside a 1-px ring around it. Outside the
-    white/purple bands, alpha is 0 instead of the backdrop colour.
-    `matted` takes `matte` as the matting stage's alpha, as `clean_background`.
+    bands, alpha is 0 instead of the backdrop colour.
+    `matted` takes `matte` as the matting stage's alpha, as `clean_layers`.
     """
     px = np.array(Image.open(io.BytesIO(data)).convert("RGB")).astype(np.uint8)
     soft = np.array(Image.open(io.BytesIO(matte)).convert("L"))
     height, width = px.shape[:2]
     if matted:
         return _transparent_over_bands(px, soft >= 128, soft / 255.0, light,
-                                       "-matted")
+                                       "-matted", outlines)
     band = int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100)
     figure = refine_matte(
         px.astype(float), soft > 127, band, delivery_style.MATTE_EDGE_TOLERANCE)
@@ -802,16 +863,24 @@ def transparent(data: bytes, matte: bytes, light: str | None = None,
     coverage[ndimage.binary_erosion(figure, iterations=1)] = 1.0
     coverage[outline_drawn] = 1.0
     return _transparent_over_bands(
-        px, figure, coverage, light, "-outline" if outline_drawn.any() else "")
+        px, figure, coverage, light, "-outline" if outline_drawn.any() else "",
+        outlines)
+
+
+def transparent(data: bytes, matte: bytes, light: str | None = None,
+                matted: bool = False, outlines=None) -> tuple[bytes, str]:
+    """`transparent_layers`' composite as an RGBA PNG, with its tag."""
+    layers = transparent_layers(data, matte, light, matted, outlines)
+    return _png(layers.picture, "RGBA"), layers.tag
 
 
 def _transparent_over_bands(px: np.ndarray, figure: np.ndarray,
                             coverage: np.ndarray, light: str | None,
-                            suffix: str) -> tuple[bytes, str]:
+                            suffix: str, outlines) -> Layers:
     height, width = px.shape[:2]
-    white_a, purple_a = band_alphas(figure, light)
-    band_alpha = np.clip(white_a + purple_a, 0.0, 1.0)
-    band_rgb = _bands_over(white_a, purple_a, np.zeros(px.shape))
+    alphas = band_alphas(figure, outlines, light)
+    band_alpha = np.clip(sum(alphas, np.zeros(figure.shape)), 0.0, 1.0)
+    band_rgb = _bands_over(alphas, _band_colours(outlines), np.zeros(px.shape))
     band_rgb = band_rgb / np.maximum(band_alpha, 1e-6)[..., None]
     # Figure over bands, straight alpha out.
     alpha = coverage + (1.0 - coverage) * band_alpha
@@ -822,9 +891,43 @@ def _transparent_over_bands(px: np.ndarray, figure: np.ndarray,
 
     rgba = np.dstack([np.clip(rgb, 0, 255).astype(np.uint8),
                       np.clip(alpha * 255, 0, 255).astype(np.uint8)])
-    white_w, purple_w = _band_widths(height, width)
-    output = io.BytesIO()
-    Image.fromarray(rgba, "RGBA").save(output, "PNG")
-    tag = (f"transparent-w{white_w:.0f}-p{purple_w:.0f}" + _cut_tag_suffix()
-           + suffix)
-    return output.getvalue(), tag + _light_tag_suffix(light)
+    tag = ("transparent-" + _bands_tag(height, width, outlines)
+           + _cut_tag_suffix() + suffix)
+    return Layers(rgba, px.astype(float), coverage, np.clip(band_rgb, 0, 255),
+                  band_alpha, None, tag + _light_tag_suffix(light))
+
+
+def _rgba(colour: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    return np.dstack([np.clip(np.rint(colour), 0, 255).astype(np.uint8),
+                      np.clip(np.rint(alpha * 255), 0, 255).astype(np.uint8)])
+
+
+def deliver_pngs(data: bytes, matte: bytes, *, keep_scene: bool = False,
+                 transparent: bool = False, light: str | None = None,
+                 backdrop: str | None = None, scene: str | None = None,
+                 light_from: str | None = None, matted: bool = False,
+                 outlines=None) -> tuple[bytes, bytes, bytes, bytes | None, str]:
+    """The delivered picture and its `figure`, `outline` and `backdrop`
+    layers as PNGs, and its tag. A kept scene is its own backdrop with the
+    matte's figure over it and no outline; a transparent delivery has no
+    backdrop."""
+    if keep_scene:
+        scene_rgb = np.array(Image.open(io.BytesIO(data)).convert("RGB"))
+        alpha = np.array(Image.open(io.BytesIO(matte)).convert("L"))
+        empty = np.zeros((*alpha.shape, 4), np.uint8)
+        return (data, _png(np.dstack([scene_rgb, alpha]), "RGBA"),
+                _png(empty, "RGBA"), _png(scene_rgb, "RGB"), "scene")
+    if transparent:
+        layers = transparent_layers(data, matte, light, matted, outlines)
+        picture = _png(layers.picture, "RGBA")
+        backdrop_png = None
+    else:
+        layers = clean_layers(data, matte, light, backdrop, scene, light_from,
+                              matted, outlines)
+        picture = _png(np.clip(layers.picture, 0, 255).astype(np.uint8), "RGB")
+        backdrop_png = _png(np.clip(np.rint(layers.backdrop), 0, 255)
+                            .astype(np.uint8), "RGB")
+    return (picture,
+            _png(_rgba(layers.figure, layers.figure_alpha), "RGBA"),
+            _png(_rgba(layers.outline, layers.outline_alpha), "RGBA"),
+            backdrop_png, layers.tag)

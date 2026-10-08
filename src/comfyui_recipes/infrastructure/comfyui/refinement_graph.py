@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 
-from ...domain.yukari.delivery_style import Dof
 from .base_graph import base_roles, sampler_settings
 
-# The delivered composite: background cut, purple stroke.
+# The delivered composite: background cut, outline bands.
 DELIVERED_SUFFIX = "-delivered"
-# The delivered picture with the camera viewfinder drawn over it.
-VIEWFINDER_SUFFIX = "-viewfinder"
+# What the delivered composite was made of, saved beside it.
+LAYER_FIGURE_SUFFIX = "-layer-figure"
+LAYER_OUTLINE_SUFFIX = "-layer-outline"
+LAYER_BACKDROP_SUFFIX = "-layer-backdrop"
 # A matte_model of this form names a ComfyUI-RMBG model instead of a core
 # background-removal model file.
 RMBG_MATTE_PREFIX = "rmbg:"
@@ -81,84 +82,50 @@ def _depth_nodes(graph: dict, allocate: Callable[[], str], image_ref: list
     return [depth_id, 0]
 
 
-def _depth_blur_node(graph: dict, allocate: Callable[[], str], image_ref: list,
-                     depth_ref: list, matte_ref: list, dof: Dof
-                     ) -> tuple[list, list]:
-    blur_id = allocate()
-    graph[blur_id] = {"class_type": "YukariDepthBlur", "inputs": {
-        "image": image_ref, "depth": depth_ref, "matte": matte_ref,
-        "focus_x": dof.focus[0], "focus_y": dof.focus[1],
-        "f_number": dof.f_number}}
-    return [blur_id, 0], [blur_id, 1]
-
-
-def _layered_node(graph: dict, allocate: Callable[[], str], delivered_ref: list,
-                  depth_ref: list, matte_ref: list, dof: Dof,
-                  backdrop: str) -> list:
+def _scaled(graph: dict, allocate: Callable[[], str], image_ref: list,
+            canvas: tuple[int, int], deliver_size: int | None) -> list:
+    width, height = canvas
+    longest = max(width, height)
+    if deliver_size is None or deliver_size >= longest:
+        return image_ref
     node_id = allocate()
-    graph[node_id] = {"class_type": "YukariDepthBlurLayered", "inputs": {
-        "image": delivered_ref, "depth": depth_ref, "matte": matte_ref,
-        "focus_x": dof.focus[0], "focus_y": dof.focus[1],
-        "f_number": dof.f_number, "backdrop": backdrop}}
+    graph[node_id] = {"class_type": "ImageScale", "inputs": {
+        "image": image_ref, "upscale_method": "lanczos",
+        "width": round(width * deliver_size / longest),
+        "height": round(height * deliver_size / longest), "crop": "disabled"}}
     return [node_id, 0]
 
 
-def _viewfinder_nodes(graph: dict, allocate: Callable[[], str],
-                      delivered_ref: list, dof: Dof | None, prefix: str) -> list:
-    """Returns the ref the delivered SaveImage takes: the overlaid picture for
-    'on', the plain one for 'both' (which saves the overlaid one itself)."""
-    if dof is None or dof.viewfinder == "off":
-        return delivered_ref
-    node_id = allocate()
-    graph[node_id] = {"class_type": "YukariViewfinder", "inputs": {
-        "image": delivered_ref, "focus_x": dof.focus[0], "focus_y": dof.focus[1],
-        "f_number": dof.f_number}}
-    if dof.viewfinder == "on":
-        return [node_id, 0]
-    save_viewfinder = allocate()
-    graph[save_viewfinder] = {"class_type": "SaveImage", "inputs": {
-        "images": [node_id, 0], "filename_prefix": prefix + VIEWFINDER_SUFFIX}}
-    return delivered_ref
-
-
 def delivery_tail(graph: dict, allocate: Callable[[], str], image_ref: list,
-                  matte_ref: list, depth_ref: list | None, prefix: str, *,
+                  matte_ref: list, prefix: str, *,
                   keep_scene: bool, transparent: bool, backdrop: str | None,
-                  stroke_light: str | None, deliver_size: int | None,
-                  canvas: tuple[int, int], dof: Dof | None,
+                  stroke_light: str | None, outlines: list[dict],
+                  deliver_size: int | None, canvas: tuple[int, int],
                   light_scene: str | None, light_from: str | None) -> list:
-    """Appends the figure-blur, composite, background-blur, downscale and
-    viewfinder stages onto `graph` (mutated), saving the delivered picture.
-    `depth_ref` is required when `dof` is set. Returns the delivered ref."""
-    if dof is not None and dof.scope != "all":
-        image_ref, matte_ref = _depth_blur_node(
-            graph, allocate, image_ref, depth_ref, matte_ref, dof)
+    """Appends the composite and downscale stages onto `graph` (mutated),
+    saving the delivered picture and its layers at the delivered size.
+    Returns the delivered ref."""
     deliver_id = allocate()
     graph[deliver_id] = {"class_type": "YukariDeliver", "inputs": {
         "image": image_ref, "matte": matte_ref, "keep_scene": keep_scene,
         "transparent": transparent, "stroke_light": stroke_light or "",
         "backdrop": backdrop or "", "matted": not keep_scene,
+        "outlines": json.dumps(outlines),
         **({"light_scene": light_scene, "light_from": light_from}
            if light_scene else {})}}
-    delivered_ref = [deliver_id, 0]
-    if dof is not None and dof.scope == "all":
-        delivered_ref = _layered_node(
-            graph, allocate, delivered_ref, depth_ref, matte_ref, dof,
-            "" if keep_scene else backdrop or "")
-    width, height = canvas
-    longest = max(width, height)
-    if deliver_size is not None and deliver_size < longest:
-        target = (round(width * deliver_size / longest),
-                 round(height * deliver_size / longest))
-        deliver_scale = allocate()
-        graph[deliver_scale] = {"class_type": "ImageScale", "inputs": {
-            "image": delivered_ref, "upscale_method": "lanczos",
-            "width": target[0], "height": target[1], "crop": "disabled"}}
-        delivered_ref = [deliver_scale, 0]
-    saved_ref = _viewfinder_nodes(graph, allocate, delivered_ref, dof, prefix)
+    delivered_ref = _scaled(graph, allocate, [deliver_id, 0], canvas, deliver_size)
     save_delivered = allocate()
     graph[save_delivered] = {"class_type": "SaveImage", "inputs": {
-        "images": saved_ref, "filename_prefix": prefix + DELIVERED_SUFFIX}}
+        "images": delivered_ref, "filename_prefix": prefix + DELIVERED_SUFFIX}}
+    layers = [(LAYER_FIGURE_SUFFIX, 2), (LAYER_OUTLINE_SUFFIX, 3)]
+    if keep_scene or not transparent:
+        layers.append((LAYER_BACKDROP_SUFFIX, 4))
+    for suffix, output in layers:
+        save = allocate()
+        graph[save] = {"class_type": "SaveImage", "inputs": {
+            "images": _scaled(graph, allocate, [deliver_id, output], canvas,
+                              deliver_size),
+            "filename_prefix": prefix + suffix}}
     return delivered_ref
 
 

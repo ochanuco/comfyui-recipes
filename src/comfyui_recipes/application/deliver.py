@@ -8,18 +8,20 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..domain.yukari import delivery_style
-from ..domain.yukari.delivery_style import Dof, Light
+from ..domain.yukari.delivery_style import Light
 from ..infrastructure.comfyui.deliver_graph import deliver_graph
 from ..infrastructure.persistence.run_state import JsonRunState, operation_state_path
 from .cut_assets import (
     ALPHA_ROLE,
-    DEPTH_ROLE,
     attach_cut,
     current_cut,
     reusable,
     stored_cut,
 )
 from .ingest import (
+    LAYER_ROLES,
+    asset_key,
+    attach_asset,
     classify_deliver_outputs,
     generation_key,
     open_request,
@@ -28,7 +30,7 @@ from .ingest import (
 )
 from .picture_source import is_delivered, stroke_light_conflict
 
-# Passed for repin/backdrop/stroke_light to mean "use DELIVER_DEFAULTS' value".
+# Passed for stroke_light to mean "use DELIVER_DEFAULTS' value".
 RECIPE_DEFAULT = object()
 
 LINEAGE_HOPS = 10
@@ -92,7 +94,7 @@ def _request_parameters(generation_id: str, *, repin: bool, skin: bool,
                         recolor: bool, keep_legwear: float | None,
                         keep_scene: bool, transparent: bool,
                         backdrop: str | None, stroke_light: str | None,
-                        deliver_size: int | None, dof: Dof | None,
+                        outlines: list[dict], deliver_size: int | None,
                         light: Light | None) -> dict:
     return {
         "kind": "deliver",
@@ -106,13 +108,9 @@ def _request_parameters(generation_id: str, *, repin: bool, skin: bool,
         **({"backdrop": backdrop} if backdrop else {}),
         **({"deliver_size": deliver_size} if deliver_size is not None else {}),
         **({"stroke_light": stroke_light} if stroke_light is not None else {}),
+        "outlines": outlines,
         **({"light": {"scene": light.scene, "from": light.direction}}
            if light is not None else {}),
-        **({"dof": {"focus": list(dof.focus), "f_number": dof.f_number,
-                    "scope": dof.scope,
-                    **({"viewfinder": dof.viewfinder}
-                       if dof.viewfinder != "off" else {})}}
-           if dof is not None else {}),
     }
 
 
@@ -122,8 +120,8 @@ def deliver(generation_id: str, services: DeliverServices, *,
             transparent: bool = False,
             backdrop: str | None = delivery_style.DELIVER_DEFAULTS["backdrop"],
             stroke_light: str | None | object = RECIPE_DEFAULT,
-            deliver_size: int | None = None,
-            dof: Dof | None = None, light: Light | None = None,
+            outlines: list[dict] | None = None,
+            deliver_size: int | None = None, light: Light | None = None,
             key_prefix: str | None = None, request_id: str | None = None,
             context: dict | None = None) -> dict:
     state_path = operation_state_path(services.output_root, "deliver", key_prefix)
@@ -146,27 +144,26 @@ def deliver(generation_id: str, services: DeliverServices, *,
     if stroke_light is RECIPE_DEFAULT:
         stroke_light = (light.direction if light is not None
                         else delivery_style.DELIVER_DEFAULTS["stroke_light"])
+    if outlines is None:
+        outlines = delivery_style.DELIVER_DEFAULTS["outlines"]
 
     prefix = f"dlv-{generation_id}"
     current = current_cut()
     stored, roles = stored_cut(services, generation_id)
     alpha_bytes = reusable(services, generation_id, ALPHA_ROLE, stored, roles, current)
-    depth_bytes = (reusable(services, generation_id, DEPTH_ROLE, stored, roles, current)
-                   if dof is not None else None)
 
     token = uuid.uuid4().hex[:8]
     source_image = services.comfyui.upload_image(f"{prefix}-source-{token}.png", picked)
     alpha_image = (services.comfyui.upload_image(f"{prefix}-alpha-in-{token}.png", alpha_bytes)
                    if alpha_bytes is not None else None)
-    depth_image = (services.comfyui.upload_image(f"{prefix}-depth-in-{token}.png", depth_bytes)
-                   if depth_bytes is not None else None)
     graph = services.deliver_graph(
         source_image, delivery_style.MATTE_MODEL, prefix,
-        alpha_image=alpha_image, depth_image=depth_image,
+        alpha_image=alpha_image,
         skin=skin, repin=repin and not recolor, recolor=recolor,
         keep_legwear=keep_legwear, keep_scene=keep_scene,
         transparent=transparent, backdrop=backdrop, stroke_light=stroke_light,
-        deliver_size=deliver_size, canvas=services.image_size(picked), dof=dof,
+        outlines=outlines, deliver_size=deliver_size,
+        canvas=services.image_size(picked),
         light_scene=light.scene if light is not None else None,
         light_from=light.direction if light is not None else None)
 
@@ -182,26 +179,21 @@ def deliver(generation_id: str, services: DeliverServices, *,
     services.emit(f"{prefix} {prompt_id}")
 
     outputs = classify_deliver_outputs(services.comfyui.wait_for(prompt_id))
-    cut_roles = [role for role, needed in (
-        (ALPHA_ROLE, alpha_bytes is None),
-        (DEPTH_ROLE, dof is not None and depth_bytes is None)) if needed]
-    missing = [role for role in ("delivered", *cut_roles) if not outputs[role]]
+    cut_roles = [ALPHA_ROLE] if alpha_bytes is None else []
+    layer_roles = [role for role in LAYER_ROLES
+                   if role != "layer-backdrop" or keep_scene or not transparent]
+    missing = [role for role in ("delivered", *cut_roles, *layer_roles)
+               if not outputs[role]]
     if missing:
         raise SystemExit(
             f"{prefix} is missing its {', '.join(missing)} output(s)")
 
     services.output_root.mkdir(parents=True, exist_ok=True)
     fetched = {}
-    for role in (*cut_roles, "delivered"):
+    for role in (*cut_roles, "delivered", *layer_roles):
         out = outputs[role][-1]
         fetched[role] = (out["filename"], services.comfyui.fetch(out))
-    uploads = [fetched["delivered"]]
-    if dof is not None and dof.viewfinder == "both":
-        if not outputs["viewfinder"]:
-            raise SystemExit(f"{prefix} is missing its viewfinder output")
-        out = outputs["viewfinder"][-1]
-        uploads.append((out["filename"], services.comfyui.fetch(out)))
-    for name, data in (*fetched.values(), *uploads[1:]):
+    for name, data in fetched.values():
         (services.output_root / name).write_bytes(data)
     if services.measure is not None:
         summary = services.measure(fetched["delivered"][1])
@@ -222,7 +214,7 @@ def deliver(generation_id: str, services: DeliverServices, *,
                 recolor=recolor, keep_legwear=keep_legwear,
                 keep_scene=keep_scene, transparent=transparent,
                 backdrop=backdrop, stroke_light=stroke_light,
-                deliver_size=deliver_size, dof=dof, light=light),
+                outlines=outlines, deliver_size=deliver_size, light=light),
             "git_commit": git["commit"], "git_dirty": git["dirty"],
             "references": [{"source_generation_id": generation_id,
                             "purpose": "rebuild", "aspect": "composition",
@@ -231,26 +223,27 @@ def deliver(generation_id: str, services: DeliverServices, *,
     job = record_job(management, request["id"], key_prefix=key_prefix, index=0,
                      seed=0, prompt_id=prompt_id, graph=graph,
                      source_generation_id=generation_id if request_id else None)
-    ids, urls = [], []
-    for index, (name, data) in enumerate(uploads):
-        rendered = upload_generation(
-            management, services.emit, job["id"], seed=0, name=name, data=data,
-            index=index, idempotency_key=generation_key(key_prefix, 0, index))
-        ids.append(rendered["id"])
-        urls.append(rendered["canonical_url"])
+    delivered_name, delivered = fetched["delivered"]
+    rendered = upload_generation(
+        management, services.emit, job["id"], seed=0, name=delivered_name,
+        data=delivered, index=0, idempotency_key=generation_key(key_prefix, 0, 0))
+    for role in layer_roles:
+        name, data = fetched[role]
+        attach_asset(management, rendered["id"], role=role, name=name, data=data,
+                     idempotency_key=asset_key(key_prefix, 0, role))
+        services.emit(f"{name} -> {role} on {rendered['id']}")
 
     attach_cut(management, services.emit, generation_id, key_prefix=key_prefix,
                fetched=fetched, stored=stored, roles=roles, current=current,
                cut_roles=cut_roles)
 
     management.request("PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
-    delivered_name, delivered = fetched["delivered"]
     services.notifier.send(
         f"**deliver** `{generation_id}`\n"
         f"**file** `{delivered_name}`\n"
-        f"**chimera** {urls[0]}", delivered_name, delivered)
+        f"**chimera** {rendered['canonical_url']}", delivered_name, delivered)
     services.emit(f"request {request.get('short_id') or request['id']} done")
-    result = {"generation_ids": ids}
+    result = {"generation_ids": [rendered["id"]]}
     if state_path:
         state.update({"status": "completed", "result": result})
         services.state.save(state_path, state)

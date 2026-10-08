@@ -9,6 +9,7 @@ from pathlib import Path
 from comfyui_recipes.application.ingest import (
     attach_asset,
     classify_deliver_outputs,
+    classify_dof_outputs,
     classify_redraw_outputs,
     import_images,
     ingest_seed_render,
@@ -39,15 +40,26 @@ class ClassifyOutputsTests(unittest.TestCase):
     def test_deliver_outputs_split_by_filename(self):
         outputs = [
             {"filename": "a-alpha.png"},
-            {"filename": "a-depth.png"},
             {"filename": "a-delivered.png"},
-            {"filename": "a-viewfinder.png"},
+            {"filename": "a-layer-figure.png"},
+            {"filename": "a-layer-outline.png"},
+            {"filename": "a-layer-backdrop.png"},
         ]
         found = classify_deliver_outputs(outputs)
         self.assertEqual(found["alpha"], [outputs[0]])
-        self.assertEqual(found["depth"], [outputs[1]])
-        self.assertEqual(found["delivered"], [outputs[2]])
-        self.assertEqual(found["viewfinder"], [outputs[3]])
+        self.assertEqual(found["delivered"], [outputs[1]])
+        self.assertEqual(found["layer-figure"], [outputs[2]])
+        self.assertEqual(found["layer-outline"], [outputs[3]])
+        self.assertEqual(found["layer-backdrop"], [outputs[4]])
+
+    def test_dof_outputs_split_by_filename(self):
+        outputs = [{"filename": "dof-g-depth_00001_.png"},
+                   {"filename": "dof-g-dof_00001_.png"},
+                   {"filename": "dof-g-viewfinder_00001_.png"}]
+        found = classify_dof_outputs(outputs)
+        self.assertEqual(found["depth"], [outputs[0]])
+        self.assertEqual(found["dof"], [outputs[1]])
+        self.assertEqual(found["viewfinder"], [outputs[2]])
 
     def test_redraw_picture_is_what_the_cuts_are_not(self):
         outputs = [{"filename": "a.png"}, {"filename": "a-alpha.png"},

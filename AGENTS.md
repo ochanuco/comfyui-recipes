@@ -31,11 +31,11 @@ the exact prompt can be inspected with `get_catalog_pose` on the MCP or
    composition, proportion and hands obey the prompt there, and the artist
    tags set the face and line.
 2. **Deliver cuts and decorates the raw pick.** `deliver` cuts a matte,
-   repins the palette and composites the backdrop and purple stroke onto
-   the Anima pick itself -- no redraw. The raw is drawn on a green key with
-   a `(white outline:1.3)` around the figure; ViTMatte cuts it out with the
-   white line kept, and the purple stroke sits right outside it, with no
-   white band. It is the recipe default
+   repins the palette and composites the backdrop and the outline bands
+   onto the Anima pick itself -- no redraw. The raw is drawn on a green key
+   with a `(white outline:1.3)` around the figure; ViTMatte cuts it out with
+   the white line kept, and the bands (`outlines`: a white band, then the
+   purple stroke) sit right outside it. It is the recipe default
    (`yukari/delivery_style.py`): the WebUI button and an
    option-less `deliver_generation` both deliver this way.
 
@@ -220,8 +220,12 @@ redraw_generation     optional: the pick redrawn whole -- on a bigger canvas
                       (`light`); a new picture on the green key.
 repair_generation     optional: a masked local redraw of hands / feet.
 deliver_generation    the pick, delivered: one ComfyUI graph that cuts a matte
-                      and composites the backdrop and purple stroke; recorded
-                      as a request that refines the source.
+                      and composites the backdrop and outline bands; recorded
+                      as a request that refines the source, with its layers
+                      (`layer-figure`, `layer-outline`, `layer-backdrop`)
+                      as assets.
+dof_generation        optional: depth of field over a delivered picture's
+                      layers (kind `dof`); its output is a delivered picture.
 get_request           status of any of the above; list_requests for the queue.
 ```
 
@@ -229,8 +233,8 @@ get_request           status of any of the above; list_requests for the queue.
 the dedicated tools do not cover. A round is not closed until the pick has
 been delivered: what `generate`, `redraw` and `repair` leave is the
 pre-delivery SaveImage output, and the delivery identity is what `deliver`
-adds on top of it. The cutout (`alpha`, `depth`) is stored as assets of the
-picture that was delivered, so a delivery is redone from the record without
+adds on top of it. The cutout (`alpha`, and the `depth` a `dof` builds) is
+stored as assets of the picture that was delivered, so a delivery is redone from the record without
 cutting again.
 
 Discord notification is the worker's job — every ingest and every delivery

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from ...domain.yukari.delivery_style import STROKE_CHOICES, Dof
+from ...domain.yukari.delivery_style import STROKE_CHOICES
 from ..imaging import backdrops
 from .refinement_graph import (
     _depth_nodes,
@@ -57,19 +57,17 @@ def depth_nodes(graph: dict, allocate: Callable[[], str], source_ref: list,
 
 def deliver_graph(source_image: str, matte_model: str, prefix: str, *,
                   alpha_image: str | None = None,
-                  depth_image: str | None = None,
                   skin: bool, repin: bool, recolor: bool,
                   keep_legwear: float | None, keep_scene: bool,
                   transparent: bool, backdrop: str | None,
-                  stroke_light: str | None, deliver_size: int | None,
-                  canvas: tuple[int, int], dof: Dof | None,
+                  stroke_light: str | None, outlines: list[dict],
+                  deliver_size: int | None, canvas: tuple[int, int],
                   light_scene: str | None, light_from: str | None) -> dict:
     """The deliver graph over the uploaded `source_image`.
 
-    `alpha_image` and `depth_image` are uploaded cut assets to load instead of
-    computing; without them the graph cuts the unrepinned source itself and
-    saves the result under `prefix` + ALPHA_SUFFIX / DEPTH_SUFFIX. Depth is
-    only built when `dof` is set.
+    `alpha_image` is the uploaded alpha cut asset to load instead of
+    computing; without it the graph cuts the unrepinned source itself and
+    saves the result under `prefix` + ALPHA_SUFFIX.
     """
     if stroke_light is not None and stroke_light not in STROKE_CHOICES:
         valid = ", ".join(repr(key) for key in STROKE_CHOICES)
@@ -94,9 +92,6 @@ def deliver_graph(source_image: str, matte_model: str, prefix: str, *,
     alpha_ref = alpha_nodes(
         graph, allocate, source_ref, matte_model, prefix, alpha_image)
 
-    depth_ref = (depth_nodes(graph, allocate, source_ref, prefix, depth_image)
-                 if dof is not None else None)
-
     image_ref = source_ref
     if skin:
         repin_skin_id = allocate()
@@ -119,8 +114,9 @@ def deliver_graph(source_image: str, matte_model: str, prefix: str, *,
         image_ref = foreground_node(graph, allocate, image_ref, alpha_ref)
 
     delivery_tail(
-        graph, allocate, image_ref, alpha_ref, depth_ref, prefix,
+        graph, allocate, image_ref, alpha_ref, prefix,
         keep_scene=keep_scene, transparent=transparent, backdrop=backdrop,
-        stroke_light=stroke_light, deliver_size=deliver_size, canvas=canvas,
-        dof=dof, light_scene=light_scene, light_from=light_from)
+        stroke_light=stroke_light, outlines=outlines,
+        deliver_size=deliver_size, canvas=canvas,
+        light_scene=light_scene, light_from=light_from)
     return graph

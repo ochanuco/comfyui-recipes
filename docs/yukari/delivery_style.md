@@ -10,7 +10,7 @@ in [`findings/delivery.md`](../findings/delivery.md).
 
 | Group | Read by |
 |---|---|
-| `BACKDROP`, `STROKE`, `WHITE_WIDTH_PCT`, `STROKE_WIDTH_*` | band drawing in `infrastructure/imaging/delivery.py` |
+| `BACKDROP`, `OUTLINES`, `OUTLINES_MAX`, `OUTLINE_WIDTH_MAX_PCT` | band drawing in `infrastructure/imaging/delivery.py`, the `outlines` deliver option |
 | `STROKE_CUT_EPS_PCT`, `STROKE_EDGE_SMOOTH` | `band_alphas`: hand-cut outline and edge rounding |
 | `STROKE_LIGHT_*`, `STROKE_LIGHTS`, `STROKE_CHOICES`, `STICKER_SHADOW_*` | the `stroke_light` deliver option |
 | `STRIPES_*`, `WAVEFORM_*`, `EARS_*`, `BACKDROP_*` | named backdrops in `infrastructure/imaging/backdrops.py` |
@@ -19,6 +19,7 @@ in [`findings/delivery.md`](../findings/delivery.md).
 | `RECOLOR_*` | `--recolor` in `infrastructure/imaging/recolor.py` |
 | `MATTE_*`, `KEY_*`, `ENCLOSED_*`, `FRAME_WINDOW_*`, `DRAWN_OUTLINE_*` | matte, keyed edge, pocket cuts and the drawn outline in `delivery.py` |
 | `REDRAW_*`, `ROUGH_STYLE`, `DELIVER_DEFAULTS` | the opt-in IL `canvas` redraw and the deliver defaults the catalog publishes |
+| `DOF_*` | the `dof` request's options and the catalog's top-level `dof` section |
 
 ## Contracts
 
@@ -26,14 +27,15 @@ in [`findings/delivery.md`](../findings/delivery.md).
   backdrop is not stable enough to keep. `BACKDROP` (white) is the flat
   colour when none is named, and the catalog publishes it as
   `deliver.backdrop_color` for the WebUI's solid-colour choice.
-- Stroke width is the larger of a share of the white band and a share of the
-  canvas. The canvas share is a floor.
+- Band widths are shares of the longest side; each band starts at the
+  previous band's outer edge.
 - `STROKE_CUT_EPS_PCT = 0` reproduces the smooth ramp exactly, and
-  `band_alphas` branches on it. The epsilon stays well under
-  `WHITE_WIDTH_PCT`. With `stroke_light`, the purple band is extruded away
-  from the light first and then simplified. The white band is never shaded.
+  `band_alphas` branches on it. With `stroke_light`, the outermost band is
+  extruded away from the light first and then simplified. Inner bands are
+  never shaded.
 - The `stroke_light` drop shadow falls straight away from the light, the
-  same direction the purple band is extruded. `even` and `none` throw none.
+  same direction the outermost band is extruded. `even` throws none, and
+  neither does a delivery without bands.
 - The `stroke_light` drop shadow darkens only `clean_background`'s backdrop.
   `transparent` never draws it.
 - `STROKE_EDGE_SMOOTH` counts 2x-supersample pixels, not band widths.

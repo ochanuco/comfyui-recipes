@@ -297,7 +297,7 @@ def deliver_row(**overrides):
     return row
 
 
-DEFAULT_OUTLINES = [{"color": "#ffffff", "width": 0.4}, {"color": "#885b80", "width": 1.04}]
+DEFAULT_OUTLINES = [{"color": "#ffffff", "width": 0.8}, {"color": "#885b80", "width": 1.04}]
 
 
 def dof_row(**overrides):

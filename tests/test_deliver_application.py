@@ -24,7 +24,7 @@ from comfyui_recipes.infrastructure.comfyui.deliver_graph import deliver_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import DEPTH_NODE
 
 LAYERS = ["dlv-g-layer-figure", "dlv-g-layer-outline", "dlv-g-layer-backdrop"]
-OUTLINES = [{"color": "#ffffff", "width": 0.4}, {"color": "#885b80", "width": 1.04}]
+OUTLINES = [{"color": "#ffffff", "width": 0.8}, {"color": "#885b80", "width": 1.04}]
 GRAPH_KWARGS = dict(
     skin=False, repin=True, recolor=False, keep_legwear=None, keep_scene=False,
     transparent=False, backdrop="dots", stroke_light="n", outlines=OUTLINES,

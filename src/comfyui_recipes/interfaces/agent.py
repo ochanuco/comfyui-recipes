@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import socket
+import uuid
 from collections.abc import Callable
 from pathlib import Path
 
@@ -179,8 +180,11 @@ def wire_work_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
             headers = {**chimera.credentials(), "User-Agent": USER_AGENT}
             return HubConnection(hub_url(chimera.base_url), headers).open()
 
+    if comfyui.client_id is None:
+        comfyui.client_id = uuid.uuid4().hex
+
     def progress_factory() -> ProgressFeed:
-        return ProgressFeed(comfyui.base_url).open()
+        return ProgressFeed(comfyui.base_url, client_id=comfyui.client_id).open()
 
     if comfyui.timings is None:
         comfyui.timings = AttemptTimings(

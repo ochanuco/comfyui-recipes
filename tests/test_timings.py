@@ -84,7 +84,44 @@ class ProgressFeedTest(unittest.TestCase):
             feed.recv(1)
 
 
+class ClientIdTest(unittest.TestCase):
+    def test_feed_url_carries_the_client_id(self):
+        feed = ProgressFeed("http://box:8188", client_id="abc")
+        self.assertEqual(feed.url, "ws://box:8188/ws?clientId=abc")
+        self.assertEqual(ProgressFeed("http://box:8188").url, "ws://box:8188/ws")
+
+    def test_submit_body_includes_client_id_only_when_set(self):
+        bodies = []
+        for client_id in ("abc", None):
+            client = ComfyUIClient("http://example.invalid", client_id=client_id)
+            client.request = lambda path, payload=None: (
+                bodies.append(payload) or {"prompt_id": "p"})
+            client.submit(plain_graph())
+        self.assertEqual(bodies[0]["client_id"], "abc")
+        self.assertNotIn("client_id", bodies[1])
+
+    def test_progress_state_passes_through_the_feed(self):
+        nodes = {"3": {"value": 0.0, "max": 1.0, "state": "running"}}
+        event = feed_of([ws_message("progress_state", prompt_id="p", nodes=nodes)]).recv(1)
+        self.assertEqual((event["type"], event["nodes"]), ("progress_state", nodes))
+
+
 class TimingRecorderTest(unittest.TestCase):
+    def test_progress_state_sets_start_and_finished_wins_for_end(self):
+        recorder = TimingRecorder()
+
+        def send(kind, at, **fields):
+            recorder.feed({"type": kind, "prompt_id": "p", "received_at": at, **fields})
+
+        send("progress_state", 100, nodes={"3": {"state": "running"}})
+        send("executing", 105, node="3")
+        send("progress_state", 150, nodes={"3": {"state": "finished"}})
+        send("executing", 190, node=None)
+        send("progress_state", 200, nodes={"3": {"state": "finished"}})
+        node = recorder.snapshot("p")["nodes"]["3"]
+        self.assertEqual((node["started_at"], node["ended_at"]), (100, 150))
+
+
     def test_node_start_end_cached_and_step_intervals(self):
         recorder = TimingRecorder()
 

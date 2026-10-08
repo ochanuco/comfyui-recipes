@@ -145,8 +145,12 @@ What one attempt records:
   (`nvidia-smi`). Read once, and again after the `/ws` feed drops or while
   ComfyUI was unreachable.
 
-The `/ws` feed runs whenever the worker runs, hub or not; only `progress`
-events are relayed to the hub. Binary preview frames are ignored.
+The `/ws` feed runs whenever the worker runs, hub or not. It connects with
+`?clientId=<id>` and every `POST /prompt` carries the same `client_id` (one
+random id per worker process), because ComfyUI sends the `executing` family
+only to the submitting client. `progress_state` node transitions set a node's
+start and, with precedence, its end. Only `progress` events are relayed to the
+hub. Binary preview frames are ignored.
 
 ### Role names
 

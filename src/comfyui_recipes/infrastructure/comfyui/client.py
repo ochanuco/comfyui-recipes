@@ -41,8 +41,10 @@ def images_of(history_entry: dict) -> list[dict]:
 class ComfyUIClient:
     def __init__(self, base_url: str | None = None, *, poll_interval: int = 10,
                  poll_timeout: int = 20 * 60,
-                 timings: AttemptTimings | None = None) -> None:
+                 timings: AttemptTimings | None = None,
+                 client_id: str | None = None) -> None:
         self.timings = timings
+        self.client_id = client_id
         self.base_url = (base_url or
                          f"http://{os.environ.get('COMFYUI_HOST', '127.0.0.1')}:"
                          f"{os.environ.get('COMFYUI_PORT', '8188')}").rstrip("/")
@@ -64,7 +66,10 @@ class ComfyUIClient:
         except Exception:
             pass
         submitted_at = now_ms()
-        prompt_id = self.request("/prompt", {"prompt": graph})["prompt_id"]
+        body = {"prompt": graph}
+        if self.client_id:
+            body["client_id"] = self.client_id
+        prompt_id = self.request("/prompt", body)["prompt_id"]
         if self.timings is not None:
             self.timings.register(prompt_id, graph, purpose=purpose,
                                   submitted_at=submitted_at)

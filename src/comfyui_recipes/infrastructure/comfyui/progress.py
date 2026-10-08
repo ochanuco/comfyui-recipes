@@ -1,15 +1,15 @@
 """ComfyUI's own broadcast socket, read for execution and sampling events.
 
-ComfyUI's /prompt accepts no client_id from this client, so it broadcasts
-its events to every connected /ws client -- this feed rides that broadcast
-rather than opening a second, scoped connection. Binary frames (previews)
-are skipped.
+on a socket scoped by `clientId`: ComfyUI sends the `executing` family only
+to the client that submitted the prompt, so the worker submits with the same
+id. Binary frames (previews) are skipped.
 """
 
 from __future__ import annotations
 
 import json
 import time
+import urllib.parse
 
 from websockets.exceptions import WebSocketException
 from websockets.sync.client import connect
@@ -20,6 +20,7 @@ from ..ws import WebSocketClosed, websocket_url
 EVENT_TYPES = frozenset({
     "execution_start", "execution_cached", "executing", "progress", "executed",
     "execution_success", "execution_error", "execution_interrupted",
+    "progress_state",
 })
 
 
@@ -32,9 +33,12 @@ class FeedClosed(WebSocketClosed):
 
 
 class ProgressFeed:
-    def __init__(self, base_url: str, *, clock_ms=now_ms) -> None:
+    def __init__(self, base_url: str, *, client_id: str | None = None,
+                 clock_ms=now_ms) -> None:
         self.clock_ms = clock_ms
         self.url = websocket_url(base_url, "/ws")
+        if client_id:
+            self.url += "?" + urllib.parse.urlencode({"clientId": client_id})
         self._socket = None
 
     def open(self) -> "ProgressFeed":

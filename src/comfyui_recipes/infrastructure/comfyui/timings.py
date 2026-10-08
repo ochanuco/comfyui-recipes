@@ -93,10 +93,22 @@ class TimingRecorder:
                 node = event.get("node")
                 if node is not None:
                     node = str(node)
-                    prompt["nodes"][node] = {
-                        "started_at": at, "ended_at": None, "steps_total": None,
-                        "step_ms": [], "mark": at}
+                    state = self._node(prompt, node)
+                    if state["started_at"] is None:
+                        state["started_at"] = at
+                    state["mark"] = at
                     prompt["current"] = node
+            elif kind == "progress_state":
+                for node, node_state in (event.get("nodes") or {}).items():
+                    if not isinstance(node_state, dict):
+                        continue
+                    state = self._node(prompt, str(node))
+                    if node_state.get("state") == "running" and state["started_at"] is None:
+                        state["started_at"] = at
+                        state["mark"] = at
+                    elif node_state.get("state") == "finished" and not state["finished"]:
+                        state["finished"] = True
+                        state["ended_at"] = at
             elif kind == "execution_cached":
                 prompt["cached"].update(str(node) for node in event.get("nodes") or ())
             elif kind == "progress":
@@ -104,9 +116,7 @@ class TimingRecorder:
                 node = str(node) if node is not None else prompt["current"]
                 if node is None:
                     return
-                state = prompt["nodes"].setdefault(node, {
-                    "started_at": None, "ended_at": None, "steps_total": None,
-                    "step_ms": [], "mark": None})
+                state = self._node(prompt, node)
                 if state["mark"] is not None:
                     state["step_ms"].append(max(0, at - state["mark"]))
                 state["mark"] = at
@@ -117,11 +127,17 @@ class TimingRecorder:
                 self._close(prompt, at)
 
     @staticmethod
+    def _node(prompt: dict, node: str) -> dict:
+        return prompt["nodes"].setdefault(node, {
+            "started_at": None, "ended_at": None, "steps_total": None,
+            "step_ms": [], "mark": None, "finished": False})
+
+    @staticmethod
     def _close(prompt: dict, at: int) -> None:
         current = prompt["current"]
         if current is not None:
             state = prompt["nodes"].get(current)
-            if state is not None and state["ended_at"] is None:
+            if state is not None and state["ended_at"] is None and not state["finished"]:
                 state["ended_at"] = at
         prompt["current"] = None
 

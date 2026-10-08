@@ -239,7 +239,7 @@ class NodeRunTest(unittest.TestCase):
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, transparent=True)
         self.assertEqual(image.array.shape, (1, 64, 64, 4))
-        self.assertEqual(tag, "transparent-o0+1-cut0.5")
+        self.assertEqual(tag, "transparent-o1+1-cut0.5")
 
     def test_deliver_keep_scene_wins_over_transparent(self):
         node = nodes.YukariDeliver()
@@ -270,7 +270,7 @@ class NodeRunTest(unittest.TestCase):
         image, tag, *_ = node.run(
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, transparent=True)
-        self.assertEqual(tag, "transparent-o0+1-cut0.5")
+        self.assertEqual(tag, "transparent-o1+1-cut0.5")
 
     def test_deliver_returns_the_layers_beside_the_picture(self):
         node = nodes.YukariDeliver()

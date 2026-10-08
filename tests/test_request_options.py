@@ -115,7 +115,7 @@ class DeliverArgumentsTest(unittest.TestCase):
             "repin": True, "skin": False, "recolor": False, "keep_legwear": None,
             "keep_scene": False, "transparent": False, "backdrop": "dots",
             "stroke_light": RECIPE_DEFAULT, "deliver_size": None,
-            "outlines": [{"color": "#ffffff", "width": 0.4},
+            "outlines": [{"color": "#ffffff", "width": 0.8},
                          {"color": "#885b80", "width": 1.04}],
             "light": None})
 

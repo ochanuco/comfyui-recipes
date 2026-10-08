@@ -15,12 +15,13 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
 - Deliver defaults: repin on, backdrop `dots`, stroke light from `n`. The
   diagonal stripes + faint focus lines backdrop is `backdrop=stripes`. `[Anima]`
 - The bands are a list (`OUTLINES`, the `outlines` deliver option), innermost
-  first: a white band at 0.4% of the longest side, then the `#885b80` rim at
+  first: a white band at 0.8% of the longest side, then the `#885b80` rim at
   1.04%, each polygonised (Douglas–Peucker, eps 0.5%) for a hand-cut look.
-  The white width is provisional until 0.2 / 0.4 / 0.8 are compared on a
-  production canary. The innermost band also runs under the figure's own
-  edge pixels, so a soft edge blends into the band, not the backdrop. The
-  prompt still draws `(white outline:1.3)`, which ViTMatte keeps as figure. `[Anima]`
+  0.8 was picked over 0.2 and 0.4 on a raw drawn without a white outline
+  (5e5p2h against fjci20 / ocym2i). The innermost band also runs under the
+  figure's own edge pixels, so a soft edge blends into the band, not the
+  backdrop. The prompt no longer draws `(white outline:1.3)`: ViTMatte keeps
+  a drawn outline as figure, so it only stacked on the computed band. `[Anima]`
 - Light-direction shading on the outermost band, 8 directions; the drop
   shadow falls straight away from the light in that band's shape, the same
   way it is extruded. `stroke_light` `even` is a uniform band; no bands

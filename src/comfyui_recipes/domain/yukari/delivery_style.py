@@ -18,7 +18,7 @@ BACKDROP = "#ffffff"
 # The bands framing the figure, innermost first: each a colour and a width
 # as a share of the longest side. The purple marker, outermost, is
 # deliberately darker than the hair accent.
-OUTLINES = ({"color": "#ffffff", "width": 0.4},
+OUTLINES = ({"color": "#ffffff", "width": 0.8},
             {"color": "#885b80", "width": 1.04})
 OUTLINES_MAX = 6
 OUTLINE_WIDTH_MAX_PCT = 5

@@ -1,0 +1,1 @@
+{"character": "yukari", "pose": "anyo", "parameter": "look", "value": "own pose: sitting crossed legs from below, toes out at the viewer, disdain face, no chair, 1024x1640", "outcome": "accepted", "reason": "was a chimera preset patched over gao and broke when gao was redrawn (c7695a9); rebuilt from the elz1di prompt, i875pd (seed 20260926) keeps its composition"}

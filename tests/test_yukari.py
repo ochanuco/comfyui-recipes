@@ -508,7 +508,7 @@ class EyeQualityTest(unittest.TestCase):
         "resting": EyeQuality.COLD, "doya": EyeQuality.COLD,
         "v": EyeQuality.COLD, "sleepy": EyeQuality.BLANK,
         "smile": EyeQuality.BLANK, "gao": EyeQuality.BLANK,
-        "jitome": EyeQuality.BLANK,
+        "jitome": EyeQuality.BLANK, "disdain": EyeQuality.BLANK,
     }
 
     def test_eye_quality_mapping_per_expression(self):
@@ -632,6 +632,17 @@ class PoseTableTest(unittest.TestCase):
         self.assertEqual(POSES["gao"].costume, "standard")
         self.assertEqual(POSES["gao"].canvas, (1024, 1280))
         self.assertFalse(POSES["gao"].legwear)
+
+    def test_anyo_does_not_depend_on_another_pose(self):
+        self.assertEqual(POSES["anyo"].expression, "disdain")
+        self.assertEqual(POSES["anyo"].costume, "standard")
+        self.assertTrue(POSES["anyo"].legwear)
+        spec = render_spec("anyo", 7, "x")
+        self.assertEqual((spec.width, spec.height), (1024, 1640))
+        self.assertIn("(crossed legs:1.3), (foot out towards viewer:1.4)",
+                      spec.prompts.positive)
+        self.assertNotIn("claw pose", spec.prompts.positive)
+        self.assertNotIn("(sitting:1.3)", spec.prompts.negative)
 
     def test_gao_render_spec_uses_the_portrait_canvas(self):
         spec = render_spec("gao", 7, "x")

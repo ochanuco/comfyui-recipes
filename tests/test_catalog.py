@@ -267,7 +267,7 @@ class DeliverSectionTest(unittest.TestCase):
     def test_publishes_the_outline_default_and_limits_without_a_dof(self):
         section = self.section()
         self.assertEqual(section["outlines"], {
-            "default": [{"color": "#ffffff", "width": 0.4},
+            "default": [{"color": "#ffffff", "width": 0.8},
                         {"color": "#885b80", "width": 1.04}],
             "max_count": 6, "max_width": 5})
         self.assertNotIn("dof", section)

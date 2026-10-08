@@ -91,7 +91,7 @@ class ComfyFake:
         self.uploaded.append((name, data))
         return f"uploaded-{name}"
 
-    def submit(self, graph):
+    def submit(self, graph, purpose="render"):
         self.submitted.append(graph)
         return f"prompt-{len(self.submitted)}"
 

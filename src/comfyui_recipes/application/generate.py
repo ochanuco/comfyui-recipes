@@ -14,6 +14,7 @@ from ..domain.generation.models import PromptPair, RenderSpec
 from ..domain.generation.patches import apply_patches, parse_patches
 from ..domain.generation.prompt_lint import tags as prompt_tags
 from ..domain.yukari.dials import DIALS
+from ..infrastructure.comfyui.timings import note_ingested
 from .ingest import create_job, open_request, rate_generation
 
 PresetFetcher = Callable[[str, str, str, int], dict]
@@ -739,6 +740,7 @@ def generate(request_path: Path, services: GenerateServices, *,
                 )
             services.management.request(
                 "PATCH", f"/api/v1/jobs/{job['job_id']}", {"status": "ingested"})
+            note_ingested(services.comfyui, job["comfy_prompt_id"])
             job["status"] = "ingested"
         except (RuntimeError, OSError) as error:
             services.emit(f"  ! job {index} (seed {seed}): {error}")

@@ -14,6 +14,7 @@ from ..infrastructure.comfyui.refinement_graph import (
     LAYER_FIGURE_SUFFIX,
     LAYER_OUTLINE_SUFFIX,
 )
+from ..infrastructure.comfyui.timings import note_ingested
 from ..infrastructure.imaging.safety import rate_image
 
 
@@ -167,6 +168,7 @@ def ingest_seed_render(*, comfyui, management, output_root: Path, emit,
 
     management.request(
         "PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
+    note_ingested(comfyui, prompt_id)
 
     return {"generation_ids": [rendered["id"]],
             "generation_urls": [rendered["canonical_url"]],

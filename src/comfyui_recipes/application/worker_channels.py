@@ -154,13 +154,15 @@ class HubListener:
 
 
 class ProgressRelay:
-    """Relays ComfyUI's own /ws `progress` events to the hub for `current`.
+    """Reads ComfyUI's own /ws events: every one feeds the timing recorder,
+    and `progress` events are relayed to the hub for `current`.
 
-    `current` is the request_id being executed; events outside that window
-    are dropped. Never raises into the main loop.
+    `current` is the request_id being executed; progress outside that window
+    is not relayed. With no listener the feed only records. Never raises
+    into the main loop.
     """
 
-    def __init__(self, services: WorkServices, listener: HubListener) -> None:
+    def __init__(self, services: WorkServices, listener: HubListener | None) -> None:
         self.services = services
         self.listener = listener
         self.current: str | None = None
@@ -188,12 +190,18 @@ class ProgressRelay:
                     event = feed.recv(self.services.ping_interval)
                     if event is None:
                         continue
-                    if self.current is not None:
+                    timings = self.services.timings
+                    if timings is not None:
+                        timings.recorder.feed(event)
+                    if (self.current is not None and self.listener is not None
+                            and event.get("type", "progress") == "progress"):
                         self.listener.send_progress(
                             self.current, "sampling",
                             step=event.get("step"), total=event.get("total"))
             except (SystemExit, Exception) as error:
                 self.services.emit(f"progress feed lost: {error}")
+                if self.services.timings is not None:
+                    self.services.timings.invalidate_env()
             finally:
                 if feed is not None:
                     try:

@@ -21,6 +21,7 @@ from ..infrastructure.comfyui.base_graph import (
 )
 from ..infrastructure.comfyui.light_graph import light_graph
 from ..infrastructure.comfyui.refinement_graph import redraw_graph, sizes
+from ..infrastructure.comfyui.timings import note_ingested
 from ..infrastructure.imaging.delivery import image_size
 from ..infrastructure.imaging.masks import render_soft_mask_png
 from ..infrastructure.persistence.run_state import JsonRunState, operation_state_path
@@ -323,6 +324,7 @@ def redraw(generation_id: str, services: RedrawServices, *, method: str,
                    stored=prepared.stored, roles=set(prepared.asset_roles),
                    current=current_cut(), cut_roles=list(prepared.cut_roles))
     management.request("PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
+    note_ingested(services.comfyui, prompt_id)
     services.notifier.send(
         f"**redraw {method}** `{generation_id}`\n"
         f"**file** `{name}`\n"

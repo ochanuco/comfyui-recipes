@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import socket
+import uuid
 from collections.abc import Callable
 from pathlib import Path
 
@@ -24,6 +25,8 @@ from ..domain.yukari.recipe import identity_tags, render_spec
 from ..infrastructure.chimera.client import USER_AGENT, ChimeraClient
 from ..infrastructure.comfyui.anima_graph import build_graph as anima_build_graph
 from ..infrastructure.comfyui.client import ComfyUIClient
+from ..infrastructure.comfyui.progress import ProgressFeed
+from ..infrastructure.comfyui.timings import AttemptTimings, EnvCollector
 from ..infrastructure.imaging.delivery import graph_from_png, graph_from_png_or_none, image_size
 from ..infrastructure.imaging.palette import summarize
 from ..infrastructure.notifications.discord import DiscordNotifier
@@ -170,17 +173,22 @@ def wire_work_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
     has its own `ChimeraClient`.
     """
     hub_factory = None
-    progress_factory = None
     if hub:
         from ..infrastructure.chimera.hub import HubConnection, hub_url
-        from ..infrastructure.comfyui.progress import ProgressFeed
 
         def hub_factory() -> HubConnection:
             headers = {**chimera.credentials(), "User-Agent": USER_AGENT}
             return HubConnection(hub_url(chimera.base_url), headers).open()
 
-        def progress_factory() -> ProgressFeed:
-            return ProgressFeed(comfyui.base_url).open()
+    if comfyui.client_id is None:
+        comfyui.client_id = uuid.uuid4().hex
+
+    def progress_factory() -> ProgressFeed:
+        return ProgressFeed(comfyui.base_url, client_id=comfyui.client_id).open()
+
+    if comfyui.timings is None:
+        comfyui.timings = AttemptTimings(
+            env_provider=EnvCollector(comfyui, repository_metadata))
 
     drain_file = repository / DRAIN_FILE
     return WorkServices(
@@ -202,6 +210,7 @@ def wire_work_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
         kinds=kinds,
         hub=hub_factory,
         progress_feed=progress_factory,
+        timings=comfyui.timings,
         draining=drain_file.exists,
         drained=lambda: drain_file.unlink(missing_ok=True),
         emit=emit,

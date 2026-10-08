@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 from urllib.parse import quote
 
 from .catalog import publish_catalog as publish_catalog_document
@@ -35,6 +35,9 @@ from .request_options import (
     repair_arguments,
 )
 from .worker_channels import Connection, Heartbeat, HubListener, Management, ProgressRelay
+
+if TYPE_CHECKING:
+    from ..infrastructure.comfyui.timings import AttemptTimings
 
 CLAIM_PATH = "/api/v1/requests/claim"
 DRY_RUN_PATH = "/api/v1/requests?status=queued&limit=1"
@@ -77,6 +80,7 @@ class WorkServices:
     backoff_max: float = 60
     ping_interval: float = 30
     clock: Callable[[], float] = time.monotonic
+    timings: AttemptTimings | None = None
 
 
 def _request_path(output_root: Path, request_id: object) -> Path:
@@ -228,6 +232,21 @@ def _report(services: WorkServices, row_id: str, payload: dict) -> None:
         services.emit(f"report failed for {row_id} (worker moved on?): {error}")
 
 
+def _send_timings(services: WorkServices, row_id: str, status: str) -> None:
+    """Best-effort: a timing failure never changes the request's outcome."""
+    if services.timings is None:
+        return
+    try:
+        payload = services.timings.payload(services.worker_id, status)
+        if payload is None:
+            services.emit(f"timings skipped for {row_id}: claim row has no attempt")
+            return
+        services.management.request(
+            "PUT", f"/api/v1/requests/{row_id}/timings", payload)
+    except (SystemExit, Exception) as error:
+        services.emit(f"timings failed for {row_id}: {error}")
+
+
 def work_once(services: WorkServices, *, dry_run: bool = False,
              listener: HubListener | None = None,
              relay: ProgressRelay | None = None) -> bool:
@@ -249,6 +268,8 @@ def work_once(services: WorkServices, *, dry_run: bool = False,
         return False
     if row is None:
         return False
+    if services.timings is not None:
+        services.timings.begin(row.get("attempt"))
     if listener is not None:
         listener.send_progress(row["id"], "submit")
     failure: BaseException | None = None
@@ -265,9 +286,11 @@ def work_once(services: WorkServices, *, dry_run: bool = False,
                 relay.current = None
     if failure is not None:
         _report(services, row["id"], {"status": "failed", "error": str(failure)})
+        _send_timings(services, row["id"], "failed")
         services.emit(f"request {row['id']} failed: {failure}")
         return True
     _report(services, row["id"], {"status": "done", "result": result})
+    _send_timings(services, row["id"], "done")
     services.emit(f"request {row['id']} done")
     return True
 
@@ -352,8 +375,8 @@ def work(services: WorkServices, *, interval: float = 30, once: bool = False,
     try:
         if services.hub is not None:
             listener = HubListener(services, wake).start()
-            if services.progress_feed is not None:
-                relay = ProgressRelay(services, listener).start()
+        if services.progress_feed is not None:
+            relay = ProgressRelay(services, listener).start()
         while True:
             if _draining(services):
                 services.emit("draining: no new work claimed")

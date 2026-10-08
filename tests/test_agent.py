@@ -53,12 +53,13 @@ class BuildWorkServicesTest(unittest.TestCase):
             self.assertFalse(drain_file.exists())
             self.assertFalse(services.draining())
 
-    def test_hub_false_leaves_hub_and_progress_feed_unset(self):
+    def test_hub_false_leaves_hub_unset_but_keeps_the_event_feed(self):
         with TemporaryDirectory() as tmp:
             services = build_work_services(
                 Path(tmp), worker_id="worker-1", kinds=("generate",), hub=False)
             self.assertIsNone(services.hub)
-            self.assertIsNone(services.progress_feed)
+            self.assertIsNotNone(services.progress_feed)
+            self.assertIsNotNone(services.timings)
 
     def test_hub_true_sets_hub_and_progress_feed(self):
         with TemporaryDirectory() as tmp:

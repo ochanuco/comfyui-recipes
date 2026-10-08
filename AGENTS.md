@@ -53,6 +53,13 @@ the pose at its defaults (`plain_render`, or `derive_request` with
 `replace_patches: true` and only the patches this request asks for) and
 build the round from there.
 
+A new picture an agent queues is a draft: patch `render.width` /
+`render.height` to 896x1440 for a tall pose (one whose default canvas is
+1024x1640) and to 1024x1280 for a bust or upper-body pose. Only a picture
+the user picks is re-rendered with `redraw` method `hires` (2048,
+denoise 0.45). A smaller draft is not a shortcut: the hires latent upscale
+breaks past about 1.4x (see `docs/findings/composition.md`).
+
 Derive from an existing generation when the user is continuing that
 picture: they name the id, or this session already has it in context. Then
 the parent's patches come along on purpose, and only then. A patch carries

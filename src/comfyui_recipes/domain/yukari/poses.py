@@ -127,4 +127,20 @@ POSES = {
         face=("(large eyes:1.15), (mature face:1.2), (tareme:1.2), "
               "(thick eyelashes:1.3), (long eyelashes:1.15), "),
         negative="(sitting:1.3), "),
+    "anyo": Pose(
+        action=("(sitting:1.4), (from below:1.3), (crossed legs:1.3), "
+                "(foot out towards viewer:1.4), (pointed toes:1.2), "
+                "(foot focus:1.1), seen from below, she sits with crossed "
+                "legs and pokes her toes out at the viewer, "),
+        mood=("(condescending:1.4), (disdain:1.3), (contempt:1.2), "
+              "(chin up:1.2), "),
+        gesture=("(looking down at viewer:1.35), (looking at viewer:1.2), "
+                 "(no shoes:1.2), (legwear feet:1.1), "),
+        framing=Framing.FULL,
+        angle="(from front:1.2), (pov:1.2), (foreshortening:1.35), ",
+        leg_display="(thighs:1.2), ",
+        expression="disdain", costume="standard",
+        negative=("(upper body:1.2), (chair:1.4), (furniture:1.3), "
+                  "(stool:1.2), (bench:1.2), (smile:1.3), (:3:1.3), "
+                  "(smug:1.2), (blush:1.2), (sweatdrop:1.2), ")),
 }

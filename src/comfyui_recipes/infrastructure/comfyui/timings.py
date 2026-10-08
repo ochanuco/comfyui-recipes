@@ -253,7 +253,7 @@ class AttemptTimings:
         for node_id, node in (prompt["graph"] or {}).items():
             if not isinstance(node, Mapping):
                 continue
-            class_type = str(node.get("class_type", ""))
+            class_type = str(node.get("class_type") or "unknown")
             cached = node_id in cached_ids
             state = {} if cached else recorded["nodes"].get(node_id, {})
             nodes.append({

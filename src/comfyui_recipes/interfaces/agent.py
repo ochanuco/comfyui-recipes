@@ -12,6 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ..application.deliver import DeliverServices
+from ..application.dof import DofServices
 from ..application.redraw import RedrawServices
 from ..application.generate import GenerateServices, request_graph
 from ..application.masked_redraw import MaskedRedrawServices
@@ -35,7 +36,7 @@ DRAIN_FILE = ".local/_nogit/worker/drain"
 
 # Must track the `work` subparser's own defaults in interfaces/cli.py by
 # hand -- no single source both can read.
-DEFAULT_KINDS = ("generate", "redraw", "repair", "masked_redraw", "deliver")
+DEFAULT_KINDS = ("generate", "redraw", "repair", "masked_redraw", "deliver", "dof")
 
 
 def default_worker_id() -> str:
@@ -122,6 +123,17 @@ def build_deliver_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notif
     )
 
 
+def build_dof_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
+                       repository: Path, repository_metadata) -> DofServices:
+    return DofServices(
+        management=chimera,
+        comfyui=comfyui,
+        git_metadata=repository_metadata,
+        notifier=notifier,
+        output_root=repository / ".local/_nogit/dof",
+    )
+
+
 def build_repair_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
                      repository: Path, repository_metadata) -> RepairServices:
     return RepairServices(
@@ -182,6 +194,8 @@ def wire_work_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
         repair_services=build_repair_services(
             chimera, comfyui, notifier, repository, repository_metadata),
         masked_redraw_services=build_masked_redraw_services(
+            chimera, comfyui, notifier, repository, repository_metadata),
+        dof_services=build_dof_services(
             chimera, comfyui, notifier, repository, repository_metadata),
         git_metadata=repository_metadata,
         worker_id=worker_id,

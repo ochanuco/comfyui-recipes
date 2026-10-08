@@ -17,9 +17,10 @@ from ..domain.yukari.delivery_style import (
     DOF_VIEWFINDER,
     LIGHT_FROM_DEFAULT,
     LIGHT_SCENES,
+    OUTLINE_WIDTH_MAX_PCT,
+    OUTLINES_MAX,
     STROKE_CHOICES,
     STROKE_LIGHTS,
-    Dof,
     Light,
 )
 from ..domain.yukari.dials import DIALS
@@ -30,8 +31,10 @@ from .redraw import HIRES_DENOISE
 
 _KNOWN_DELIVER_OPTIONS = frozenset({
     "repin", "recolor", "skin", "keep_legwear", "keep_scene", "transparent",
-    "backdrop", "stroke_light", "deliver_size", "dof", "light",
+    "backdrop", "stroke_light", "outlines", "deliver_size", "light",
 })
+
+_KNOWN_DOF_OPTIONS = frozenset({"focus", "f_number", "scope", "viewfinder"})
 
 _KNOWN_REDRAW_OPTIONS = {
     "canvas": frozenset({"denoise", "size", "route", "finalizer", "upscale",
@@ -122,39 +125,29 @@ def _regions_argument(value: object, *, key: str = "regions") -> list[list[float
     return parsed
 
 
-def _dof_argument(value: object, *, key: str = "dof") -> Dof | None:
+def _outlines_argument(value: object, *, key: str = "outlines") -> list[dict]:
     if value is None:
-        return None
-    if not isinstance(value, Mapping):
-        raise ValueError(f"{key} must be null or an object, got {type(value).__name__}")
-    unknown = sorted(set(value) - {"focus", "f_number", "scope", "viewfinder"})
-    if unknown:
-        raise ValueError(f"{key} has unknown keys: {unknown}")
-    focus = value.get("focus")
-    if (not isinstance(focus, list) or len(focus) != 2
-            or any(not isinstance(v, (int, float)) or isinstance(v, bool)
-                   for v in focus)):
-        raise ValueError(f"{key}.focus must be [x, y] numbers, got {focus!r}")
-    if any(not (0 <= v <= 1) for v in focus):
-        raise ValueError(f"{key}.focus values must be within 0..1, got {focus!r}")
-    f_number = value.get("f_number")
-    if not isinstance(f_number, (int, float)) or isinstance(f_number, bool):
-        raise ValueError(f"{key}.f_number must be a number, got {f_number!r}")
-    if not (DOF_F_NUMBER["min"] <= f_number <= DOF_F_NUMBER["max"]):
-        raise ValueError(
-            f"{key}.f_number must be between {DOF_F_NUMBER['min']} and "
-            f"{DOF_F_NUMBER['max']}, got {f_number!r}")
-    scope = value.get("scope")
-    if "scope" in value and scope not in DOF_SCOPE["values"]:
-        raise ValueError(
-            f"{key}.scope must be one of {DOF_SCOPE['values']}, got {scope!r}")
-    viewfinder = value.get("viewfinder", "off")
-    if viewfinder not in DOF_VIEWFINDER["values"]:
-        raise ValueError(
-            f"{key}.viewfinder must be one of {DOF_VIEWFINDER['values']}, "
-            f"got {viewfinder!r}")
-    return Dof((float(focus[0]), float(focus[1])), float(f_number), scope,
-               viewfinder)
+        return [dict(outline) for outline in DELIVER_DEFAULTS["outlines"]]
+    if not isinstance(value, list):
+        raise ValueError(f"{key} must be null or an array, got {type(value).__name__}")
+    if len(value) > OUTLINES_MAX:
+        raise ValueError(f"{key} must have at most {OUTLINES_MAX} entries, got {len(value)}")
+    parsed = []
+    for index, outline in enumerate(value):
+        where = f"{key}[{index}]"
+        if not isinstance(outline, Mapping) or set(outline) != {"color", "width"}:
+            raise ValueError(f"{where} must be {{\"color\", \"width\"}}, got {outline!r}")
+        color, width = outline["color"], outline["width"]
+        if (not isinstance(color, str) or len(color) != 7 or color[0] != "#"
+                or any(c not in "0123456789abcdefABCDEF" for c in color[1:])):
+            raise ValueError(f"{where}.color must be #rrggbb, got {color!r}")
+        if not isinstance(width, (int, float)) or isinstance(width, bool):
+            raise ValueError(f"{where}.width must be a number, got {width!r}")
+        if not (0 < width <= OUTLINE_WIDTH_MAX_PCT):
+            raise ValueError(
+                f"{where}.width must be > 0 and <= {OUTLINE_WIDTH_MAX_PCT:g}, got {width!r}")
+        parsed.append({"color": color.lower(), "width": float(width)})
+    return parsed
 
 
 def _light_argument(value: object, *, key: str = "light") -> Light | None:
@@ -409,13 +402,7 @@ def deliver_arguments(options: Mapping,
             and stroke_light != light.direction):
         raise ValueError(stroke_light_conflict(light.direction))
 
-    dof = _dof_argument(options.get("dof"))
-    without_backdrop = not keep_scene and (transparent or backdrop is None)
-    if dof is not None and dof.scope is None:
-        dof = dof._replace(scope="figure" if without_backdrop else DOF_SCOPE["default"])
-    if dof is not None and dof.scope == "all" and without_backdrop:
-        raise ValueError(
-            "dof の scope 'all' は背景をぼかすので、透過納品とは一緒に使えません")
+    outlines = _outlines_argument(options.get("outlines"))
 
     recolor = boolean("recolor")
     return {
@@ -427,10 +414,57 @@ def deliver_arguments(options: Mapping,
         "transparent": transparent,
         "backdrop": backdrop,
         "stroke_light": stroke_light,
+        "outlines": outlines,
         "deliver_size": deliver_size,
-        "dof": dof,
         "light": light,
     }
+
+
+def dof_arguments(options: Mapping) -> dict:
+    """Validate a dof request's `options` and map it to dof() kwargs.
+
+    `focus` is required; absent keys take the catalog defaults; unknown keys
+    or a wrong type raise ValueError naming the offending key.
+    """
+    if not isinstance(options, Mapping):
+        raise ValueError(
+            f"dof options must be an object, got {type(options).__name__}")
+    unknown = sorted(set(options) - _KNOWN_DOF_OPTIONS)
+    if unknown:
+        raise ValueError(f"dof が受け付けない option です: {', '.join(unknown)}")
+    focus = options.get("focus")
+    if (not isinstance(focus, list) or len(focus) != 2
+            or any(not isinstance(v, (int, float)) or isinstance(v, bool)
+                   for v in focus)):
+        raise ValueError(f"focus must be [x, y] numbers, got {focus!r}")
+    if any(not (0 <= v <= 1) for v in focus):
+        raise ValueError(f"focus values must be within 0..1, got {focus!r}")
+    f_number = options.get("f_number", DOF_F_NUMBER["default"])
+    if not isinstance(f_number, (int, float)) or isinstance(f_number, bool):
+        raise ValueError(f"f_number must be a number, got {f_number!r}")
+    if not (DOF_F_NUMBER["min"] <= f_number <= DOF_F_NUMBER["max"]):
+        raise ValueError(
+            f"f_number must be between {DOF_F_NUMBER['min']} and "
+            f"{DOF_F_NUMBER['max']}, got {f_number!r}")
+    scope = options.get("scope")
+    if scope is None:
+        scope = {}
+    if not isinstance(scope, Mapping):
+        raise ValueError(f"scope must be null or an object, got {type(scope).__name__}")
+    unknown = sorted(set(scope) - set(DOF_SCOPE))
+    if unknown:
+        raise ValueError(f"scope has unknown keys: {unknown}")
+    if any(not isinstance(value, bool) for value in scope.values()):
+        raise ValueError(f"scope values must be booleans, got {dict(scope)!r}")
+    scope = {**DOF_SCOPE, **scope}
+    if not any(scope.values()):
+        raise ValueError("scope は figure / outline / backdrop のどれか一つはオンにしてください")
+    viewfinder = options.get("viewfinder", DOF_VIEWFINDER["default"])
+    if viewfinder not in DOF_VIEWFINDER["values"]:
+        raise ValueError(
+            f"viewfinder must be one of {DOF_VIEWFINDER['values']}, got {viewfinder!r}")
+    return {"focus": (float(focus[0]), float(focus[1])),
+            "f_number": float(f_number), "scope": scope, "viewfinder": viewfinder}
 
 
 def repair_arguments(options: Mapping,

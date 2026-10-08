@@ -16,6 +16,7 @@ from urllib.parse import quote
 
 from .catalog import publish_catalog as publish_catalog_document
 from .deliver import DeliverServices, deliver
+from .dof import DofServices, dof
 from .generate import GenerateServices, generate, request_file_path
 from .masked_redraw import MaskedRedrawServices, masked_redraw
 from .redraw import RedrawServices, redraw
@@ -28,6 +29,7 @@ from .request_options import (
     _resolved_options,
     deliver_arguments,
     dials_scope,
+    dof_arguments,
     masked_redraw_arguments,
     redraw_arguments,
     repair_arguments,
@@ -53,6 +55,7 @@ class WorkServices:
     redraw_services: RedrawServices
     repair_services: RepairServices
     masked_redraw_services: MaskedRedrawServices
+    dof_services: DofServices
     git_metadata: Callable[[], dict]
     worker_id: str
     generate: Callable[..., dict | None] = generate
@@ -60,11 +63,12 @@ class WorkServices:
     redraw: Callable[..., dict] = redraw
     repair: Callable[..., dict] = repair
     masked_redraw: Callable[..., dict] = masked_redraw
+    dof: Callable[..., dict] = dof
     emit: Callable[[str], None] = print
     sleep: Callable[[float], None] = time.sleep
     heartbeat_interval: float = 30
     kinds: tuple[str, ...] = ("generate", "redraw", "repair", "masked_redraw",
-                              "deliver")
+                              "deliver", "dof")
     heartbeat: Callable[..., Heartbeat] = Heartbeat
     hub: Callable[[], Connection] | None = None
     draining: Callable[[], bool] | None = None
@@ -128,7 +132,26 @@ def _execute_deliver(services: WorkServices, row: Mapping) -> dict:
                               key_prefix=f"request:{row['id']}",
                               request_id=row["id"], context=context,
                               **arguments)
-    result["resolved_options"] = _resolved_options(options, arguments, DELIVER_DIAL_KEYS)
+    result["resolved_options"] = {
+        **_resolved_options(options, arguments, DELIVER_DIAL_KEYS),
+        "outlines": arguments["outlines"]}
+    return result
+
+
+def _execute_dof(services: WorkServices, row: Mapping) -> dict:
+    payload = row.get("payload") or {}
+    generation_id = payload.get("generation_id")
+    if not generation_id:
+        raise SystemExit("dof payload.generation_id is required")
+    context, _ = fetch_source(services.management, generation_id)
+    try:
+        arguments = dof_arguments(payload.get("options") or {})
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    result = services.dof(generation_id, services.dof_services,
+                          key_prefix=f"request:{row['id']}",
+                          request_id=row["id"], context=context, **arguments)
+    result["resolved_options"] = {**arguments, "focus": list(arguments["focus"])}
     return result
 
 
@@ -188,6 +211,8 @@ def execute(services: WorkServices, row: Mapping) -> dict:
         return _execute_repair(services, row)
     if kind == "masked_redraw":
         return _execute_masked_redraw(services, row)
+    if kind == "dof":
+        return _execute_dof(services, row)
     if kind == "finalize":
         raise SystemExit(
             "finalize requests are no longer supported; use redraw and deliver")

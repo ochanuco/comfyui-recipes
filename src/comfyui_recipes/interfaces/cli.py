@@ -12,6 +12,7 @@ from ..application import metadata, safety
 from ..application.catalog import build_catalog
 from ..application.catalog import publish_catalog as publish_catalog_document
 from ..application.deliver import deliver
+from ..application.dof import dof
 from ..application.generate import generate
 from ..application.ingest import import_images
 from ..application.masked_redraw import masked_redraw
@@ -23,6 +24,7 @@ from ..application.request_options import (
     REPAIR_DIAL_KEYS,
     deliver_arguments,
     dials_scope,
+    dof_arguments,
     redraw_arguments,
     resolve_dial,
 )
@@ -33,13 +35,13 @@ from ..domain.repair.loras import DEFAULT_PART_LORA_WEIGHT
 from ..domain.repair.models import MODELS
 from ..domain.yukari.costumes import COSTUMES, LEGWEAR_STATES, LEGWEARS
 from ..domain.yukari.delivery_style import (
+    DOF_F_NUMBER,
     DOF_SCOPE,
     DOF_VIEWFINDER,
     LIGHT_FROM_DEFAULT,
     LIGHT_SCENES,
     STROKE_CHOICES,
     STROKE_LIGHTS,
-    Dof,
     Light,
 )
 from ..domain.yukari.expressions import EXPRESSIONS
@@ -52,6 +54,7 @@ from ..infrastructure.notifications.discord import DiscordNotifier
 from ..infrastructure.repository import discover_repository, git_metadata
 from .agent import (
     build_deliver_services,
+    build_dof_services,
     build_generate_services,
     build_masked_redraw_services,
     build_redraw_services,
@@ -92,17 +95,36 @@ def _resolve_word_args(chimera: ChimeraClient, generation_id: str, scope: str,
     return context, resolved
 
 
-def _dof_from_args(args) -> Dof | None:
-    if args.dof:
-        focus_x, focus_y, f_number, *scope = args.dof.split(",")
-        if scope and scope[0] not in DOF_SCOPE["values"]:
-            raise SystemExit(
-                f"--dof scope must be one of {DOF_SCOPE['values']}")
-        return Dof((float(focus_x), float(focus_y)), float(f_number),
-                   scope[0] if scope else None, args.viewfinder)
-    if args.viewfinder != DOF_VIEWFINDER["default"]:
-        raise SystemExit("--viewfinder needs --dof")
-    return None
+def _outlines_from_args(args) -> list[dict] | None:
+    if args.no_outlines:
+        return []
+    if not args.outlines:
+        return None
+    outlines = []
+    for text in args.outlines:
+        color, _, width = text.partition(",")
+        try:
+            outlines.append({"color": color, "width": float(width)})
+        except ValueError:
+            raise SystemExit(f"--outline must be #RRGGBB,WIDTH, got {text!r}") from None
+    return outlines
+
+
+def _dof_options_from_args(args) -> dict:
+    focus = [float(value) for value in args.focus.split(",")]
+    scope = None
+    if args.scope is not None:
+        layers = {layer.strip() for layer in args.scope.split(",") if layer.strip()}
+        unknown = sorted(layers - set(DOF_SCOPE))
+        if unknown:
+            raise SystemExit(f"--scope layers must be among {list(DOF_SCOPE)}, got {unknown}")
+        scope = {layer: layer in layers for layer in DOF_SCOPE}
+    return {
+        "focus": focus,
+        **({"f_number": args.f_number} if args.f_number is not None else {}),
+        **({"scope": scope} if scope is not None else {}),
+        "viewfinder": args.viewfinder,
+    }
 
 
 def _light_from_args(args) -> Light | None:
@@ -167,7 +189,7 @@ def parser() -> argparse.ArgumentParser:
     work_parser.add_argument("--dry-run", action="store_true")
     work_parser.add_argument("--worker-id", default=default_worker_id())
     work_parser.add_argument(
-        "--kinds", default="generate,redraw,repair,masked_redraw,deliver",
+        "--kinds", default="generate,redraw,repair,masked_redraw,deliver,dof",
         help="comma-separated request kinds to claim")
     work_parser.add_argument(
         "--no-hub", action="store_true",
@@ -248,34 +270,49 @@ def parser() -> argparse.ArgumentParser:
         help="deliver the figure alone as an RGBA cutout")
     deliver_transparent.add_argument(
         "--opaque", dest="transparent", action="store_const", const=False,
-        help="composite on the backdrop with the purple stroke instead")
+        help="composite on the backdrop with the outlines instead")
     deliver_parser.add_argument(
         "--backdrop", metavar="#RRGGBB|" + "|".join(BACKDROP_PATTERNS),
         help="backdrop under the sticker -- a colour or a named pattern")
     deliver_parser.add_argument(
         "--stroke-light", choices=STROKE_CHOICES,
-        help="light direction the purple stroke is shaded from, 'even' for a "
-             "uniform stroke or 'none' for no purple stroke")
+        help="light direction the outermost outline is shaded from, 'even' "
+             "for a uniform one")
+    deliver_outlines = deliver_parser.add_mutually_exclusive_group()
+    deliver_outlines.add_argument(
+        "--outline", dest="outlines", action="append", metavar="#RRGGBB,WIDTH",
+        help="an outline band, innermost first, its width a percent of the "
+             "longest side; repeatable (default: the recipe's own bands)")
+    deliver_outlines.add_argument(
+        "--no-outlines", action="store_true", help="deliver without outlines")
     deliver_parser.add_argument(
         "--deliver-size", type=int, metavar="LONGEST",
         help="downscale the delivered file to this longest side (lanczos)")
-    deliver_parser.add_argument(
-        "--dof", metavar="X,Y,F[,SCOPE]",
-        help="depth-of-field blur: focus point as fractions of the picture "
-             "width and height, then the f-number (1.4..22), then optionally "
-             "'figure' or 'all' (also blur the rim and backdrop); off by default")
-    deliver_parser.add_argument(
-        "--viewfinder", choices=DOF_VIEWFINDER["values"],
-        default=DOF_VIEWFINDER["default"],
-        help="with --dof: draw a camera viewfinder over the delivered "
-             "picture ('on'), or keep it plain and add the viewfinder picture "
-             "as an extra generation ('both')")
     deliver_parser.add_argument(
         "--light", metavar="SCENE[,FROM]",
         help="light the delivery as a scene "
              f"({', '.join(sorted(LIGHT_SCENES))}) from a direction "
              f"({', '.join(sorted(STROKE_LIGHTS))}; default "
              f"{LIGHT_FROM_DEFAULT}) and tint the backdrop to match")
+
+    dof_parser = commands.add_parser(
+        "dof", help="blur one delivered picture's layers by depth")
+    dof_parser.add_argument("generation_id")
+    dof_parser.add_argument(
+        "--focus", required=True, metavar="X,Y",
+        help="focus point as fractions of the picture width and height")
+    dof_parser.add_argument(
+        "--f-number", type=float, default=None,
+        help=f"{DOF_F_NUMBER['min']}..{DOF_F_NUMBER['max']} "
+             f"(default {DOF_F_NUMBER['default']})")
+    dof_parser.add_argument(
+        "--scope", metavar="LAYER[,LAYER]",
+        help=f"the layers to blur, among {', '.join(DOF_SCOPE)} (default: all)")
+    dof_parser.add_argument(
+        "--viewfinder", choices=DOF_VIEWFINDER["values"],
+        default=DOF_VIEWFINDER["default"],
+        help="draw a camera viewfinder over the picture ('on'), or keep it "
+             "plain and add the viewfinder picture as an extra generation ('both')")
 
     repair_parser = commands.add_parser(
         "repair", help="masked local redraw of hands/feet on an existing generation")
@@ -490,7 +527,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "deliver":
         services = build_deliver_services(
             chimera, comfyui, notifier, repository, repository_metadata)
-        dof = _dof_from_args(args)
+        outlines = _outlines_from_args(args)
         light = _light_from_args(args)
         context, dial_values = _resolve_word_args(
             chimera, args.generation_id, "deliver",
@@ -509,10 +546,7 @@ def main(argv: list[str] | None = None) -> None:
                if args.stroke_light is not None else {}),
             **({"deliver_size": args.deliver_size}
                if args.deliver_size is not None else {}),
-            **({"dof": {"focus": list(dof.focus), "f_number": dof.f_number,
-                        "viewfinder": dof.viewfinder,
-                        **({"scope": dof.scope} if dof.scope else {})}}
-               if dof is not None else {}),
+            **({"outlines": outlines} if outlines is not None else {}),
             **({"light": {"scene": light.scene, "from": light.direction}}
                if light is not None else {}),
         }
@@ -521,6 +555,15 @@ def main(argv: list[str] | None = None) -> None:
         except ValueError as error:
             raise SystemExit(str(error)) from error
         deliver(args.generation_id, services, context=context, **arguments)
+        return
+    if args.command == "dof":
+        services = build_dof_services(
+            chimera, comfyui, notifier, repository, repository_metadata)
+        try:
+            arguments = dof_arguments(_dof_options_from_args(args))
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
+        dof(args.generation_id, services, **arguments)
         return
     if args.command == "catalog":
         git = repository_metadata()

@@ -66,7 +66,7 @@ _DUMMY_VALUES = {
 class BuildCatalogTest(unittest.TestCase):
     def test_schema_version_and_git_metadata(self):
         catalog = build_catalog(GIT)
-        self.assertEqual(catalog["schema_version"], 2)
+        self.assertEqual(catalog["schema_version"], 3)
         self.assertEqual(catalog["git_commit"], "abc123")
         self.assertEqual(catalog["git_branch"], "dev/catalog-publish")
         self.assertIs(catalog["git_dirty"], False)
@@ -264,26 +264,34 @@ class DeliverSectionTest(unittest.TestCase):
         self.assertLessEqual(set(defaults), _KNOWN_DELIVER_OPTIONS)
         deliver_arguments(defaults)
 
-    def test_publishes_the_dof_f_number_scale(self):
+    def test_publishes_the_outline_default_and_limits_without_a_dof(self):
         section = self.section()
-        dof = section["dof"]
+        self.assertEqual(section["outlines"], {
+            "default": [{"color": "#ffffff", "width": 0.4},
+                        {"color": "#885b80", "width": 1.04}],
+            "max_count": 6, "max_width": 5})
+        self.assertNotIn("dof", section)
+        self.assertNotIn("dof", section["defaults"])
+        self.assertNotIn("outlines", section["defaults"])
+
+    def test_publishes_the_dof_section_at_the_catalog_root(self):
+        dof = build_catalog(GIT)["dof"]
         self.assertEqual(dof["f_number"], {
             "min": 1.4, "max": 22, "default": 2.8,
             "stops": [1.4, 1.6, 1.8, 2.0, 2.2, 2.5, 2.8, 3.2, 3.5, 4.0, 4.5,
                       5.0, 5.6, 6.3, 7.1, 8.0, 9.0, 10.0, 11.0, 13.0, 14.0,
                       16.0, 18.0, 20.0, 22.0]})
         self.assertEqual(dof["scope"],
-                         {"values": ["figure", "all"], "default": "all"})
+                         {"figure": True, "outline": True, "backdrop": True})
         self.assertEqual(dof["viewfinder"],
                          {"values": ["off", "on", "both"], "default": "off"})
-        self.assertEqual(dof["focus"], "fractions [x, y] of the source image")
+        self.assertIsInstance(dof["focus"], str)
         self.assertEqual(dof["guide_radius_per_f"], 0.0417)
-        self.assertNotIn("dof", section["defaults"])
 
     def test_publishes_the_stroke_choices_and_solid_backdrop(self):
         section = self.section()
         self.assertEqual(section["stroke_light"],
-                         ["none", "even", "n", "ne", "e", "se", "s", "sw", "w", "nw"])
+                         ["even", "n", "ne", "e", "se", "s", "sw", "w", "nw"])
         self.assertEqual(section["backdrop_color"], "#ffffff")
 
 

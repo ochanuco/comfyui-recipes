@@ -50,6 +50,15 @@ Tags and `a<n> §` pointers: see [`docs/README.md`](../README.md).
   the deliver cut's key. `flat lighting` / hatching bans blacken the tights. `[Anima]`
 - `floor visible` calls a rug. Patterned tights leak into the leg on redraw.
   `[Anima]`
+- `hires` holds the draft's look up to about 1.4x latent upscale (1024x1280
+  → 1448x1808, 896x1440 → 1280x2048 at d0.45). A 640x800 draft at 2.26x
+  leaves noise (background blotches, a smudged rim) and redraws the face
+  cleaner (more catchlights, lashes, hair lines); d0.55 removes only the
+  noise. `[Anima]`
+- At equal pixels a tall pose wants its tall aspect: 1024x1280 for a
+  1024x1640 pose fills the side space with floating faces or an extra leg,
+  and crops a cowboy shot near the hip. 896x1440 frames like 1024x1640.
+  `[Anima]`
 
 ## Does not work
 
@@ -61,3 +70,5 @@ Tags and `a<n> §` pointers: see [`docs/README.md`](../README.md).
 - Naming a framing defect in the negative. `[all]` (a1 §Volume on the legs)
 - Text control of which hair lock a hand grips. `[all]` (a5 §hige —)
 - `full body` as a front-view anchor: it is a distance tag. `[IL]` (a2 §Rendering it)
+- Pixel upscale (decode, lanczos, encode) before `hires`: no noise, but the
+  draft only gets bigger and the drawn line never comes back. `[Anima]`

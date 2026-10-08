@@ -114,3 +114,60 @@ curl -s http://$COMFYUI_HOST:8188/system_stats
 `/object_info` is also the honest answer to "does it have the models" — an empty
 `CheckpointLoaderSimple` list means an empty `models/checkpoints`, whatever the
 disk looks like from over here.
+
+## Generation timings
+
+Every claimed request ends with a `PUT /api/v1/requests/<id>/timings`
+(version `v2`, source `worker`) after the final status PATCH, for `done` and
+`failed` attempts. A failure to send is logged and never changes the
+outcome. A worker killed mid-request sends nothing, and `released` is not
+sent. Timestamps are epoch milliseconds on the box clock.
+
+What one attempt records:
+
+- `claimed_at` when the claim response returned, `finished_at` when the
+  final PATCH returned.
+- Per prompt: `submitted_at`, `outputs_ready_at` (the poll that saw the
+  finished history entry) and `ingested_at` (outputs registered in chimera;
+  null for the pose-detect prompt). `execution_start_at`, `execution_end_at`,
+  the cached node ids and `status` come from the history entry's
+  `status.messages`. A prompt picked up again after a restart is
+  `resumed: true` with no `submitted_at`. `purpose` is `render`, or
+  `pose_detect` for repair's DWPose pass.
+- Per node: `started_at` at the `executing` event for it, `ended_at` at the
+  next `executing`, `steps_total` and `step_ms` (gaps between consecutive
+  `progress` events, the first measured from the node's start) from ComfyUI's
+  `/ws` broadcast. Cached nodes carry no times. `cold_load` is true when a
+  loader node (UNET, CLIP, VAE, checkpoint, LoRA, ControlNet, diffusers)
+  ran uncached in any prompt.
+- `env`: ComfyUI and PyTorch versions, launch `argv` and the `attention`
+  derived from it, worker commit and dirtiness, GPU name and driver
+  (`nvidia-smi`). Read once, and again after the `/ws` feed drops or while
+  ComfyUI was unreachable.
+
+The `/ws` feed runs whenever the worker runs, hub or not. It connects with
+`?clientId=<id>` and every `POST /prompt` carries the same `client_id` (one
+random id per worker process), because ComfyUI sends the `executing` family
+only to the submitting client. `progress_state` node transitions set a node's
+start and, with precedence, its end. Only `progress` events are relayed to the
+hub. Binary preview frames are ignored.
+
+### Role names
+
+Every submitted graph is copied and each node without a `_meta.title`
+gets one, so a role is the same across graph revisions:
+
+| Node | Role |
+| --- | --- |
+| sampler fed from `EmptyLatentImage` | `base_sampler` |
+| sampler fed through a latent upscale | `hires_sampler` |
+| sampler fed from a `VAEEncode` | `redraw_sampler` |
+| a further sampler on the same chain | `<group>_sampler_stage2`, `_stage3` |
+| `LatentUpscale` / `LatentUpscaleBy` | `hires_upscale` |
+| `CLIPTextEncode` on a sampler's `positive` / `negative` | `positive_prompt` / `negative_prompt` |
+| `VAEDecode` feeding a save | `vae_decode` |
+| loaders | `unet_loader`, `clip_loader`, `vae_loader`, `checkpoint_loader`, `lora_loader`, `controlnet_loader`, `diffusers_loader` |
+| `SaveImage` | `save_image` |
+| anything else | snake_case class name |
+
+A name used by more than one node gets `_2`, `_3` in topological order.

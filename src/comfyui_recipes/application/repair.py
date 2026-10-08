@@ -105,7 +105,8 @@ def repair(generation_id: str, services: RepairServices, *,
     circles = []
     if parts:
         pose_prompt_id = services.comfyui.submit(
-            services.pose_graph(staged_source, prefix=prefix))
+            services.pose_graph(staged_source, prefix=prefix),
+            purpose="pose_detect")
         pose_outputs = services.comfyui.wait_for_outputs(pose_prompt_id)
         pose = pose_from_outputs(pose_outputs)
         circles = regions_from_pose(pose, parts, pad)

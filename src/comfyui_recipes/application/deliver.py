@@ -10,6 +10,7 @@ from pathlib import Path
 from ..domain.yukari import delivery_style
 from ..domain.yukari.delivery_style import Light
 from ..infrastructure.comfyui.deliver_graph import deliver_graph
+from ..infrastructure.comfyui.timings import note_ingested
 from ..infrastructure.persistence.run_state import JsonRunState, operation_state_path
 from .cut_assets import (
     ALPHA_ROLE,
@@ -238,6 +239,7 @@ def deliver(generation_id: str, services: DeliverServices, *,
                cut_roles=cut_roles)
 
     management.request("PATCH", f"/api/v1/jobs/{job['id']}", {"status": "ingested"})
+    note_ingested(services.comfyui, prompt_id)
     services.notifier.send(
         f"**deliver** `{generation_id}`\n"
         f"**file** `{delivered_name}`\n"

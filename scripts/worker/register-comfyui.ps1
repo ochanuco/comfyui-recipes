@@ -11,7 +11,9 @@ $arguments = @(
     "--listen",
     "--windows-standalone-build",
     "--disable-auto-launch",
-    "--cache-ram", "6", "24"
+    "--cache-ram", "6", "24",
+    "--fast", "fp16_accumulation", "autotune",
+    "--use-ck-attention"
 ) -join " "
 $action = New-ScheduledTaskAction -Execute $python `
     -Argument $arguments -WorkingDirectory $PortableRoot

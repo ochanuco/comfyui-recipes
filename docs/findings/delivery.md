@@ -14,15 +14,17 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
   Defaults: `DELIVER_DEFAULTS` in `delivery_style.py`. `[Anima]`
 - Deliver defaults: repin on, backdrop `dots`, stroke light from `n`. The
   diagonal stripes + faint focus lines backdrop is `backdrop=stripes`. `[Anima]`
-- No white band: the purple rim sits directly against the matting alpha and
-  also runs under the figure's own edge pixels, so a soft edge blends into
-  the rim, not the backdrop. The prompt still draws `(white outline:1.3)`,
-  which ViTMatte keeps as figure, so a white line shows inside the rim. `[Anima]`
-- Rim is `#885b80`, 1.04% of the longest side, polygonised (Douglas–Peucker,
-  eps 0.5%) for a hand-cut look.
-  Light-direction shading on the purple rim, 8 directions; the drop shadow
-  falls straight away from the light, the same way the rim is extruded.
-  `stroke_light` `even` is a uniform rim, `none` no purple rim. `[all]` (a6 §Hand-cut sticker rim)
+- The bands are a list (`OUTLINES`, the `outlines` deliver option), innermost
+  first: a white band at 0.4% of the longest side, then the `#885b80` rim at
+  1.04%, each polygonised (Douglas–Peucker, eps 0.5%) for a hand-cut look.
+  The white width is provisional until 0.2 / 0.4 / 0.8 are compared on a
+  production canary. The innermost band also runs under the figure's own
+  edge pixels, so a soft edge blends into the band, not the backdrop. The
+  prompt still draws `(white outline:1.3)`, which ViTMatte keeps as figure. `[Anima]`
+- Light-direction shading on the outermost band, 8 directions; the drop
+  shadow falls straight away from the light in that band's shape, the same
+  way it is extruded. `stroke_light` `even` is a uniform band; no bands
+  (`outlines: []`) is no rim and no shadow. `[all]` (a6 §Hand-cut sticker rim)
 - Matte: RMBG BiRefNet-general, retraced (`soft_clamped` + `shadow_cut` +
   `enclosed_cut`), then ViTMatte (`YukariMatting`) on a ±12 px trimap of it,
   in 512 px tiles; foreground colour by pymatting's estimate, despilled on
@@ -31,8 +33,10 @@ lives in `domain/yukari/delivery_style.py`, fingerprinted by
   Green in small pockets between fingers is left by both the old cut and
   ViTMatte. The 1 px key alpha and `drawn_outline` remain only for graphs
   recorded before the matting stage. `[Anima]`
-- Depth of field `scope=figure` spreads the out-of-focus figure into a soft
-  alpha over the rim and backdrop instead of fading it into paper white. `[Anima]`
+- Depth of field is its own request (`dof`) on a delivered picture's layers:
+  each layer blurred on its own and composited back to front, so an
+  out-of-focus figure spreads a soft alpha over the rim and backdrop instead
+  of fading it into paper white. `[Anima]`
 - Detail density follows the redraw canvas: draw at 2560, shrink to 1536. `[IL]`
 
 ## Holds

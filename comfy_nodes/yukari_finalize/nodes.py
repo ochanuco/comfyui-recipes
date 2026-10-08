@@ -7,6 +7,10 @@ PNG bytes back to tensors. The imaging logic itself lives in
 
 from __future__ import annotations
 
+import json
+
+import numpy as np
+
 from comfyui_recipes.infrastructure.imaging import (
     delivery, depth_blur, matting, palette, recolor, viewfinder)
 from comfyui_recipes.infrastructure.imaging import light as lighting
@@ -109,8 +113,8 @@ class YukariForeground:
 
 class YukariDeliver:
     CATEGORY = "yukari"
-    RETURN_TYPES = ("IMAGE", "STRING")
-    RETURN_NAMES = ("image", "tag")
+    RETURN_TYPES = ("IMAGE", "STRING", "IMAGE", "IMAGE", "IMAGE")
+    RETURN_NAMES = ("image", "tag", "figure", "outline", "backdrop")
     FUNCTION = "run"
 
     @classmethod
@@ -126,51 +130,64 @@ class YukariDeliver:
             "light_scene": ("STRING", {"default": ""}),
             "light_from": ("STRING", {"default": ""}),
             "matted": ("BOOLEAN", {"default": False}),
+            "outlines": ("STRING", {"default": ""}),
         }}
 
     def run(self, image, matte, keep_scene, transparent=False, stroke_light="",
-           backdrop="", light_scene="", light_from="", matted=False):
-        image_png, matte_png = bridge.image_to_png(image), bridge.mask_to_png(matte)
-        light = stroke_light or None
-        if keep_scene:
-            data, tag = delivery.keep_scene(image_png, matte_png)
-        elif transparent:
-            data, tag = delivery.transparent(image_png, matte_png, light=light,
-                                             matted=matted)
-        else:
-            data, tag = delivery.clean_background(
-                image_png, matte_png, light=light, backdrop=backdrop or None,
-                scene=light_scene or None, light_from=light_from or None,
-                matted=matted)
+            backdrop="", light_scene="", light_from="", matted=False, outlines=""):
+        picture, figure, outline, backdrop_png, tag = delivery.deliver_pngs(
+            bridge.image_to_png(image), bridge.mask_to_png(matte),
+            keep_scene=keep_scene, transparent=transparent,
+            light=stroke_light or None, backdrop=backdrop or None,
+            scene=light_scene or None, light_from=light_from or None,
+            matted=matted, outlines=json.loads(outlines) if outlines else None)
         mode = "RGBA" if (transparent and not keep_scene) else "RGB"
-        return (bridge.png_to_image(data, mode), tag)
+        # A transparent delivery has no backdrop layer; this output is never saved.
+        backdrop_image = bridge.png_to_image(
+            backdrop_png or bridge.array_to_png(np.zeros((1, 1, 3), np.uint8), "RGB"))
+        return (bridge.png_to_image(picture, mode), tag,
+                bridge.png_to_image(figure, "RGBA"),
+                bridge.png_to_image(outline, "RGBA"), backdrop_image)
 
 
-class YukariDepthBlur:
+class YukariDepthOfField:
     CATEGORY = "yukari"
-    RETURN_TYPES = ("IMAGE", "MASK")
-    RETURN_NAMES = ("image", "matte")
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
     FUNCTION = "run"
 
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {
-            "image": ("IMAGE",),
+            "figure": ("IMAGE",),
+            "figure_mask": ("MASK",),
+            "outline": ("IMAGE",),
+            "outline_mask": ("MASK",),
             "depth": ("IMAGE",),
-            "matte": ("MASK",),
             "focus_x": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0,
                                   "step": 0.001}),
             "focus_y": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0,
                                   "step": 0.001}),
-            "f_number": ("FLOAT", {"default": 2.8, "min": 0.7, "max": 22.0,
+            "f_number": ("FLOAT", {"default": 2.8, "min": 1.4, "max": 22.0,
                                    "step": 0.1}),
+            "blur_figure": ("BOOLEAN", {"default": True}),
+            "blur_outline": ("BOOLEAN", {"default": True}),
+            "blur_backdrop": ("BOOLEAN", {"default": True}),
+        }, "optional": {
+            "backdrop": ("IMAGE",),
         }}
 
-    def run(self, image, depth, matte, focus_x, focus_y, f_number):
-        data, widened = depth_blur.depth_blur_png(
-            bridge.image_to_png(image), bridge.image_to_png(depth),
-            bridge.mask_to_png(matte), focus_x, focus_y, f_number)
-        return (bridge.png_to_image(data), bridge.png_to_mask(widened))
+    def run(self, figure, figure_mask, outline, outline_mask, depth, focus_x,
+            focus_y, f_number, blur_figure, blur_outline, blur_backdrop,
+            backdrop=None):
+        scope = {"figure": blur_figure, "outline": blur_outline,
+                 "backdrop": blur_backdrop}
+        data = depth_blur.blur_layers_png(
+            bridge.loaded_rgba_png(figure, figure_mask),
+            bridge.loaded_rgba_png(outline, outline_mask),
+            bridge.image_to_png(backdrop) if backdrop is not None else None,
+            bridge.image_to_png(depth), focus_x, focus_y, f_number, scope)
+        return (bridge.png_to_image(data, "RGB" if backdrop is not None else "RGBA"),)
 
 
 class YukariLight:
@@ -220,35 +237,6 @@ class YukariViewfinder:
         return (bridge.png_to_image(data, "RGBA" if image.shape[-1] == 4 else "RGB"),)
 
 
-class YukariDepthBlurLayered:
-    CATEGORY = "yukari"
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("image",)
-    FUNCTION = "run"
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {"required": {
-            "image": ("IMAGE",),
-            "depth": ("IMAGE",),
-            "matte": ("MASK",),
-            "focus_x": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0,
-                                  "step": 0.001}),
-            "focus_y": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0,
-                                  "step": 0.001}),
-            "f_number": ("FLOAT", {"default": 2.8, "min": 0.7, "max": 22.0,
-                                   "step": 0.1}),
-            "backdrop": ("STRING", {"default": ""}),
-        }}
-
-    def run(self, image, depth, matte, focus_x, focus_y, f_number, backdrop):
-        data = depth_blur.blur_layered_png(
-            bridge.image_to_png(image), bridge.image_to_png(depth),
-            bridge.mask_to_png(matte), focus_x, focus_y, f_number,
-            backdrop or None)
-        return (bridge.png_to_image(data),)
-
-
 NODE_CLASS_MAPPINGS = {
     "YukariRepinSkin": YukariRepinSkin,
     "YukariRepin": YukariRepin,
@@ -256,8 +244,7 @@ NODE_CLASS_MAPPINGS = {
     "YukariMatting": YukariMatting,
     "YukariForeground": YukariForeground,
     "YukariDeliver": YukariDeliver,
-    "YukariDepthBlur": YukariDepthBlur,
-    "YukariDepthBlurLayered": YukariDepthBlurLayered,
+    "YukariDepthOfField": YukariDepthOfField,
     "YukariLight": YukariLight,
     "YukariViewfinder": YukariViewfinder,
 }
@@ -269,8 +256,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "YukariMatting": "Yukari Matting",
     "YukariForeground": "Yukari Foreground",
     "YukariDeliver": "Yukari Deliver",
-    "YukariDepthBlur": "Yukari Depth Blur",
-    "YukariDepthBlurLayered": "Yukari Depth Blur Layered",
+    "YukariDepthOfField": "Yukari Depth of Field",
     "YukariLight": "Yukari Light",
     "YukariViewfinder": "Yukari Viewfinder",
 }

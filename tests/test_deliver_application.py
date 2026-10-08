@@ -19,15 +19,16 @@ from comfyui_recipes.application.deliver import (
 )
 from comfyui_recipes.application.ingest import classify_deliver_outputs
 from comfyui_recipes.domain.yukari import delivery_style
-from comfyui_recipes.domain.yukari.delivery_style import Dof, Light
+from comfyui_recipes.domain.yukari.delivery_style import Light
 from comfyui_recipes.infrastructure.comfyui.deliver_graph import deliver_graph
 from comfyui_recipes.infrastructure.comfyui.refinement_graph import DEPTH_NODE
 
-DOF_ALL = Dof((0.5, 0.4), 2.8, "all")
+LAYERS = ["dlv-g-layer-figure", "dlv-g-layer-outline", "dlv-g-layer-backdrop"]
+OUTLINES = [{"color": "#ffffff", "width": 0.4}, {"color": "#885b80", "width": 1.04}]
 GRAPH_KWARGS = dict(
     skin=False, repin=True, recolor=False, keep_legwear=None, keep_scene=False,
-    transparent=False, backdrop="dots", stroke_light="n", deliver_size=None,
-    canvas=(832, 1664), dof=None, light_scene=None, light_from=None)
+    transparent=False, backdrop="dots", stroke_light="n", outlines=OUTLINES,
+    deliver_size=None, canvas=(832, 1664), light_scene=None, light_from=None)
 
 
 def classes(graph: dict) -> list[str]:
@@ -71,22 +72,15 @@ class DeliverGraphTest(unittest.TestCase):
         self.assertEqual(delivered["inputs"]["image"], [foreground_id, 0])
         self.assertEqual(delivered["inputs"]["matte"], [matting_id, 0])
         self.assertIs(delivered["inputs"]["matted"], True)
-        self.assertEqual(saved_prefixes(graph), ["dlv-g-alpha", "dlv-g-delivered"])
+        self.assertEqual(saved_prefixes(graph),
+                         ["dlv-g-alpha", "dlv-g-delivered", *LAYERS])
+        self.assertEqual(json.loads(delivered["inputs"]["outlines"]), OUTLINES)
         self.assertEqual(to_image_id, graph[next(
             key for key, node in nodes_of(graph, "SaveImage")
             if node["inputs"]["filename_prefix"] == "dlv-g-alpha")]["inputs"]["images"][0])
 
-    def test_a_dof_builds_and_saves_the_depth_on_the_unrepinned_source(self):
-        graph = build(dof=DOF_ALL)
-        [(load_id, _)] = nodes_of(graph, "LoadImage")
-        [(depth_id, depth)] = nodes_of(graph, DEPTH_NODE)
-        self.assertEqual(depth["inputs"]["image"], [load_id, 0])
-        self.assertIn("dlv-g-depth", saved_prefixes(graph))
-        [(_, layered)] = nodes_of(graph, "YukariDepthBlurLayered")
-        self.assertEqual(layered["inputs"]["depth"], [depth_id, 0])
-
-    def test_reused_assets_are_loaded_and_nothing_is_cut(self):
-        graph = build(dof=DOF_ALL, alpha_image="alpha.png", depth_image="depth.png")
+    def test_a_reused_alpha_is_loaded_and_nothing_is_cut(self):
+        graph = build(alpha_image="alpha.png")
         self.assertFalse({"BiRefNetRMBG", "YukariMatting", DEPTH_NODE,
                           "MaskToImage"} & set(classes(graph)))
         loads = {node["inputs"]["image"]: key
@@ -96,15 +90,23 @@ class DeliverGraphTest(unittest.TestCase):
                          {"image": [loads["alpha.png"], 0], "channel": "red"})
         [(_, foreground)] = nodes_of(graph, "YukariForeground")
         self.assertEqual(foreground["inputs"]["alpha"], [to_mask_id, 0])
-        [(_, layered)] = nodes_of(graph, "YukariDepthBlurLayered")
-        self.assertEqual(layered["inputs"]["depth"], [loads["depth.png"], 0])
-        self.assertEqual(saved_prefixes(graph), ["dlv-g-delivered"])
+        self.assertEqual(saved_prefixes(graph), ["dlv-g-delivered", *LAYERS])
 
-    def test_a_reused_alpha_with_a_fresh_depth_cuts_only_the_depth(self):
-        graph = build(dof=DOF_ALL, alpha_image="alpha.png")
-        self.assertNotIn("YukariMatting", classes(graph))
-        self.assertIn(DEPTH_NODE, classes(graph))
-        self.assertEqual(saved_prefixes(graph), ["dlv-g-depth", "dlv-g-delivered"])
+    def test_the_layers_are_the_deliver_nodes_own_outputs(self):
+        graph = build(alpha_image="alpha.png")
+        [(deliver_id, _)] = nodes_of(graph, "YukariDeliver")
+        saved = {node["inputs"]["filename_prefix"]: node["inputs"]["images"]
+                 for _, node in nodes_of(graph, "SaveImage")}
+        self.assertEqual(saved, {
+            "dlv-g-delivered": [deliver_id, 0],
+            "dlv-g-layer-figure": [deliver_id, 2],
+            "dlv-g-layer-outline": [deliver_id, 3],
+            "dlv-g-layer-backdrop": [deliver_id, 4]})
+
+    def test_a_transparent_delivery_saves_no_backdrop_layer(self):
+        graph = build(alpha_image="alpha.png", transparent=True, backdrop=None)
+        self.assertEqual(saved_prefixes(graph),
+                         ["dlv-g-delivered", *LAYERS[:2]])
 
     def test_repin_skin_recolor_follow_the_delivery_rules(self):
         graph = build(skin=True, recolor=True, repin=True)
@@ -124,36 +126,39 @@ class DeliverGraphTest(unittest.TestCase):
         self.assertIs(delivered["inputs"]["matted"], False)
         self.assertEqual(delivered["inputs"]["matte"], [matting_id, 0])
         self.assertIn("dlv-g-alpha", saved_prefixes(graph))
+        self.assertIn("dlv-g-layer-backdrop", saved_prefixes(graph))
 
-    def test_viewfinder_both_saves_two_pictures(self):
-        graph = build(dof=Dof((0.5, 0.4), 2.8, "all", "both"))
-        self.assertEqual(
-            [prefix for prefix in saved_prefixes(graph)
-             if prefix.endswith(("-delivered", "-viewfinder"))],
-            ["dlv-g-viewfinder", "dlv-g-delivered"])
-
-    def test_deliver_size_scales_the_delivered_picture(self):
+    def test_deliver_size_scales_the_delivered_picture_and_every_layer(self):
         graph = build(deliver_size=832)
-        [(_, scale)] = nodes_of(graph, "ImageScale")
-        self.assertEqual((scale["inputs"]["width"], scale["inputs"]["height"]),
-                         (416, 832))
+        scales = nodes_of(graph, "ImageScale")
+        self.assertEqual(len(scales), 4)
+        for _, scale in scales:
+            self.assertEqual((scale["inputs"]["width"], scale["inputs"]["height"]),
+                             (416, 832))
+        scaled = {key for key, _ in scales}
+        for _, save in nodes_of(graph, "SaveImage"):
+            if save["inputs"]["filename_prefix"] != "dlv-g-alpha":
+                self.assertIn(save["inputs"]["images"][0], scaled)
 
     def test_a_bad_backdrop_or_stroke_light_is_refused(self):
         with self.assertRaisesRegex(ValueError, "backdrop"):
             build(backdrop="plaid")
-        with self.assertRaisesRegex(ValueError, "stroke_light"):
-            build(stroke_light="north")
+        for bad in ("north", "none"):
+            with self.assertRaisesRegex(ValueError, "stroke_light"):
+                build(stroke_light=bad)
 
     def test_outputs_are_classified_by_role(self):
         outputs = [{"filename": f"dlv-g{suffix}_00001_.png"} for suffix in
-                   ("-alpha", "-depth", "-delivered", "-viewfinder")]
+                   ("-alpha", "-delivered", "-layer-figure", "-layer-outline",
+                    "-layer-backdrop")]
         roles = classify_deliver_outputs(outputs)
         self.assertEqual({role: [out["filename"] for out in found]
                           for role, found in roles.items()}, {
             "alpha": ["dlv-g-alpha_00001_.png"],
-            "depth": ["dlv-g-depth_00001_.png"],
             "delivered": ["dlv-g-delivered_00001_.png"],
-            "viewfinder": ["dlv-g-viewfinder_00001_.png"]})
+            "layer-figure": ["dlv-g-layer-figure_00001_.png"],
+            "layer-outline": ["dlv-g-layer-outline_00001_.png"],
+            "layer-backdrop": ["dlv-g-layer-backdrop_00001_.png"]})
 
 
 class ManagementFake:
@@ -255,6 +260,11 @@ def roles_uploaded(management) -> list[str]:
     return [call[3][0]["role"] for call in management.asset_uploads()]
 
 
+def source_uploads(management) -> list:
+    return [call for call in management.asset_uploads()
+            if call[1] == "/api/v1/generations/src/assets"]
+
+
 class DeliverUseCaseTest(unittest.TestCase):
     def run_deliver(self, management=None, **kwargs):
         with tempfile.TemporaryDirectory() as directory:
@@ -263,76 +273,100 @@ class DeliverUseCaseTest(unittest.TestCase):
             result = deliver("src", svc, **kwargs)
             return svc, result
 
-    def test_a_first_delivery_cuts_and_attaches_the_assets_to_the_source(self):
-        svc, result = self.run_deliver(dof=DOF_ALL)
+    def test_a_first_delivery_cuts_and_attaches_the_alpha_to_the_source(self):
+        svc, result = self.run_deliver()
         management = svc.management
         graph = svc.comfyui.submitted[0]
         self.assertIn("YukariMatting", classes(graph))
-        self.assertIn(DEPTH_NODE, classes(graph))
-        uploads = management.asset_uploads()
-        self.assertEqual(roles_uploaded(management), ["alpha", "depth", "cut"])
-        for method, path, _, _ in uploads:
-            self.assertEqual(path, "/api/v1/generations/src/assets")
-        self.assertEqual(uploads[0][3][3], b"bytes:dlv-src-alpha_00001_.png")
-        cut_multipart = uploads[2][3]
+        self.assertNotIn(DEPTH_NODE, classes(graph))
+        source_uploads = [call for call in management.asset_uploads()
+                          if call[1] == "/api/v1/generations/src/assets"]
+        self.assertEqual([call[3][0]["role"] for call in source_uploads],
+                         ["alpha", "cut"])
+        self.assertEqual(source_uploads[0][3][3], b"bytes:dlv-src-alpha_00001_.png")
+        cut_multipart = source_uploads[1][3]
         self.assertEqual(cut_multipart[4], "application/json")
-        self.assertEqual(json.loads(cut_multipart[3]), current_cut())
+        self.assertEqual(json.loads(cut_multipart[3]), {"alpha": current_cut()["alpha"]})
         self.assertEqual(result["generation_ids"], ["delivered-1"])
+
+    def test_the_layers_are_attached_to_the_delivered_generation(self):
+        svc, _ = self.run_deliver(key_prefix="request:r1", request_id="r1")
+        uploads = [call for call in svc.management.asset_uploads()
+                   if call[1] == "/api/v1/generations/delivered-1/assets"]
+        self.assertEqual([call[3][0]["role"] for call in uploads],
+                         ["layer-figure", "layer-outline", "layer-backdrop"])
+        self.assertEqual([call[3][3] for call in uploads], [
+            b"bytes:dlv-src-layer-figure_00001_.png",
+            b"bytes:dlv-src-layer-outline_00001_.png",
+            b"bytes:dlv-src-layer-backdrop_00001_.png"])
+        self.assertEqual(uploads[0][3][0]["idempotency_key"],
+                         "request:r1:job:0:asset:layer-figure")
+        generation_post = next(index for index, call in enumerate(svc.management.calls)
+                               if call[1].endswith("/generations"))
+        first_layer = svc.management.calls.index(uploads[0])
+        self.assertLess(generation_post, first_layer)
+
+    def test_a_transparent_delivery_attaches_no_backdrop_layer(self):
+        svc, _ = self.run_deliver(transparent=True, backdrop=None)
+        roles = [call[3][0]["role"] for call in svc.management.asset_uploads()
+                 if "delivered-1" in call[1]]
+        self.assertEqual(roles, ["layer-figure", "layer-outline"])
+
+    def test_a_missing_layer_output_fails_loudly(self):
+        class NoOutline(ComfyFake):
+            def wait_for(self, prompt_id):
+                return [out for out in super().wait_for(prompt_id)
+                        if "layer-outline" not in out["filename"]]
+
+        with tempfile.TemporaryDirectory() as directory:
+            svc = services(directory, comfyui=NoOutline())
+            with self.assertRaisesRegex(SystemExit, "layer-outline"):
+                deliver("src", svc)
 
     def test_no_mask_asset_is_attached_to_the_delivered_generation(self):
         svc, _ = self.run_deliver()
         self.assertNotIn("mask", roles_uploaded(svc.management))
-        self.assertFalse(any("delivered-" in call[1] for call in svc.management.asset_uploads()))
 
-    def test_only_the_alpha_and_cut_are_stored_without_a_dof(self):
-        svc, _ = self.run_deliver()
-        self.assertEqual(roles_uploaded(svc.management), ["alpha", "cut"])
-        stored = json.loads(svc.management.asset_uploads()[1][3][3])
-        self.assertEqual(set(stored), {"alpha"})
-
-    def test_matching_assets_are_reused_and_nothing_is_uploaded_back(self):
+    def test_matching_assets_are_reused_and_no_cut_is_uploaded_back(self):
         management = ManagementFake(assets={
             "alpha": b"alpha-png", "depth": b"depth-png", "cut": cut_asset()})
-        svc, _ = self.run_deliver(management, dof=DOF_ALL)
+        svc, _ = self.run_deliver(management)
         graph = svc.comfyui.submitted[0]
         self.assertFalse({"BiRefNetRMBG", "YukariMatting", DEPTH_NODE}
                          & set(classes(graph)))
         self.assertEqual({name.split("-")[2] for name, _ in svc.comfyui.uploaded},
-                         {"source", "alpha", "depth"})
+                         {"source", "alpha"})
         self.assertIn(b"alpha-png", [data for _, data in svc.comfyui.uploaded])
-        self.assertEqual(management.asset_uploads(), [])
-
-    def test_depth_is_not_loaded_without_a_dof(self):
-        management = ManagementFake(assets={
-            "alpha": b"alpha-png", "depth": b"depth-png", "cut": cut_asset()})
-        svc, _ = self.run_deliver(management)
-        self.assertNotIn(b"depth-png", [data for _, data in svc.comfyui.uploaded])
+        self.assertFalse(any("/generations/src/" in call[1]
+                             for call in management.asset_uploads()))
 
     def test_a_changed_cut_recipe_recomputes_only_what_changed(self):
         stale_alpha = {**current_cut()["alpha"], "trimap_px": 3}
         management = ManagementFake(assets={
             "alpha": b"old-alpha", "depth": b"depth-png",
             "cut": cut_asset(alpha=stale_alpha)})
-        svc, _ = self.run_deliver(management, dof=DOF_ALL)
+        svc, _ = self.run_deliver(management)
         graph = svc.comfyui.submitted[0]
         self.assertIn("YukariMatting", classes(graph))
         self.assertNotIn(DEPTH_NODE, classes(graph))
-        self.assertEqual(roles_uploaded(management), ["alpha", "cut"])
-        self.assertEqual(json.loads(management.asset_uploads()[1][3][3]),
-                         current_cut())
+        uploads = source_uploads(management)
+        self.assertEqual([call[3][0]["role"] for call in uploads], ["alpha", "cut"])
+        self.assertEqual(json.loads(uploads[1][3][3]), current_cut())
 
     def test_assets_without_a_cut_description_are_recomputed(self):
         management = ManagementFake(assets={"alpha": b"old-alpha"})
         svc, _ = self.run_deliver(management)
         self.assertIn("YukariMatting", classes(svc.comfyui.submitted[0]))
-        self.assertEqual(roles_uploaded(management), ["alpha", "cut"])
+        self.assertEqual([call[3][0]["role"] for call in source_uploads(management)],
+                         ["alpha", "cut"])
 
     def test_the_delivered_generation_refines_the_source_and_records_the_options(self):
         management = ManagementFake()
         with tempfile.TemporaryDirectory() as directory:
             svc = services(directory, management=management)
             deliver("src", svc, request_id="req-1", key_prefix="request:req-1",
-                    transparent=True, backdrop=None, dof=Dof((0.5, 0.4), 2.8, "figure"))
+                    transparent=True, backdrop=None,
+                    outlines=[{"color": "#885b80", "width": 2.0}])
         job = next(call for call in management.calls
                    if call[0] == "POST" and call[1].endswith("/jobs"))
         self.assertEqual(job[2]["source_generation_id"], "src")
@@ -343,22 +377,27 @@ class DeliverUseCaseTest(unittest.TestCase):
         self.assertEqual(parameters["base_generation"], "src")
         self.assertIs(parameters["transparent"], True)
         self.assertNotIn("backdrop", parameters)
-        self.assertEqual(parameters["dof"]["scope"], "figure")
+        self.assertEqual(parameters["outlines"], [{"color": "#885b80", "width": 2.0}])
+        self.assertNotIn("dof", parameters)
         self.assertEqual(resolution[2]["references"][0]["source_generation_id"], "src")
 
-    def test_viewfinder_both_uploads_two_generations(self):
-        svc, result = self.run_deliver(dof=Dof((0.5, 0.4), 2.8, "all", "both"))
-        self.assertEqual(result["generation_ids"], ["delivered-1", "delivered-2"])
-        uploaded = [call[3][2] for call in svc.management.calls
-                    if call[1].endswith("/generations")]
-        self.assertEqual(uploaded, ["dlv-src-delivered_00001_.png",
-                                    "dlv-src-viewfinder_00001_.png"])
+    def test_the_recipe_outlines_are_recorded_when_none_are_given(self):
+        management = ManagementFake()
+        with tempfile.TemporaryDirectory() as directory:
+            deliver("src", services(directory, management=management))
+        parameters = next(call for call in management.calls
+                          if call[0] == "POST" and call[1] == "/api/v1/requests"
+                          )[2]["parameters"]
+        self.assertEqual(parameters["outlines"],
+                         delivery_style.DELIVER_DEFAULTS["outlines"])
 
     def test_delivered_outputs_are_refused_as_sources(self):
         cases = [
             dict(request_kind="deliver"),
             dict(request_kind="finalize"),
             dict(parameters={"kind": "deliver"}),
+            dict(request_kind="dof"),
+            dict(parameters={"kind": "dof"}),
             dict(parameters={"kind": "hires-chain"}),
             dict(parameters={"kind": "repair", "deliver_only": True}),
         ]
@@ -458,7 +497,7 @@ class InheritedLightTest(unittest.TestCase):
         self.assertEqual(delivered["inputs"]["stroke_light"], "e")
 
     def test_neutral_stroke_lights_are_kept_with_an_inherited_light(self):
-        for neutral in ("none", "even", None):
+        for neutral in ("even", None):
             with self.subTest(stroke_light=neutral):
                 management = ManagementFake(parameters={
                     "kind": "redraw", "method": "light", "scene": "moon",

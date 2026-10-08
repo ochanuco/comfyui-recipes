@@ -105,7 +105,7 @@ class DeliverGraphTest(unittest.TestCase):
             "src.png", "birefnet", "fin", skin=False, repin=True,
             recolor=False, keep_legwear=None, keep_scene=False,
             transparent=False, backdrop=None, stroke_light=None,
-            deliver_size=None, canvas=(832, 1664), dof=None,
+            outlines=[], deliver_size=None, canvas=(832, 1664),
             **{"light_scene": None, "light_from": None, **kwargs})
         return find(graph, "YukariDeliver")[1]["inputs"]
 
@@ -218,8 +218,8 @@ class SceneDeliveryTest(unittest.TestCase):
         neutral = sticker(px, figure, coverage, backdrop, "nw", shadow=True)
         moon = sticker(px, figure, coverage, backdrop, "nw", shadow=True,
                        scene="moon")
-        white, purple = band_alphas(figure, "nw")
-        shadow = (neutral != without).any(axis=2) & (white + purple == 0)
+        bands = sum(band_alphas(figure, light="nw"))
+        shadow = (neutral != without).any(axis=2) & (bands == 0)
         self.assertTrue(shadow.any())
         self.assertTrue(np.allclose(neutral[shadow][:, 0], neutral[shadow][:, 2]))
         self.assertTrue((moon[shadow][:, 2] > moon[shadow][:, 0]).all())

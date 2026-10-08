@@ -25,6 +25,8 @@ from ..domain.yukari.delivery_style import (
     DOF_VIEWFINDER,
     LIGHT_FROM_DEFAULT,
     LIGHT_SCENES,
+    OUTLINE_WIDTH_MAX_PCT,
+    OUTLINES_MAX,
     REDRAW_DENOISE,
     REDRAW_SIZE,
     STROKE_CHOICES,
@@ -40,7 +42,7 @@ from ..infrastructure.imaging.depth_blur import sharp_reach_per_f
 from .generate import KNOWN_PARAMETERS, RECIPE_REJECTED_PARAMETERS
 from .redraw import HIRES_DENOISE
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 _SEED, _PREFIX = 0, "catalog"
 
 
@@ -92,11 +94,11 @@ def _yukari_recipe() -> dict:
         "identity_tags": sorted(identity_tags(sorted(POSES)[0])),
         "dials": DIALS,
         "deliver": {
-            "defaults": DELIVER_DEFAULTS,
-            "dof": {"f_number": DOF_F_NUMBER, "scope": DOF_SCOPE,
-                    "viewfinder": DOF_VIEWFINDER,
-                    "focus": "fractions [x, y] of the source image",
-                    "guide_radius_per_f": round(sharp_reach_per_f(), 4)},
+            "defaults": {key: value for key, value in DELIVER_DEFAULTS.items()
+                         if key != "outlines"},
+            "outlines": {"default": DELIVER_DEFAULTS["outlines"],
+                         "max_count": OUTLINES_MAX,
+                         "max_width": OUTLINE_WIDTH_MAX_PCT},
             "stroke_light": list(STROKE_CHOICES),
             "backdrop_color": BACKDROP,
         },
@@ -154,6 +156,16 @@ def _backdrops_block() -> list[dict]:
     ]
 
 
+def _dof_block() -> dict:
+    return {
+        "f_number": DOF_F_NUMBER,
+        "scope": DOF_SCOPE,
+        "viewfinder": DOF_VIEWFINDER,
+        "focus": "fractions [x, y] of the delivered picture",
+        "guide_radius_per_f": round(sharp_reach_per_f(), 4),
+    }
+
+
 def build_catalog(git: dict) -> dict:
     """The catalog document for this worker checkout. Pure -- no I/O."""
     return {
@@ -164,6 +176,7 @@ def build_catalog(git: dict) -> dict:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "recipes": [_yukari_recipe()],
         "patches": _patches_block(),
+        "dof": _dof_block(),
         "backdrops": _backdrops_block(),
     }
 

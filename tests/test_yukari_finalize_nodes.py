@@ -130,9 +130,8 @@ class NodeMappingTest(unittest.TestCase):
     def test_node_class_mappings_cover_every_node(self):
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS), {
             "YukariRepinSkin", "YukariRepin", "YukariRecolor", "YukariMatting",
-            "YukariForeground", "YukariDeliver", "YukariDepthBlur",
-            "YukariDepthBlurLayered", "YukariLight",
-            "YukariViewfinder",
+            "YukariForeground", "YukariDeliver", "YukariDepthOfField",
+            "YukariLight", "YukariViewfinder",
         })
         self.assertEqual(
             set(nodes.NODE_DISPLAY_NAME_MAPPINGS),
@@ -175,7 +174,7 @@ class NodeRunTest(unittest.TestCase):
 
     def test_deliver_wiring_returns_an_image_and_a_tag(self):
         node = nodes.YukariDeliver()
-        image, tag = node.run(
+        image, tag, *_ = node.run(
             image_tensor(swatch()), mask_tensor(matte_array()), keep_scene=False)
         self.assertEqual(image.array.shape[0], 1)
         self.assertEqual(image.array.shape[-1], 3)
@@ -218,7 +217,7 @@ class NodeRunTest(unittest.TestCase):
         node = nodes.YukariDeliver()
         alpha = matte_array()
         alpha[16:48, 47] = 128
-        image, tag = node.run(
+        image, tag, *_ = node.run(
             image_tensor(swatch()), mask_tensor(alpha), keep_scene=False,
             transparent=True, matted=True)
         self.assertEqual(image.array.shape, (1, 64, 64, 4))
@@ -228,7 +227,7 @@ class NodeRunTest(unittest.TestCase):
     def test_deliver_keep_scene_returns_the_redraw_uncut(self):
         node = nodes.YukariDeliver()
         pixels = swatch()
-        image, tag = node.run(
+        image, tag, *_ = node.run(
             image_tensor(pixels), mask_tensor(matte_array()), keep_scene=True)
         self.assertEqual(tag, "scene")
         np.testing.assert_allclose(
@@ -236,16 +235,16 @@ class NodeRunTest(unittest.TestCase):
 
     def test_deliver_transparent_returns_an_rgba_cutout(self):
         node = nodes.YukariDeliver()
-        image, tag = node.run(
+        image, tag, *_ = node.run(
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, transparent=True)
         self.assertEqual(image.array.shape, (1, 64, 64, 4))
-        self.assertEqual(tag, "transparent-w0-p1-cut0.5")
+        self.assertEqual(tag, "transparent-o0+1-cut0.5")
 
     def test_deliver_keep_scene_wins_over_transparent(self):
         node = nodes.YukariDeliver()
         pixels = swatch()
-        image, tag = node.run(
+        image, tag, *_ = node.run(
             image_tensor(pixels), mask_tensor(matte_array()),
             keep_scene=True, transparent=True)
         self.assertEqual(image.array.shape[-1], 3)
@@ -253,14 +252,14 @@ class NodeRunTest(unittest.TestCase):
 
     def test_deliver_run_without_transparent_kwarg_still_works(self):
         node = nodes.YukariDeliver()
-        image, tag = node.run(
+        image, tag, *_ = node.run(
             image_tensor(swatch()), mask_tensor(matte_array()), keep_scene=False)
         self.assertEqual(image.array.shape[-1], 3)
         self.assertTrue(tag.startswith("clean-"))
 
     def test_deliver_stroke_light_returns_an_image_and_a_light_tag(self):
         node = nodes.YukariDeliver()
-        image, tag = node.run(
+        image, tag, *_ = node.run(
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, transparent=True, stroke_light="ne")
         self.assertEqual(image.array.shape, (1, 64, 64, 4))
@@ -268,14 +267,56 @@ class NodeRunTest(unittest.TestCase):
 
     def test_deliver_default_stroke_light_yields_the_old_tag(self):
         node = nodes.YukariDeliver()
-        image, tag = node.run(
+        image, tag, *_ = node.run(
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, transparent=True)
-        self.assertEqual(tag, "transparent-w0-p1-cut0.5")
+        self.assertEqual(tag, "transparent-o0+1-cut0.5")
+
+    def test_deliver_returns_the_layers_beside_the_picture(self):
+        node = nodes.YukariDeliver()
+        image, _, figure, outline, backdrop = node.run(
+            image_tensor(swatch()), mask_tensor(matte_array()), keep_scene=False,
+            matted=True, outlines='[{"color": "#885b80", "width": 5}]')
+        self.assertEqual(figure.array.shape, (1, 64, 64, 4))
+        self.assertEqual(outline.array.shape, (1, 64, 64, 4))
+        self.assertEqual(backdrop.array.shape, (1, 64, 64, 3))
+        np.testing.assert_allclose(figure.array[0, ..., 3], matte_array() / 255.0)
+        self.assertGreater(outline.array[0, 32, 50, 3], 0.9)
+
+    def test_deliver_empty_outlines_leave_an_empty_outline_layer(self):
+        node = nodes.YukariDeliver()
+        _, tag, _, outline, _ = node.run(
+            image_tensor(swatch()), mask_tensor(matte_array()), keep_scene=False,
+            transparent=True, matted=True, outlines="[]")
+        self.assertEqual(outline.array[0, ..., 3].max(), 0)
+        self.assertIn("nooutline", tag)
+
+    def test_depth_of_field_takes_loadimage_masks_as_inverted_alpha(self):
+        node = nodes.YukariDepthOfField()
+        figure_alpha = matte_array()
+        outline_alpha = np.zeros((64, 64), np.uint8)
+        depth = np.tile(np.linspace(0, 255, 64, dtype=np.uint8)[:, None], (1, 64))
+        backdrop = np.full((64, 64, 3), 200, np.uint8)
+        (image,) = node.run(
+            image_tensor(swatch()), mask_tensor(255 - figure_alpha),
+            image_tensor(np.zeros((64, 64, 3), np.uint8)), mask_tensor(255 - outline_alpha),
+            image_tensor(np.dstack([depth] * 3)), focus_x=0.5, focus_y=0.5,
+            f_number=2.8, blur_figure=False, blur_outline=False,
+            blur_backdrop=False, backdrop=image_tensor(backdrop))
+        result = (image.array[0] * 255.0).round()
+        np.testing.assert_allclose(result[32, 32], swatch()[32, 32], atol=1)
+        np.testing.assert_allclose(result[2, 2], (200, 200, 200), atol=1)
+        (cut,) = node.run(
+            image_tensor(swatch()), mask_tensor(255 - figure_alpha),
+            image_tensor(np.zeros((64, 64, 3), np.uint8)), mask_tensor(255 - outline_alpha),
+            image_tensor(np.dstack([depth] * 3)), focus_x=0.5, focus_y=0.5,
+            f_number=2.8, blur_figure=True, blur_outline=True, blur_backdrop=True)
+        self.assertEqual(cut.array.shape, (1, 64, 64, 4))
+        self.assertEqual(cut.array[0, 0, 0, 3], 0)
 
     def test_deliver_backdrop_stripes_returns_rgb_and_a_bg_tag(self):
         node = nodes.YukariDeliver()
-        image, tag = node.run(
+        image, tag, *_ = node.run(
             image_tensor(swatch()), mask_tensor(matte_array()),
             keep_scene=False, backdrop="stripes")
         self.assertEqual(image.array.shape[-1], 3)
@@ -283,7 +324,7 @@ class NodeRunTest(unittest.TestCase):
 
     def test_deliver_default_backdrop_yields_the_old_tag(self):
         node = nodes.YukariDeliver()
-        image, tag = node.run(
+        image, tag, *_ = node.run(
             image_tensor(swatch()), mask_tensor(matte_array()), keep_scene=False)
         self.assertTrue(tag.startswith("clean-"))
         self.assertNotIn("-bg-", tag)

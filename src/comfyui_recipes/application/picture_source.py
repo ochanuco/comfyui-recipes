@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # "hires-chain" and the request kind "finalize" name pictures delivered before
 # deliver existed; their rows are still read.
-DELIVERED_KINDS = ("deliver", "hires-chain")
+DELIVERED_KINDS = ("deliver", "dof", "hires-chain")
 DERIVED_KINDS = ("repair", "masked_redraw", "redraw")
 
 
@@ -12,14 +12,14 @@ def is_delivered(request: dict) -> bool:
     """Whether the request's output is a delivered picture, not a drawing."""
     parameters = request.get("parameters") or {}
     kind = parameters.get("kind")
-    return bool(request.get("kind") in ("deliver", "finalize")
+    return bool(request.get("kind") in ("deliver", "dof", "finalize")
                 or kind in DELIVERED_KINDS
                 or (kind == "repair" and parameters.get("deliver_only")))
 
 
 def stroke_light_conflict(direction: str) -> str:
     return (f"stroke_light の向きは light の from（{direction}）と同じで"
-            "なければなりません。none / even なら向きに関係なく使えます")
+            "なければなりません。even なら向きに関係なく使えます")
 
 
 def check_resample_source(option: str, *, has_graph: bool, repaired: bool,

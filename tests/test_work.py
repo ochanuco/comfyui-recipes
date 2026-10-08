@@ -190,6 +190,7 @@ def make_services(directory: Path, management, *, heartbeats=None,
         masked_redraw_services=(masked_redraw_services
                                 if masked_redraw_services is not None
                                 else "masked-redraw-services"),
+        dof_services="dof-services",
         git_metadata=lambda: {"branch": branch},
         worker_id="test-worker",
         emit=(emit or (lambda message: None)),
@@ -227,6 +228,7 @@ def make_hub_services(directory: Path, *, hub=None, progress_feed=None,
         deliver_services="deliver-services",
         repair_services="repair-services",
         masked_redraw_services="masked-redraw-services",
+        dof_services="dof-services",
         git_metadata=lambda: {"branch": "dev/requests-worker"},
         worker_id="test-worker",
         emit=(emit or (lambda message: None)),
@@ -290,6 +292,19 @@ def deliver_row(**overrides):
         "id": "req-5", "kind": "deliver", "status": "running",
         "recipe_ref": "dev/requests-worker", "run_id": None, "attempt": 1,
         "payload": {"generation_id": "gen-1", "options": {}},
+    }
+    row.update(overrides)
+    return row
+
+
+DEFAULT_OUTLINES = [{"color": "#ffffff", "width": 0.4}, {"color": "#885b80", "width": 1.04}]
+
+
+def dof_row(**overrides):
+    row = {
+        "id": "req-7", "kind": "dof", "status": "running",
+        "recipe_ref": "dev/requests-worker", "run_id": None, "attempt": 1,
+        "payload": {"generation_id": "gen-1", "options": {"focus": [0.5, 0.4]}},
     }
     row.update(overrides)
     return row
@@ -397,7 +412,8 @@ class ExecuteTest(unittest.TestCase):
             result = execute(services, row)
             self.assertEqual(result, {
                 "generation_ids": ["g2"],
-                "resolved_options": {"keep_legwear": 0.62, "transparent": True}})
+                "resolved_options": {"keep_legwear": 0.62, "transparent": True,
+                                     "outlines": DEFAULT_OUTLINES}})
             generation_id, deliver_services, kwargs = calls[0]
             self.assertEqual(generation_id, "gen-1")
             self.assertEqual(deliver_services, "deliver-services-sentinel")
@@ -445,7 +461,8 @@ class ExecuteTest(unittest.TestCase):
                 "options": {"repin": True, "keep_legwear": True}})
             result = execute(services, row)
             self.assertEqual(result["resolved_options"],
-                             {"repin": True, "keep_legwear": 0.62})
+                             {"repin": True, "keep_legwear": 0.62,
+                              "outlines": DEFAULT_OUTLINES})
 
     def test_a_word_unknown_to_the_source_recipe_fails_the_request(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -459,19 +476,51 @@ class ExecuteTest(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "denoise"):
                 execute(services, row)
 
+    def test_dof_kind_maps_options_and_uses_the_dof_services(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def fake_dof(generation_id, dof_services, **kwargs):
+                calls.append((generation_id, dof_services, kwargs))
+                return {"generation_ids": ["g3"]}
+
+            services = make_services(directory, ManagementFake())
+            services = dataclasses.replace(services, dof=fake_dof)
+            result = execute(services, dof_row())
+            self.assertEqual(result["resolved_options"], {
+                "focus": [0.5, 0.4], "f_number": 2.8, "viewfinder": "off",
+                "scope": {"figure": True, "outline": True, "backdrop": True}})
+            generation_id, dof_services, kwargs = calls[0]
+            self.assertEqual((generation_id, dof_services), ("gen-1", "dof-services"))
+            self.assertEqual(kwargs["request_id"], "req-7")
+            self.assertEqual(kwargs["focus"], (0.5, 0.4))
+
+    def test_dof_kind_rejects_bad_options_and_a_missing_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+            services = dataclasses.replace(
+                make_services(directory, ManagementFake()),
+                dof=lambda *a, **k: calls.append((a, k)))
+            with self.assertRaisesRegex(SystemExit, "focus"):
+                execute(services, dof_row(payload={"generation_id": "gen-1",
+                                                   "options": {}}))
+            with self.assertRaisesRegex(SystemExit, "generation_id"):
+                execute(services, dof_row(payload={"options": {"focus": [0, 0]}}))
+            self.assertEqual(calls, [])
+
     def test_finalize_requests_are_refused(self):
         with tempfile.TemporaryDirectory() as directory:
             services = make_services(directory, ManagementFake())
             with self.assertRaisesRegex(SystemExit, "no longer supported"):
                 execute(services, finalize_row())
 
-    def test_the_default_kinds_are_exactly_the_five(self):
+    def test_the_default_kinds_are_exactly_the_six(self):
         self.assertEqual(
             WorkServices.__dataclass_fields__["kinds"].default,
-            ("generate", "redraw", "repair", "masked_redraw", "deliver"))
+            ("generate", "redraw", "repair", "masked_redraw", "deliver", "dof"))
         self.assertEqual(
             DEFAULT_KINDS,
-            ("generate", "redraw", "repair", "masked_redraw", "deliver"))
+            ("generate", "redraw", "repair", "masked_redraw", "deliver", "dof"))
 
     def test_unsupported_kind_fails(self):
         with tempfile.TemporaryDirectory() as directory:

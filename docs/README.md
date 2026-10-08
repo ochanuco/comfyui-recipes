@@ -12,7 +12,7 @@ tokens (`uv run scripts/atlas.py docs` prints the live numbers).
 | [findings/legwear-costume.md](findings/legwear-costume.md) | 1k | canonical legwear, gloss, garment colour and fit |
 | [findings/hands-feet-repair.md](findings/hands-feet-repair.md) | 1k | toes and fingers, `repair`, masked redraw |
 | [findings/composition.md](findings/composition.md) | 1.1k | canvas, framing, pose structure |
-| [findings/delivery.md](findings/delivery.md) | 1.3k | deliver, matte, stroke, backdrop, repin |
+| [findings/delivery.md](findings/delivery.md) | 1.7k | deliver, matte, stroke, backdrop, repin |
 | [findings/checkpoints.md](findings/checkpoints.md) | 1.3k | Anima vs IL, LoRA, ControlNet / region tools, checking a new stage-1 model |
 | [findings/evaluation.md](findings/evaluation.md) | 1.1k | metrics that failed, judging and process rules |
 
@@ -39,7 +39,7 @@ the archive and lives in `experiments/`, chimera or the named PR.
 
 | File | ~tok | Covers |
 |---|---|---|
-| [queueing.md](queueing.md) | 1.5k | request kinds, where each option is defined, cross-file rules |
+| [queueing.md](queueing.md) | 2.7k | request kinds, where each option is defined, cross-file rules |
 | [release.md](release.md) | 1.4k | main → production, worker deploy |
 | [remote.md](remote.md) | 1.3k | the GPU box: setup, logon tasks, fetching models |
 | [models.md](models.md) | 2.2k | model files and provenance |

@@ -19,12 +19,14 @@ from comfyui_recipes.infrastructure.imaging.delivery import (
     background_mask,
     band_alphas,
     clean_background,
+    cut_figure,
     deliver_pngs,
     despill,
     down2,
     drawn_outline,
     enclosed_cut,
     figure_rim,
+    fill_unkeyed_holes,
     frame_window,
     graph_from_png,
     graph_from_png_or_none,
@@ -208,6 +210,31 @@ class DeliveryTest(unittest.TestCase):
         self.assertFalse(cut[100:120, 100:120].any())
         self.assertTrue(cut[150:153, 150:153].all())
         self.assertEqual(int((figure & ~cut).sum()), 400)
+
+    def test_cut_figure_fills_a_matte_hole_that_holds_no_key(self):
+        pixels = np.full((256, 256, 3), (89, 166, 119), dtype=np.uint8)
+        pixels[64:192, 64:192] = (60, 40, 70)
+        pixels[100:140, 100:140] = (42, 45, 71)      # cushion between the legs
+        pixels[150:170, 150:170] = (89, 166, 119)    # backdrop a loop closes
+        soft = np.zeros((256, 256), dtype=np.uint8)
+        soft[64:192, 64:192] = 255
+        soft[100:140, 100:140] = 0
+        soft[150:170, 150:170] = 0
+        figure = cut_figure(pixels.astype(float), soft)
+        self.assertTrue(figure[100:140, 100:140].all())
+        self.assertFalse(figure[152:168, 152:168].any())
+        self.assertFalse(figure[:32].any())
+
+    def test_fill_unkeyed_holes_is_a_no_op_unless_the_backdrop_is_a_green_key(self):
+        for backdrop in ((218, 214, 218), (210, 230, 235)):
+            with self.subTest(backdrop=backdrop):
+                pixels = np.full((256, 256, 3), backdrop, dtype=np.uint8)
+                pixels[64:192, 64:192] = (40, 40, 40)
+                soft = np.zeros((256, 256), dtype=np.uint8)
+                soft[64:192, 64:192] = 255
+                soft[100:140, 100:140] = 0
+                np.testing.assert_array_equal(
+                    fill_unkeyed_holes(pixels.astype(float), soft), soft)
 
     def test_enclosed_cut_is_a_no_op_unless_the_backdrop_is_a_green_key(self):
         figure = np.zeros((256, 256), dtype=bool)

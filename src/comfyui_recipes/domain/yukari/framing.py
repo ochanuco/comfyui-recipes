@@ -28,4 +28,5 @@ FRAMING = {
     Framing.COWBOY: FramingSpec(text="(cowboy shot:1.3), "),
     Framing.FULL: FramingSpec(text="(full body:1.45), (wide shot:1.3), "),
     Framing.LYING: FramingSpec(text="(lying:1.3), (full body:1.35), "),
+    Framing.CLOSE: FramingSpec(text="(close-up:1.15), (cropped:1.2), "),
 }

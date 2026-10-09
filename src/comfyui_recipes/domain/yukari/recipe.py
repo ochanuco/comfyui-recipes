@@ -182,6 +182,8 @@ def negative(pose: str, costume: str | None = None,
     # thing in the negative prompt.
     if lw == "sheer-gloss" and p.legwear and ls is not LegwearState.OFF:
         result += SHEER_GLOSS_BAN
+    if p.negative_tail:
+        result += ", " + p.negative_tail
     return result
 
 

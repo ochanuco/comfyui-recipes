@@ -33,6 +33,7 @@ class Framing(Enum):
     COWBOY = "cowboy"
     FULL = "full"
     LYING = "lying"
+    CLOSE = "close"
 
 
 class Component(NamedTuple):

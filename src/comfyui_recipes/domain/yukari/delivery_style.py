@@ -383,6 +383,11 @@ ENCLOSED_KEY_MIN_GREEN_EXCESS = 12
 # linework holds a few pixels within the excess by accident; a pocket the
 # matte kept holds thousands.
 ENCLOSED_POCKET_MIN_AREA = 256
+# The matte model also punches holes through dark figure passages it reads
+# as background, such as a cushion seen between the legs. On a green key, an
+# enclosed hole in its soft output is figure when under this share of it is
+# key-coloured; the gaps a loop of hair closes are nearly all key.
+MATTE_HOLE_MIN_KEY_SHARE = 0.5
 # A drawn frame the figure steps out of is delivered as a window: with under
 # MAX_BORDER_GREEN of the canvas border key-coloured (a green screen is far
 # above it), the key-coloured components touching the figure (within

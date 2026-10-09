@@ -736,9 +736,29 @@ def scene_backdrop(backdrop_rgb: np.ndarray, light: str | None,
     return tinted * (base - slope * far)[..., None]
 
 
+def fill_unkeyed_holes(px: np.ndarray, soft: np.ndarray) -> np.ndarray:
+    """`soft` with the enclosed holes it punched through the figure filled
+    back in where under `delivery_style.MATTE_HOLE_MIN_KEY_SHARE` of the
+    hole is key-coloured. A no-op unless the raw backdrop is a green key."""
+    key = _corner_seed(px)
+    if key[1] - max(key[0], key[2]) < delivery_style.ENCLOSED_KEY_MIN_GREEN_EXCESS:
+        return soft
+    labels, count = ndimage.label(soft <= 127)
+    if not count:
+        return soft
+    border = np.unique(np.concatenate(
+        [labels[0], labels[-1], labels[:, 0], labels[:, -1]]))
+    keyed = np.abs(px - key).max(axis=2) <= delivery_style.MATTE_EDGE_TOLERANCE
+    share = ndimage.mean(keyed, labels, range(1, count + 1))
+    holes = 1 + np.nonzero(share < delivery_style.MATTE_HOLE_MIN_KEY_SHARE)[0]
+    fill = np.isin(labels, holes) & ~np.isin(labels, border)
+    return np.where(fill, 255, soft).astype(soft.dtype)
+
+
 def cut_figure(px: np.ndarray, soft: np.ndarray) -> np.ndarray:
     """The silhouette the matte model's soft output and the colour retrace
     agree on, without cast shadow or enclosed key pockets."""
+    soft = fill_unkeyed_holes(px, soft)
     height, width = px.shape[:2]
     band = int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100)
     tolerance = delivery_style.MATTE_EDGE_TOLERANCE
@@ -846,6 +866,7 @@ def transparent_layers(data: bytes, matte: bytes, light: str | None = None,
         return _transparent_over_bands(px, soft >= 128, soft / 255.0, light,
                                        "-matted", outlines)
     band = int(max(height, width) * delivery_style.MATTE_EDGE_BAND_PCT / 100)
+    soft = fill_unkeyed_holes(px.astype(float), soft)
     figure = refine_matte(
         px.astype(float), soft > 127, band, delivery_style.MATTE_EDGE_TOLERANCE)
     figure = shadow_cut(px.astype(float), soft_clamped(figure, soft), soft, band)

@@ -353,6 +353,15 @@ class DeliverUseCaseTest(unittest.TestCase):
         self.assertEqual([call[3][0]["role"] for call in uploads], ["alpha", "cut"])
         self.assertEqual(json.loads(uploads[1][3][3]), current_cut())
 
+    def test_an_alpha_cut_before_the_hole_fill_is_recomputed(self):
+        before = {key: value for key, value in current_cut()["alpha"].items()
+                  if key != "hole_key_share"}
+        management = ManagementFake(assets={
+            "alpha": b"old-alpha", "depth": b"depth-png",
+            "cut": cut_asset(alpha=before)})
+        svc, _ = self.run_deliver(management)
+        self.assertIn("YukariMatting", classes(svc.comfyui.submitted[0]))
+
     def test_assets_without_a_cut_description_are_recomputed(self):
         management = ManagementFake(assets={"alpha": b"old-alpha"})
         svc, _ = self.run_deliver(management)

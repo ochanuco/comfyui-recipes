@@ -18,6 +18,7 @@ class Pose:
     expression: str
     costume: str
     negative: str = ""
+    negative_tail: str = ""
     canvas: tuple[int, int] | None = None
     legwear: bool = True
     legwear_kind: str = DEFAULT_LEGWEAR
@@ -143,4 +144,27 @@ POSES = {
         negative=("(upper body:1.2), (chair:1.4), (furniture:1.3), "
                   "(stool:1.2), (bench:1.2), (smile:1.3), (:3:1.3), "
                   "(smug:1.2), (blush:1.2), (sweatdrop:1.2), ")),
+    "pillow": Pose(
+        action=("(lying on back:1.5), (lying:1.3), (on back:1.3), "
+                "(knees up:1.3), (holding phone above face:1.3), "
+                "(hugging a long cushion:1.4), (dark slate blue cushion:1.35), "
+                "(solid color fabric:1.2), (seamless velvet bolster:1.2), "
+                "(bedding:1.1), (legs wrapped around cushion:1.25), "
+                "(cushion between legs:1.2), "),
+        mood="",
+        gesture=("(looking at phone:1.4), (looking up:1.1), (no shoes:1.2), "
+                 "(legwear feet:1.1), "),
+        framing=Framing.CLOSE,
+        angle="(from above:1.35), (dutch angle:1.3), ",
+        leg_display="(thighs:1.1), ",
+        expression="dubious", costume="standard",
+        canvas=(896, 1440),
+        negative="(sitting:1.3), (cowboy shot:1.2), (upper body:1.2), ",
+        negative_tail=("(standing:1.4), (sneakers:1.2), (panties:1.3), "
+                       "(pantyshot:1.3), (green pillow:1.4), (smile:1.2), "
+                       "(looking at viewer:1.2), (eyes on pillow:1.45), "
+                       "(face on cushion:1.45), (stuffed toy:1.4), "
+                       "(stuffed animal:1.35), (plushie:1.35), (mascot:1.35), "
+                       "(creature:1.3), (character print:1.35), "
+                       "(dakimakura:1.3)")),
 }

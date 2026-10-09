@@ -44,6 +44,11 @@ EXPRESSIONS = {
         mouth="(closed mouth:1.2), ",
         eyes="(half-closed eyes:1.35), (cold eyes:1.3), (unamused:1.2), ",
         eye_quality=EyeQuality.BLANK),
+    "dubious": Expression(
+        mouth="(closed mouth:1.2), (skeptical:1.25), (light blush:1.1), ",
+        eyes=("(half-closed eyes:1.35), (unamused:1.35), "
+              "(raised eyebrow:1.25), (confused:1.15), "),
+        eye_quality=EyeQuality.BLANK),
     "jitome": Expression(
         mouth="(closed mouth:1.2), ",
         eyes="(half-closed eyes:1.35), (unamused:1.35), (expressionless:1.2), ",

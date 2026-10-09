@@ -509,6 +509,7 @@ class EyeQualityTest(unittest.TestCase):
         "v": EyeQuality.COLD, "sleepy": EyeQuality.BLANK,
         "smile": EyeQuality.BLANK, "gao": EyeQuality.BLANK,
         "jitome": EyeQuality.BLANK, "disdain": EyeQuality.BLANK,
+        "dubious": EyeQuality.BLANK,
     }
 
     def test_eye_quality_mapping_per_expression(self):
@@ -643,6 +644,29 @@ class PoseTableTest(unittest.TestCase):
                       spec.prompts.positive)
         self.assertNotIn("claw pose", spec.prompts.positive)
         self.assertNotIn("(sitting:1.3)", spec.prompts.negative)
+
+    def test_pillow_lies_hugging_a_plain_cushion(self):
+        self.assertEqual(POSES["pillow"].expression, "dubious")
+        self.assertEqual(POSES["pillow"].costume, "standard")
+        spec = render_spec("pillow", 3333, "x")
+        self.assertEqual((spec.width, spec.height), (896, 1440))
+        self.assertIn("(from above:1.35), (dutch angle:1.3), (close-up:1.15), "
+                      "(cropped:1.2), ", spec.prompts.positive)
+        self.assertNotIn("full body", spec.prompts.positive)
+        self.assertTrue(spec.prompts.negative.endswith(
+            "watermark, (standing:1.4), (sneakers:1.2), (panties:1.3), "
+            "(pantyshot:1.3), (green pillow:1.4), (smile:1.2), "
+            "(looking at viewer:1.2), (eyes on pillow:1.45), "
+            "(face on cushion:1.45), (stuffed toy:1.4), "
+            "(stuffed animal:1.35), (plushie:1.35), (mascot:1.35), "
+            "(creature:1.3), (character print:1.35), (dakimakura:1.3)"))
+
+    def test_negative_tail_is_empty_for_other_poses(self):
+        for pose, p in POSES.items():
+            if pose == "pillow":
+                continue
+            with self.subTest(pose=pose):
+                self.assertEqual(p.negative_tail, "")
 
     def test_gao_render_spec_uses_the_portrait_canvas(self):
         spec = render_spec("gao", 7, "x")

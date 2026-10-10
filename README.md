@@ -51,10 +51,6 @@ uv pip install --python .venv/bin/python -e . pillow numpy opencv-python scipy p
 PYTHONPATH=scripts .venv/bin/pytest -q
 ```
 
-On the Windows GPU box the worker also puts the box to sleep when it has
-been idle (no job, no console input) for ten minutes; the power settings that
-needs are in [`docs/remote.md`](docs/remote.md#sleeping-when-idle).
-
 Models are not included and not downloaded automatically.
 [`docs/models.md`](docs/models.md) lists the exact upstream and SHA256 of every
 model these recipes were tuned against.

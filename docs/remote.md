@@ -40,43 +40,6 @@ Two things that only show up over `ssh comfyui-worker`:
   `encoding="utf-8"` explicitly, and the wrapper sets `PYTHONUTF8=1` for
   the CLI's stdout.
 
-## Sleeping when idle
-
-The worker decides when the box sleeps; a Wake-on-LAN service elsewhere on
-the LAN watches `/system_stats` and wakes it for the next request. The
-worker suspends the box once both of these have lasted
-`COMFYUI_RECIPES_SLEEP_AFTER` minutes (default 10, `0` turns it off):
-
-- no job has finished, counted from the last one -- empty polls do not
-  restart the count, and a busy ComfyUI queue (`/queue`) holds it off;
-- no keyboard or mouse input in the logged-on session (`GetLastInputInfo`).
-
-While a job runs the worker holds `SetThreadExecutionState(ES_CONTINUOUS |
-ES_SYSTEM_REQUIRED)`. Before suspending it POSTs `{"reason": "idle 10m"}`
-to the wol service's `/sleeping` with a 3 s timeout, then claims once more:
-a row claimed then is processed and the sleep is dropped (the service reads
-a box that keeps answering as a cancelled sleep). A failed notice is logged
-and the box sleeps anyway. Only Windows runs this; elsewhere it is off.
-
-The suspend is `SetSuspendState(FALSE, FALSE, FALSE)` into S3, and the
-worker refuses it (`! suspend failed` in the log) while a hibernation file
-exists, so the box never hibernates instead of sleeping. Once, in an
-elevated PowerShell on the box:
-
-```powershell
-powercfg /a                                  # Standby (S3) must be listed
-powercfg /hibernate off                      # also removes hybrid sleep and fast startup
-powercfg /change standby-timeout-ac 0        # Windows' own idle sleep off: the worker decides
-powercfg /change hibernate-timeout-ac 0
-[Environment]::SetEnvironmentVariable("COMFYUI_RECIPES_SLEEP_AFTER", "10", "User")  # optional
-```
-
-The wol target is `.local/wol-notify` in the clone: the `/sleeping` URL on
-line 1 and the token on line 2, never tracked. `$WOL_NOTIFY_URL` and
-`$WOL_NOTIFY_TOKEN` (User environment, as above) win over the file. The
-token is 1Password `op://chabatake-services/wol/notify_token`; the URL is in
-`CLAUDE.local.md`. Restart the `comfyui` task after changing either.
-
 ## Content rating
 
 Every image the worker uploads to chimera is also rated by the WD tagger

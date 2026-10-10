@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import socket
+import sys
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -18,6 +19,7 @@ from ..application.redraw import RedrawServices
 from ..application.generate import GenerateServices, request_graph
 from ..application.masked_redraw import MaskedRedrawServices
 from ..application.repair import RepairServices
+from ..application.rest import RestServices
 from ..application.work import WorkServices, work
 from ..domain.generation.fingerprint import prompt_fingerprint
 from ..domain.generation.prompt_lint import conflicts
@@ -30,12 +32,17 @@ from ..infrastructure.comfyui.timings import AttemptTimings, EnvCollector
 from ..infrastructure.imaging.delivery import graph_from_png, graph_from_png_or_none, image_size
 from ..infrastructure.imaging.palette import summarize
 from ..infrastructure.notifications.discord import DiscordNotifier
+from ..infrastructure.notifications.wol import WolNotifier
 from ..infrastructure.persistence.run_state import JsonRunState
 from ..infrastructure.repository import discover_repository, git_metadata
 
 # deploy writes this file to ask for a drain and waits for it to go; the
 # worker removes it as its last act.
 DRAIN_FILE = ".local/_nogit/worker/drain"
+
+# Minutes without a job and without console input before the host sleeps; 0 never.
+SLEEP_AFTER_ENV = "COMFYUI_RECIPES_SLEEP_AFTER"
+DEFAULT_SLEEP_AFTER_MINUTES = 10.0
 
 # Must track the `work` subparser's own defaults in interfaces/cli.py by
 # hand -- no single source both can read.
@@ -163,6 +170,28 @@ def build_masked_redraw_services(chimera: ChimeraClient, comfyui: ComfyUIClient,
     )
 
 
+def build_rest_services(repository: Path, comfyui: ComfyUIClient) -> RestServices | None:
+    if sys.platform != "win32":
+        return None
+    raw = os.environ.get(SLEEP_AFTER_ENV, "").strip()
+    try:
+        minutes = float(raw) if raw else DEFAULT_SLEEP_AFTER_MINUTES
+    except ValueError as error:
+        raise SystemExit(f"${SLEEP_AFTER_ENV} must be minutes, got {raw!r}") from error
+    if minutes <= 0:
+        return None
+    from ..infrastructure.power import windows
+
+    return RestServices(
+        after=minutes * 60,
+        input_idle=windows.input_idle_seconds,
+        comfyui_busy=comfyui.busy,
+        announce=WolNotifier(repository).announce,
+        suspend=windows.suspend,
+        keep_awake=windows.keep_awake,
+    )
+
+
 def wire_work_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier: object,
                         repository: Path, repository_metadata, *, worker_id: str,
                         kinds: tuple[str, ...], hub: bool = True,
@@ -214,6 +243,7 @@ def wire_work_services(chimera: ChimeraClient, comfyui: ComfyUIClient, notifier:
         draining=drain_file.exists,
         drained=lambda: drain_file.unlink(missing_ok=True),
         emit=emit,
+        rest=build_rest_services(repository, comfyui),
     )
 
 

@@ -9,7 +9,7 @@ import json
 import threading
 import time
 from collections.abc import Callable, Mapping
-from contextlib import nullcontext
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
@@ -35,7 +35,6 @@ from .request_options import (
     redraw_arguments,
     repair_arguments,
 )
-from .rest import RestServices, rest_due
 from .worker_channels import Connection, Heartbeat, HubListener, Management, ProgressRelay
 
 if TYPE_CHECKING:
@@ -75,6 +74,7 @@ class WorkServices:
     kinds: tuple[str, ...] = ("generate", "redraw", "repair", "masked_redraw",
                               "deliver", "dof")
     heartbeat: Callable[..., Heartbeat] = Heartbeat
+    keep_awake: Callable[[], AbstractContextManager] = nullcontext
     hub: Callable[[], Connection] | None = None
     draining: Callable[[], bool] | None = None
     drained: Callable[[], None] | None = None
@@ -83,7 +83,6 @@ class WorkServices:
     ping_interval: float = 30
     clock: Callable[[], float] = time.monotonic
     timings: AttemptTimings | None = None
-    rest: RestServices | None = None
 
 
 def _request_path(output_root: Path, request_id: object) -> Path:
@@ -263,32 +262,22 @@ def work_once(services: WorkServices, *, dry_run: bool = False,
             services.emit(json.dumps(items[0], indent=2, ensure_ascii=False))
         return False
     try:
-        row = _claim(services)
+        row = services.management.request(
+            "POST", CLAIM_PATH,
+            {"worker_id": services.worker_id, "kinds": list(services.kinds)})
     except SystemExit as error:
         services.emit(f"claim failed: {error}")
         return False
     if row is None:
         return False
-    _process(services, row, listener, relay)
-    return True
-
-
-def _claim(services: WorkServices) -> Mapping | None:
-    return services.management.request(
-        "POST", CLAIM_PATH,
-        {"worker_id": services.worker_id, "kinds": list(services.kinds)})
-
-
-def _process(services: WorkServices, row: Mapping,
-             listener: HubListener | None, relay: ProgressRelay | None) -> None:
     if services.timings is not None:
         services.timings.begin(row.get("attempt"))
     if listener is not None:
         listener.send_progress(row["id"], "submit")
     failure: BaseException | None = None
-    awake = services.rest.keep_awake() if services.rest is not None else nullcontext()
-    with awake, services.heartbeat(services.management, row["id"], services.worker_id,
-                                   interval=services.heartbeat_interval, emit=services.emit):
+    with services.keep_awake(), services.heartbeat(
+            services.management, row["id"], services.worker_id,
+            interval=services.heartbeat_interval, emit=services.emit):
         if relay is not None:
             relay.current = row["id"]
         try:
@@ -302,39 +291,11 @@ def _process(services: WorkServices, row: Mapping,
         _report(services, row["id"], {"status": "failed", "error": str(failure)})
         _send_timings(services, row["id"], "failed")
         services.emit(f"request {row['id']} failed: {failure}")
-        return
+        return True
     _report(services, row["id"], {"status": "done", "result": result})
     _send_timings(services, row["id"], "done")
     services.emit(f"request {row['id']} done")
-
-
-def _rest(services: WorkServices, rest: RestServices,
-          listener: HubListener | None, relay: ProgressRelay | None) -> None:
-    """Announce the sleep, claim once more, and suspend only if that finds nothing.
-
-    A row claimed after the announcement is processed instead; the far end
-    takes a host that keeps answering as a cancelled sleep.
-    """
-    try:
-        rest.announce(rest.reason())
-    except (SystemExit, Exception) as error:
-        services.emit(f"! sleep notice failed: {error}")
-    try:
-        row = _claim(services)
-    except SystemExit as error:
-        services.emit(f"sleep cancelled, claim failed: {error}")
-        return
-    if row is not None:
-        services.emit(f"sleep cancelled, claimed {row['id']}")
-        _process(services, row, listener, relay)
-        return
-    services.emit(f"sleeping: {rest.reason()}")
-    try:
-        rest.suspend()
-    except (SystemExit, Exception) as error:
-        services.emit(f"! suspend failed: {error}")
-        return
-    services.emit("resumed")
+    return True
 
 
 def release_claims(services: WorkServices) -> None:
@@ -419,8 +380,6 @@ def work(services: WorkServices, *, interval: float = 30, once: bool = False,
             listener = HubListener(services, wake).start()
         if services.progress_feed is not None:
             relay = ProgressRelay(services, listener).start()
-        rest = None if dry_run else services.rest
-        last_done = services.clock()
         while True:
             if _draining(services):
                 services.emit("draining: no new work claimed")
@@ -431,15 +390,8 @@ def work(services: WorkServices, *, interval: float = 30, once: bool = False,
                                       listener=listener, relay=relay)
             if once:
                 return
-            if did_something:
-                last_done = services.clock()
-                continue
-            if rest is not None and rest_due(
-                    rest, services.clock() - last_done, services.emit):
-                _rest(services, rest, listener, relay)
-                last_done = services.clock()
-                continue
-            _idle(services, wake if listener is not None else None, interval)
+            if not did_something:
+                _idle(services, wake if listener is not None else None, interval)
     except KeyboardInterrupt:
         interrupted = True
         services.emit("work stopped")

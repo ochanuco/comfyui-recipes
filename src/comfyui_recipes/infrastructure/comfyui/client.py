@@ -92,10 +92,6 @@ class ComfyUIClient:
             self.timings.resumed(prompt_id)
         return known
 
-    def busy(self) -> bool:
-        queue = self.request("/queue")
-        return bool(queue.get("queue_running") or queue.get("queue_pending"))
-
     def _wait_for_entry(self, prompt_id: str) -> dict:
         deadline = time.time() + self.poll_timeout
         while time.time() < deadline:

@@ -7,6 +7,7 @@ test_redraw_application.py, test_deliver_application.py and the repair tests).
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import tempfile
 import threading
@@ -16,6 +17,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from comfyui_recipes.application.generate import GenerateServices
+from comfyui_recipes.application.rest import RestServices
 from comfyui_recipes.application.work import (
     WorkServices,
     execute,
@@ -1255,6 +1257,140 @@ class WorkOnceHubTest(unittest.TestCase):
             work_once(services, relay=relay)
             self.assertEqual(observed["during"], "req-1")
             self.assertIsNone(relay.current)
+
+
+class RestLoopTest(unittest.TestCase):
+    """The idle worker announces, claims once more, then suspends the host."""
+
+    def setUp(self):
+        self.now = 0.0
+        self.events = []
+        self.input_idle = 10_000.0
+        self.busy = False
+        self.announce_error = None
+        self.suspend_error = None
+
+    def clock(self):
+        return self.now
+
+    def advance(self, seconds):
+        self.now += seconds
+
+    def announce(self, reason):
+        self.events.append(("announce", reason))
+        if self.announce_error is not None:
+            raise self.announce_error
+
+    def suspend(self):
+        self.events.append(("suspend", self.now))
+        if self.suspend_error is not None:
+            error, self.suspend_error = self.suspend_error, None
+            raise error
+        raise KeyboardInterrupt
+
+    @contextlib.contextmanager
+    def keep_awake(self):
+        self.events.append(("awake",))
+        try:
+            yield
+        finally:
+            self.events.append(("asleep-ok",))
+
+    def rest(self, after=600):
+        return RestServices(
+            after=after,
+            input_idle=lambda: self.input_idle,
+            comfyui_busy=lambda: self.busy,
+            announce=self.announce,
+            suspend=self.suspend,
+            keep_awake=self.keep_awake,
+        )
+
+    def run_loop(self, directory, claim_responses, *, after=600, generate_seconds=0,
+                 max_sleeps=100, dry_run=False):
+        management = ManagementFake(claim_responses=claim_responses)
+        messages = []
+        sleeps = []
+
+        def fake_generate(path, generate_services, *, key_prefix=None, **kwargs):
+            self.events.append(("generate",))
+            self.advance(generate_seconds)
+            return {"generation_ids": []}
+
+        def sleep(seconds):
+            sleeps.append(seconds)
+            if len(sleeps) >= max_sleeps:
+                raise KeyboardInterrupt
+            self.advance(seconds)
+
+        services = dataclasses.replace(
+            make_services(directory, management, generate=fake_generate,
+                          sleep=sleep, emit=messages.append),
+            clock=self.clock, rest=self.rest(after))
+        work(services, publish_catalog=False, dry_run=dry_run)
+        return management, messages, sleeps
+
+    def test_sleeps_once_idle_for_the_threshold_after_the_last_job(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, messages, sleeps = self.run_loop(
+                directory, [generate_row()], generate_seconds=5000)
+            self.assertEqual(len(sleeps), 20)
+            self.assertEqual(self.events[-2:], [("announce", "idle 10m"), ("suspend", 5600)])
+            self.assertIn("sleeping: idle 10m", messages)
+
+    def test_keeps_the_host_awake_only_while_a_job_runs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.run_loop(directory, [generate_row()])
+            self.assertEqual(self.events[:3], [("awake",), ("generate",), ("asleep-ok",)])
+
+    def test_console_input_holds_off_sleep(self):
+        self.input_idle = 599
+        with tempfile.TemporaryDirectory() as directory:
+            self.run_loop(directory, [], max_sleeps=60)
+            self.assertEqual(self.events, [])
+
+    def test_a_busy_comfyui_holds_off_sleep(self):
+        self.busy = True
+        with tempfile.TemporaryDirectory() as directory:
+            self.run_loop(directory, [], max_sleeps=60)
+            self.assertEqual(self.events, [])
+
+    def test_a_claim_after_the_announcement_cancels_the_sleep(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, messages, _ = self.run_loop(directory, [None, generate_row()], after=0)
+            self.assertEqual(
+                [event[0] for event in self.events],
+                ["announce", "awake", "generate", "asleep-ok", "announce", "suspend"])
+            self.assertIn("sleep cancelled, claimed req-1", messages)
+
+    def test_a_failed_last_claim_cancels_the_sleep(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, messages, _ = self.run_loop(
+                directory, [None, SystemExit("chimera down")], after=0)
+            self.assertEqual([event[0] for event in self.events],
+                             ["announce", "announce", "suspend"])
+            self.assertIn("sleep cancelled, claim failed: chimera down", messages)
+
+    def test_a_failed_announcement_still_sleeps(self):
+        self.announce_error = OSError("timed out")
+        with tempfile.TemporaryDirectory() as directory:
+            _, messages, _ = self.run_loop(directory, [], after=0)
+            self.assertEqual([event[0] for event in self.events], ["announce", "suspend"])
+            self.assertIn("! sleep notice failed: timed out", messages)
+
+    def test_a_failed_suspend_restarts_the_idle_clock(self):
+        self.suspend_error = SystemExit("hibernation is enabled")
+        with tempfile.TemporaryDirectory() as directory:
+            _, messages, sleeps = self.run_loop(directory, [])
+            self.assertIn("! suspend failed: hibernation is enabled", messages)
+            self.assertEqual(len(sleeps), 40)
+            self.assertEqual([event[1] for event in self.events if event[0] == "suspend"],
+                             [600, 1200])
+
+    def test_dry_run_never_sleeps_the_host(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.run_loop(directory, [], after=0, max_sleeps=3, dry_run=True)
+            self.assertEqual(self.events, [])
 
 
 if __name__ == "__main__":
